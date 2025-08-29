@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>One‑Thumb Racer</title>
+  <style>
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --accent: #0ff;
+      --danger: #f33;
+      --coin: #ff0;
+      --road: #111;
+      --lane: #222;
+      --hud: #fff;
+      --pad: #0a0a0a;
+      --padBorder: #333;
+      --padGlow: rgba(255,255,255,0.15);
+      --shadow: rgba(0,0,0,0.7);
+      --muted: #aaa;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    #wrap {
+      height: 100svh;
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+    #gameArea {
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+    }
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px var(--shadow);
+      pointer-events: none;
+      z-index: 3;
+    }
+    #hud .pill {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 6px 10px;
+      pointer-events: auto;
+    }
+    #buttons {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 8px;
+      z-index: 4;
+    }
+    button.icon {
+      pointer-events: auto;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid #333;
+      color: var(--fg);
+      font-size: 16px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    button.icon:active { transform: scale(0.98); }
+    #thumbPadWrap {
+      display: grid;
+      place-items: center;
+      padding: 8px 12px 14px;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.04));
+      border-top: 1px solid #222;
+    }
+    #thumbPad {
+      width: min(95vw, 680px);
+      height: 26vh;
+      max-height: 260px;
+      min-height: 120px;
+      border-radius: 18px;
+      background: var(--pad);
+      border: 1px solid var(--padBorder);
+      box-shadow: 0 0 0 6px var(--padGlow) inset;
+      position: relative;
+      touch-action: none;
+      overflow: hidden;
+    }
+    #thumbHint {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      opacity: 0.8;
+      color: var(--muted);
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.2;
+    }
+    #stick {
+      position: absolute;
+      width: 84px; height: 84px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      border: 2px solid #444;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      transform: translate(-50%, -50%);
+      left: 50%; top: 64%;
+      pointer-events: none;
+      display: none;
+    }
+    #startOverlay, #gameOver {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.75), rgba(0,0,0,0.95));
+      z-index: 5;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      border: 1px solid #333;
+      background: rgba(0,0,0,0.6);
+      border-radius: 14px;
+      padding: 16px;
+      max-width: 720px;
+      width: min(92vw, 720px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.6);
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(22px, 5vw, 34px); }
+    p { margin: 6px 0; color: #ddd; }
+    .row { display:flex; gap:10px; justify-content:center; flex-wrap: wrap; margin-top: 10px; }
+    .btn {
+      background: #111; color: #fff; border: 1px solid #444;
+      padding: 12px 16px; border-radius: 12px; font-weight: 700; cursor:pointer;
+    }
+    .btn:active { transform: scale(0.98); }
+    .small { font-size: 13px; color: #aaa; }
+    .accent { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="gameArea">
+      <canvas id="game"></canvas>
+      <div id="hud">
+        <div class="pill" id="scorePill">Score: <span id="score">0</span></div>
+        <div class="pill">Speed: <span id="speed">0</span></div>
+        <div class="pill">Best: <span id="best">0</span></div>
+      </div>
+      <div id="buttons">
+        <button class="icon" id="toggleHand" aria-label="Toggle left/right thumb area">🤚</button>
+        <button class="icon" id="toggleTilt" aria-label="Toggle tilt control">📱</button>
+        <button class="icon" id="pauseBtn" aria-label="Pause">⏸︎</button>
+        <button class="icon" id="themeBtn" aria-label="Invert theme">🌓</button>
+      </div>
+
+      <div id="startOverlay" role="dialog" aria-modal="true">
+        <div class="card">
+          <h1>One‑Thumb Racer</h1>
+          <p>Drive with just your thumb. Drag anywhere in the pad to steer. Long‑press for <span class="accent">Nitro</span>.</p>
+          <p class="small">High‑contrast, white‑on‑black by default.</p>
+          <div class="row">
+            <button class="btn" id="startBtn">Start</button>
+            <button class="btn" id="howBtn">How to Play</button>
+          </div>
+          <p class="small">Tip: Use the 📱 button to try tilt steering.</p>
+        </div>
+      </div>
+
+      <div id="gameOver" hidden role="dialog" aria-modal="true">
+        <div class="card">
+          <h1>Crash! 💥</h1>
+          <p>Score: <span id="finalScore">0</span> • Best: <span id="finalBest">0</span></p>
+          <div class="row">
+            <button class="btn" id="retryBtn">Retry</button>
+            <button class="btn" id="shareBtn">Share</button>
+          </div>
+          <p class="small">Tap Retry to jump back in.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="thumbPadWrap">
+      <div id="thumbPad" aria-label="Thumb steering pad">
+        <div id="thumbHint">Drag left ↔ right to steer<br>Press &amp; hold for Nitro 🔥</div>
+        <div id="stick"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Persisted settings
+    const settings = JSON.parse(localStorage.getItem('otr_settings') || '{}');
+    const prefersDark = true; // default white on black
+    let themeInverted = settings.themeInverted ?? false;
+
+    function applyTheme() {
+      if (themeInverted) {
+        document.documentElement.style.setProperty('--bg', '#fff');
+        document.documentElement.style.setProperty('--fg', '#000');
+        document.documentElement.style.setProperty('--hud', '#000');
+        document.documentElement.style.setProperty('--pad', '#f3f3f3');
+        document.documentElement.style.setProperty('--padBorder', '#ddd');
+        document.documentElement.style.setProperty('--padGlow', 'rgba(0,0,0,0.08)');
+        document.body.style.background = '#fff';
+      } else {
+        document.documentElement.style.setProperty('--bg', '#000');
+        document.documentElement.style.setProperty('--fg', '#fff');
+        document.documentElement.style.setProperty('--hud', '#fff');
+        document.documentElement.style.setProperty('--pad', '#0a0a0a');
+        document.documentElement.style.setProperty('--padBorder', '#333');
+        document.documentElement.style.setProperty('--padGlow', 'rgba(255,255,255,0.15)');
+        document.body.style.background = '#000';
+      }
+    }
+    applyTheme();
+
+    // Canvas setup (resolution-aware)
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      W = Math.floor(rect.width * DPR);
+      H = Math.floor(rect.height * DPR);
+      canvas.width = W;
+      canvas.height = H;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // UI elements
+    const scoreEl = document.getElementById('score');
+    const speedEl = document.getElementById('speed');
+    const bestEl = document.getElementById('best');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOver = document.getElementById('gameOver');
+    const finalScore = document.getElementById('finalScore');
+    const finalBest = document.getElementById('finalBest');
+    const thumbPad = document.getElementById('thumbPad');
+    const thumbHint = document.getElementById('thumbHint');
+    const stick = document.getElementById('stick');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const toggleTilt = document.getElementById('toggleTilt');
+    const toggleHand = document.getElementById('toggleHand');
+    const themeBtn = document.getElementById('themeBtn');
+    const startBtn = document.getElementById('startBtn');
+    const howBtn = document.getElementById('howBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const scorePill = document.getElementById('scorePill');
+
+    // Game state
+    let running = false;
+    let paused = false;
+    let tPrev = 0;
+    let player, road, objs, score, best, speed, tiltMode, rightHandMode;
+    best = parseInt(localStorage.getItem('otr_best') || '0', 10) || 0;
+    bestEl.textContent = best;
+
+    // Road & object helpers
+    function resetGame() {
+      player = {
+        x: 0.5,          // normalized 0..1 across road width
+        y: 0.85,         // normalized vertical position on screen
+        vx: 0,           // horizontal velocity
+        targetX: 0.5,
+        width: 0.06,     // relative to road width
+        height: 0.1,
+        nitro: 0,
+        alive: true,
+      };
+      road = {
+        lanes: 3,
+        widthPx: Math.min(W, H) * 0.9,
+        centerX: W / 2,
+        scroll: 0,
+        stripeH: 38,
+      };
+      objs = [];
+      score = 0;
+      speed = 450; // px per second base
+      tiltMode = settings.tiltMode ?? false;
+      rightHandMode = settings.rightHandMode ?? true;
+      paused = false;
+      updatePadPosition();
+      spawnInitial();
+      updateHUD();
+    }
+
+    function updateHUD() {
+      scoreEl.textContent = Math.floor(score);
+      speedEl.textContent = Math.floor(speed);
+      bestEl.textContent = best;
+    }
+
+    function laneX(n) {
+      const laneW = road.widthPx / road.lanes;
+      const left = road.centerX - road.widthPx / 2;
+      return left + laneW * (n + 0.5);
+    }
+
+    function worldToCanvas(px, py) {
+      const x = road.centerX - road.widthPx / 2 + px * road.widthPx;
+      const y = H * py;
+      return [x, y];
+    }
+
+    function drawRoad(dt) {
+      // Road background
+      ctx.fillStyle = getCssVar('--road');
+      ctx.fillRect(0, 0, W, H);
+
+      // Road rectangle
+      const left = road.centerX - road.widthPx / 2;
+      ctx.fillStyle = getCssVar('--lane');
+      ctx.fillRect(left, 0, road.widthPx, H);
+
+      // Lane stripes scrolling
+      road.scroll = (road.scroll + dt * speed * 0.5) % (road.stripeH * 2);
+      ctx.fillStyle = '#666';
+      const laneW = road.widthPx / road.lanes;
+      for (let i = 1; i < road.lanes; i++) {
+        const x = left + i * laneW - 2;
+        for (let y = -road.stripeH*2; y < H; y += road.stripeH * 2) {
+          ctx.fillRect(x, y + road.scroll, 4, road.stripeH);
+        }
+      }
+      // Roadside
+      ctx.fillStyle = '#444';
+      ctx.fillRect(left - 8, 0, 8, H);
+      ctx.fillRect(left + road.widthPx, 0, 8, H);
+    }
+
+    function drawCar(x, y, w, h, color='#0ff') {
+      // Simple high-contrast car
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = color;
+      // body
+      ctx.fillRect(-w/2, -h/2, w, h);
+      // windshield
+      ctx.fillStyle = themeInverted ? '#000' : '#fff';
+      ctx.fillRect(-w*0.28, -h*0.3, w*0.56, h*0.2);
+      // wheels
+      ctx.fillStyle = '#999';
+      const wheelW = w * 0.18, wheelH = h * 0.14;
+      ctx.fillRect(-w/2 - wheelW*0.2, -h*0.3, wheelW, wheelH);
+      ctx.fillRect(-w/2 - wheelW*0.2,  h*0.16, wheelW, wheelH);
+      ctx.fillRect( w/2 - wheelW*0.8, -h*0.3, wheelW, wheelH);
+      ctx.fillRect( w/2 - wheelW*0.8,  h*0.16, wheelW, wheelH);
+      ctx.restore();
+    }
+
+    function drawCoin(x, y, r) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = getCssVar('--coin');
+      ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = themeInverted ? '#000' : '#000'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawObstacle(x, y, w, h) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = getCssVar('--danger');
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.restore();
+    }
+
+    function getCssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    // Objects
+    function spawnInitial() {
+      objs.length = 0;
+      let y = -H * 0.2;
+      for (let i=0; i<16; i++) {
+        spawnRow(y);
+        y -= 160 + Math.random()*120;
+      }
+    }
+
+    function spawnRow(y) {
+      const type = Math.random() < 0.65 ? 'obstacle' : 'coin';
+      const lane = Math.floor(Math.random() * road.lanes);
+      const px = (lane + 0.5) / road.lanes;
+      if (type === 'obstacle') {
+        objs.push({type, x:px, y:y/H, w:0.12, h:0.12});
+        if (Math.random()<0.25) {
+          // second obstacle with gap
+          let lane2 = (lane + 1 + Math.floor(Math.random()* (road.lanes-1))) % road.lanes;
+          const px2 = (lane2 + 0.5) / road.lanes;
+          objs.push({type, x:px2, y:y/H - 0.08, w:0.12, h:0.12});
+        }
+      } else {
+        objs.push({type, x:px, y:y/H, r: Math.max(8, Math.min(18, W*0.02))});
+      }
+    }
+
+    function update(dt) {
+      if (!running || paused) return;
+      // speed ramp
+      const boost = player.nitro > 0 ? 1.8 : 1.0;
+      speed = Math.min(speed + dt*12, 1100) * boost;
+
+      // player horizontal easing
+      const lerp = (a,b,t) => a + (b-a)*t;
+      player.x = lerp(player.x, player.targetX, 0.22);
+
+      // move world
+      const dy = (speed * dt) / H;
+      road.scroll += speed * dt;
+      for (const o of objs) o.y += dy;
+
+      // recycle rows
+      while (objs.length && objs[0].y > 1.2) {
+        objs.shift();
+      }
+      // spawn new content
+      if (objs.length === 0 || objs[objs.length-1].y > -0.2) {
+        spawnRow(-220);
+      }
+
+      // collisions
+      const [px, py] = worldToCanvas(player.x, player.y);
+      const carW = road.widthPx * player.width;
+      const carH = H * player.height;
+      for (let i=objs.length-1; i>=0; i--) {
+        const o = objs[i];
+        const [ox, oy] = worldToCanvas(o.x, o.y);
+        if (o.type === 'obstacle') {
+          const ow = road.widthPx*o.w, oh = H*o.h;
+          if (Math.abs(ox-px) < (ow+carW)/2 * 0.86 && Math.abs(oy-py) < (oh+carH)/2 * 0.86) {
+            crash();
+            return;
+          }
+        } else if (o.type === 'coin') {
+          const r = o.r;
+          if (Math.abs(ox-px) < r + carW*0.35 && Math.abs(oy-py) < r + carH*0.35) {
+            objs.splice(i,1);
+            score += 25;
+          }
+        }
+      }
+
+      // scoring over time
+      score += dt * (speed * 0.05);
+      if (score > best) {
+        best = Math.floor(score);
+        localStorage.setItem('otr_best', String(best));
+      }
+      // nitro decay
+      if (player.nitro > 0) player.nitro -= dt;
+
+      updateHUD();
+    }
+
+    function render() {
+      // Clear
+      ctx.clearRect(0,0,W,H);
+      // Road & lanes
+      drawRoad(0);
+      // Draw objects
+      for (const o of objs) {
+        const [ox, oy] = worldToCanvas(o.x, o.y);
+        if (o.type === 'obstacle') {
+          drawObstacle(ox, oy, road.widthPx*o.w, H*o.h);
+        } else {
+          drawCoin(ox, oy, o.r);
+        }
+      }
+      // Player
+      const [px, py] = worldToCanvas(player.x, player.y);
+      drawCar(px, py, road.widthPx*player.width, H*player.height, getCssVar('--accent'));
+
+      // Nitro flames indicator
+      if (player.nitro > 0) {
+        ctx.fillStyle = '#f80';
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(px - road.widthPx*player.width*0.22, py + H*player.height*0.52);
+        ctx.lineTo(px + road.widthPx*player.width*0.22, py + H*player.height*0.52);
+        ctx.lineTo(px, py + H*player.height*0.86);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Pause overlay
+      if (paused) {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = getCssVar('--fg');
+        ctx.font = 'bold 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Paused', W/2, H/2);
+      }
+    }
+
+    function loop(t) {
+      if (!running) return;
+      const dt = Math.min(0.05, (t - tPrev) / 1000) || 0;
+      tPrev = t;
+      if (!paused) {
+        update(dt);
+        render();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    function crash() {
+      running = false;
+      paused = false;
+      render();
+      finalScore.textContent = Math.floor(score);
+      finalBest.textContent = Math.floor(best);
+      gameOver.hidden = false;
+    }
+
+    // Controls: thumb pad
+    let padActive = false, padStartX = 0, padWidth = 1;
+    let nitroTimer = 0, holdActive = false;
+
+    function updatePadPosition() {
+      // Flip pad for left/right hand preference by aligning hint/initial stick
+      thumbPad.style.justifySelf = rightHandMode ? 'end' : 'start';
+      thumbHint.style.left = rightHandMode ? '62%' : '38%';
+    }
+
+    function startNitro() {
+      player.nitro = Math.min(player.nitro + 1.6, 2.8); // stack a bit
+      scorePill.style.borderColor = '#f80';
+      scorePill.style.boxShadow = '0 0 0 2px rgba(255,128,0,0.35) inset';
+      setTimeout(()=>{
+        scorePill.style.borderColor = '#333';
+        scorePill.style.boxShadow = 'none';
+      }, 250);
+    }
+
+    function onPadStart(x, y) {
+      padActive = true;
+      padStartX = x;
+      padWidth = thumbPad.getBoundingClientRect().width;
+      stick.style.display = 'block';
+      positionStick(x, y);
+      thumbHint.style.opacity = 0.15;
+      nitroTimer = performance.now();
+      holdActive = true;
+    }
+
+    function onPadMove(x, y) {
+      if (!padActive) return;
+      const dx = (x - padStartX) / padWidth; // -1..1-ish
+      const sensitivity = 1.2;
+      player.targetX = clamp01(player.targetX + dx * sensitivity);
+      padStartX = x;
+      positionStick(x, y);
+      // prevent scroll
+    }
+
+    function onPadEnd() {
+      if (!padActive) return;
+      const heldFor = performance.now() - nitroTimer;
+      if (heldFor > 420) startNitro();
+      padActive = false;
+      holdActive = false;
+      stick.style.display = 'none';
+      thumbHint.style.opacity = 0.8;
+    }
+
+    function positionStick(x, y) {
+      const r = thumbPad.getBoundingClientRect();
+      let cx = clamp(x, r.left+38, r.right-38);
+      let cy = clamp(y, r.top+38, r.bottom-38);
+      stick.style.left = (cx - r.left) + 'px';
+      stick.style.top = (cy - r.top) + 'px';
+    }
+
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+    function clamp01(v){ return clamp(v, 0.05, 0.95); }
+
+    // Touch/mouse listeners
+    thumbPad.addEventListener('touchstart', e=>{
+      const t = e.changedTouches[0];
+      onPadStart(t.clientX, t.clientY);
+      e.preventDefault();
+    }, {passive:false});
+    thumbPad.addEventListener('touchmove', e=>{
+      const t = e.changedTouches[0];
+      onPadMove(t.clientX, t.clientY);
+      e.preventDefault();
+    }, {passive:false});
+    thumbPad.addEventListener('touchend', e=>{
+      onPadEnd();
+      e.preventDefault();
+    }, {passive:false});
+    thumbPad.addEventListener('mousedown', e=>{
+      onPadStart(e.clientX, e.clientY);
+    });
+    window.addEventListener('mousemove', e=>{
+      if (padActive) onPadMove(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', e=>{
+      onPadEnd();
+    });
+
+    // Tilt control (optional)
+    let tiltListenerAdded = false;
+    function setTiltMode(on) {
+      tiltMode = on;
+      settings.tiltMode = tiltMode;
+      localStorage.setItem('otr_settings', JSON.stringify(settings));
+      toggleTilt.style.opacity = tiltMode ? 1 : 0.6;
+      if (tiltMode && !tiltListenerAdded) {
+        window.addEventListener('deviceorientation', onTilt);
+        tiltListenerAdded = true;
+      } else if (!tiltMode && tiltListenerAdded) {
+        window.removeEventListener('deviceorientation', onTilt);
+        tiltListenerAdded = false;
+      }
+    }
+    function onTilt(ev) {
+      if (!tiltMode || !running || paused) return;
+      // gamma ~ left/right
+      const gamma = ev.gamma || 0;
+      const dx = clamp(gamma / 60, -0.015, 0.015);
+      player.targetX = clamp01(player.targetX + dx);
+    }
+
+    // Buttons
+    themeBtn.addEventListener('click', ()=>{
+      themeInverted = !themeInverted;
+      settings.themeInverted = themeInverted;
+      localStorage.setItem('otr_settings', JSON.stringify(settings));
+      applyTheme();
+      render();
+    });
+    toggleTilt.addEventListener('click', ()=> setTiltMode(!tiltMode));
+    toggleHand.addEventListener('click', ()=>{
+      rightHandMode = !rightHandMode;
+      settings.rightHandMode = rightHandMode;
+      localStorage.setItem('otr_settings', JSON.stringify(settings));
+      updatePadPosition();
+    });
+    pauseBtn.addEventListener('click', ()=>{
+      paused = !paused;
+      pauseBtn.textContent = paused ? '▶︎' : '⏸︎';
+    });
+
+    // Start / How / Retry
+    startBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', startGame);
+    shareBtn.addEventListener('click', async ()=>{
+      const text = `I scored ${Math.floor(score)} in One‑Thumb Racer!`;
+      if (navigator.share) {
+        try { await navigator.share({ text }); } catch { /* ignore */ }
+      } else {
+        navigator.clipboard.writeText(text);
+        alert('Score copied to clipboard!');
+      }
+    });
+    howBtn.addEventListener('click', ()=>{
+      alert('Drag in the pad to steer left/right.\nPress & hold for a Nitro burst.\nAvoid red blocks, collect yellow coins.\nTry the 📱 button for optional tilt steering.\nUse 🤚 to flip the pad for left/right hand.');
+    });
+
+    function startGame() {
+      startOverlay.style.display = 'none';
+      gameOver.hidden = true;
+      resetGame();
+      running = true;
+      tPrev = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    // Initial draw
+    resetGame();
+    render();
+
+    // Utility: keep canvas sized
+    const ro = new ResizeObserver(resize);
+    ro.observe(document.getElementById('gameArea'));
+  </script>
+</body>
+</html>
