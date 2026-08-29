@@ -1,0 +1,55 @@
+{
+  "date": "2026-08-29",
+  "startedAt": "2026-08-29T19:34:19.777+00:00",
+  "finishedAt": "2026-08-29T19:34:20.643+00:00",
+  "stages": {
+    "idempotency_check": {
+      "status": "OK",
+      "finishedAt": "2026-08-29T19:34:19.778+00:00"
+    },
+    "research": {
+      "status": "OK",
+      "detail": "13 candidates",
+      "finishedAt": "2026-08-29T19:34:19.779+00:00"
+    },
+    "verification": {
+      "status": "OK",
+      "detail": "{\"verifiedCount\":10,\"rejectedCount\":1,\"needsReviewCount\":2}",
+      "finishedAt": "2026-08-29T19:34:19.780+00:00"
+    },
+    "selection": {
+      "status": "OK",
+      "detail": "11 items selected",
+      "finishedAt": "2026-08-29T19:34:19.781+00:00"
+    },
+    "assets": {
+      "status": "OK",
+      "detail": "0 decorative asset(s)",
+      "finishedAt": "2026-08-29T19:34:19.782+00:00"
+    },
+    "render": {
+      "status": "OK",
+      "detail": "scale=0.938",
+      "finishedAt": "2026-08-29T19:34:20.610+00:00"
+    },
+    "qa": {
+      "status": "OK",
+      "detail": "0 issue(s)",
+      "finishedAt": "2026-08-29T19:34:20.642+00:00"
+    },
+    "caption": {
+      "status": "OK",
+      "finishedAt": "2026-08-29T19:34:20.642+00:00"
+    },
+    "publish": {
+      "status": "OK",
+      "detail": "SKIPPED_DRY_RUN",
+      "finishedAt": "2026-08-29T19:34:20.643+00:00"
+    }
+  },
+  "candidateCount": 13,
+  "verifiedCount": 10,
+  "rejectedCount": 1,
+  "publishStatus": "SKIPPED_DRY_RUN",
+  "failureStage": null
+}

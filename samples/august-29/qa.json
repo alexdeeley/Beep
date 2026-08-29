@@ -1,0 +1,65 @@
+{
+  "status": "PASS",
+  "issues": [],
+  "programmaticChecks": [
+    {
+      "name": "correct_calendar_date",
+      "passed": true,
+      "detail": "2026-08-29 vs expected 2026-08-29"
+    },
+    {
+      "name": "all_items_verified",
+      "passed": true,
+      "detail": "0 non-verified item(s)"
+    },
+    {
+      "name": "no_duplicates_births",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no_duplicates_deaths",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no_duplicates_events+incidents",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no_empty_cards",
+      "passed": true,
+      "detail": "0 empty/incomplete item(s)"
+    },
+    {
+      "name": "no_placeholder_text",
+      "passed": true,
+      "detail": "0 hit(s)"
+    },
+    {
+      "name": "no_malformed_characters",
+      "passed": true,
+      "detail": "0 item(s)"
+    },
+    {
+      "name": "correct_dimensions",
+      "passed": true,
+      "detail": "actual 1080x1350, expected 1080x1350"
+    },
+    {
+      "name": "no_overflow_clipping",
+      "passed": true,
+      "detail": "scale=0.938"
+    },
+    {
+      "name": "no_accidental_white_margins",
+      "passed": true,
+      "detail": "corner brightness: 20, 20, 10, 10"
+    }
+  ],
+  "visionCheck": {
+    "ran": false
+  },
+  "checkedAt": "2026-08-29T19:34:20.641+00:00"
+}

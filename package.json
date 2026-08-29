@@ -1,0 +1,42 @@
+{
+  "name": "on-this-day",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Autonomous daily 'On This Day' historical infographic generator and Instagram publisher.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "research": "tsx src/cli/index.ts research",
+    "verify": "tsx src/cli/index.ts verify",
+    "select": "tsx src/cli/index.ts select",
+    "render": "tsx src/cli/index.ts render",
+    "qa": "tsx src/cli/index.ts qa",
+    "caption": "tsx src/cli/index.ts caption",
+    "publish": "tsx src/cli/index.ts publish",
+    "daily": "tsx src/cli/index.ts daily",
+    "inspect": "tsx src/cli/index.ts inspect",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.632.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.5.0",
+    "openai": "^4.56.0",
+    "playwright": "^1.47.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.4.2",
+    "@types/node": "^20.14.15",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

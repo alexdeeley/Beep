@@ -1,0 +1,86 @@
+name: Daily On This Day post
+
+# Cron is always evaluated in UTC by GitHub Actions, but the publish
+# decision itself is timezone-safe: the app resolves "today" using
+# APP_TIMEZONE (default America/Los_Angeles) via Luxon, not the runner's
+# UTC clock. We schedule TWO triggers, 13:30 UTC and 12:30 UTC, to cover
+# both PST (UTC-8) and PDT (UTC-7) so a ~5:30am Pacific post lands
+# reliably across DST transitions. Whichever run fires second on a given
+# day will find today's post already published (idempotency guard in
+# src/utils/stateStore.ts) and exit immediately without doing any
+# research/render/publish work.
+on:
+  schedule:
+    - cron: "30 13 * * *" # ~05:30 America/Los_Angeles during PST
+    - cron: "30 12 * * *" # ~05:30 America/Los_Angeles during PDT
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Override publish date (YYYY-MM-DD). Leave blank to use today in APP_TIMEZONE."
+        required: false
+        type: string
+      dry_run:
+        description: "Run the full pipeline but never actually publish to Instagram"
+        required: false
+        type: boolean
+        default: false
+      fixture:
+        description: "Use the bundled August 29 test fixture instead of calling OpenAI (for pipeline testing only)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: on-this-day-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run daily pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          META_API_VERSION: ${{ vars.META_API_VERSION }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          APP_TIMEZONE: ${{ vars.APP_TIMEZONE }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.date }}" ]; then ARGS="$ARGS --date ${{ inputs.date }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.fixture }}" = "true" ]; then ARGS="$ARGS --fixture"; fi
+          echo "Running: npm run daily -- $ARGS"
+          npm run daily -- $ARGS
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: on-this-day-run-${{ github.run_id }}
+          path: runs/
+          retention-days: 30
