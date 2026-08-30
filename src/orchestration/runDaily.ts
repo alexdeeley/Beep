@@ -21,6 +21,7 @@ import { generateSupportingAssets } from "../assets/generateAssets.js";
 import { renderInfographic, type RenderResult } from "../render/renderInfographic.js";
 import { runQualityChecks } from "../qa/runQA.js";
 import { generateCaption, composeFinalCaptionText } from "../caption/generateCaption.js";
+import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
 import { publishToBluesky } from "../bluesky/publish.js";
 import { loadFixture } from "./fixtures.js";
@@ -142,6 +143,7 @@ export async function runCaptionStage(ctx: RunContext, selected: SelectedContent
  */
 export async function runPublishStage(
   ctx: RunContext,
+  selected: SelectedContent,
   render: RenderResult,
   caption: CaptionResult,
   dryRun: boolean
@@ -155,12 +157,18 @@ export async function runPublishStage(
     publicUrl = upload.publicUrl;
   }
 
+  // Content-derived tags (people, places, event topics, categories - all
+  // ranked by each fact's own importance) get first claim on the 8 tag
+  // slots; the LLM's own hashtag guesses and the evergreen brand pool
+  // only fill in whatever room is left. See src/caption/hashtagExtraction.ts.
+  const tags = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+
   const record = await publishToBluesky(config, logger, {
     date: resolved.isoDate,
     localImagePath: render.feed.imagePath,
     publicImageUrl: publicUrl,
     altText: caption.caption,
-    tags: [...config.brand.hashtags, ...caption.hashtags],
+    tags,
     dryRun,
     alreadyPublished,
   });
@@ -251,7 +259,7 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     const caption = await runCaptionStage(ctx, selected);
     markStage(record, "caption", "OK");
 
-    const publish = await runPublishStage(ctx, render, caption, options.dryRun);
+    const publish = await runPublishStage(ctx, selected, render, caption, options.dryRun);
     markStage(record, "publish", publish.status === "FAILED" ? "FAILED" : "OK", publish.status);
     record.publishStatus = publish.status;
 

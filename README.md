@@ -218,14 +218,38 @@ content instead:
   get full access to everything the graphic says; sighted users just see a
   clean image-only post. There's no length limit on alt text.
 - Up to **8 discovery tags** get attached via Bluesky's dedicated `tags`
-  field (`HASHTAGS` in `.env` plus day-specific ones the caption model
-  generates). This is a hard AT Protocol limit - Bluesky's `tags` field
-  caps out at 8 entries, and there is no mechanism to attach more without
+  field. This is a hard AT Protocol limit - Bluesky's `tags` field caps
+  out at 8 entries, and there is no mechanism to attach more without
   putting them as literal `#hashtag` text inside the 300-character visible
   post, which is exactly the wall-of-text this design avoids. If you ever
   want visible inline hashtags instead, that would need to go back into
   the post `text` field in `src/bluesky/publish.ts` - trading off against
   the image-only look.
+
+### 7.6 How the 8 tags get chosen
+
+With only 8 slots, `src/caption/hashtagExtraction.ts` derives tags
+directly from that day's verified content instead of relying on generic
+filler. For every selected fact, ranked by its own selection score
+(highest-importance facts go first), it extracts, in priority order:
+
+1. The **person's name** (e.g. `MartinLutherKingJr`), if the fact has one.
+2. Otherwise a **topic phrase** pulled from the headline with stopwords
+   stripped (e.g. "Netflix Is Founded" → `NetflixFounded`).
+3. The fact's most specific **place** (the first segment of its location,
+   e.g. "Manassas, Virginia, USA" → `Manassas`).
+4. One **category** tag per distinct category present that day (e.g.
+   `War`, `Space`, `Music`) - added once, not once per item.
+
+That pool is combined with the LLM's own day-specific hashtag guesses and
+finally the evergreen `HASHTAGS` pool from `.env` (`#OnThisDay`,
+`#History`, etc.) as pure fallback filler - so on a content-rich day, all
+8 slots typically go to real names/places/topics from that day's actual
+stories, and the generic brand tags only appear when there isn't enough
+specific material to fill the cap. If you'd rather always guarantee a
+brand tag (e.g. `#OnThisDay`) regardless of content richness, reorder the
+`tags` array built in `runPublishStage()` in `src/orchestration/runDaily.ts`
+to put `config.brand.hashtags` first instead of last.
 
 ---
 
