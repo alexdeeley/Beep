@@ -22,7 +22,7 @@ import { renderInfographic, type RenderResult } from "../render/renderInfographi
 import { runQualityChecks } from "../qa/runQA.js";
 import { generateCaption, composeFinalCaptionText } from "../caption/generateCaption.js";
 import { uploadImage } from "../storage/storage.js";
-import { publishToTelegram } from "../telegram/publish.js";
+import { publishToBluesky } from "../bluesky/publish.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -134,7 +134,12 @@ export async function runCaptionStage(ctx: RunContext, selected: SelectedContent
   return result;
 }
 
-/** Stage: upload + publish. */
+/**
+ * Stage: upload + publish. The R2/S3 upload is kept as the permanent
+ * public archival copy (and a record of what was published) even though
+ * Bluesky itself uploads the image bytes directly rather than fetching
+ * a URL - the two are independent.
+ */
 export async function runPublishStage(
   ctx: RunContext,
   render: RenderResult,
@@ -150,8 +155,9 @@ export async function runPublishStage(
     publicUrl = upload.publicUrl;
   }
 
-  const record = await publishToTelegram(config, logger, {
+  const record = await publishToBluesky(config, logger, {
     date: resolved.isoDate,
+    localImagePath: render.feed.imagePath,
     publicImageUrl: publicUrl,
     caption: composeFinalCaptionText(caption),
     dryRun,
@@ -178,7 +184,7 @@ export interface DailyRunSummary {
  *   resolveLocalDate -> checkAlreadyPublished -> researchDate ->
  *   verifyCandidates -> selectContent -> generateSupportingAssets ->
  *   renderInfographic -> runQualityChecks -> generateCaption ->
- *   uploadImage -> publishToTelegram -> saveRunRecord
+ *   uploadImage -> publishToBluesky -> saveRunRecord
  *
  * Any critical failure (research, insufficient verified facts, render,
  * QA) stops the pipeline before publish. No post is better than a wrong

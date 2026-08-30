@@ -86,9 +86,10 @@ export interface AppConfig {
     endpoint: string | undefined;
   };
 
-  telegram: {
-    botToken: string | undefined;
-    chatId: string | undefined;
+  bluesky: {
+    identifier: string | undefined;
+    appPassword: string | undefined;
+    service: string;
     maxPublishAttempts: number;
   };
 
@@ -167,10 +168,11 @@ export function loadConfig(): AppConfig {
       endpoint: envStr("S3_ENDPOINT"),
     },
 
-    telegram: {
-      botToken: envStr("TELEGRAM_BOT_TOKEN"),
-      chatId: envStr("TELEGRAM_CHAT_ID"),
-      maxPublishAttempts: envInt("TELEGRAM_MAX_PUBLISH_ATTEMPTS", 3),
+    bluesky: {
+      identifier: envStr("BLUESKY_IDENTIFIER"),
+      appPassword: envStr("BLUESKY_APP_PASSWORD"),
+      service: envStr("BLUESKY_SERVICE", "https://bsky.social")!,
+      maxPublishAttempts: envInt("BLUESKY_MAX_PUBLISH_ATTEMPTS", 3),
     },
 
     qa: {

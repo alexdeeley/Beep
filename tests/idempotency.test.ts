@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isAlreadyPublished } from "../src/utils/stateStore.js";
-import { publishToTelegram } from "../src/telegram/publish.js";
+import { publishToBluesky } from "../src/bluesky/publish.js";
 import { loadConfig } from "../src/config/index.js";
 import { RunLogger } from "../src/utils/logger.js";
 
@@ -60,7 +60,7 @@ describe("isAlreadyPublished (publish-state checking)", () => {
   });
 });
 
-describe("publishToTelegram idempotency + dry-run guards", () => {
+describe("publishToBluesky idempotency + dry-run guards", () => {
   let runsDir: string;
   beforeEach(() => {
     runsDir = mkdtempSync(join(tmpdir(), "on-this-day-test-"));
@@ -72,22 +72,24 @@ describe("publishToTelegram idempotency + dry-run guards", () => {
   it("never calls the network and returns SKIPPED_ALREADY_PUBLISHED when alreadyPublished is true", async () => {
     const config = baseConfig(runsDir);
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToTelegram(config, logger, {
+    const record = await publishToBluesky(config, logger, {
       date: "2026-08-29",
+      localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
       dryRun: false,
       alreadyPublished: true,
     });
     expect(record.status).toBe("SKIPPED_ALREADY_PUBLISHED");
-    expect(record.messageId).toBeNull();
+    expect(record.postUri).toBeNull();
   });
 
   it("never calls the network and returns SKIPPED_DRY_RUN when dryRun is true", async () => {
     const config = baseConfig(runsDir);
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToTelegram(config, logger, {
+    const record = await publishToBluesky(config, logger, {
       date: "2026-08-29",
+      localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
       dryRun: true,
@@ -96,13 +98,14 @@ describe("publishToTelegram idempotency + dry-run guards", () => {
     expect(record.status).toBe("SKIPPED_DRY_RUN");
   });
 
-  it("returns SKIPPED_NO_CREDENTIALS when Telegram credentials are not configured", async () => {
+  it("returns SKIPPED_NO_CREDENTIALS when Bluesky credentials are not configured", async () => {
     const config = baseConfig(runsDir);
-    config.telegram.botToken = undefined;
-    config.telegram.chatId = undefined;
+    config.bluesky.identifier = undefined;
+    config.bluesky.appPassword = undefined;
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToTelegram(config, logger, {
+    const record = await publishToBluesky(config, logger, {
       date: "2026-08-29",
+      localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
       dryRun: false,
@@ -111,13 +114,14 @@ describe("publishToTelegram idempotency + dry-run guards", () => {
     expect(record.status).toBe("SKIPPED_NO_CREDENTIALS");
   });
 
-  it("fails without a public image URL rather than calling Telegram with an unusable payload", async () => {
+  it("fails without a local image file rather than calling Bluesky with an unusable payload", async () => {
     const config = baseConfig(runsDir);
-    config.telegram.botToken = "token";
-    config.telegram.chatId = "12345";
+    config.bluesky.identifier = "user.bsky.social";
+    config.bluesky.appPassword = "app-password";
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToTelegram(config, logger, {
+    const record = await publishToBluesky(config, logger, {
       date: "2026-08-29",
+      localImagePath: null,
       publicImageUrl: null,
       caption: "caption",
       dryRun: false,

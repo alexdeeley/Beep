@@ -2,7 +2,7 @@
   "name": "on-this-day",
   "version": "1.0.0",
   "private": true,
-  "description": "Autonomous daily 'On This Day' historical infographic generator and Telegram publisher.",
+  "description": "Autonomous daily 'On This Day' historical infographic generator and Bluesky publisher.",
   "type": "module",
   "engines": {
     "node": ">=20"

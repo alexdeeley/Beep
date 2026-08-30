@@ -61,7 +61,7 @@ export class RunStore {
 /**
  * Idempotency guard: has this calendar date already been successfully
  * published? Checked by reading `publish.json` for the date, which is
- * only ever written with status "SUCCESS" after a confirmed Telegram
+ * only ever written with status "SUCCESS" after a confirmed Bluesky
  * publish. This is the single source of truth the orchestrator consults
  * before doing any paid/networked work.
  */

@@ -12,8 +12,11 @@ export interface UploadResult {
 
 /**
  * Uploads the rendered infographic to public object storage (Cloudflare
- * R2 or any S3-compatible bucket) and returns the public HTTPS URL the
- * Telegram Bot API needs to fetch the image from.
+ * R2 or any S3-compatible bucket) and returns the public HTTPS URL. This
+ * gives you a durable public archival copy of what was actually
+ * published each day. Bluesky itself does not need this URL - it
+ * uploads the image bytes directly - so a storage failure alone does
+ * not block publishing, but it does mean losing the archival copy.
  *
  * In local/dev mode (no storage credentials configured), upload is
  * skipped and the caller is told clearly - the file remains on disk at
@@ -34,7 +37,7 @@ export async function uploadImage(
   if (!bucket || !accessKeyId || !secretAccessKey || !publicBaseUrl) {
     logger.warn(
       "storage",
-      "Storage credentials incomplete; skipping remote upload. Telegram publish will be skipped too since it requires a public image URL."
+      "Storage credentials incomplete; skipping remote upload. Publishing can still proceed (Bluesky uploads the local file directly), but there will be no public archival copy."
     );
     return { publicUrl: null, provider: config.storage.provider, skippedReason: "missing storage credentials" };
   }

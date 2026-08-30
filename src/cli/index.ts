@@ -113,7 +113,7 @@ program
 
 program
   .command("publish")
-  .description("Upload the rendered image and publish to Telegram (or --dry-run to simulate)")
+  .description("Upload the rendered image and publish to Bluesky (or --dry-run to simulate)")
   .option("--date <YYYY-MM-DD>", "Local publish date (defaults to today)")
   .option("--dry-run", "Never actually publish; just report what would happen", false)
   .action(async (opts) => {
@@ -123,7 +123,7 @@ program
     if (!caption) throw new Error(`Missing caption.json for this date. Run the "caption" stage first.`);
     const record = await runPublishStage(ctx, render, caption, Boolean(opts.dryRun));
     console.log(`Publish status: ${record.status}`);
-    if (record.messageId) console.log(`Telegram message ID: ${record.messageId}`);
+    if (record.postUri) console.log(`Bluesky post URI: ${record.postUri}`);
     if (record.error) console.log(`Error: ${record.error}`);
   });
 
@@ -131,7 +131,7 @@ program
   .command("daily")
   .description("Run the full end-to-end daily pipeline (research -> ... -> publish)")
   .option("--date <YYYY-MM-DD>", "Local publish date (defaults to today in APP_TIMEZONE)")
-  .option("--dry-run", "Run the entire pipeline but never actually publish to Telegram", false)
+  .option("--dry-run", "Run the entire pipeline but never actually publish to Bluesky", false)
   .option("--fixture", "Use the bundled test fixture instead of calling OpenAI for research/verification (only 08-29 available)", false)
   .action(async (opts) => {
     const summary = await runDailyHistoricalPost(config, {
