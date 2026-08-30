@@ -3,7 +3,7 @@ import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, requestJson } from "../utils/openaiClient.js";
 import type { CaptionResult, SelectedContent } from "../utils/types.js";
 
-const CAPTION_SYSTEM_PROMPT = `You write short Instagram captions for a premium, editorial "On This Day"
+const CAPTION_SYSTEM_PROMPT = `You write short social captions for a premium, editorial "On This Day"
 history account. Tone: informative and interesting, never clickbait, never
 corny, never political advocacy, not overly academic. Use only the facts
 given to you - never add names, dates, or details that are not in the

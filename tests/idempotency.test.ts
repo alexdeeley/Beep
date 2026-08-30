@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isAlreadyPublished } from "../src/utils/stateStore.js";
-import { publishToInstagram } from "../src/instagram/publish.js";
+import { publishToTelegram } from "../src/telegram/publish.js";
 import { loadConfig } from "../src/config/index.js";
 import { RunLogger } from "../src/utils/logger.js";
 
@@ -60,7 +60,7 @@ describe("isAlreadyPublished (publish-state checking)", () => {
   });
 });
 
-describe("publishToInstagram idempotency + dry-run guards", () => {
+describe("publishToTelegram idempotency + dry-run guards", () => {
   let runsDir: string;
   beforeEach(() => {
     runsDir = mkdtempSync(join(tmpdir(), "on-this-day-test-"));
@@ -72,7 +72,7 @@ describe("publishToInstagram idempotency + dry-run guards", () => {
   it("never calls the network and returns SKIPPED_ALREADY_PUBLISHED when alreadyPublished is true", async () => {
     const config = baseConfig(runsDir);
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToInstagram(config, logger, {
+    const record = await publishToTelegram(config, logger, {
       date: "2026-08-29",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
@@ -80,13 +80,13 @@ describe("publishToInstagram idempotency + dry-run guards", () => {
       alreadyPublished: true,
     });
     expect(record.status).toBe("SKIPPED_ALREADY_PUBLISHED");
-    expect(record.mediaId).toBeNull();
+    expect(record.messageId).toBeNull();
   });
 
   it("never calls the network and returns SKIPPED_DRY_RUN when dryRun is true", async () => {
     const config = baseConfig(runsDir);
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToInstagram(config, logger, {
+    const record = await publishToTelegram(config, logger, {
       date: "2026-08-29",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
@@ -96,12 +96,12 @@ describe("publishToInstagram idempotency + dry-run guards", () => {
     expect(record.status).toBe("SKIPPED_DRY_RUN");
   });
 
-  it("returns SKIPPED_NO_CREDENTIALS when Instagram credentials are not configured", async () => {
+  it("returns SKIPPED_NO_CREDENTIALS when Telegram credentials are not configured", async () => {
     const config = baseConfig(runsDir);
-    config.instagram.accessToken = undefined;
-    config.instagram.userId = undefined;
+    config.telegram.botToken = undefined;
+    config.telegram.chatId = undefined;
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToInstagram(config, logger, {
+    const record = await publishToTelegram(config, logger, {
       date: "2026-08-29",
       publicImageUrl: "https://example.com/img.png",
       caption: "caption",
@@ -111,12 +111,12 @@ describe("publishToInstagram idempotency + dry-run guards", () => {
     expect(record.status).toBe("SKIPPED_NO_CREDENTIALS");
   });
 
-  it("fails without a public image URL rather than calling Instagram with an unusable payload", async () => {
+  it("fails without a public image URL rather than calling Telegram with an unusable payload", async () => {
     const config = baseConfig(runsDir);
-    config.instagram.accessToken = "token";
-    config.instagram.userId = "12345";
+    config.telegram.botToken = "token";
+    config.telegram.chatId = "12345";
     const logger = new RunLogger(join(runsDir, "2026-08-29"));
-    const record = await publishToInstagram(config, logger, {
+    const record = await publishToTelegram(config, logger, {
       date: "2026-08-29",
       publicImageUrl: null,
       caption: "caption",

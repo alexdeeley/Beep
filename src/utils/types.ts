@@ -134,8 +134,8 @@ export interface PublishRecord {
   date: string;
   attemptedAt: string;
   publicImageUrl: string | null;
-  containerId: string | null;
-  mediaId: string | null;
+  /** The published Telegram message ID, once posted. */
+  messageId: string | null;
   status: "SKIPPED_DRY_RUN" | "SKIPPED_NO_CREDENTIALS" | "SKIPPED_ALREADY_PUBLISHED" | "SUCCESS" | "FAILED";
   error: string | null;
   caption: string | null;

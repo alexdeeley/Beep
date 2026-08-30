@@ -13,7 +13,7 @@ export interface UploadResult {
 /**
  * Uploads the rendered infographic to public object storage (Cloudflare
  * R2 or any S3-compatible bucket) and returns the public HTTPS URL the
- * Instagram Graph API needs to fetch the image from.
+ * Telegram Bot API needs to fetch the image from.
  *
  * In local/dev mode (no storage credentials configured), upload is
  * skipped and the caller is told clearly - the file remains on disk at
@@ -34,7 +34,7 @@ export async function uploadImage(
   if (!bucket || !accessKeyId || !secretAccessKey || !publicBaseUrl) {
     logger.warn(
       "storage",
-      "Storage credentials incomplete; skipping remote upload. Instagram publish will be skipped too since it requires a public image URL."
+      "Storage credentials incomplete; skipping remote upload. Telegram publish will be skipped too since it requires a public image URL."
     );
     return { publicUrl: null, provider: config.storage.provider, skippedReason: "missing storage credentials" };
   }

@@ -7,7 +7,7 @@ npm run daily -- --date 2026-08-29 --dry-run --fixture
 ```
 
 - `infographic.png` — the final 1080×1350 rendered graphic (default `classic_gold` theme)
-- `caption.txt` — the generated Instagram caption
+- `caption.txt` — the generated caption
 - `selected.json` — the final, fully-sourced selected content that produced the graphic
 - `qa.json` — the automated QA report for this render (status: PASS)
 - `run.json` — the stage-by-stage run summary

@@ -2,8 +2,8 @@
 
 An autonomous system that wakes up every morning, researches what actually
 happened on today's calendar date in history, fact-checks it, designs a
-premium editorial infographic, writes a caption, and publishes it to
-Instagram — with no daily human involvement.
+premium editorial infographic, writes a caption, and publishes it to a
+Telegram channel — with no daily human involvement.
 
 This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
@@ -21,7 +21,7 @@ Once a day (by default, 5:30am Pacific time), the app:
 5. **Selects** the strongest, most varied 10-20 verified facts (major events, births, deaths, strange/memorable incidents).
 6. **Builds the graphic deterministically.** This is the most important design decision in the whole project: **no AI model ever typesets the dates, names, or headlines.** All factual text is rendered with real HTML/CSS through a real browser engine (Playwright/Chromium), so spelling, line breaks, and layout are always exactly what the verified data says. AI image generation (optional, off by default) is only ever used for wordless decorative artwork.
 7. **Runs automated QA** on both the data and the rendered pixels — duplicate checks, overflow checks, dimension checks, and (optionally) a vision-model sanity pass. **If QA fails, nothing gets published.**
-8. **Writes a caption**, uploads the image to public storage, and publishes to Instagram via the official Graph API (no browser automation, no fake logins).
+8. **Writes a caption**, uploads the image to public storage, and publishes to a Telegram channel via the official Bot API (no browser automation, no fake logins).
 9. **Logs everything** to `runs/<date>/` so you can see exactly what happened, and why, for any given day.
 
 The guiding rule throughout: **no post is better than a wrong post.**
@@ -83,7 +83,7 @@ This will:
 - load the fixture instead of calling OpenAI,
 - run selection, rendering, and QA for real,
 - generate a real caption (a deterministic fallback caption, since no OpenAI key is configured yet),
-- **skip** the actual Instagram publish (both because of `--dry-run` and because no credentials are configured).
+- **skip** the actual Telegram publish (both because of `--dry-run` and because no credentials are configured).
 
 Open `runs/2026-08-29/infographic.png` — that's your finished 1080×1350
 graphic. Check `runs/2026-08-29/run.log` to see exactly what each stage did.
@@ -124,18 +124,25 @@ Check `runs/2026-01-01/infographic.png`.
 
 ## 6. Set up object storage (Cloudflare R2)
 
-Instagram's API requires your image to be reachable at a public HTTPS URL —
-it cannot accept a raw file upload. R2 is Cloudflare's S3-compatible storage
-and has a generous free tier.
+Telegram's `sendPhoto` API accepts a public HTTPS URL for the image (much
+simpler than Instagram's old container/publish dance, but it still needs
+that public URL rather than a raw local file path). R2 is Cloudflare's
+S3-compatible storage and has a generous free tier.
 
-1. Sign up at <https://dash.cloudflare.com> (free).
-2. Go to **R2 Object Storage** → **Create bucket**. Name it e.g. `on-this-day`.
-3. In the bucket settings, enable **Public Access** (or connect a custom
-   domain) and note the public base URL it gives you, e.g.
-   `https://pub-xxxxxxxx.r2.dev` or `https://images.yourdomain.com`.
-4. Go to **R2 → Manage API Tokens → Create API Token**, give it
-   **Object Read & Write** permission scoped to your bucket.
-5. Note your **Account ID** (shown on the R2 overview page).
+1. Sign up at <https://dash.cloudflare.com> (free). In the sidebar, R2 lives
+   under **Storage & databases → R2 Object Storage**.
+2. Click **Create bucket**. Name it e.g. `on-this-day`.
+3. Open the bucket → **Settings** → find **Public Development URL** and
+   enable it. It'll show a URL like `https://pub-xxxxxxxx.r2.dev` — that's
+   your `R2_PUBLIC_BASE_URL`. (A custom domain works too, but isn't required.)
+4. Back on the main **R2 Object Storage overview** page (not inside the
+   bucket), find **Account Details → Manage API Tokens**. Under **Account
+   API Tokens** (recommended — stays valid even if your personal login
+   changes), click **Create Account API token**, give it **Object Read &
+   Write** permission scoped to your bucket.
+5. That page shows an **Access Key ID** and **Secret Access Key** — copy
+   both immediately, the secret is shown only once. Your **Account ID** is
+   also shown on the R2 overview page next to the S3 API endpoint.
 6. Fill in `.env`:
 
    ```
@@ -157,62 +164,40 @@ want during development.
 
 ---
 
-## 7. Set up the Instagram Graph API (official Meta publishing API)
+## 7. Set up the Telegram Bot API (official publishing target)
 
-This is the fiddliest part because it's Meta's process, not this project's.
-Take it slowly.
+This project originally targeted Instagram's Graph API, but that requires a
+Meta Developer account tied to a validated Facebook identity, business
+verification, and (for the old flow) a linked Facebook Page — real friction
+for a personal project. Telegram's Bot API needs none of that: no app
+review, no business verification, just a bot token and a channel.
 
-### 7.1 Requirements
-- An **Instagram Professional account** (Business or Creator). Convert a
-  personal account for free in the Instagram app: Settings → Account type
-  and tools → Switch to professional account.
-- A **Facebook Page** connected to that Instagram account (Instagram's
-  Graph API is accessed through a linked Facebook Page).
+### 7.1 Create the bot
+1. In Telegram, open a chat with **[@BotFather](https://t.me/BotFather)** (Telegram's own bot for creating bots).
+2. Send `/newbot`.
+3. Give it a name (shown to users) and a username (must end in `bot`, e.g. `OnThisDayHistoryBot`).
+4. BotFather replies with your **bot token** — a string like `123456789:AAH...`. Copy it.
 
-### 7.2 Create a Meta app
-1. Go to <https://developers.facebook.com/apps> and click **Create App**.
-2. Choose the **Business** app type.
-3. In the app dashboard, click **Add Product** and add **Instagram Graph API**.
+### 7.2 Create the channel
+1. In Telegram, create a new **Channel** (not a group) — the `+` button → **New Channel**.
+2. Give it a name and choose **Public** (so it has a `@channelname` and is discoverable) or **Private** (invite-only) — either works for posting via the bot.
+3. Go to the channel's settings → **Administrators** → **Add Admin**, and add your bot. Give it permission to **Post Messages**.
 
-### 7.3 Connect your Instagram account and get your User ID
-1. In your app's dashboard, go to **Instagram Graph API → API Setup with Instagram business login** (or use Graph API Explorer, see below).
-2. Follow Meta's flow to link your Facebook Page and Instagram Professional account to the app.
-3. Once linked, find your **Instagram User ID** (a numeric ID, different from your @username). The easiest way: use the [Graph API Explorer](https://developers.facebook.com/tools/explorer/), select your app, generate a User or Page access token with `instagram_basic` permission, and call:
-   ```
-   GET /me/accounts
-   ```
-   to find your Page, then:
-   ```
-   GET /{page-id}?fields=instagram_business_account
-   ```
-   The `id` field returned is your `INSTAGRAM_USER_ID`.
+### 7.3 Get the chat ID
+- If your channel is **public**, you can just use its `@username` directly as the chat ID — no lookup needed.
+- If it's **private**, you need the numeric chat ID:
+  1. Post any message in the channel.
+  2. Visit `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` in a browser (with your real token in place of `<YOUR_BOT_TOKEN>`).
+  3. Find `"chat":{"id":-100XXXXXXXXXX, ...}` in the JSON response — that negative number is your chat ID.
 
-### 7.4 Get an access token
-1. In **Graph API Explorer**, select your app and your Page.
-2. Request these permissions: `instagram_basic`, `instagram_content_publish`, `pages_read_engagement`, `pages_show_list`.
-3. Generate a **User Access Token**, then convert it to a **long-lived token** (60 days) using:
-   ```
-   GET /oauth/access_token?grant_type=fb_exchange_token&client_id={app-id}&client_secret={app-secret}&fb_exchange_token={short-lived-token}
-   ```
-4. For a truly "no daily human involvement" setup, exchange this for (or
-   directly generate) a token tied to a **System User** on a Meta Business
-   account — those don't expire on a 60-day cycle the way user tokens do.
-   See Meta's [System User docs](https://developers.facebook.com/docs/marketing-api/system-users). Rotate/refresh it periodically regardless (see §11).
-5. Put both values in `.env`:
+### 7.4 Fill in `.env`
+```
+TELEGRAM_BOT_TOKEN=123456789:AAH...
+TELEGRAM_CHAT_ID=@yourchannelname
+```
+(or the numeric `-100...` ID for a private channel)
 
-   ```
-   INSTAGRAM_ACCESS_TOKEN=...
-   INSTAGRAM_USER_ID=...
-   ```
-
-### 7.5 App review
-Meta requires **App Review** for `instagram_content_publish` before you can
-publish to accounts other than your own test accounts. While your app is in
-development mode, you can fully test publishing to Instagram accounts you
-personally own/administer (added as testers in **App Roles → Roles**)
-without review. Submit for review when you're ready to publish beyond that.
-
-### 7.6 Test it
+### 7.5 Test it
 ```bash
 npm run daily -- --date 2026-01-01 --dry-run
 ```
@@ -221,15 +206,16 @@ real publish once everything above is configured:
 ```bash
 npm run publish -- --date 2026-01-01
 ```
-(after having run `render` and `caption` for that date first — see §9).
+(after having run `render` and `caption` for that date first — see §9.)
+Check your channel — the post should appear within a couple seconds.
 
 ---
 
 ## 8. Understand the safety rails
 
 - **Dry run** (`--dry-run`): runs the entire pipeline, including QA, but
-  never calls the Instagram API. Use this constantly.
-- **Missing Instagram credentials**: the app detects this automatically and
+  never calls the Telegram API. Use this constantly.
+- **Missing Telegram credentials**: the app detects this automatically and
   logs `SKIPPED_NO_CREDENTIALS` instead of failing — this is the expected,
   safe state for local development.
 - **QA failure**: if automated QA finds a blocking issue (wrong date,
@@ -280,21 +266,22 @@ including:
 - `ENABLE_STORY_RENDER` — also render a 1080×1920 Story version
 - `ENABLE_IMAGE_GENERATION` — optional decorative (never factual) AI artwork
 - `ENABLE_VISION_QA` — optional vision-model QA pass before publish
-- `INSTAGRAM_HASHTAGS`, `SOURCE_CREDIT_LINE`
+- `HASHTAGS`, `SOURCE_CREDIT_LINE`
 
 ---
 
 ## 11. Disabling publishing / rotating credentials
 
 **To disable publishing without touching code:** remove or comment out
-`INSTAGRAM_ACCESS_TOKEN` in your environment (or the repo's GitHub Actions
+`TELEGRAM_BOT_TOKEN` in your environment (or the repo's GitHub Actions
 secrets). The app will render everything and log
 `SKIPPED_NO_CREDENTIALS` instead of publishing — nothing else changes.
 
-**To rotate your Instagram access token:** generate a new long-lived (or
-System User) token following §7.4, then update the
-`INSTAGRAM_ACCESS_TOKEN` secret in GitHub Actions (Settings → Secrets and
-variables → Actions) or your `.env`. No code changes needed.
+**To rotate your Telegram bot token:** message @BotFather with `/revoke`
+(or `/mybots` → select your bot → **API Token** → **Revoke current token**)
+to get a new token, then update `TELEGRAM_BOT_TOKEN` in GitHub Actions
+(Settings → Secrets and variables → Actions) or your `.env`. No code
+changes needed.
 
 **To rotate your OpenAI key:** create a new key at
 <https://platform.openai.com/api-keys>, update `OPENAI_API_KEY`, then delete
@@ -315,13 +302,12 @@ The default deployment is a **GitHub Actions scheduled workflow**
 2. Go to **Settings → Secrets and variables → Actions** and add these
    **Repository secrets**:
    - `OPENAI_API_KEY`
-   - `INSTAGRAM_ACCESS_TOKEN`
-   - `INSTAGRAM_USER_ID`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
 3. Add these **Repository variables** (non-secret config):
    - `R2_BUCKET`, `R2_PUBLIC_BASE_URL`
    - `APP_TIMEZONE` (optional, defaults to `America/Los_Angeles`)
-   - `META_API_VERSION` (optional, defaults to `v21.0`)
 4. That's it. The workflow runs automatically every day (see the comment
    in `daily.yml` for why it's scheduled twice — it's about DST, not
    double-posting; idempotency guarantees only one real post per day).
@@ -356,7 +342,7 @@ runs/2026-08-29/
   story.png                     # optional 1080x1920 Story version
   qa.json                         # QA verdict + every check performed
   caption.json / caption.txt        # generated caption
-  publish.json                        # Instagram publish result
+  publish.json                        # Telegram publish result
   run.json                              # stage-by-stage summary
   run.log / run.jsonl                     # full structured log (human + machine readable)
 ```
@@ -377,9 +363,9 @@ src/
   assets/          # optional decorative (non-textual) AI artwork
   render/          # deterministic HTML/CSS -> PNG via Playwright
   qa/              # programmatic + optional vision-model QA
-  caption/         # Instagram caption generation
+  caption/         # social caption generation
   storage/         # R2/S3 upload
-  instagram/       # official Graph API publish flow
+  telegram/        # official Bot API publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
@@ -399,7 +385,7 @@ npm test
 ```
 
 Covers timezone/date resolution, publish idempotency (including the
-Instagram dry-run/no-credentials guards), the strict verification
+Telegram dry-run/no-credentials guards), the strict verification
 threshold gate, content selection (dedup, min/max caps, category
 diversity, no-fabrication-on-scarcity), config parsing, and the
 text-length safety net used by the renderer.

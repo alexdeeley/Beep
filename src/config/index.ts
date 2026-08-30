@@ -86,13 +86,10 @@ export interface AppConfig {
     endpoint: string | undefined;
   };
 
-  instagram: {
-    accessToken: string | undefined;
-    userId: string | undefined;
-    apiVersion: string;
+  telegram: {
+    botToken: string | undefined;
+    chatId: string | undefined;
     maxPublishAttempts: number;
-    containerPollAttempts: number;
-    containerPollDelayMs: number;
   };
 
   qa: {
@@ -146,7 +143,7 @@ export function loadConfig(): AppConfig {
     brand: {
       theme: (envStr("BRAND_THEME", "classic_gold") as ThemeName) ?? "classic_gold",
       rotateThemes: envBool("ROTATE_THEMES", false),
-      hashtags: (envStr("INSTAGRAM_HASHTAGS", "#OnThisDay #TodayInHistory #History") ?? "")
+      hashtags: (envStr("HASHTAGS", "#OnThisDay #TodayInHistory #History") ?? "")
         .split(/\s+/)
         .filter(Boolean),
       sourceCreditLine: envStr(
@@ -170,13 +167,10 @@ export function loadConfig(): AppConfig {
       endpoint: envStr("S3_ENDPOINT"),
     },
 
-    instagram: {
-      accessToken: envStr("INSTAGRAM_ACCESS_TOKEN"),
-      userId: envStr("INSTAGRAM_USER_ID"),
-      apiVersion: envStr("META_API_VERSION", "v21.0")!,
-      maxPublishAttempts: envInt("INSTAGRAM_MAX_PUBLISH_ATTEMPTS", 3),
-      containerPollAttempts: envInt("INSTAGRAM_CONTAINER_POLL_ATTEMPTS", 10),
-      containerPollDelayMs: envInt("INSTAGRAM_CONTAINER_POLL_DELAY_MS", 3000),
+    telegram: {
+      botToken: envStr("TELEGRAM_BOT_TOKEN"),
+      chatId: envStr("TELEGRAM_CHAT_ID"),
+      maxPublishAttempts: envInt("TELEGRAM_MAX_PUBLISH_ATTEMPTS", 3),
     },
 
     qa: {

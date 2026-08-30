@@ -22,7 +22,7 @@ import { renderInfographic, type RenderResult } from "../render/renderInfographi
 import { runQualityChecks } from "../qa/runQA.js";
 import { generateCaption, composeFinalCaptionText } from "../caption/generateCaption.js";
 import { uploadImage } from "../storage/storage.js";
-import { publishToInstagram } from "../instagram/publish.js";
+import { publishToTelegram } from "../telegram/publish.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -150,7 +150,7 @@ export async function runPublishStage(
     publicUrl = upload.publicUrl;
   }
 
-  const record = await publishToInstagram(config, logger, {
+  const record = await publishToTelegram(config, logger, {
     date: resolved.isoDate,
     publicImageUrl: publicUrl,
     caption: composeFinalCaptionText(caption),
@@ -178,7 +178,7 @@ export interface DailyRunSummary {
  *   resolveLocalDate -> checkAlreadyPublished -> researchDate ->
  *   verifyCandidates -> selectContent -> generateSupportingAssets ->
  *   renderInfographic -> runQualityChecks -> generateCaption ->
- *   uploadImage -> publishToInstagram -> saveRunRecord
+ *   uploadImage -> publishToTelegram -> saveRunRecord
  *
  * Any critical failure (research, insufficient verified facts, render,
  * QA) stops the pipeline before publish. No post is better than a wrong

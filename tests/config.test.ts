@@ -7,7 +7,7 @@ const ENV_KEYS = [
   "MIN_VERIFICATION_CONFIDENCE",
   "ENABLE_STORY_RENDER",
   "BRAND_THEME",
-  "INSTAGRAM_HASHTAGS",
+  "HASHTAGS",
   "STORAGE_PROVIDER",
 ];
 
@@ -59,7 +59,7 @@ describe("loadConfig", () => {
   });
 
   it("splits the hashtag list on whitespace", () => {
-    process.env.INSTAGRAM_HASHTAGS = "#OnThisDay #History  #Today";
+    process.env.HASHTAGS = "#OnThisDay #History  #Today";
     const config = loadConfig();
     expect(config.brand.hashtags).toEqual(["#OnThisDay", "#History", "#Today"]);
   });
