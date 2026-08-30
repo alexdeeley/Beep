@@ -148,6 +148,14 @@ program
     if (summary.record.failureStage) {
       console.log(`Failed at stage: ${summary.record.failureStage}`);
       process.exitCode = 1;
+    } else if (summary.record.publishStatus === "FAILED") {
+      // A failed publish doesn't throw a StageFailure (it's recorded as
+      // data, not an exception - see runPublishStage), so it must be
+      // checked separately here. Without this, a real publish failure
+      // would report `Publish status: FAILED` yet still exit 0, making a
+      // scheduled CI run show green while silently never posting.
+      console.log(`Failed to publish: ${summary.publish?.error ?? "unknown error"}`);
+      process.exitCode = 1;
     }
   });
 
