@@ -20,6 +20,15 @@ export interface ResolvedDate {
   /** "AUGUST 29" style display string. */
   displayDate: string;
   timezone: string;
+  /**
+   * True when isoDate is the actual current calendar date in `timezone` -
+   * false for a --date override pointing at a different day (past or
+   * future). Used to decide whether the art's subject matter should be
+   * today's live trending topics (real daily production, where the date
+   * is always today) or content independently researched for that
+   * specific date (a test/backfill run for a date that isn't today).
+   */
+  isToday: boolean;
 }
 
 /**
@@ -43,6 +52,7 @@ export function resolveLocalDate(timezone: string, override?: string): ResolvedD
 
   const isoDate = dt.toFormat("yyyy-LL-dd");
   const monthDay = dt.toFormat("LL-dd");
+  const todayIsoDate = DateTime.now().setZone(timezone).toFormat("yyyy-LL-dd");
 
   return {
     isoDate,
@@ -53,6 +63,7 @@ export function resolveLocalDate(timezone: string, override?: string): ResolvedD
     weekday: dt.toFormat("cccc"),
     displayDate: dt.toFormat("LLLL d").toUpperCase(),
     timezone,
+    isToday: isoDate === todayIsoDate,
   };
 }
 

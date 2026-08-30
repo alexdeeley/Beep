@@ -6,19 +6,25 @@ import type { AppConfig } from "../config/index.js";
 import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
 import { BLUESKY_MAX_IMAGE_BYTES } from "../bluesky/publish.js";
-import type { TrendingTopic } from "../bluesky/trending.js";
-import { curateTrends, type CuratedTrendItem } from "./trendCuration.js";
+import type { CuratedTrendItem } from "./trendCuration.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult, SizeRenderResult } from "../render/renderInfographic.js";
 
 /**
  * Stage: generates the day's entire published image as a dense editorial
- * cartoon - the day's real trending topics synthesized into one richly
- * composed, humorous scene, set against a backdrop evoking that day's
- * verified historical facts. This REPLACES the deterministic HTML/CSS/
- * Playwright infographic renderer as the daily pipeline's sole image
- * source (see render/renderInfographic.ts, which stays in the codebase
- * but is no longer called by the daily run).
+ * cartoon synthesized from `curatedTrends` into one richly composed,
+ * humorous scene, set against a backdrop evoking that day's verified
+ * historical facts. The caller decides what curatedTrends actually is:
+ * for real daily production (the run's date is today) it's today's live
+ * Bluesky trending topics curated by trendCuration.ts; for a --date
+ * override pointing at a different day it's that day's own independently
+ * researched historical facts curated the same way instead - reusing
+ * today's real trending topics as the subject of a post nominally about a
+ * different day was flagged as misleading conflation after a live test.
+ * This REPLACES the deterministic HTML/CSS/Playwright infographic
+ * renderer as the daily pipeline's sole image source (see
+ * render/renderInfographic.ts, which stays in the codebase but is no
+ * longer called by the daily run).
  *
  * Because there is no fallback image once this replaces the renderer, a
  * missing API key or a failed generation call must fail the run - unlike
@@ -37,12 +43,11 @@ export async function generateDailyArt(
   logger: RunLogger,
   runDir: string,
   selected: SelectedContent,
-  trendingTopics: TrendingTopic[]
+  curatedTrends: CuratedTrendItem[]
 ): Promise<RenderResult> {
   const client = makeOpenAIClient(config);
   if (!client) throw new MissingApiKeyError("art");
 
-  const curatedTrends = await curateTrends(config, logger, trendingTopics);
   const environment = pickDailyEnvironment(selected.date);
   const prompt = buildArtPrompt(selected, environment, curatedTrends);
   logger.info("art", `Generating editorial cartoon art for ${selected.date}`, { environment, trendItemCount: curatedTrends.length });

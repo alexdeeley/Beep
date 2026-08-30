@@ -36,6 +36,19 @@ describe("resolveLocalDate", () => {
   it("throws on an invalid timezone", () => {
     expect(() => resolveLocalDate("Not/A_Zone")).toThrow();
   });
+
+  it("marks isToday true when no override is given", () => {
+    expect(resolveLocalDate("America/Los_Angeles").isToday).toBe(true);
+  });
+
+  it("marks isToday false for an override pointing at a different day", () => {
+    expect(resolveLocalDate("America/Los_Angeles", "1988-04-25").isToday).toBe(false);
+  });
+
+  it("marks isToday true when an override happens to equal today's date", () => {
+    const today = resolveLocalDate("America/Los_Angeles");
+    expect(resolveLocalDate("America/Los_Angeles", today.isoDate).isToday).toBe(true);
+  });
 });
 
 describe("parseMonthDay", () => {
