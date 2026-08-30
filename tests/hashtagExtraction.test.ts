@@ -32,6 +32,7 @@ function makeFact(overrides: Partial<SelectedFact>): SelectedFact {
       sufficientlyNotable: true,
       corroboratingSources: true,
       headlineMatchesDescription: true,
+      categoryMatchesContent: true,
     },
     rejectionReason: null,
     selectionScore: 5,

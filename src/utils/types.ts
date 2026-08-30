@@ -74,6 +74,8 @@ export interface VerifiedFact extends Omit<CandidateFact, "verificationStatus"> 
     corroboratingSources: boolean;
     /** The headline describes the exact same specific occurrence as the description - not a related-but-different event (e.g. an arrest vs. its later sentencing). */
     headlineMatchesDescription: boolean;
+    /** The "category" field genuinely reflects what the headline/description are about (e.g. an invention is not tagged "sports"). */
+    categoryMatchesContent: boolean;
   };
   rejectionReason: string | null;
 }

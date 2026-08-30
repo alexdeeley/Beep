@@ -42,6 +42,15 @@ For EVERY candidate, determine and record true/false for each of:
   the headline's subject event differs from what the description/date
   actually verifies, this is false regardless of how accurate each half is
   individually.
+- categoryMatchesContent: the "category" field genuinely reflects what the
+  headline/description are actually about. The research pass sometimes
+  mis-tags the category outright (e.g. tagging a scientific invention as
+  "sports", or a political event as "culture_society"). Judge this from the
+  substance of the headline/description, not from any category the research
+  pass already assigned. If the category is wrong, correct it yourself to
+  the best-fitting value from the allowed category enum (preferred, when
+  everything else about the candidate is solid) rather than rejecting the
+  candidate over a mis-tag alone.
 
 Preferred source hierarchy, strongest first: government archives, national
 libraries, official institutional archives, museums, universities,
@@ -57,12 +66,15 @@ is correct.
 Set "verificationStatus" to:
 - "verified" only if ALL of dateConfirmed, yearConfirmed,
   personOrOrgConfirmed, kindConfirmed, notPublicationDateConfusion,
-  sufficientlyNotable, and headlineMatchesDescription are true, and
-  corroboratingSources is true for any "high" importance item. If
-  headlineMatchesDescription is false, either correct the headline yourself
-  to match the verified event (preferred, when the description/date are
-  otherwise solid) or reject the candidate - never leave a mismatched
-  headline in place.
+  sufficientlyNotable, headlineMatchesDescription, and
+  categoryMatchesContent are true, and corroboratingSources is true for any
+  "high" importance item. If headlineMatchesDescription is false, either
+  correct the headline yourself to match the verified event (preferred,
+  when the description/date are otherwise solid) or reject the candidate -
+  never leave a mismatched headline in place. If categoryMatchesContent is
+  false, correct the category field yourself (preferred - a mis-tagged
+  category is not a reason to reject an otherwise-solid fact) rather than
+  leaving a wrong category in place.
 - "rejected" if any check fails outright (wrong date/year/person, a
   birth/death miscategorization, or a publication-date-confusion error).
 - "needs_review" for genuine borderline cases (real but disputed date,
@@ -90,7 +102,8 @@ Respond with ONLY a JSON object of the shape:
         "notExaggerated": true,
         "sufficientlyNotable": true,
         "corroboratingSources": true,
-        "headlineMatchesDescription": true
+        "headlineMatchesDescription": true,
+        "categoryMatchesContent": true
       },
       "rejectionReason": null
     }
