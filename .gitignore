@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+
+# Daily run artifacts are generated output, not source. Keep the folder
+# tracked (via .gitkeep) but ignore its contents.
+runs/*
+!runs/.gitkeep
+
+*.log
+.DS_Store

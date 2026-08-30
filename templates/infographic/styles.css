@@ -1,0 +1,378 @@
+/* ============================================================
+   On This Day — infographic design system
+   Simple, tight, Swiss-minimalist aesthetic: near-black grounds,
+   warm metallic gold, restrained white type, a single grotesque
+   sans-serif (Arimo, metrically/visually equivalent to Helvetica -
+   true Helvetica is a commercial font with no free/open license,
+   so this is the closest self-hostable match). Three controlled
+   theme variants share this exact structure so brand identity
+   stays consistent.
+   ============================================================ */
+
+@font-face {
+  font-family: "Arimo";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: block;
+  src: url("./fonts/Arimo-Variable.woff2") format("woff2");
+}
+
+:root {
+  --font-display: "Arimo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Arimo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* ---- Theme palettes ---- */
+[data-theme="classic_gold"] {
+  --bg: #0a0a0b;
+  --bg-2: #131315;
+  --gold: #c9a24b;
+  --gold-soft: #e8d29a;
+  --gold-dim: #8a7038;
+  --cream: #f2e9d8;
+  --ink: #f6f3ec;
+  --hairline: rgba(201, 162, 75, 0.38);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(201, 162, 75, 0.22);
+}
+[data-theme="deep_navy"] {
+  --bg: #090c12;
+  --bg-2: #101825;
+  --gold: #bda36e;
+  --gold-soft: #ddcda0;
+  --gold-dim: #7d6c48;
+  --cream: #e9edf3;
+  --ink: #f4f6f9;
+  --hairline: rgba(189, 163, 110, 0.35);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(189, 163, 110, 0.22);
+}
+[data-theme="museum_burgundy"] {
+  --bg: #130809;
+  --bg-2: #1c0e10;
+  --gold: #c79a4e;
+  --gold-soft: #e2bd7d;
+  --gold-dim: #8a6836;
+  --cream: #f1e3da;
+  --ink: #f7ede7;
+  --hairline: rgba(199, 154, 78, 0.38);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(199, 154, 78, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Fixed full-bleed canvas at exact export dimensions. */
+.canvas {
+  position: relative;
+  width: var(--page-w);
+  height: var(--page-h);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(255, 255, 255, 0.05), transparent 55%),
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 45%, var(--bg) 100%);
+}
+
+.canvas::before {
+  /* single simple frame */
+  content: "";
+  position: absolute;
+  inset: 32px;
+  border: 1px solid var(--hairline);
+  pointer-events: none;
+}
+
+.viewport {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.content {
+  width: 940px;
+  transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 46px 0 32px;
+}
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.headline-date {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 74px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  color: var(--gold-soft);
+  max-width: 760px;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hairline), transparent);
+}
+
+/* ---- Section header ---- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.section-header .index {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--gold-dim);
+}
+
+.section-header .title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 24px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.section-header .rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hairline), transparent);
+}
+
+/* ---- Major event timeline cards ---- */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-card {
+  display: grid;
+  grid-template-columns: 110px 1px 1fr;
+  column-gap: 18px;
+  align-items: start;
+  padding: 2px 0;
+}
+
+.event-card .year {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--gold-soft);
+  text-align: right;
+  line-height: 1.15;
+}
+
+.event-card .stem {
+  align-self: stretch;
+  width: 1px;
+  background: var(--hairline);
+}
+
+.event-card .body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.event-card .event-headline {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.event-card .event-desc {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.4;
+  color: rgba(246, 243, 236, 0.78);
+}
+
+.event-card .event-meta {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+}
+
+/* ---- Birth / Death grid cards ---- */
+.people-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+}
+
+.person-card {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 2px;
+}
+
+.person-card .p-year {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--gold-soft);
+  white-space: nowrap;
+}
+
+.person-card .p-name {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.person-card .p-detail {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 13px;
+  color: rgba(246, 243, 236, 0.6);
+}
+
+/* ---- Incident / oddity cards ---- */
+.incident-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-left: 2px solid var(--gold-dim);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.025), transparent);
+}
+
+.incident-card .i-year {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.incident-card .i-headline {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.incident-card .i-desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(246, 243, 236, 0.75);
+}
+
+/* ---- Footer ---- */
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.footer .brand {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.footer .credit {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(246, 243, 236, 0.42);
+  max-width: 640px;
+}
+
+/* ---- Decorative motif ---- */
+.motif {
+  display: flex;
+  justify-content: center;
+  opacity: 0.9;
+}
+.motif img {
+  height: 64px;
+  width: auto;
+}
+
+/* ---- QA debug outline (only enabled by renderer for measurement, never shipped) ---- */
+.qa-debug .event-card,
+.qa-debug .person-card,
+.qa-debug .incident-card {
+  outline: 1px dashed rgba(255, 0, 0, 0.5);
+}

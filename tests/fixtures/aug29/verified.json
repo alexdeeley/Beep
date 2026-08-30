@@ -1,0 +1,558 @@
+{
+  "date": "08-29",
+  "generatedAt": "2026-08-01T00:05:00.000Z",
+  "model": "fixture",
+  "summary": {
+    "verifiedCount": 10,
+    "rejectedCount": 1,
+    "needsReviewCount": 2
+  },
+  "verified": [
+    {
+      "id": "c001",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1862,
+      "category": "war_conflict",
+      "headline": "Second Battle of Manassas Rages",
+      "description": "Confederate and Union forces clashed near Manassas, Virginia, in a battle that ended the next day in a major Confederate victory under Lee.",
+      "people": [
+        "Robert E. Lee",
+        "John Pope"
+      ],
+      "location": "Manassas, Virginia, USA",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "Second Battle of Manassas",
+          "publisher": "National Park Service",
+          "url": "https://www.nps.gov/mana/learn/historyculture/second-manassas.htm",
+          "authoritative": true
+        },
+        {
+          "title": "The Civil War in Virginia",
+          "publisher": "Library of Congress",
+          "url": "https://www.loc.gov/collections/civil-war-maps/articles-and-essays/",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.9,
+      "notes": "Battle spanned Aug 28-30, 1862; Aug 29 was the second day of heaviest fighting.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.93,
+      "verifierNotes": "Confirmed against NPS and Library of Congress battle chronology; Aug 29 is correctly the second day of engagement.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c002",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1949,
+      "category": "science_discovery",
+      "headline": "Soviet Union Tests First Atomic Bomb",
+      "description": "The USSR detonated its first nuclear device, codenamed First Lightning (RDS-1), at the Semipalatinsk Test Site, ending the US nuclear monopoly.",
+      "people": [
+        "Igor Kurchatov"
+      ],
+      "location": "Semipalatinsk, Kazakh SSR",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "First Lightning: The Soviet Union's First Nuclear Test",
+          "publisher": "U.S. Department of Energy, Office of History and Heritage Resources",
+          "url": "https://www.energy.gov/management/articles/august-29-1949-soviet-unions-first-nuclear-test",
+          "authoritative": true
+        },
+        {
+          "title": "The Soviet Atomic Bomb Project",
+          "publisher": "Atomic Heritage Foundation",
+          "url": "https://ahf.nuclearmuseum.org/ahf/history/soviet-atomic-bomb-project/",
+          "authoritative": false
+        }
+      ],
+      "confidence": 0.93,
+      "notes": "Widely and consistently dated to Aug 29, 1949.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.95,
+      "verifierNotes": "Date and attribution corroborated by a US government institutional source plus a specialist archive.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c003",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1957,
+      "category": "politics_government",
+      "headline": "Thurmond Ends Record Senate Filibuster",
+      "description": "Senator Strom Thurmond concluded a 24-hour, 18-minute filibuster against the Civil Rights Act of 1957, still the longest single-senator filibuster on record.",
+      "people": [
+        "Strom Thurmond"
+      ],
+      "location": "Washington, D.C., USA",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "Strom Thurmond Filibusters the Civil Rights Act of 1957",
+          "publisher": "U.S. Senate Historical Office",
+          "url": "https://www.senate.gov/about/powers-procedures/filibusters-cloture/thurmond-filibuster.htm",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.88,
+      "notes": "Filibuster began Aug 28 evening and concluded Aug 29, 1957.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.9,
+      "verifierNotes": "U.S. Senate's own historical office confirms the end date and duration; single authoritative primary source is sufficient for a medium-importance, well-established fact.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c004",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1965,
+      "category": "space_exploration",
+      "headline": "Gemini V Splashes Down",
+      "description": "NASA's Gemini V capsule returned to Earth after nearly eight days in orbit, then a spaceflight endurance record, crewed by Gordon Cooper and Pete Conrad.",
+      "people": [
+        "Gordon Cooper",
+        "Pete Conrad"
+      ],
+      "location": "Atlantic Ocean",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "Gemini V Mission Overview",
+          "publisher": "NASA",
+          "url": "https://www.nasa.gov/mission/gemini-v/",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.9,
+      "notes": "Splashdown confirmed for Aug 29, 1965.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.92,
+      "verifierNotes": "NASA's own mission page confirms splashdown date and crew.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c005",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1966,
+      "category": "music",
+      "headline": "The Beatles Play Final Ticketed Concert",
+      "description": "The Beatles performed their last official paid concert at Candlestick Park in San Francisco, ending their touring career to focus on studio recording.",
+      "people": [
+        "John Lennon",
+        "Paul McCartney",
+        "George Harrison",
+        "Ringo Starr"
+      ],
+      "location": "San Francisco, California, USA",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "The Beatles' Last Concert",
+          "publisher": "Rock & Roll Hall of Fame",
+          "url": "https://www.rockhall.com/inductees/beatles",
+          "authoritative": true
+        },
+        {
+          "title": "Candlestick Park: The Beatles' Final Show",
+          "publisher": "Rolling Stone",
+          "url": "https://www.rollingstone.com/music/music-news/the-beatles-final-concert-candlestick-park-1966",
+          "authoritative": false
+        }
+      ],
+      "confidence": 0.9,
+      "notes": "Well documented as their last commercial concert appearance.",
+      "primarySource": false,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.9,
+      "verifierNotes": "Corroborated by an institutional music history source and a major music publication.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c006",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1997,
+      "category": "invention_technology",
+      "headline": "Netflix Is Founded",
+      "description": "Reed Hastings and Marc Randolph founded Netflix as a DVD-by-mail rental company in Scotts Valley, California, later becoming a streaming pioneer.",
+      "people": [
+        "Reed Hastings",
+        "Marc Randolph"
+      ],
+      "location": "Scotts Valley, California, USA",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "Netflix Company History",
+          "publisher": "Netflix Investor Relations",
+          "url": "https://ir.netflix.net/ir-overview/profile/default.aspx",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.8,
+      "notes": "Incorporation date is well cited as Aug 29, 1997.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.85,
+      "verifierNotes": "Founding date confirmed via the company's own investor materials; description avoids overstating early streaming role (was DVD-by-mail at founding).",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c007",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 2005,
+      "category": "disaster_natural",
+      "headline": "Hurricane Katrina Strikes Gulf Coast",
+      "description": "Hurricane Katrina made its second, more devastating landfall near the Louisiana-Mississippi border, causing catastrophic flooding in New Orleans.",
+      "people": [],
+      "location": "Gulf Coast, USA",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "Hurricane Katrina",
+          "publisher": "National Oceanic and Atmospheric Administration (NOAA)",
+          "url": "https://www.weather.gov/mob/katrina",
+          "authoritative": true
+        },
+        {
+          "title": "Hurricane Katrina Archive",
+          "publisher": "Federal Emergency Management Agency (FEMA)",
+          "url": "https://www.fema.gov/disaster/1603",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.95,
+      "notes": "Landfall near Buras-Triumph, Louisiana on the morning of Aug 29, 2005.",
+      "primarySource": true,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.96,
+      "verifierNotes": "Confirmed by two independent US federal agencies; description is measured and does not exaggerate.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c008",
+      "kind": "birth",
+      "monthDay": "08-29",
+      "year": 1915,
+      "category": "birth",
+      "headline": "Ingrid Bergman Is Born",
+      "description": "Swedish actress Ingrid Bergman was born in Stockholm; she went on to win three Academy Awards across a decades-long international film career.",
+      "people": [
+        "Ingrid Bergman"
+      ],
+      "location": "Stockholm, Sweden",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "Ingrid Bergman Biography",
+          "publisher": "Academy of Motion Picture Arts and Sciences",
+          "url": "https://www.oscars.org/",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.9,
+      "notes": "Notable for sharing her birth and death date, both Aug 29 (1915-1982).",
+      "primarySource": false,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.92,
+      "verifierNotes": "Birth date and place confirmed via the motion picture academy's biographical record; genuinely a birth, not a debut date.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c009",
+      "kind": "birth",
+      "monthDay": "08-29",
+      "year": 1920,
+      "category": "birth",
+      "headline": "Charlie Parker Is Born",
+      "description": "Jazz saxophonist and composer Charlie \"Bird\" Parker was born in Kansas City, Kansas, and became a founding figure of bebop.",
+      "people": [
+        "Charlie Parker"
+      ],
+      "location": "Kansas City, Kansas, USA",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "Charlie Parker",
+          "publisher": "Smithsonian National Museum of American History",
+          "url": "https://americanhistory.si.edu/",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.9,
+      "notes": "",
+      "primarySource": false,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.9,
+      "verifierNotes": "Birth date and location match the Smithsonian's biographical record.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c010",
+      "kind": "birth",
+      "monthDay": "08-29",
+      "year": 1958,
+      "category": "birth",
+      "headline": "Michael Jackson Is Born",
+      "description": "Singer, songwriter, and dancer Michael Jackson was born in Gary, Indiana, later becoming one of the best-selling music artists in history.",
+      "people": [
+        "Michael Jackson"
+      ],
+      "location": "Gary, Indiana, USA",
+      "historicalImportance": "high",
+      "sources": [
+        {
+          "title": "Michael Jackson",
+          "publisher": "Rock & Roll Hall of Fame",
+          "url": "https://www.rockhall.com/inductees/michael-jackson",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.92,
+      "notes": "",
+      "primarySource": false,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.93,
+      "verifierNotes": "Birth date and location match Rock & Roll Hall of Fame biographical record.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c011",
+      "kind": "death",
+      "monthDay": "08-29",
+      "year": 1982,
+      "category": "death",
+      "headline": "Ingrid Bergman Dies on Her Birthday",
+      "description": "Actress Ingrid Bergman died in London at age 67, on the same calendar date as her birth 67 years earlier.",
+      "people": [
+        "Ingrid Bergman"
+      ],
+      "location": "London, England, UK",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "Ingrid Bergman Biography",
+          "publisher": "Academy of Motion Picture Arts and Sciences",
+          "url": "https://www.oscars.org/",
+          "authoritative": true
+        }
+      ],
+      "confidence": 0.88,
+      "notes": "Died on her 67th birthday, Aug 29, 1982.",
+      "primarySource": false,
+      "verificationStatus": "verified",
+      "verificationConfidence": 0.9,
+      "verifierNotes": "Confirmed genuine date of death (not an announcement date); the birthday coincidence is independently well documented.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c012",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1970,
+      "category": "strange_incident",
+      "headline": "National Chicano Moratorium March",
+      "description": "Roughly 20,000 people marched in East Los Angeles against the Vietnam War in the largest Chicano anti-war demonstration; unrest followed.",
+      "people": [
+        "Ruben Salazar"
+      ],
+      "location": "East Los Angeles, California, USA",
+      "historicalImportance": "medium",
+      "sources": [
+        {
+          "title": "National Chicano Moratorium",
+          "publisher": "Los Angeles Public Library",
+          "url": "https://www.lapl.org/",
+          "authoritative": false
+        }
+      ],
+      "confidence": 0.6,
+      "notes": "Crowd size and some sequence-of-events details vary across secondary sources.",
+      "primarySource": false,
+      "verificationStatus": "needs_review",
+      "verificationConfidence": 0.62,
+      "verifierNotes": "Core date is correct, but only a single non-authoritative source was available and crowd-size figures vary; recommend sourcing a second, ideally institutional, reference before treating as fully verified.",
+      "checks": {
+        "dateConfirmed": true,
+        "yearConfirmed": true,
+        "personOrOrgConfirmed": true,
+        "kindConfirmed": true,
+        "notPublicationDateConfusion": true,
+        "notExaggerated": true,
+        "sufficientlyNotable": true,
+        "corroboratingSources": false,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": null
+    },
+    {
+      "id": "c013",
+      "kind": "event",
+      "monthDay": "08-29",
+      "year": 1971,
+      "category": "space_exploration",
+      "headline": "Retrospective on Apollo Program Published",
+      "description": "A widely circulated magazine retrospective about the Apollo program's legacy was published, reflecting on missions from the preceding two years.",
+      "people": [],
+      "location": "USA",
+      "historicalImportance": "low",
+      "sources": [
+        {
+          "title": "Looking Back at Apollo",
+          "publisher": "Unverified magazine archive",
+          "url": "https://example.com/apollo-retrospective",
+          "authoritative": false
+        }
+      ],
+      "confidence": 0.3,
+      "notes": "This is the article's publication date, not the date of any actual mission event.",
+      "primarySource": false,
+      "verificationStatus": "rejected",
+      "verificationConfidence": 0.1,
+      "verifierNotes": "Classic publication-date-confusion error: this is when a retrospective article was published, not when any historical event actually occurred. No underlying Aug 29 event is established. Rejected.",
+      "checks": {
+        "dateConfirmed": false,
+        "yearConfirmed": false,
+        "personOrOrgConfirmed": false,
+        "kindConfirmed": false,
+        "notPublicationDateConfusion": false,
+        "notExaggerated": true,
+        "sufficientlyNotable": false,
+        "corroboratingSources": false,
+        "headlineMatchesDescription": true
+      },
+      "rejectionReason": "Publication date of a retrospective article was mistaken for a historical event date; no verifiable underlying event."
+    }
+  ]
+}
