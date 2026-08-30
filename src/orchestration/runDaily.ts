@@ -159,7 +159,8 @@ export async function runPublishStage(
     date: resolved.isoDate,
     localImagePath: render.feed.imagePath,
     publicImageUrl: publicUrl,
-    caption: composeFinalCaptionText(caption),
+    altText: caption.caption,
+    tags: [...config.brand.hashtags, ...caption.hashtags],
     dryRun,
     alreadyPublished,
   });

@@ -2,7 +2,7 @@
 
 An autonomous system that wakes up every morning, researches what actually
 happened on today's calendar date in history, fact-checks it, designs a
-premium editorial infographic, writes a caption, and publishes it to a
+premium editorial infographic, and publishes it as an image-only post to a
 Bluesky account — with no daily human involvement.
 
 This README assumes you are **not** a professional developer. Every step is
@@ -12,7 +12,7 @@ spelled out. If a step feels obvious to you, skip ahead.
 
 ## 1. What this actually does, in plain English
 
-Once a day (by default, 5:30am Pacific time), the app:
+Once a day (by default, 9:00am Pacific time), the app:
 
 1. **Figures out today's date** in your chosen timezone (never UTC-by-accident).
 2. **Checks if it already posted today.** If yes, it stops immediately — it will never post the same date twice.
@@ -21,7 +21,7 @@ Once a day (by default, 5:30am Pacific time), the app:
 5. **Selects** the strongest, most varied 10-20 verified facts (major events, births, deaths, strange/memorable incidents).
 6. **Builds the graphic deterministically.** This is the most important design decision in the whole project: **no AI model ever typesets the dates, names, or headlines.** All factual text is rendered with real HTML/CSS through a real browser engine (Playwright/Chromium), so spelling, line breaks, and layout are always exactly what the verified data says. AI image generation (optional, off by default) is only ever used for wordless decorative artwork.
 7. **Runs automated QA** on both the data and the rendered pixels — duplicate checks, overflow checks, dimension checks, and (optionally) a vision-model sanity pass. **If QA fails, nothing gets published.**
-8. **Writes a caption**, uploads the image to public storage for archival, and publishes to Bluesky via the official AT Protocol API (no browser automation, no fake logins).
+8. **Writes a caption**, but posts image-only: the visible post text is left empty on purpose (just the image, no wall of text), the full caption goes into the image's alt/accessibility text instead, and up to 8 discovery tags (Bluesky's hard platform limit) get attached separately - no inline "#hashtag spam". Uploads the image to public storage for archival, then publishes via the official AT Protocol API (no browser automation, no fake logins).
 9. **Logs everything** to `runs/<date>/` so you can see exactly what happened, and why, for any given day.
 
 The guiding rule throughout: **no post is better than a wrong post.**
@@ -207,6 +207,26 @@ npm run publish -- --date 2026-01-01
 (after having run `render` and `caption` for that date first — see §9.)
 Check your Bluesky profile — the post should appear within a couple seconds.
 
+### 7.5 Why posts are image-only
+
+By design, the visible text on every post is left empty - it's just the
+graphic, no wall of text underneath it. Two things happen with the caption
+content instead:
+
+- The full descriptive caption goes into the image's **alt text**
+  (accessibility field) rather than the visible post. Screen reader users
+  get full access to everything the graphic says; sighted users just see a
+  clean image-only post. There's no length limit on alt text.
+- Up to **8 discovery tags** get attached via Bluesky's dedicated `tags`
+  field (`HASHTAGS` in `.env` plus day-specific ones the caption model
+  generates). This is a hard AT Protocol limit - Bluesky's `tags` field
+  caps out at 8 entries, and there is no mechanism to attach more without
+  putting them as literal `#hashtag` text inside the 300-character visible
+  post, which is exactly the wall-of-text this design avoids. If you ever
+  want visible inline hashtags instead, that would need to go back into
+  the post `text` field in `src/bluesky/publish.ts` - trading off against
+  the image-only look.
+
 ---
 
 ## 8. Understand the safety rails
@@ -264,7 +284,8 @@ including:
 - `ENABLE_STORY_RENDER` — also render a 1080×1920 Story version
 - `ENABLE_IMAGE_GENERATION` — optional decorative (never factual) AI artwork
 - `ENABLE_VISION_QA` — optional vision-model QA pass before publish
-- `HASHTAGS`, `SOURCE_CREDIT_LINE`
+- `HASHTAGS` — a pool of evergreen discovery tags (e.g. `#OnThisDay #History #Past #TodayInHistory`). These are combined with day-specific tags the caption model generates, then trimmed to Bluesky's hard 8-tag limit (see §7.5) - listing more than 8 total here has no effect since only the first 8 unique ones ever get used.
+- `SOURCE_CREDIT_LINE`
 
 ---
 
@@ -339,8 +360,8 @@ runs/2026-08-29/
   infographic.render.html     # the exact HTML that was rendered (for debugging)
   story.png                     # optional 1080x1920 Story version
   qa.json                         # QA verdict + every check performed
-  caption.json / caption.txt        # generated caption
-  publish.json                        # Bluesky publish result
+  caption.json / caption.txt        # generated caption (used as image alt text, not the visible post)
+  publish.json                        # Bluesky publish result (postUri, tags used, etc.)
   run.json                              # stage-by-stage summary
   run.log / run.jsonl                     # full structured log (human + machine readable)
 ```

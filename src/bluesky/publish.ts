@@ -4,10 +4,13 @@ import type { RunLogger } from "../utils/logger.js";
 import type { PublishRecord } from "../utils/types.js";
 import { nowIso } from "../utils/dateUtils.js";
 
-/** app.bsky.feed.post caps text at 300 graphemes. We approximate graphemes
- * with JS string length, which is safe for the plain-ASCII captions this
- * pipeline generates (no multi-code-unit emoji in practice). */
-const BLUESKY_TEXT_LIMIT = 300;
+/** Hard AT Protocol limits on app.bsky.feed.post's "tags" field - this is
+ * NOT the same thing as an in-text "#hashtag" facet. It's separate
+ * discovery metadata that most clients render as small, non-intrusive
+ * chips rather than inline text, but the protocol caps it at 8 tags of
+ * up to 64 graphemes each. There is no way to attach more than 8. */
+const BLUESKY_MAX_TAGS = 8;
+const BLUESKY_MAX_TAG_GRAPHEMES = 64;
 
 interface CreateSessionResponse {
   accessJwt: string;
@@ -34,13 +37,29 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function truncateForBluesky(caption: string): string {
-  if (caption.length <= BLUESKY_TEXT_LIMIT) return caption;
-  return caption.slice(0, BLUESKY_TEXT_LIMIT - 1) + "…";
-}
-
 function mimeTypeFor(imagePath: string): string {
   return imagePath.endsWith(".jpg") || imagePath.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+}
+
+/**
+ * Reduces a pool of "#Hashtag"-style strings down to Bluesky's hard cap of
+ * 8 bare (no "#") discovery tags, deduplicated case-insensitively and
+ * length-capped per tag. Order is preserved, so callers should put their
+ * most important/evergreen tags first.
+ */
+export function selectBlueskyTags(hashtagPool: string[]): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of hashtagPool) {
+    if (tags.length >= BLUESKY_MAX_TAGS) break;
+    const bare = raw.replace(/^#/, "").trim();
+    if (!bare) continue;
+    const key = bare.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(bare.length > BLUESKY_MAX_TAG_GRAPHEMES ? bare.slice(0, BLUESKY_MAX_TAG_GRAPHEMES) : bare);
+  }
+  return tags;
 }
 
 async function xrpcFetch<T>(service: string, method: string, opts: RequestInit): Promise<T> {
@@ -63,6 +82,12 @@ async function xrpcFetch<T>(service: string, method: string, opts: RequestInit):
  * No app review, no business verification - just an account and an app
  * password (Settings -> App Passwords in the Bluesky app, never your main
  * account password).
+ *
+ * By design, the visible post "text" is left empty - this account wants
+ * image-only posts, not a wall of text. The full descriptive caption goes
+ * into the image's "alt" field instead (an accessibility field with no
+ * protocol length limit, read by screen readers), and up to 8 discovery
+ * tags go into the record's separate "tags" field.
  */
 export async function publishToBluesky(
   config: AppConfig,
@@ -71,7 +96,10 @@ export async function publishToBluesky(
     date: string;
     localImagePath: string | null;
     publicImageUrl: string | null;
-    caption: string;
+    /** Full descriptive text - goes into the image's alt/accessibility field, not the visible post. */
+    altText: string;
+    /** Up to 8 discovery tags (with or without a leading "#"); trimmed to Bluesky's cap. */
+    tags: string[];
     dryRun: boolean;
     alreadyPublished: boolean;
   }
@@ -80,7 +108,7 @@ export async function publishToBluesky(
     date: opts.date,
     attemptedAt: nowIso(),
     publicImageUrl: opts.publicImageUrl,
-    caption: opts.caption,
+    caption: opts.altText,
   };
 
   if (opts.alreadyPublished) {
@@ -108,7 +136,7 @@ export async function publishToBluesky(
   }
 
   const { identifier, appPassword, service, maxPublishAttempts } = config.bluesky;
-  const text = truncateForBluesky(opts.caption);
+  const tags = selectBlueskyTags(opts.tags);
   let lastError: string | null = null;
 
   for (let attempt = 1; attempt <= maxPublishAttempts; attempt++) {
@@ -143,17 +171,18 @@ export async function publishToBluesky(
           collection: "app.bsky.feed.post",
           record: {
             $type: "app.bsky.feed.post",
-            text,
+            text: "", // intentionally empty: image-only posts, no wall of text
             createdAt: nowIso(),
+            tags,
             embed: {
               $type: "app.bsky.embed.images",
-              images: [{ image: uploaded.blob, alt: "On This Day historical infographic" }],
+              images: [{ image: uploaded.blob, alt: opts.altText }],
             },
           },
         }),
       });
 
-      logger.info("bluesky", `Published post ${record.uri}`);
+      logger.info("bluesky", `Published post ${record.uri}`, { tags });
       return { ...base, status: "SUCCESS", error: null, postUri: record.uri };
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);

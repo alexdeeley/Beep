@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isAlreadyPublished } from "../src/utils/stateStore.js";
-import { publishToBluesky } from "../src/bluesky/publish.js";
+import { publishToBluesky, selectBlueskyTags } from "../src/bluesky/publish.js";
 import { loadConfig } from "../src/config/index.js";
 import { RunLogger } from "../src/utils/logger.js";
 
@@ -76,7 +76,8 @@ describe("publishToBluesky idempotency + dry-run guards", () => {
       date: "2026-08-29",
       localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
-      caption: "caption",
+      altText: "caption",
+      tags: ["history", "onthisday"],
       dryRun: false,
       alreadyPublished: true,
     });
@@ -91,7 +92,8 @@ describe("publishToBluesky idempotency + dry-run guards", () => {
       date: "2026-08-29",
       localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
-      caption: "caption",
+      altText: "caption",
+      tags: ["history", "onthisday"],
       dryRun: true,
       alreadyPublished: false,
     });
@@ -107,7 +109,8 @@ describe("publishToBluesky idempotency + dry-run guards", () => {
       date: "2026-08-29",
       localImagePath: "/tmp/does-not-matter.png",
       publicImageUrl: "https://example.com/img.png",
-      caption: "caption",
+      altText: "caption",
+      tags: ["history", "onthisday"],
       dryRun: false,
       alreadyPublished: false,
     });
@@ -123,11 +126,40 @@ describe("publishToBluesky idempotency + dry-run guards", () => {
       date: "2026-08-29",
       localImagePath: null,
       publicImageUrl: null,
-      caption: "caption",
+      altText: "caption",
+      tags: ["history", "onthisday"],
       dryRun: false,
       alreadyPublished: false,
     });
     expect(record.status).toBe("FAILED");
     expect(record.error).toBeTruthy();
+  });
+});
+
+describe("selectBlueskyTags (hard 8-tag AT Protocol limit)", () => {
+  it("never returns more than 8 tags even given a much larger pool", () => {
+    const pool = Array.from({ length: 50 }, (_, i) => `#Tag${i}`);
+    expect(selectBlueskyTags(pool).length).toBeLessThanOrEqual(8);
+  });
+
+  it("strips leading # and deduplicates case-insensitively", () => {
+    const tags = selectBlueskyTags(["#History", "history", "#HISTORY", "#Past"]);
+    expect(tags).toEqual(["History", "Past"]);
+  });
+
+  it("preserves pool order so callers can prioritize evergreen tags first", () => {
+    const tags = selectBlueskyTags(["#OnThisDay", "#History", "#Random"]);
+    expect(tags).toEqual(["OnThisDay", "History", "Random"]);
+  });
+
+  it("truncates an individual tag longer than 64 graphemes", () => {
+    const longTag = "#" + "a".repeat(100);
+    const tags = selectBlueskyTags([longTag]);
+    expect(tags[0]!.length).toBe(64);
+  });
+
+  it("drops empty/whitespace-only entries without counting toward the cap", () => {
+    const tags = selectBlueskyTags(["#", "  ", "#Valid"]);
+    expect(tags).toEqual(["Valid"]);
   });
 });
