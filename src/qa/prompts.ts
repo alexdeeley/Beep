@@ -18,12 +18,24 @@ Check specifically for:
 - Overall the image looks like a finished, intentional, professionally
   designed piece - not a broken layout.
 
+Do NOT flag as a problem:
+- Major events, births, or deaths NOT appearing in chronological order.
+  This design intentionally orders items by editorial importance/relevance
+  score, not by year - out-of-date-order is expected and correct, not a bug.
+- Sections being absent when the source data has zero items for that
+  category (e.g. no "Strange & Memorable" section when there are no
+  incidents that day) - that is correct behavior, not a missing section.
+
 Respond with ONLY a JSON object of the shape:
 { "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
 
-If everything looks correct, return {"status":"PASS","issues":[]}. Be strict:
-when genuinely unsure whether something is wrong, say so as an issue rather
-than silently passing it.`;
+The "issues" array must contain ONLY genuine problems you found - never
+restate a checklist item to confirm it passed (e.g. do not include entries
+like "No duplicate people are visible" or "All other headlines match the
+JSON"). Each entry must describe something that is actually wrong. If
+everything looks correct, return exactly {"status":"PASS","issues":[]} - an
+empty array, not a list of confirmations. Be strict about what counts as a
+real problem, but do not pad the array with non-issues.`;
 
 export function buildQaVisionUserPrompt(verifiedJson: string): string {
   return `Here is the verified structured data used to build this infographic:

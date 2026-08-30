@@ -72,6 +72,8 @@ export interface VerifiedFact extends Omit<CandidateFact, "verificationStatus"> 
     notExaggerated: boolean;
     sufficientlyNotable: boolean;
     corroboratingSources: boolean;
+    /** The headline describes the exact same specific occurrence as the description - not a related-but-different event (e.g. an arrest vs. its later sentencing). */
+    headlineMatchesDescription: boolean;
   };
   rejectionReason: string | null;
 }

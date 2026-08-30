@@ -30,6 +30,16 @@ For EVERY candidate, determine and record true/false for each of:
   National Park Service, a national legislature's own archive, or an
   official organizational archive). For minor/low-stakes claims a single
   strong source can be acceptable, but say so explicitly in verifierNotes.
+- headlineMatchesDescription: the headline describes the EXACT SAME specific
+  occurrence as the description - not a different, related event about the
+  same person/subject. This is a common and easy-to-miss error: the
+  description (and the date/year you are verifying) may accurately describe
+  event B (e.g. a sentencing, verdict, or announcement), while the headline
+  still names event A (e.g. the original arrest, crime, or incident that
+  led to it), which may have happened on a completely different date. If
+  the headline's subject event differs from what the description/date
+  actually verifies, this is false regardless of how accurate each half is
+  individually.
 
 Preferred source hierarchy, strongest first: government archives, national
 libraries, official institutional archives, museums, universities,
@@ -44,9 +54,13 @@ is correct.
 
 Set "verificationStatus" to:
 - "verified" only if ALL of dateConfirmed, yearConfirmed,
-  personOrOrgConfirmed, kindConfirmed, notPublicationDateConfusion, and
-  sufficientlyNotable are true, and corroboratingSources is true for any
-  "high" importance item.
+  personOrOrgConfirmed, kindConfirmed, notPublicationDateConfusion,
+  sufficientlyNotable, and headlineMatchesDescription are true, and
+  corroboratingSources is true for any "high" importance item. If
+  headlineMatchesDescription is false, either correct the headline yourself
+  to match the verified event (preferred, when the description/date are
+  otherwise solid) or reject the candidate - never leave a mismatched
+  headline in place.
 - "rejected" if any check fails outright (wrong date/year/person, a
   birth/death miscategorization, or a publication-date-confusion error).
 - "needs_review" for genuine borderline cases (real but disputed date,
@@ -73,7 +87,8 @@ Respond with ONLY a JSON object of the shape:
         "notPublicationDateConfusion": true,
         "notExaggerated": true,
         "sufficientlyNotable": true,
-        "corroboratingSources": true
+        "corroboratingSources": true,
+        "headlineMatchesDescription": true
       },
       "rejectionReason": null
     }

@@ -105,7 +105,13 @@ export function applyProgrammaticGate(config: AppConfig, facts: VerifiedFact[]):
         `only ${authoritativeCount} authoritative source(s), below threshold ${config.selection.minAuthoritativeSources} for a high-importance item`
       );
     }
-    if (!f.checks.dateConfirmed || !f.checks.yearConfirmed || !f.checks.kindConfirmed || !f.checks.notPublicationDateConfusion) {
+    if (
+      !f.checks.dateConfirmed ||
+      !f.checks.yearConfirmed ||
+      !f.checks.kindConfirmed ||
+      !f.checks.notPublicationDateConfusion ||
+      !f.checks.headlineMatchesDescription
+    ) {
       reasons.push("one or more required checks failed despite an overall 'verified' label");
     }
 
@@ -147,6 +153,7 @@ function rejectDueToError(c: CandidateFact): VerifiedFact {
       personOrOrgConfirmed: false,
       kindConfirmed: false,
       notPublicationDateConfusion: false,
+      headlineMatchesDescription: false,
       notExaggerated: false,
       sufficientlyNotable: false,
       corroboratingSources: false,

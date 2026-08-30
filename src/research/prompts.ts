@@ -23,6 +23,15 @@ Rules:
   decade dominate the pool.
 - Distinguish clearly between when an EVENT happened and when it was merely
   REPORTED or PUBLISHED. Only use the event date as the date field.
+- The "headline" and "description" must describe the exact same specific
+  occurrence, not two different-but-related events. A common trap: giving a
+  headline for one event (e.g. an arrest, a shootdown, a crime) while the
+  description - and the date/year you actually verified - covers a later,
+  different event about the same person or subject (e.g. their sentencing,
+  a trial verdict, an anniversary commemoration). If the date you are
+  confident about is the sentencing/verdict/announcement date, the headline
+  must say so too (e.g. "Powers Sentenced for Espionage", not "USSR Shoots
+  Down U-2 Pilot Powers" - the shootdown was a different date).
 - Set "kind" to "birth" only for a person's actual birth date, "death" only
   for an actual date of death, and "event" for everything else.
 - Set "confidence" (0-1) to your own honest belief that the date, year, and
