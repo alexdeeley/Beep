@@ -78,10 +78,9 @@ describe("buildArtPrompt", () => {
     expect(prompt).toMatch(/never depict their actual logo, trademark/);
   });
 
-  it("explicitly allows recognizable caricature of real public figures", () => {
+  it("forbids any recognizable likeness of a real named person, requiring a generic figure instead", () => {
     const prompt = buildArtPrompt(makeSelected({}), "a bustling newsroom");
-    expect(prompt).toMatch(/portray them as affectionate or\nsatirical caricatures/);
-    expect(prompt).toMatch(/exaggerate\ndistinctive characteristics enough that viewers can identify them\nquickly/);
+    expect(prompt).toMatch(/do NOT depict their\nactual recognizable likeness, face, or identifiable caricature - use a\ngeneric, anonymous figure instead/);
   });
 
   it("weaves the day's actual headlines into the prompt as background atmosphere, not the main subject", () => {

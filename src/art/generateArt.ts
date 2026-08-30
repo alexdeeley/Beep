@@ -23,13 +23,14 @@ import type { RenderResult, SizeRenderResult } from "../render/renderInfographic
  * Because there is no fallback image once this replaces the renderer, a
  * missing API key or a failed generation call must fail the run - unlike
  * the formerly-optional decorative asset generator, this is not
- * skippable. Per explicit direction, recognizable caricature of real
- * public figures and very short intentional text/symbols are both
- * allowed here (a deliberate, discussed departure from this pipeline's
- * original "never let an AI model typeset facts, never a real likeness"
- * defaults) - but actual real brand logos or copyrighted-character
- * designs are still never allowed, and long/garbled text is still a
- * defect. All enforced by the art-specific vision QA check.
+ * skippable. Per explicit direction, very short intentional text/symbols
+ * are allowed here (a deliberate, discussed departure from this
+ * pipeline's original "never let an AI model typeset facts" default) -
+ * but a real, specific person's actual recognizable likeness (even as
+ * caricature) and a real brand's actual logo or a copyrighted
+ * character's actual design are still never allowed, generic figures/
+ * invented stand-ins only, and long/garbled text is still a defect. All
+ * enforced by the art-specific vision QA check.
  */
 export async function generateDailyArt(
   config: AppConfig,
@@ -117,15 +118,16 @@ function formatCuratedTrends(items: CuratedTrendItem[]): string {
 
 /**
  * Builds the image-generation prompt from the user-supplied master
- * template (a detailed editorial-cartoon art direction brief), adapted
- * in two explicitly-discussed ways: recognizable caricature of real
- * public figures is allowed (was previously banned after a caught
- * likeness violation), and very short intentional text/symbols are
- * allowed (was previously a hard zero-text rule). One guardrail from the
- * pipeline's original design is kept regardless, since it protects
- * against a different kind of risk (IP infringement, not satire) that
- * wasn't part of that discussion: never a real brand's actual logo or a
- * real copyrighted character's actual design.
+ * template (a detailed editorial-cartoon art direction brief). Very
+ * short intentional text/symbols are allowed here, an explicitly
+ * discussed departure from this pipeline's original hard zero-text rule.
+ * Real-person likeness is NOT loosened, though: the master template's own
+ * "affectionate caricature of public figures" guidance was tried live and
+ * reverted after repeated failures - a real, specific person's actual
+ * recognizable likeness is still never allowed here, generic figures
+ * only, same as a real brand's actual logo or a real copyrighted
+ * character's actual design (a different risk, IP infringement rather
+ * than personal likeness, kept regardless of the above).
  */
 export function buildArtPrompt(selected: SelectedContent, environment: string, curatedTrends: CuratedTrendItem[] = []): string {
   const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
@@ -163,15 +165,17 @@ vector graphics, generic AI concept-art aesthetics, clean sterile 3D
 rendering, or photographic realism - it must clearly read as an
 illustration.
 
-CARICATURE
-When recognizable public figures appear, portray them as affectionate or
-satirical caricatures rather than photorealistic portraits. Capture
-recognizable hairstyle, facial structure, signature expressions,
-clothing, posture, famous accessories, public persona - exaggerate
-distinctive characteristics enough that viewers can identify them
-quickly. Caricatures should remain visually appealing, expressive, and
-readable; mix subtle caricature with occasional dramatic exaggeration
-rather than making every character grotesque.
+PEOPLE IN THE SCENE
+When a real named person is part of a trending topic, do NOT depict their
+actual recognizable likeness, face, or identifiable caricature - use a
+generic, anonymous figure instead (an unmistakably-not-a-portrait
+besuited figure, a generic athlete silhouette, a generic uniform/role
+costume) that gestures at their role in the story (a podium, a flag, a
+famous accessory, a signature prop) without being identifiable as that
+specific individual. Anonymous crowd figures, unnamed reacting
+bystanders, and other non-entity-specific people in the scene should
+still be expressive, characterful, and full of personality - just never
+a likeness of one particular real person.
 
 COMPOSITION
 A single unified scene, not a grid of unrelated panels, though it may
@@ -233,17 +237,18 @@ excessive written headlines, a meme template, empty backgrounds,
 characters simply standing side by side, or a composition that repeats a
 previous day's structure. Something should always be happening.
 
-ONE HARD LIMIT (kept regardless of the above): for any real named brand,
-company, product, or specific copyrighted character/franchise referenced
-in the trending topics below - never depict their actual logo, trademark,
-or the copyrighted character's real design. Invent a generic, original
-visual stand-in that captures the idea instead (this protects against
-trademark/copyright issues, a different risk than the caricature of a
-real person discussed above, which IS allowed here). This is especially
-easy to get wrong for a chase/pursuit gag between an animal predator and
-its prey (e.g. a coyote and a bird, a cat and a mouse) - that specific
-visual pairing reliably drifts into a specific studio's actual
-copyrighted character designs even when not intended, so avoid that exact
+HARD LIMIT ON LOGOS/CHARACTERS (kept regardless of the above, in addition
+to the PEOPLE rule above): for any real named brand, company, product, or
+specific copyrighted character/franchise referenced in the trending
+topics below - never depict their actual logo, trademark, or the
+copyrighted character's real design. Invent a generic, original visual
+stand-in that captures the idea instead (this protects against
+trademark/copyright issues, a different risk from the personal-likeness
+rule above). This is especially easy to get wrong for a chase/pursuit gag
+between an animal predator and its prey (e.g. a coyote and a bird, a cat
+and a mouse) - that specific visual pairing reliably drifts into a
+specific studio's actual copyrighted character designs even when not
+intended, so avoid that exact
 pairing/staging entirely and invent a different visual joke for that idea
 instead.
 
