@@ -10,6 +10,7 @@ import {
   runVerificationStage,
   runSelectionStage,
   runTrendingStage,
+  runTrendCurationStage,
   runRenderStage,
   runQAStage,
   runCaptionStage,
@@ -80,7 +81,8 @@ program
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
     const trendingTopics = await runTrendingStage(ctx);
-    const result = await runRenderStage(ctx, selected, trendingTopics);
+    const curatedTrends = await runTrendCurationStage(ctx, selected, trendingTopics);
+    const result = await runRenderStage(ctx, selected, curatedTrends);
     console.log(`Generated feed image: ${result.feed.imagePath} (${result.feed.width}x${result.feed.height})`);
     if (result.story) console.log(`Generated story image: ${result.story.imagePath}`);
   });

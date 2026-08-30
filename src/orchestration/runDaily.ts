@@ -20,6 +20,7 @@ import { selectContent } from "../selection/selectContent.js";
 import { generateSupportingAssets } from "../assets/generateAssets.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 import { generateDailyArt } from "../art/generateArt.js";
+import { curateTrends, curateHistoricalContent, type CuratedTrendItem } from "../art/trendCuration.js";
 import { runQualityChecks } from "../qa/runQA.js";
 import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../caption/generateCaption.js";
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
@@ -114,12 +115,42 @@ export async function runAssetsStage(ctx: RunContext, selected: SelectedContent)
  * slots (publish stage) - what inspired the image and what it's tagged
  * with always agree. Best-effort: see bluesky/trending.ts for why a
  * failure here returns [] rather than blocking the run.
+ *
+ * Only fetched when the run's date is actually today (ctx.resolved.isToday)
+ * - live trending topics are only meaningful as "what's happening right
+ * now," which is only true for real daily production. A --date override
+ * pointing at a different day gets [] here and its art content comes from
+ * that day's own independently researched historical facts instead (see
+ * runTrendCurationStage) rather than today's unrelated real-world news.
  */
 export async function runTrendingStage(ctx: RunContext): Promise<TrendingTopic[]> {
-  const { logger, store } = ctx;
+  const { logger, store, resolved } = ctx;
+  if (!resolved.isToday) {
+    logger.info("bluesky", `${resolved.isoDate} is not today; skipping live trending topics (art will use this day's own historical facts instead)`);
+    store.writeJson("trending.json", []);
+    return [];
+  }
   const topics = await fetchTrendingTopics(logger);
   store.writeJson("trending.json", topics);
   return topics;
+}
+
+/**
+ * Stage: builds the curated "raw clay" package the art prompt is built
+ * from. For real daily production (date is today) this curates today's
+ * live trending topics; for a --date override pointing at a different day
+ * it curates that day's own verified historical facts instead - see
+ * generateArt.ts's generateDailyArt doc comment for why.
+ */
+export async function runTrendCurationStage(
+  ctx: RunContext,
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
+): Promise<CuratedTrendItem[]> {
+  const { config, logger, store, resolved } = ctx;
+  const curated = resolved.isToday ? await curateTrends(config, logger, trendingTopics) : await curateHistoricalContent(config, logger, selected);
+  store.writeJson("curatedTrends.json", curated);
+  return curated;
 }
 
 /**
@@ -131,10 +162,10 @@ export async function runTrendingStage(ctx: RunContext): Promise<TrendingTopic[]
 export async function runRenderStage(
   ctx: RunContext,
   selected: SelectedContent,
-  trendingTopics: TrendingTopic[]
+  curatedTrends: CuratedTrendItem[]
 ): Promise<RenderResult> {
   const { config, logger, store } = ctx;
-  const result = await generateDailyArt(config, logger, store.dir, selected, trendingTopics);
+  const result = await generateDailyArt(config, logger, store.dir, selected, curatedTrends);
   store.writeJson("render.json", result);
   return result;
 }
@@ -161,7 +192,7 @@ export async function runQAStage(ctx: RunContext, selected: SelectedContent, ren
 export async function runRenderAndQAStage(
   ctx: RunContext,
   selected: SelectedContent,
-  trendingTopics: TrendingTopic[]
+  curatedTrends: CuratedTrendItem[]
 ): Promise<{ render: RenderResult; qa: QAResult }> {
   const { config, logger } = ctx;
   const maxAttempts = config.art.maxQaRegenerationAttempts;
@@ -170,7 +201,7 @@ export async function runRenderAndQAStage(
   let qa: QAResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    render = await runRenderStage(ctx, selected, trendingTopics);
+    render = await runRenderStage(ctx, selected, curatedTrends);
     qa = await runQAStage(ctx, selected, render);
     if (qa.status === "PASS") return { render, qa };
 
@@ -342,7 +373,10 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     const trendingTopics = await runTrendingStage(ctx);
     markStage(record, "trending", "OK", `${trendingTopics.length} topic(s)`);
 
-    const renderAndQa = await runRenderAndQAStage(ctx, selected, trendingTopics);
+    const curatedTrends = await runTrendCurationStage(ctx, selected, trendingTopics);
+    markStage(record, "trend_curation", "OK", `${curatedTrends.length} item(s)`);
+
+    const renderAndQa = await runRenderAndQAStage(ctx, selected, curatedTrends);
     render = renderAndQa.render;
     const qa = renderAndQa.qa;
     markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
