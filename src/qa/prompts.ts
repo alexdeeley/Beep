@@ -7,7 +7,14 @@ Check specifically for:
 - The visible date on the image matches the supplied date.
 - Every visible year, name, and headline matches the supplied verified JSON
   exactly (no hallucinated or altered text could have been introduced by
-  rendering).
+  rendering). IMPORTANT: cards in the "Born On This Day" and "Notable
+  Deaths" sections intentionally show ONLY the person's name, year, and
+  location - by design, they never display the "headline" or
+  "description" JSON fields (e.g. a birth card for a person whose JSON
+  headline is "Paul Reubens (Pee-wee Herman) Born" correctly shows just
+  "Paul Reubens" on the card). For those two sections, only check that the
+  visible name/year/location match the JSON exactly - never flag a
+  birth/death card for omitting headline or description text.
 - No duplicate people or duplicate events visible.
 - No clipped, cut-off, or overlapping text or cards.
 - No empty-looking cards or sections.
@@ -25,6 +32,8 @@ Do NOT flag as a problem:
 - Sections being absent when the source data has zero items for that
   category (e.g. no "Strange & Memorable" section when there are no
   incidents that day) - that is correct behavior, not a missing section.
+- A birth/death card not showing the full headline or description text -
+  those cards are name/year/location only by design (see above).
 
 Respond with ONLY a JSON object of the shape:
 { "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
