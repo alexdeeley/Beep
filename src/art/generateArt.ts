@@ -185,6 +185,22 @@ fully expressive, characterful, and full of personality within that
 limit; "generic" means not a real identifiable person or character, not
 bland or lifeless.
 
+WHEN A TOPIC CENTERS ON A SPECIFIC REAL PERSON, BRAND, OR CHARACTER
+Favor vagueness over specificity. Do not try to get as close as possible
+to the real likeness/design while technically staying "generic" - that
+consistently drifts back into a recognizable depiction. Instead, illustrate
+the underlying situation, action, or vibe of the story (the negotiation,
+the announcement, the controversy, the chase, the collapse, the triumph)
+using an anonymous figure, an unrelated stand-in object, or a symbolic
+scene that a viewer who already knows the news will connect to the story -
+without the image itself attempting to render that specific person,
+brand, or character at all, even loosely, even in silhouette, even as a
+"clearly different but similar" version. If you cannot think of a way to
+depict a topic without reaching for the real entity's actual likeness or
+design, illustrate a different, safer angle of the same story instead
+(the setting, the reaction, the aftermath, the object involved) rather
+than attempting the entity itself.
+
 COMPOSITION
 A single unified scene, not a grid of unrelated panels, though it may
 contain many simultaneous events. Use foreground/middle-ground/background

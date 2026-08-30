@@ -31,9 +31,15 @@ For each topic worth including, determine:
   right now (cultural importance, public attention, stakes).
 - "peopleInvolved": named real people or organizations central to it (can
   be empty if none).
-- "visualHooks": 2-4 concrete, literal visual ideas an illustrator could
-  actually draw for this topic (objects, settings, actions, symbols) -
-  not abstract descriptions.
+- "visualHooks": 2-4 concrete visual ideas an illustrator could actually
+  draw for this topic (objects, settings, actions, symbols). The
+  illustrator can never draw any real person's actual likeness or any
+  real brand/character's actual design, so favor hooks that evoke the
+  situation vaguely and symbolically (the setting, the object involved,
+  the action, the mood) over hooks that describe what a specific named
+  person or character looks like or is doing - e.g. prefer "a packed
+  boxing ring under hot stage lights" over "a caricature of the boxer
+  mid-swing."
 - "humorPotential": 1 sentence on the specific angle of humor, irony, or
   visual metaphor this topic offers.
 
