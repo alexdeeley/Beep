@@ -34,8 +34,9 @@ export async function generateDailyArt(
   const client = makeOpenAIClient(config);
   if (!client) throw new MissingApiKeyError("art");
 
-  const prompt = buildArtPrompt(selected);
-  logger.info("art", `Generating abstract art for ${selected.date}`);
+  const style = pickArtStyle(selected.date);
+  const prompt = buildArtPrompt(selected, style);
+  logger.info("art", `Generating abstract art for ${selected.date}`, { style });
 
   const feed = await generateOneImage(client, config, logger, runDir, prompt, {
     fileBaseName: "infographic",
@@ -55,7 +56,45 @@ export async function generateDailyArt(
   return { feed, story };
 }
 
-export function buildArtPrompt(selected: SelectedContent): string {
+/**
+ * A curated set of distinct fine-art movements/techniques, each described
+ * in fully abstract (never figurative) terms so it stays compatible with
+ * the hard "no recognizable faces" rule below. Kept deliberately varied
+ * in mood, palette, and technique so consecutive days genuinely look
+ * different rather than reading as "the same abstract painting with
+ * different colors."
+ */
+const ART_STYLES: string[] = [
+  "Bauhaus geometric abstraction - flat planes of primary color, strong geometric structure, disciplined composition",
+  "Japanese sumi-e ink wash - minimal brushwork, generous negative space, monochrome or near-monochrome ink tones",
+  "Color Field painting - large luminous fields of color, soft edges, meditative scale, few forms",
+  "Cubist fragmentation - faceted overlapping planes, fractured perspective, muted earth-toned palette",
+  "Art Deco geometric elegance - symmetrical ornamental geometry, metallic gold and deep jewel tones",
+  "Abstract Expressionist gesture - energetic brushstrokes, dynamic sweeping movement, bold high-contrast color",
+  "Constructivist collage - angular industrial forms, structured diagonals, bold red/black/white palette",
+  "Watercolor wash - soft bleeding pigment, translucent layered color, organic irregular edges",
+  "Bold Pop Art graphic - flat saturated color blocks, high contrast, graphic silhouette shapes",
+  "Minimalist geometric abstraction - a few precise shapes, generous negative space, restrained palette",
+  "Textured mixed-media collage - layered paper and paint textures, tactile surface, muted tones",
+  "Op Art optical pattern - rhythmic repeating geometric pattern, high contrast, sense of visual movement",
+  "Biomorphic abstraction - organic flowing forms, curved lines, warm earthy or oceanic color",
+  "Impressionist abstraction - dappled broken color, soft atmospheric light, loose visible brushwork",
+];
+
+/**
+ * Deterministically rotates through ART_STYLES by calendar date (days
+ * since the Unix epoch, UTC), the same "stateless, reproducible" approach
+ * the old text infographic used for its theme rotation. Guarantees two
+ * consecutive calendar days never share a style, and every style gets
+ * used before any repeats.
+ */
+export function pickArtStyle(isoDate: string): string {
+  const days = Math.floor(Date.parse(`${isoDate}T00:00:00Z`) / 86_400_000);
+  const idx = ((days % ART_STYLES.length) + ART_STYLES.length) % ART_STYLES.length;
+  return ART_STYLES[idx]!;
+}
+
+export function buildArtPrompt(selected: SelectedContent, style: string): string {
   const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
   const themes = allItems
     .slice(0, 8)
@@ -68,8 +107,8 @@ almanac. Evoke the mood, era, and energy of these real historical moments
 from ${selected.displayDate} without depicting any of them literally and
 without any recognizable figures, portraits, or scenes: ${themes || "a quiet day in history"}.
 Loosely inspired by themes of: ${categories || "history and memory"}.
-Style: bold abstract composition - considered shapes, rich texture, a
-deliberate color palette, gallery-quality, evocative rather than
+Today's assigned style: ${style}.
+Render fully in that style - gallery-quality, evocative rather than
 illustrative or literal. Portrait orientation, full-bleed edge-to-edge
 composition with no border or frame.
 ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO

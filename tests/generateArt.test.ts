@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildArtPrompt } from "../src/art/generateArt.js";
+import { buildArtPrompt, pickArtStyle } from "../src/art/generateArt.js";
 import type { SelectedContent, SelectedFact } from "../src/utils/types.js";
 
 function makeFact(overrides: Partial<SelectedFact>): SelectedFact {
@@ -58,7 +58,10 @@ function makeSelected(overrides: Partial<SelectedContent>): SelectedContent {
 
 describe("buildArtPrompt", () => {
   it("always forbids text, letters, numbers, and recognizable faces", () => {
-    const prompt = buildArtPrompt(makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }));
+    const prompt = buildArtPrompt(
+      makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }),
+      "Color Field painting"
+    );
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt).toMatch(/NO LETTERS/);
     expect(prompt).toMatch(/NO NUMBERS/);
@@ -67,14 +70,49 @@ describe("buildArtPrompt", () => {
 
   it("weaves the day's actual headlines into the prompt", () => {
     const prompt = buildArtPrompt(
-      makeSelected({ majorEvents: [makeFact({ headline: "Guillotine Used for First Time" })] })
+      makeSelected({ majorEvents: [makeFact({ headline: "Guillotine Used for First Time" })] }),
+      "Cubist fragmentation"
     );
     expect(prompt).toContain("Guillotine Used for First Time");
   });
 
+  it("includes the assigned style verbatim", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "Japanese sumi-e ink wash");
+    expect(prompt).toContain("Japanese sumi-e ink wash");
+  });
+
   it("never crashes and stays text-forbidding when there is no content at all", () => {
-    const prompt = buildArtPrompt(makeSelected({}));
+    const prompt = buildArtPrompt(makeSelected({}), "Minimalist geometric abstraction");
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt.length).toBeGreaterThan(0);
+  });
+});
+
+describe("pickArtStyle", () => {
+  it("is deterministic - the same date always returns the same style", () => {
+    expect(pickArtStyle("2026-07-04")).toBe(pickArtStyle("2026-07-04"));
+  });
+
+  it("never picks the same style on two consecutive calendar days", () => {
+    expect(pickArtStyle("2026-07-04")).not.toBe(pickArtStyle("2026-07-05"));
+    expect(pickArtStyle("2026-12-31")).not.toBe(pickArtStyle("2027-01-01"));
+  });
+
+  it("cycles through every style before repeating any", () => {
+    const seenOnFirstCycle = new Set<string>();
+    let date = new Date("2026-01-01T00:00:00Z");
+    let firstRepeatAt = -1;
+    for (let i = 0; i < 100; i++) {
+      const iso = date.toISOString().slice(0, 10);
+      const style = pickArtStyle(iso);
+      if (seenOnFirstCycle.has(style)) {
+        firstRepeatAt = i;
+        break;
+      }
+      seenOnFirstCycle.add(style);
+      date = new Date(date.getTime() + 86_400_000);
+    }
+    // The first repeat must not happen until every distinct style has been used at least once.
+    expect(firstRepeatAt).toBe(seenOnFirstCycle.size);
   });
 });

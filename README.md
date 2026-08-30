@@ -13,7 +13,7 @@ spelled out. If a step feels obvious to you, skip ahead.
 
 ## 1. What this actually does, in plain English
 
-Once a day (by default, 9:00am Pacific time), the app:
+Once a day (by default, 12:34pm Pacific time), the app:
 
 1. **Figures out today's date** in your chosen timezone (never UTC-by-accident).
 2. **Checks if it already posted today.** If yes, it stops immediately — it will never post the same date twice.
