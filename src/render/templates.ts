@@ -33,7 +33,7 @@ function headerHtml(selected: SelectedContent, assets: DecorativeAsset[]): strin
     <h1 class="headline-date">${escapeHtml(selected.displayDate)}</h1>
     <p class="subtitle">${escapeHtml(selected.subtitle)}</p>
     ${motifHtml(motifFor(assets, "header"))}
-    <div class="divider"><span class="mark">&#10022;</span></div>
+    <div class="divider"></div>
   </header>`;
 }
 
@@ -137,7 +137,7 @@ function incidentsSectionHtml(selected: SelectedContent, assets: DecorativeAsset
 function sourceFooterHtml(selected: SelectedContent): string {
   return `
   <footer class="footer">
-    <div class="divider"><span class="mark">&#10022;</span></div>
+    <div class="divider"></div>
     <div class="brand">On This Day</div>
     <p class="credit">${escapeHtml(selected.sourceCreditLine)}</p>
   </footer>`;
