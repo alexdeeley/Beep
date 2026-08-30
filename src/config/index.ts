@@ -75,6 +75,10 @@ export interface AppConfig {
     enableImageGeneration: boolean;
   };
 
+  art: {
+    maxGenerationAttempts: number;
+  };
+
   storage: {
     provider: "r2" | "s3" | "local";
     bucket: string | undefined;
@@ -155,6 +159,10 @@ export function loadConfig(): AppConfig {
 
     assets: {
       enableImageGeneration: envBool("ENABLE_IMAGE_GENERATION", false),
+    },
+
+    art: {
+      maxGenerationAttempts: envInt("ART_MAX_GENERATION_ATTEMPTS", 3),
     },
 
     storage: {

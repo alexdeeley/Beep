@@ -1,9 +1,10 @@
 # On This Day
 
 An autonomous system that wakes up every morning, researches what actually
-happened on today's calendar date in history, fact-checks it, designs a
-premium editorial infographic, and publishes it as an image-only post to a
-Bluesky account — with no daily human involvement.
+happened on today's calendar date in history, fact-checks it, generates a
+piece of abstract art evoking that day, and publishes it as an image-only
+post to a Bluesky account (with the full write-up in the image's
+accessibility text) — with no daily human involvement.
 
 This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
@@ -19,8 +20,8 @@ Once a day (by default, 9:00am Pacific time), the app:
 3. **Researches** 20-40 candidate historical facts for that calendar date (events, births, deaths, disasters, science, music, sports, strange incidents, etc.) using OpenAI.
 4. **Independently fact-checks** every single candidate with a second, stricter pass that treats the research step as untrusted. Anything that can't be confirmed — wrong date, wrong year, a birth mistaken for a death, an article's publish date mistaken for an event date — gets rejected or flagged for review, never published.
 5. **Selects** the strongest, most varied 10-20 verified facts (major events, births, deaths, strange/memorable incidents).
-6. **Builds the graphic deterministically.** This is the most important design decision in the whole project: **no AI model ever typesets the dates, names, or headlines.** All factual text is rendered with real HTML/CSS through a real browser engine (Playwright/Chromium), so spelling, line breaks, and layout are always exactly what the verified data says. AI image generation (optional, off by default) is only ever used for wordless decorative artwork.
-7. **Runs automated QA** on both the data and the rendered pixels — duplicate checks, overflow checks, dimension checks, and (optionally) a vision-model sanity pass. **If QA fails, nothing gets published.**
+6. **Generates a piece of abstract art** evoking the day's verified facts — bold shapes, texture, and color inspired by that day's themes, never a literal illustration of any single event. The image carries no factual claims of its own (the facts live in the verified data and the caption/alt text), so the one hard safety rule that used to apply to typesetting now applies to the art itself: **it must contain zero legible text, letters, numbers, or recognizable faces.** (An earlier version of this project rendered a deterministic HTML/CSS text infographic instead — see `src/render/renderInfographic.ts`, still in the repo but no longer used by the daily run.)
+7. **Runs automated QA** on both the data and the generated pixels — duplicate checks, dimension checks, and a vision-model pass that specifically checks for any accidentally-generated text or garbled pseudo-text. **If QA fails, nothing gets published.**
 8. **Writes a caption**, but posts image-only: the visible post text is left empty on purpose (just the image, no wall of text), the full caption goes into the image's alt/accessibility text instead, and up to 8 discovery tags (Bluesky's hard platform limit) get attached separately - no inline "#hashtag spam". Uploads the image to public storage for archival, then publishes via the official AT Protocol API (no browser automation, no fake logins).
 9. **Logs everything** to `runs/<date>/` so you can see exactly what happened, and why, for any given day.
 
@@ -403,9 +404,10 @@ src/
   research/        # stage 1: broad candidate research (OpenAI)
   verification/    # stage 2: independent, strict fact-checking (OpenAI)
   selection/        # stage 3: ranking/diversity/anniversary logic (pure code)
-  assets/          # optional decorative (non-textual) AI artwork
-  render/          # deterministic HTML/CSS -> PNG via Playwright
-  qa/              # programmatic + optional vision-model QA
+  art/             # stage 4: daily abstract art generation (OpenAI image model) - the live pipeline's image source
+  assets/          # legacy: decorative (non-textual) motifs for the old text infographic, unused by `daily`
+  render/          # legacy: deterministic HTML/CSS -> PNG via Playwright, unused by `daily` (see art/ above)
+  qa/              # programmatic + vision-model QA (art no-text check + the legacy infographic checklist)
   caption/         # social caption generation
   storage/         # R2/S3 upload
   bluesky/         # official AT Protocol publish flow

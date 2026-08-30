@@ -6,7 +6,14 @@ import { makeOpenAIClient, requestJsonWithImage } from "../utils/openaiClient.js
 import type { QAIssue, QAResult, SelectedContent, SelectedFact } from "../utils/types.js";
 import type { SizeRenderResult } from "../render/renderInfographic.js";
 import { nowIso } from "../utils/dateUtils.js";
-import { QA_VISION_SYSTEM_PROMPT, buildQaVisionUserPrompt } from "./prompts.js";
+import {
+  QA_VISION_SYSTEM_PROMPT,
+  buildQaVisionUserPrompt,
+  ART_QA_VISION_SYSTEM_PROMPT,
+  buildArtQaVisionUserPrompt,
+} from "./prompts.js";
+
+export type QAMode = "infographic" | "art";
 
 const PLACEHOLDER_PATTERNS = [/lorem ipsum/i, /\btodo\b/i, /\bTBD\b/, /undefined/i, /\bNaN\b/, /\[object Object\]/i];
 
@@ -23,7 +30,8 @@ export async function runQualityChecks(
   logger: RunLogger,
   expectedIsoDate: string,
   selected: SelectedContent,
-  render: SizeRenderResult
+  render: SizeRenderResult,
+  mode: QAMode = "infographic"
 ): Promise<QAResult> {
   const programmaticChecks: QAResult["programmaticChecks"] = [];
   const issues: QAIssue[] = [];
@@ -92,15 +100,18 @@ export async function runQualityChecks(
     issues.push({ severity: "blocking", message: "Content exceeded the canvas even at minimum safe scale; too much material was selected for this date" });
   }
 
-  // 10. No accidental large blank/white margins (this is a dark theme; a
-  // washed-out corner usually means a layout or background bug).
-  const corners = await sampleCorners(render.imagePath);
-  const tooLight = corners.filter((c) => c > 235).length >= 3;
-  programmaticChecks.push({ name: "no_accidental_white_margins", passed: !tooLight, detail: `corner brightness: ${corners.join(", ")}` });
-  if (tooLight) issues.push({ severity: "warning", message: "Multiple image corners are near-white, which is unexpected for this dark theme" });
+  // 10. No accidental large blank/white margins. Only meaningful for the
+  // fixed dark-theme infographic layout - abstract art has no expected
+  // background color, so this check is skipped in art mode.
+  if (mode === "infographic") {
+    const corners = await sampleCorners(render.imagePath);
+    const tooLight = corners.filter((c) => c > 235).length >= 3;
+    programmaticChecks.push({ name: "no_accidental_white_margins", passed: !tooLight, detail: `corner brightness: ${corners.join(", ")}` });
+    if (tooLight) issues.push({ severity: "warning", message: "Multiple image corners are near-white, which is unexpected for this dark theme" });
+  }
 
   // 11. Optional vision-model pass with the verified JSON attached
-  const visionCheck = await runVisionCheck(config, logger, render.imagePath, selected);
+  const visionCheck = await runVisionCheck(config, logger, render.imagePath, selected, mode);
   if (visionCheck.ran && visionCheck.status === "FAIL") {
     for (const msg of visionCheck.issues ?? []) issues.push({ severity: "blocking", message: `[vision-qa] ${msg}` });
   }
@@ -167,7 +178,8 @@ async function runVisionCheck(
   config: AppConfig,
   logger: RunLogger,
   imagePath: string,
-  selected: SelectedContent
+  selected: SelectedContent,
+  mode: QAMode
 ): Promise<QAResult["visionCheck"]> {
   if (!config.qa.enableVisionCheck) {
     logger.info("qa", "Vision QA disabled (ENABLE_VISION_QA=false); relying on programmatic checks only");
@@ -184,8 +196,8 @@ async function runVisionCheck(
     const mime = imagePath.endsWith(".jpg") || imagePath.endsWith(".jpeg") ? "image/jpeg" : "image/png";
     const result = await requestJsonWithImage<{ status: "PASS" | "FAIL"; issues: string[] }>(client, {
       model: config.qaVisionModel,
-      system: QA_VISION_SYSTEM_PROMPT,
-      user: buildQaVisionUserPrompt(JSON.stringify(selected, null, 2)),
+      system: mode === "art" ? ART_QA_VISION_SYSTEM_PROMPT : QA_VISION_SYSTEM_PROMPT,
+      user: mode === "art" ? buildArtQaVisionUserPrompt() : buildQaVisionUserPrompt(JSON.stringify(selected, null, 2)),
       imageBase64,
       imageMime: mime,
     });
