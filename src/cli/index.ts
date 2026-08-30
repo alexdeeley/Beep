@@ -9,7 +9,6 @@ import {
   runResearchStage,
   runVerificationStage,
   runSelectionStage,
-  runAssetsStage,
   runRenderStage,
   runQAStage,
   runCaptionStage,
@@ -18,7 +17,7 @@ import {
 } from "../orchestration/runDaily.js";
 import type { ResearchOutput } from "../research/researchAgent.js";
 import type { VerificationOutput } from "../verification/verifyAgent.js";
-import type { DecorativeAsset, SelectedContent } from "../utils/types.js";
+import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 
 const program = new Command();
@@ -74,15 +73,14 @@ program
 
 program
   .command("render")
-  .description("Render the infographic from an existing selected.json (regenerates the graphic without rerunning research)")
+  .description("Generate the day's abstract art image from an existing selected.json (regenerates the image without rerunning research)")
   .option("--date <YYYY-MM-DD>", "Local publish date (defaults to today)")
   .action(async (opts) => {
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
-    const assets = ctx.store.tryReadJson<DecorativeAsset[]>("assets.json") ?? (await runAssetsStage(ctx, selected));
-    const result = await runRenderStage(ctx, selected, assets);
-    console.log(`Rendered feed image: ${result.feed.imagePath} (${result.feed.width}x${result.feed.height}, scale ${result.feed.scale.toFixed(3)})`);
-    if (result.story) console.log(`Rendered story image: ${result.story.imagePath}`);
+    const result = await runRenderStage(ctx, selected);
+    console.log(`Generated feed image: ${result.feed.imagePath} (${result.feed.width}x${result.feed.height})`);
+    if (result.story) console.log(`Generated story image: ${result.story.imagePath}`);
   });
 
 program
@@ -106,6 +104,8 @@ program
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
     const caption = await runCaptionStage(ctx, selected);
+    console.log(`Title: ${caption.title}`);
+    console.log("");
     console.log(caption.caption);
     console.log("");
     console.log(caption.hashtags.join(" "));
@@ -120,7 +120,7 @@ program
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
     const render = requireStage<RenderResult>(ctx.store, "render.json", "render");
-    const caption = ctx.store.tryReadJson<{ caption: string; hashtags: string[] }>("caption.json");
+    const caption = ctx.store.tryReadJson<{ title: string; caption: string; hashtags: string[] }>("caption.json");
     if (!caption) throw new Error(`Missing caption.json for this date. Run the "caption" stage first.`);
     const record = await runPublishStage(ctx, selected, render, caption, Boolean(opts.dryRun));
     console.log(`Publish status: ${record.status}`);

@@ -56,3 +56,52 @@ ${verifiedJson}
 Inspect the attached rendered image against this data and return your QA
 verdict as specified.`;
 }
+
+/**
+ * QA prompt for the abstract-art daily image, which replaces the
+ * deterministic text infographic entirely. There is no headline/date
+ * layout to check here, so the checklist is much narrower - but the one
+ * hard requirement carried over from the infographic design (never let
+ * an image model produce unreliable "facts") becomes even stricter here:
+ * this image must contain literally zero legible text, since nothing in
+ * it is fact-checked or deterministic.
+ */
+export const ART_QA_VISION_SYSTEM_PROMPT = `You are a meticulous visual QA reviewer for a daily abstract-art image about
+to be published to a public channel. This image is NOT an infographic and
+carries no factual claims - it is a wordless, mood-evoking piece of
+abstract art. Your job is narrow but strict.
+
+Check specifically for:
+- ABSOLUTELY NO legible text, letters, numbers, words, captions, watermarks,
+  signatures, or logos anywhere in the image, even small, faint, or
+  partially obscured. Image models sometimes hallucinate garbled
+  pseudo-text into abstract compositions - look carefully for this. Any
+  legible or near-legible text is an automatic FAIL.
+- No recognizable human faces, portraits, or depictions of real
+  identifiable people.
+- The image is not blank, solid-color, corrupted, glitched, or otherwise
+  a failed/degenerate generation.
+- The image is not sexually explicit, gory, or otherwise inappropriate
+  for a general-audience public feed.
+- Overall the image looks like a finished, intentional abstract art
+  composition - not a broken or empty render.
+
+Do NOT check for or comment on:
+- Whether the imagery thematically "matches" any particular historical
+  event - this is deliberately abstract and evocative, not illustrative,
+  so there is no literal correctness to verify.
+- Composition/color preferences that are purely a matter of taste.
+
+Respond with ONLY a JSON object of the shape:
+{ "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
+
+The "issues" array must contain ONLY genuine problems you found - never
+restate a checklist item to confirm it passed. If everything looks
+correct, return exactly {"status":"PASS","issues":[]} - an empty array,
+not a list of confirmations.`;
+
+export function buildArtQaVisionUserPrompt(): string {
+  return `Inspect the attached abstract art image and return your QA verdict as
+specified. Remember: this image must contain zero legible text of any
+kind - that is the single most important thing to check for.`;
+}

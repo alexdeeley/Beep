@@ -1,0 +1,142 @@
+import { join } from "node:path";
+import sharp from "sharp";
+import type OpenAI from "openai";
+import type { AppConfig } from "../config/index.js";
+import type { RunLogger } from "../utils/logger.js";
+import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
+import type { SelectedContent } from "../utils/types.js";
+import type { RenderResult, SizeRenderResult } from "../render/renderInfographic.js";
+
+/**
+ * Stage: generates the day's entire published image as wordless abstract
+ * art evoking that day's verified historical facts. This REPLACES the
+ * deterministic HTML/CSS/Playwright infographic renderer as the daily
+ * pipeline's sole image source (see render/renderInfographic.ts, which
+ * stays in the codebase but is no longer called by the daily run).
+ *
+ * Because there is no fallback image once this replaces the renderer, a
+ * missing API key or a failed generation call must fail the run - unlike
+ * the formerly-optional decorative asset generator, this is not
+ * skippable. "No text" is the one hard safety requirement carried over
+ * from the old design (never let an image model typeset facts): since
+ * this image contains no factual claims at all, only mood/texture, that
+ * requirement becomes "the image must contain no legible text
+ * whatsoever", enforced by the art-specific vision QA check.
+ */
+export async function generateDailyArt(
+  config: AppConfig,
+  logger: RunLogger,
+  runDir: string,
+  selected: SelectedContent
+): Promise<RenderResult> {
+  const client = makeOpenAIClient(config);
+  if (!client) throw new MissingApiKeyError("art");
+
+  const prompt = buildArtPrompt(selected);
+  logger.info("art", `Generating abstract art for ${selected.date}`);
+
+  const feed = await generateOneImage(client, config, logger, runDir, prompt, {
+    fileBaseName: "infographic",
+    targetWidth: config.image.feedWidth,
+    targetHeight: config.image.feedHeight,
+  });
+
+  let story: SizeRenderResult | null = null;
+  if (config.image.enableStory) {
+    story = await generateOneImage(client, config, logger, runDir, prompt, {
+      fileBaseName: "story",
+      targetWidth: config.image.storyWidth,
+      targetHeight: config.image.storyHeight,
+    });
+  }
+
+  return { feed, story };
+}
+
+export function buildArtPrompt(selected: SelectedContent): string {
+  const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
+  const themes = allItems
+    .slice(0, 8)
+    .map((f) => f.headline)
+    .join("; ");
+  const categories = Array.from(new Set(allItems.map((f) => f.category))).slice(0, 6).join(", ");
+
+  return `A single striking piece of fine-art abstract art for a daily historical
+almanac. Evoke the mood, era, and energy of these real historical moments
+from ${selected.displayDate} without depicting any of them literally and
+without any recognizable figures, portraits, or scenes: ${themes || "a quiet day in history"}.
+Loosely inspired by themes of: ${categories || "history and memory"}.
+Style: bold abstract composition - considered shapes, rich texture, a
+deliberate color palette, gallery-quality, evocative rather than
+illustrative or literal. Portrait orientation, full-bleed edge-to-edge
+composition with no border or frame.
+ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
+CAPTIONS, NO SIGNATURE, NO LOGOS anywhere in the image - pure abstract
+art only, nothing legible. No recognizable human faces or portraits of
+real people.`;
+}
+
+/**
+ * gpt-image-1 only supports a fixed set of output sizes (1024x1024,
+ * 1024x1536, 1536x1024, or "auto"); none of those match our exact export
+ * canvases (e.g. 1080x1350). We generate at the closest supported
+ * portrait size and then center-crop/resize to the exact required pixel
+ * dimensions, the same "never distort, always exact" guarantee the old
+ * HTML renderer made for text.
+ */
+async function generateOneImage(
+  client: OpenAI,
+  config: AppConfig,
+  logger: RunLogger,
+  runDir: string,
+  prompt: string,
+  opts: { fileBaseName: string; targetWidth: number; targetHeight: number }
+): Promise<SizeRenderResult> {
+  const { fileBaseName, targetWidth, targetHeight } = opts;
+  const { maxGenerationAttempts } = config.art;
+
+  let lastError: string | undefined;
+  for (let attempt = 1; attempt <= maxGenerationAttempts; attempt++) {
+    try {
+      logger.info("art", `Generation attempt ${attempt}/${maxGenerationAttempts} for "${fileBaseName}"`);
+      const result = await client.images.generate({
+        model: config.imageGenModel,
+        prompt,
+        size: "1024x1536",
+        n: 1,
+      });
+      const b64 = result.data?.[0]?.b64_json;
+      if (!b64) throw new Error("Image generation returned no data");
+
+      const raw = Buffer.from(b64, "base64");
+      const ext = config.image.format === "jpeg" ? "jpg" : "png";
+      const imagePath = join(runDir, `${fileBaseName}.${ext}`);
+
+      let pipeline = sharp(raw).resize(targetWidth, targetHeight, { fit: "cover", position: "attention" });
+      pipeline =
+        config.image.format === "jpeg"
+          ? pipeline.jpeg({ quality: config.image.jpegQuality })
+          : pipeline.png();
+      await pipeline.toFile(imagePath);
+
+      logger.info("art", `Generated ${fileBaseName}.${ext} at ${targetWidth}x${targetHeight}`);
+      return {
+        imagePath,
+        width: targetWidth,
+        height: targetHeight,
+        scale: 1,
+        naturalContentHeight: targetHeight,
+        overflowClamped: false,
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      logger.warn("art", `Generation attempt ${attempt} failed: ${lastError}`);
+      if (attempt < maxGenerationAttempts) {
+        const backoffMs = 2000 * 2 ** (attempt - 1);
+        await new Promise((r) => setTimeout(r, backoffMs));
+      }
+    }
+  }
+
+  throw new Error(`Art generation failed for "${fileBaseName}" after ${maxGenerationAttempts} attempt(s): ${lastError}`);
+}

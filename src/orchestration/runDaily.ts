@@ -18,12 +18,13 @@ import { researchDate, type ResearchOutput } from "../research/researchAgent.js"
 import { verifyCandidates, type VerificationOutput } from "../verification/verifyAgent.js";
 import { selectContent } from "../selection/selectContent.js";
 import { generateSupportingAssets } from "../assets/generateAssets.js";
-import { renderInfographic, type RenderResult } from "../render/renderInfographic.js";
+import type { RenderResult } from "../render/renderInfographic.js";
+import { generateDailyArt } from "../art/generateArt.js";
 import { runQualityChecks } from "../qa/runQA.js";
-import { generateCaption, composeFinalCaptionText } from "../caption/generateCaption.js";
+import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../caption/generateCaption.js";
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
-import { publishToBluesky } from "../bluesky/publish.js";
+import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -106,14 +107,16 @@ export async function runAssetsStage(ctx: RunContext, selected: SelectedContent)
   return assets;
 }
 
-/** Stage: deterministic HTML/CSS render to PNG/JPG. */
-export async function runRenderStage(
-  ctx: RunContext,
-  selected: SelectedContent,
-  assets: DecorativeAsset[]
-): Promise<RenderResult> {
+/**
+ * Stage: generates the day's published image. The daily pipeline now
+ * always produces wordless abstract art (see art/generateArt.ts) rather
+ * than the deterministic HTML/CSS infographic - the old renderer
+ * (render/renderInfographic.ts) stays in the codebase but is no longer
+ * called here.
+ */
+export async function runRenderStage(ctx: RunContext, selected: SelectedContent): Promise<RenderResult> {
   const { config, logger, store } = ctx;
-  const result = await renderInfographic(config, logger, store.dir, selected, assets);
+  const result = await generateDailyArt(config, logger, store.dir, selected);
   store.writeJson("render.json", result);
   return result;
 }
@@ -121,7 +124,7 @@ export async function runRenderStage(
 /** Stage: automated QA over data + pixels. */
 export async function runQAStage(ctx: RunContext, selected: SelectedContent, render: RenderResult): Promise<QAResult> {
   const { config, logger, store, resolved } = ctx;
-  const result = await runQualityChecks(config, logger, resolved.isoDate, selected, render.feed);
+  const result = await runQualityChecks(config, logger, resolved.isoDate, selected, render.feed, "art");
   store.writeJson("qa.json", result);
   return result;
 }
@@ -171,13 +174,17 @@ export async function runPublishStage(
   // ranked by each fact's own importance) get first claim on the 8 tag
   // slots; the LLM's own hashtag guesses and the evergreen brand pool
   // only fill in whatever room is left. See src/caption/hashtagExtraction.ts.
-  const tags = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  // Resolved to the same final 8-tag list used both as Bluesky's separate
+  // discovery tags AND inline in the alt text, so the two never disagree.
+  const tagPool = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  const tags = selectBlueskyTags(tagPool);
+  const altText = buildArtAltText(caption.title, selected, tags);
 
   const record = await publishToBluesky(config, logger, {
     date: resolved.isoDate,
     localImagePath: render.feed.imagePath,
     publicImageUrl: publicUrl,
-    altText: caption.caption,
+    altText,
     tags,
     dryRun,
     alreadyPublished,
@@ -199,11 +206,11 @@ export interface DailyRunSummary {
 }
 
 /**
- * The master orchestrator described in the project spec:
+ * The master orchestrator:
  *   resolveLocalDate -> checkAlreadyPublished -> researchDate ->
- *   verifyCandidates -> selectContent -> generateSupportingAssets ->
- *   renderInfographic -> runQualityChecks -> generateCaption ->
- *   uploadImage -> publishToBluesky -> saveRunRecord
+ *   verifyCandidates -> selectContent -> generateDailyArt ->
+ *   runQualityChecks -> generateCaption -> uploadImage ->
+ *   publishToBluesky -> saveRunRecord
  *
  * Any critical failure (research, insufficient verified facts, render,
  * QA) stops the pipeline before publish. No post is better than a wrong
@@ -254,11 +261,8 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
       throw new StageFailure("selection", "No verified items met selection criteria for this date");
     }
 
-    const assets = await runAssetsStage(ctx, selected);
-    markStage(record, "assets", "OK", `${assets.length} decorative asset(s)`);
-
-    render = await runRenderStage(ctx, selected, assets);
-    markStage(record, "render", "OK", `scale=${render.feed.scale.toFixed(3)}`);
+    render = await runRenderStage(ctx, selected);
+    markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
 
     const qa = await runQAStage(ctx, selected, render);
     markStage(record, "qa", qa.status === "PASS" ? "OK" : "FAILED", `${qa.issues.length} issue(s)`);

@@ -3,25 +3,36 @@ import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, requestJson } from "../utils/openaiClient.js";
 import type { CaptionResult, SelectedContent } from "../utils/types.js";
 
-const CAPTION_SYSTEM_PROMPT = `You write short social captions for a premium, editorial "On This Day"
-history account. Tone: informative and interesting, never clickbait, never
-corny, never political advocacy, not overly academic. Use only the facts
-given to you - never add names, dates, or details that are not in the
-supplied JSON.
+const CAPTION_SYSTEM_PROMPT = `You write two things for a premium, editorial "On This Day" history account
+that publishes a daily piece of wordless abstract art evoking that day's
+real historical facts:
 
-Shape to follow:
+1. A "title" for the day's artwork - short (2-6 words), evocative, gallery-
+   style, atmospheric rather than literal. Think of how a real abstract art
+   piece is titled: it should capture a mood or resonance from the day's
+   facts (e.g. a title inspired by themes of upheaval, discovery, departure,
+   dawn, etc.) without simply restating a headline, a date, or a person's
+   name verbatim. Never invent facts to justify the title - it only needs to
+   feel true to the mood of the supplied facts.
+2. A "caption": a short, informative, non-clickbait written summary of the
+   day's facts for the archival record (this is saved alongside the image,
+   not shown as the post's title). Use only the facts given to you - never
+   add names, dates, or details that are not in the supplied JSON.
+
+Shape for "caption":
 - Opening line: "<Month Day> in history." (use the exact display date given)
 - A handful of short highlight lines, each "<year> — <short factual line>",
   drawn from the supplied major events (and incidents if notable).
 - If births are supplied, a "Born today:" line followed by 2-4 notable
   names.
-- Optionally one short, genuine engagement question (not forced).
-- A restrained block of hashtags (do not spam; 5-10 relevant tags).
 
-Respond with ONLY a JSON object: { "caption": "...", "hashtags": ["#Tag", ...] }
+Also return "hashtags": a restrained list of 5-10 relevant hashtags drawn
+from the supplied facts.
+
+Respond with ONLY a JSON object:
+{ "title": "...", "caption": "...", "hashtags": ["#Tag", ...] }
 The "caption" field should already include line breaks (\\n) but should NOT
-include the hashtags - those go only in the "hashtags" array, the caller
-will append them.`;
+include the hashtags - those go only in the "hashtags" array.`;
 
 /**
  * Stage: caption generation. Runs after QA passes, using only the final
@@ -50,7 +61,7 @@ export async function generateCaption(
       2
     )}`;
 
-    const result = await requestJson<{ caption: string; hashtags: string[] }>(client, {
+    const result = await requestJson<{ title: string; caption: string; hashtags: string[] }>(client, {
       model: config.captionModel,
       system: CAPTION_SYSTEM_PROMPT,
       user,
@@ -59,8 +70,9 @@ export async function generateCaption(
     });
 
     const hashtags = (result.hashtags?.length ? result.hashtags : config.brand.hashtags).slice(0, 12);
-    logger.info("caption", "Generated caption via model", { hashtagCount: hashtags.length });
-    return { caption: result.caption.trim(), hashtags };
+    const title = result.title?.trim() || fallbackTitle(selected);
+    logger.info("caption", "Generated caption via model", { hashtagCount: hashtags.length, title });
+    return { title, caption: result.caption.trim(), hashtags };
   } catch (err) {
     logger.warn("caption", "Caption generation failed; using deterministic fallback", {
       error: err instanceof Error ? err.message : String(err),
@@ -85,7 +97,12 @@ function fallbackCaption(config: AppConfig, selected: SelectedContent): CaptionR
     }
   }
 
-  return { caption: lines.join("\n"), hashtags: config.brand.hashtags };
+  return { title: fallbackTitle(selected), caption: lines.join("\n"), hashtags: config.brand.hashtags };
+}
+
+/** A fully deterministic title fallback used when the model is unavailable or returns nothing usable. */
+function fallbackTitle(selected: SelectedContent): string {
+  return `On This Day — ${titleCase(selected.displayDate)}`;
 }
 
 function titleCase(s: string): string {
@@ -99,4 +116,22 @@ function titleCase(s: string): string {
 export function composeFinalCaptionText(result: CaptionResult): string {
   const hashtagLine = result.hashtags.join(" ");
   return `${result.caption}\n\n${hashtagLine}`.trim();
+}
+
+function formatHumanDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(d);
+}
+
+/**
+ * Builds the image's accessibility/alt text for the daily abstract art
+ * post: the generated artwork title, the date, then the same final
+ * discovery tags used in Bluesky's separate tags field, written inline
+ * as literal "#Tag" text. Posts stay image-only (empty visible text) -
+ * this alt text is the only place a viewer sees the piece identified.
+ */
+export function buildArtAltText(title: string, selected: SelectedContent, finalTags: string[]): string {
+  const lines = [title, formatHumanDate(selected.date)];
+  if (finalTags.length > 0) lines.push(finalTags.map((t) => `#${t}`).join(" "));
+  return lines.join("\n");
 }
