@@ -92,6 +92,42 @@ describe("selectContent", () => {
     expect(selected.births.length).toBe(1);
   });
 
+  it("excludes a death/birth from majorEvents even when research filed it as a separate event-kind candidate for the same person/year", () => {
+    const config = loadConfig();
+    const logger = makeLogger();
+    const facts = [
+      makeFact({
+        id: "death-candidate",
+        kind: "death",
+        category: "death",
+        year: 2012,
+        people: ["Neil Armstrong"],
+        headline: "Neil Armstrong Dies",
+      }),
+      makeFact({
+        id: "event-candidate-same-fact",
+        kind: "event",
+        category: "science_discovery",
+        year: 2012,
+        people: ["Neil Armstrong"],
+        headline: "Neil Armstrong Dies",
+      }),
+      makeFact({
+        id: "genuinely-different-event",
+        kind: "event",
+        category: "space_exploration",
+        year: 1969,
+        people: ["Neil Armstrong"],
+        headline: "Armstrong Walks on the Moon",
+      }),
+    ];
+    const selected = selectContent(config, logger, 2026, "AUGUST 25", "08-25", facts);
+    expect(selected.deaths.map((d) => d.id)).toContain("death-candidate");
+    expect(selected.majorEvents.map((e) => e.id)).not.toContain("event-candidate-same-fact");
+    // A genuinely different fact about the same person, in a different year, must still be kept.
+    expect(selected.majorEvents.map((e) => e.id)).toContain("genuinely-different-event");
+  });
+
   it("applies a soft per-category cap among major events so one category cannot dominate", () => {
     const config = loadConfig();
     const logger = makeLogger();

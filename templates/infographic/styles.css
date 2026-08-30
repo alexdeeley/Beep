@@ -1,51 +1,25 @@
 /* ============================================================
    On This Day — infographic design system
-   Premium "historical almanac / museum exhibition" aesthetic:
-   near-black grounds, warm metallic gold, restrained white type,
-   elegant serif headings. Three controlled theme variants share
-   this exact structure so brand identity stays consistent.
+   Simple, tight, Swiss-minimalist aesthetic: near-black grounds,
+   warm metallic gold, restrained white type, a single grotesque
+   sans-serif (Arimo, metrically/visually equivalent to Helvetica -
+   true Helvetica is a commercial font with no free/open license,
+   so this is the closest self-hostable match). Three controlled
+   theme variants share this exact structure so brand identity
+   stays consistent.
    ============================================================ */
 
 @font-face {
-  font-family: "Playfair Display";
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: block;
-  src: url("./fonts/PlayfairDisplay-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Playfair Display";
-  font-style: italic;
-  font-weight: 400 900;
-  font-display: block;
-  src: url("./fonts/PlayfairDisplay-Italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Cormorant Garamond";
+  font-family: "Arimo";
   font-style: normal;
   font-weight: 400 700;
   font-display: block;
-  src: url("./fonts/CormorantGaramond-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Cormorant Garamond";
-  font-style: italic;
-  font-weight: 400 700;
-  font-display: block;
-  src: url("./fonts/CormorantGaramond-Italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: block;
-  src: url("./fonts/Inter-Variable.woff2") format("woff2");
+  src: url("./fonts/Arimo-Variable.woff2") format("woff2");
 }
 
 :root {
-  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
-  --font-script: "Cormorant Garamond", Georgia, serif;
-  --font-body: "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Arimo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Arimo", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 /* ---- Theme palettes ---- */

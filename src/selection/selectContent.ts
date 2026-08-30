@@ -48,8 +48,22 @@ export function selectContent(
     dedupeByHeadline()
   );
   const usedIds = new Set([...births, ...deaths, ...incidents].map((f) => f.id));
+  // Research sometimes generates two separate candidates for the same
+  // underlying fact under different "kind"s (e.g. a person's death filed
+  // both as kind:"death" and as a generic kind:"event" with an identical
+  // headline). Those get different candidate ids, so the id-based
+  // exclusion above misses them. Cross-check by person+year fingerprint
+  // too, since the same person having the same-year fact appear twice is
+  // almost always this duplication bug, not two genuinely distinct facts.
+  const usedFingerprints = new Set([...births, ...deaths, ...incidents].map(factFingerprint));
   const majorEvents = selectMajorEvents(
-    scored.filter((f) => f.kind === "event" && !INCIDENT_CATEGORIES.includes(f.category) && !usedIds.has(f.id)),
+    scored.filter(
+      (f) =>
+        f.kind === "event" &&
+        !INCIDENT_CATEGORIES.includes(f.category) &&
+        !usedIds.has(f.id) &&
+        !usedFingerprints.has(factFingerprint(f))
+    ),
     config.selection.maxMajorEvents
   );
 
@@ -72,6 +86,12 @@ export function selectContent(
     sourceCreditLine: config.brand.sourceCreditLine,
     theme,
   };
+}
+
+/** Identifies "the same underlying fact" across kinds: same primary person (or headline, if no person) in the same year. */
+function factFingerprint(f: { people: string[]; headline: string; year: number }): string {
+  const key = (f.people[0] ?? f.headline).trim().toLowerCase();
+  return `${key}|${f.year}`;
 }
 
 function scoreFact(f: VerifiedFact, currentYear: number): SelectedFact {
