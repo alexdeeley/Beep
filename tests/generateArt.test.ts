@@ -57,7 +57,7 @@ function makeSelected(overrides: Partial<SelectedContent>): SelectedContent {
 }
 
 describe("buildArtPrompt", () => {
-  it("always forbids text, letters, numbers, and recognizable faces", () => {
+  it("always forbids text, letters, and numbers, but allows generic human figures", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }),
       "Color Field painting"
@@ -65,7 +65,9 @@ describe("buildArtPrompt", () => {
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt).toMatch(/NO LETTERS/);
     expect(prompt).toMatch(/NO NUMBERS/);
-    expect(prompt).toMatch(/recognizable human faces/);
+    expect(prompt).toMatch(/Human figures are welcome/);
+    expect(prompt).toMatch(/GENERIC and ANONYMOUS/);
+    expect(prompt).not.toMatch(/no recognizable figures/i);
   });
 
   it("weaves the day's actual headlines into the prompt", () => {

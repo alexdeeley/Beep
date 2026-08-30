@@ -1,7 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { deriveContentHashtags } from "../src/caption/hashtagExtraction.js";
+import { deriveContentHashtags, phraseToTag } from "../src/caption/hashtagExtraction.js";
 import { selectBlueskyTags } from "../src/bluesky/publish.js";
 import type { SelectedContent, SelectedFact } from "../src/utils/types.js";
+
+describe("phraseToTag", () => {
+  it("PascalCases a multi-word news-style phrase into a bare tag, stripping stopwords", () => {
+    expect(phraseToTag("Military officials warn on Trump readiness", 4)).toBe("MilitaryOfficialsWarnTrump");
+  });
+
+  it("respects a custom maxWords cap", () => {
+    expect(phraseToTag("NFL teams cut rosters to fifty three", 3)).toBe("NFLTeamsCut");
+  });
+
+  it("falls back to the raw words when every word is a stopword", () => {
+    expect(phraseToTag("of the and", 3)).toBe("OfTheAnd");
+  });
+
+  it("returns null for an empty or whitespace-only phrase", () => {
+    expect(phraseToTag("", 3)).toBeNull();
+    expect(phraseToTag("   ", 3)).toBeNull();
+  });
+});
 
 function makeFact(overrides: Partial<SelectedFact>): SelectedFact {
   return {

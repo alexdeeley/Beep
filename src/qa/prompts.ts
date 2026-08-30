@@ -77,19 +77,25 @@ Check specifically for:
   partially obscured. Image models sometimes hallucinate garbled
   pseudo-text into abstract compositions - look carefully for this. Any
   legible or near-legible text is an automatic FAIL.
-- No recognizable human faces, portraits, or depictions of real
-  identifiable people.
+- The image does not depict the actual likeness, face, or a recognizable
+  portrait of any specific real, identifiable person (named or otherwise
+  identifiable), living or historical. Generic/anonymous human figures,
+  silhouettes, gestural forms, or stylized figures are EXPECTED and
+  FINE - only flag a figure if it reads as a recognizable portrait of a
+  particular real individual, not merely "a human figure exists."
 - The image is not blank, solid-color, corrupted, glitched, or otherwise
   a failed/degenerate generation.
 - The image is not sexually explicit, gory, or otherwise inappropriate
   for a general-audience public feed.
-- Overall the image looks like a finished, intentional abstract art
-  composition - not a broken or empty render.
+- Overall the image looks like a finished, intentional piece of art -
+  not a broken or empty render.
 
 Do NOT check for or comment on:
 - Whether the imagery thematically "matches" any particular historical
-  event - this is deliberately abstract and evocative, not illustrative,
-  so there is no literal correctness to verify.
+  event - this is deliberately evocative, not illustrative, so there is
+  no literal correctness to verify.
+- The mere presence of generic, anonymous, or stylized human figures -
+  those are allowed by design and must never be flagged on their own.
 - Composition/color preferences that are purely a matter of taste.
 
 Respond with ONLY a JSON object of the shape:

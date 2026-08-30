@@ -102,19 +102,24 @@ export function buildArtPrompt(selected: SelectedContent, style: string): string
     .join("; ");
   const categories = Array.from(new Set(allItems.map((f) => f.category))).slice(0, 6).join(", ");
 
-  return `A single striking piece of fine-art abstract art for a daily historical
-almanac. Evoke the mood, era, and energy of these real historical moments
-from ${selected.displayDate} without depicting any of them literally and
-without any recognizable figures, portraits, or scenes: ${themes || "a quiet day in history"}.
+  return `A single striking piece of fine-art abstract-adjacent art for a daily
+historical almanac. Evoke the mood, era, and energy of these real
+historical moments from ${selected.displayDate} without depicting any of
+them literally as a scene: ${themes || "a quiet day in history"}.
 Loosely inspired by themes of: ${categories || "history and memory"}.
 Today's assigned style: ${style}.
-Render fully in that style - gallery-quality, evocative rather than
-illustrative or literal. Portrait orientation, full-bleed edge-to-edge
+Render fully in that style - gallery-quality, evocative rather than a
+literal illustration. Portrait orientation, full-bleed edge-to-edge
 composition with no border or frame.
+Human figures are welcome as part of the composition - silhouettes,
+gestural forms, stylized or generic figures - but they must always be
+GENERIC and ANONYMOUS. Never attempt to depict the actual likeness,
+face, or recognizable portrait of any specific real person (named or
+otherwise identifiable), living or historical - any figures shown must
+not be recognizable as a particular individual.
 ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
-CAPTIONS, NO SIGNATURE, NO LOGOS anywhere in the image - pure abstract
-art only, nothing legible. No recognizable human faces or portraits of
-real people.`;
+CAPTIONS, NO SIGNATURE, NO LOGOS anywhere in the image - pure visual art
+only, nothing legible.`;
 }
 
 /**

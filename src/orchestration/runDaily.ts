@@ -25,6 +25,7 @@ import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../ca
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
 import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
+import { fetchTrendingTags } from "../bluesky/trending.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -170,13 +171,17 @@ export async function runPublishStage(
     }
   }
 
-  // Content-derived tags (people, places, event topics, categories - all
-  // ranked by each fact's own importance) get first claim on the 8 tag
-  // slots; the LLM's own hashtag guesses and the evergreen brand pool
-  // only fill in whatever room is left. See src/caption/hashtagExtraction.ts.
+  // Per explicit direction, Bluesky's own live platform-wide trending
+  // topics get first claim on the 8 tag slots (maximum discovery reach
+  // over thematic relevance - see src/bluesky/trending.ts for the
+  // tradeoffs). Content-derived tags (people, places, event topics,
+  // categories - ranked by each fact's own importance), the LLM's own
+  // hashtag guesses, and the evergreen brand pool fill in whatever room
+  // is left, in that order. See src/caption/hashtagExtraction.ts.
   // Resolved to the same final 8-tag list used both as Bluesky's separate
   // discovery tags AND inline in the alt text, so the two never disagree.
-  const tagPool = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  const trendingTags = await fetchTrendingTags(logger);
+  const tagPool = [...trendingTags, ...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
   const tags = selectBlueskyTags(tagPool);
   const altText = buildArtAltText(caption.title, selected, tags);
 
