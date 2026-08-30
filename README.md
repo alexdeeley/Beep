@@ -445,6 +445,13 @@ on purpose, so a bug or outage in one can never affect the other:
 - Every ten years (from `WEEKLY_CARD_ANCHOR_DATE`, see `.env.example`),
   the normal card post is replaced by a special edition reading exactly
   "LIFE IS BEAUTIFUL. GOODBYE." - see `src/weeklyCard/decadeCheck.ts`.
+- Once that special edition is ever successfully published, the pipeline
+  **stops permanently** - not just for that week. `runWeeklyCardPost`
+  checks for `state/weekly-card-retired.json` before doing any work at
+  all; once the decade post succeeds, that file is written and
+  `weekly-card.yml` commits it back to the repo (its one `contents:
+  write` step), so the shutdown survives every future run's fresh
+  checkout forever. See `src/weeklyCard/retirement.ts`.
 
 The only code the two pipelines actually share is low-level plumbing with
 no daily-pipeline-specific state: `art/imageGeneration.ts` (the

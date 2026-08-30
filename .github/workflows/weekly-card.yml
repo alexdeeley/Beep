@@ -30,7 +30,13 @@ on:
         default: false
 
 permissions:
-  contents: read
+  # write, not read-only like daily.yml: this workflow needs to commit
+  # state/weekly-card-retired.json back to the repo the one time the
+  # once-a-decade special edition is ever published, so the permanent
+  # shutdown survives future runs' fresh checkouts (see
+  # src/weeklyCard/retirement.ts for why a committed file, not a Bluesky
+  # post-history check). No other step in this workflow writes anything.
+  contents: write
 
 concurrency:
   group: on-this-day-weekly-card
@@ -44,16 +50,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check retirement status
+        id: retirement
+        run: |
+          if [ -f state/weekly-card-retired.json ]; then
+            echo "retired=true" >> "$GITHUB_OUTPUT"
+            echo "Weekly card pipeline is retired; skipping all work for this run."
+            cat state/weekly-card-retired.json
+          else
+            echo "retired=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node.js
+        if: steps.retirement.outputs.retired != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install dependencies
+        if: steps.retirement.outputs.retired != 'true'
         run: npm ci
 
       - name: Run weekly card pipeline
+        if: steps.retirement.outputs.retired != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
@@ -72,6 +92,18 @@ jobs:
           if [ "${{ inputs.force_decade }}" = "true" ]; then ARGS="$ARGS --force-decade"; fi
           echo "Running: npm run weekly -- $ARGS"
           npm run weekly -- $ARGS
+
+      - name: Commit retirement marker if this run created one
+        if: always()
+        run: |
+          if [ -f state/weekly-card-retired.json ] && [ -n "$(git status --porcelain state/weekly-card-retired.json)" ]; then
+            echo "This run published the decade special - committing the permanent retirement marker."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state/weekly-card-retired.json
+            git commit -m "Weekly card pipeline: permanently retired after the once-a-decade special post"
+            git push
+          fi
 
       - name: Upload run artifacts
         if: always()

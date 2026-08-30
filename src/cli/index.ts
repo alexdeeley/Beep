@@ -178,6 +178,7 @@ program
       forceDecade: Boolean(opts.forceDecade),
     });
     console.log(`\n=== Weekly card run summary for ${summary.isoDate} ===`);
+    console.log(`  retired:    ${summary.retired}`);
     console.log(`  card:       ${summary.card}`);
     console.log(`  decade:     ${summary.isDecade}`);
     console.log(`  qa:         ${summary.qa?.status ?? "N/A"}`);

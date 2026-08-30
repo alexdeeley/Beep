@@ -10,6 +10,7 @@ import { buildCardAltText, buildCardTags } from "./generateCardCaption.js";
 import { isCardAlreadyPublishedOnBluesky } from "./publishCard.js";
 import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
 import { uploadImage } from "../storage/storage.js";
+import { isWeeklyCardRetired, writeRetirementMarker } from "./retirement.js";
 import type { PublishRecord, QAResult } from "../utils/types.js";
 import type { SizeRenderResult } from "../render/renderInfographic.js";
 
@@ -43,6 +44,7 @@ export interface WeeklyRunSummary {
   card: string;
   qa: QAResult | null;
   publish: PublishRecord | null;
+  retired: boolean;
 }
 
 function storeKeyFor(isoDate: string): string {
@@ -51,6 +53,17 @@ function storeKeyFor(isoDate: string): string {
 
 export async function runWeeklyCardPost(config: AppConfig, options: WeeklyRunOptions): Promise<WeeklyRunSummary> {
   const resolved = resolveLocalDate(config.timezone, options.dateOverride);
+
+  // Permanent, one-way shutdown: once the once-a-decade special edition
+  // has ever been successfully published, this pipeline never runs
+  // again - checked first, before any other work, so a retired pipeline
+  // costs nothing (see retirement.ts for why this is a git-committed
+  // marker file rather than a Bluesky post-history check).
+  if (isWeeklyCardRetired()) {
+    console.log(`Weekly card pipeline is retired; ${resolved.isoDate}'s run does nothing. See state/weekly-card-retired.json.`);
+    return { isoDate: resolved.isoDate, isDecade: false, card: "", qa: null, publish: null, retired: true };
+  }
+
   const storeKey = storeKeyFor(resolved.isoDate);
   const store = new RunStore(config, storeKey);
   const logger = new RunLogger(store.dir);
@@ -67,7 +80,7 @@ export async function runWeeklyCardPost(config: AppConfig, options: WeeklyRunOpt
   const alreadyPublished = isAlreadyPublished(config, storeKey) || (await isCardAlreadyPublishedOnBluesky(config, logger, resolved.isoDate));
   if (alreadyPublished) {
     logger.info("weekly-card", `${resolved.isoDate} already has a successful weekly card post; exiting without doing any work`);
-    return { isoDate: resolved.isoDate, isDecade, card: card.label, qa: null, publish: null };
+    return { isoDate: resolved.isoDate, isDecade, card: card.label, qa: null, publish: null, retired: false };
   }
 
   const maxAttempts = config.weeklyCard.maxQaRegenerationAttempts;
@@ -99,7 +112,7 @@ export async function runWeeklyCardPost(config: AppConfig, options: WeeklyRunOpt
   if (qa.status !== "PASS") {
     logger.error("weekly-card", `Run FAILED at QA: ${qa.issues.map((i) => i.message).join(" | ")}`);
     store.writeJson("run.json", { isoDate: resolved.isoDate, isDecade, card: card.label, qaStatus: qa.status, finishedAt: nowIso() });
-    return { isoDate: resolved.isoDate, isDecade, card: card.label, qa, publish: null };
+    return { isoDate: resolved.isoDate, isDecade, card: card.label, qa, publish: null, retired: false };
   }
 
   let publicUrl: string | null = null;
@@ -136,6 +149,23 @@ export async function runWeeklyCardPost(config: AppConfig, options: WeeklyRunOpt
     finishedAt: nowIso(),
   });
 
+  let retired = false;
+  if (isDecade && publish.status === "SUCCESS") {
+    // The special edition actually went out - per explicit direction,
+    // this pipeline retires permanently now, not just for this week. The
+    // marker written here only takes effect for future runs once
+    // .github/workflows/weekly-card.yml commits it back to the repo
+    // (this run's own checkout doesn't need it - it's already done).
+    writeRetirementMarker({
+      retiredAt: nowIso(),
+      retiredForRunDate: resolved.isoDate,
+      card: card.label,
+      reason: 'The once-a-decade "LIFE IS BEAUTIFUL. GOODBYE." special edition was published; the weekly card pipeline is now permanently retired.',
+    });
+    retired = true;
+    logger.info("weekly-card", "Decade special published successfully; writing permanent retirement marker. No further weekly card posts will ever be made.");
+  }
+
   logger.info("weekly-card", `Run complete for ${resolved.isoDate}: publishStatus=${publish.status}`);
-  return { isoDate: resolved.isoDate, isDecade, card: card.label, qa, publish };
+  return { isoDate: resolved.isoDate, isDecade, card: card.label, qa, publish, retired };
 }
