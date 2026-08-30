@@ -18,7 +18,12 @@ Rules:
   science/discovery, invention/technology, space exploration, natural and
   man-made disasters, music, film/television, literature/arts, sports,
   culture/society, strange/memorable incidents, notable births, and notable
-  deaths.
+  deaths. Within music, actively look for historically notable ALBUM and
+  SINGLE releases on this exact calendar date (category "music", e.g. "The
+  Beatles Release Abbey Road") - these are a genuinely valued category, not
+  just a filler category. Use the actual release date, not the date a
+  record later hit #1, went gold/platinum, or was reissued/remastered -
+  those are different dates and different events.
 - Favor geographic and era diversity. Do not let one war, one country, or one
   decade dominate the pool.
 - Distinguish clearly between when an EVENT happened and when it was merely

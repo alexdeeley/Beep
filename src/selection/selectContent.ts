@@ -74,18 +74,26 @@ export function selectContent(
 
   const theme = pickTheme(config, monthDay);
 
+  // Selection above ranks by importance/relevance score to decide WHICH
+  // facts make the cut; display order is separate and always
+  // chronological (earliest year first) within each section, since a
+  // history timeline reading out of date order is confusing.
   return {
     date: `${currentYear}-${monthDay}`,
     monthDay,
     displayDate,
     subtitle: "Historic events • famous births • notable deaths • unforgettable incidents",
-    majorEvents,
-    births,
-    deaths,
-    incidents,
+    majorEvents: chronological(majorEvents),
+    births: chronological(births),
+    deaths: chronological(deaths),
+    incidents: chronological(incidents),
     sourceCreditLine: config.brand.sourceCreditLine,
     theme,
   };
+}
+
+function chronological(facts: SelectedFact[]): SelectedFact[] {
+  return [...facts].sort((a, b) => a.year - b.year);
 }
 
 /** Identifies "the same underlying fact" across kinds: same primary person (or headline, if no person) in the same year. */

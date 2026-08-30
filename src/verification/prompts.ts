@@ -17,7 +17,9 @@ For EVERY candidate, determine and record true/false for each of:
 - notPublicationDateConfusion: explicitly rule out the common error of
   mistaking a news article's publication date, a retrospective's publish
   date, or a "today in history" reprint date for the actual historical
-  event date.
+  event date. For album/single releases specifically, confirm the date
+  given is the actual release date, not the date it later hit #1, was
+  certified gold/platinum, or was reissued/remastered.
 - notExaggerated: the headline/description does not overstate significance,
   scale, causality, or certainty beyond what is actually established.
 - sufficientlyNotable: this is genuinely notable enough for a premium

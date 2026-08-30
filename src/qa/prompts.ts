@@ -24,11 +24,13 @@ Check specifically for:
   editorial theme.
 - Overall the image looks like a finished, intentional, professionally
   designed piece - not a broken layout.
+- Within each section (Major Events, Born On This Day, Notable Deaths,
+  Strange & Memorable), the visible years run in chronological order from
+  earliest to latest, top to bottom. If any section has an item out of
+  order relative to the others in that same section, flag it specifically
+  (name the two years that are out of order).
 
 Do NOT flag as a problem:
-- Major events, births, or deaths NOT appearing in chronological order.
-  This design intentionally orders items by editorial importance/relevance
-  score, not by year - out-of-date-order is expected and correct, not a bug.
 - Sections being absent when the source data has zero items for that
   category (e.g. no "Strange & Memorable" section when there are no
   incidents that day) - that is correct behavior, not a missing section.

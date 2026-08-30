@@ -128,6 +128,25 @@ describe("selectContent", () => {
     expect(selected.majorEvents.map((e) => e.id)).toContain("genuinely-different-event");
   });
 
+  it("orders each section chronologically by year, independent of selection score", () => {
+    const config = loadConfig();
+    const logger = makeLogger();
+    // historicalImportance drives the internally-computed selection score;
+    // deliberately give the LATEST-year items the HIGHEST importance, so a
+    // score-ordered (rather than chronologically-ordered) result would be
+    // detectably wrong.
+    const facts = [
+      makeFact({ id: "e-late", year: 1997, headline: "Late Event", historicalImportance: "high" }),
+      makeFact({ id: "e-early", year: 1862, headline: "Early Event", historicalImportance: "low" }),
+      makeFact({ id: "e-mid", year: 1965, headline: "Mid Event", historicalImportance: "medium" }),
+      makeFact({ id: "birth-late", kind: "birth", category: "birth", year: 1980, people: ["Late Person"], historicalImportance: "high" }),
+      makeFact({ id: "birth-early", kind: "birth", category: "birth", year: 1900, people: ["Early Person"], historicalImportance: "low" }),
+    ];
+    const selected = selectContent(config, logger, 2026, "AUGUST 29", "08-29", facts);
+    expect(selected.majorEvents.map((e) => e.year)).toEqual([1862, 1965, 1997]);
+    expect(selected.births.map((b) => b.year)).toEqual([1900, 1980]);
+  });
+
   it("applies a soft per-category cap among major events so one category cannot dominate", () => {
     const config = loadConfig();
     const logger = makeLogger();
