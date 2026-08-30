@@ -132,23 +132,53 @@ Today's assigned style: ${style}. Render fully in that style.
 Portrait orientation, full-bleed edge-to-edge composition with no border
 or frame.
 
-CRITICAL SAFETY RULES, even in this literal/comic context:
-- For any real named person referenced above (a public figure, celebrity,
-  or politician) - NEVER depict their actual recognizable face or
-  likeness. Invent a generic, anonymous, unmistakably-not-a-portrait
-  stand-in figure instead (e.g. a generic besuited figure, a generic
-  athlete silhouette) that gestures at the idea without being
-  identifiable as that specific individual.
-- For any real named brand, company, product, or copyrighted
-  character/franchise referenced above - NEVER depict their actual logo,
-  trademark, or the copyrighted character's real design. Invent a
-  generic, original visual stand-in that captures the idea instead (e.g.
-  a generic cartoon dog-and-bird chase instead of a specific studio's
-  copyrighted characters, a plain compass-rose or globe icon instead of a
-  real mapping app's actual logo).
+CRITICAL SAFETY RULES, even in this literal/comic context - read carefully,
+these are the most common reasons a painting gets rejected:
+- For ANY trending topic centered on a specific named real person (a
+  public figure, celebrity, politician), a specific named brand/product,
+  or a specific copyrighted character/franchise - DO NOT depict ANY
+  humanoid figure, character, or creature standing in for them AT ALL,
+  not even a "generic" one. A generic figure meant to evoke a specific
+  real person or character keeps drifting into looking like the real
+  one, which is exactly what must never happen. Instead represent that
+  concept ONLY through symbolic objects, props, and setting - never a
+  figure/character:
+  - A specific real named film/show/franchise (e.g. a movie release) ->
+    an empty cinema seat, a film reel, popcorn, a ticket stub, a red
+    carpet, a blank poster frame. Never any character from it, generic
+    or otherwise - especially never any kind of animal-chase or
+    predator-and-prey pairing, which reliably drifts into a specific
+    studio's actual copyrighted characters.
+  - A specific real sports story -> a ball, a goalpost, a trophy, empty
+    stadium seating, a whistle. Never a player or any figure wearing a
+    jersey/uniform - jersey numbers are the single most common source of
+    hallucinated legible text in this pipeline.
+  - A specific real politician or political story -> a podium, a flag,
+    a gavel, a government-building silhouette, a ballot box. Never any
+    human figure standing in for the person, generic or otherwise.
+  - A specific real brand/company/app -> a plain, unbranded generic
+    equivalent object (e.g. a compass-rose or globe instead of a mapping
+    app's logo) - never any logo, trademark, or mascot.
+- For any OTHER, non-entity-specific human presence in the scene (an
+  anonymous crowd, an unnamed figure reacting to the chaos) - generic,
+  unmistakably-not-a-portrait figures are fine.
+- Certain OBJECT TYPES almost always want to grow legible text/numbers by
+  default and must be handled with extra care:
+  - Maps, atlases, globes, or signposts (common for any renaming/
+    geography-related trending topic): show ONLY a plain, blank,
+    unlabeled shape - a bare landmass silhouette, an unmarked signpost,
+    a spinning compass. NEVER include place names, labels, or any text
+    on a map-like object.
+  - Papers, documents, clipboards, scoreboards, tickets, or lists
+    (common for any sports/roster/score-related trending topic): keep
+    them completely blank, or replace them entirely with a non-textual
+    object (a ball, a trophy, a whistle, a stopwatch) - NEVER show any
+    figure holding or reading a paper/document/list with numbers or
+    marks on it.
 - ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
-  CAPTIONS, NO SPEECH BUBBLES, NO SIGNATURE anywhere in the image - the
-  comedy must land through imagery alone, nothing legible.
+  CAPTIONS, NO SPEECH BUBBLES, NO SIGNATURE, NO NUMBERS OR MARKS ON
+  CLOTHING, SIGNAGE, PAPER, OR MAPS anywhere in the image - the comedy
+  must land through imagery alone, nothing legible, ever.
 - No sexually explicit, gory, or otherwise inappropriate content.`;
 }
 

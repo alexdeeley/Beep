@@ -57,7 +57,7 @@ function makeSelected(overrides: Partial<SelectedContent>): SelectedContent {
 }
 
 describe("buildArtPrompt", () => {
-  it("always forbids text, letters, and numbers, and requires generic stand-ins for real people", () => {
+  it("always forbids text, letters, and numbers, including numbers on clothing/signage", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }),
       "Absurdist maximalist collage"
@@ -65,13 +65,14 @@ describe("buildArtPrompt", () => {
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt).toMatch(/NO LETTERS/);
     expect(prompt).toMatch(/NO NUMBERS/);
-    expect(prompt).toMatch(/Invent a generic, anonymous, unmistakably-not-a-portrait/);
+    expect(prompt).toMatch(/NO NUMBERS OR MARKS ON\s+CLOTHING, SIGNAGE, PAPER, OR MAPS/);
   });
 
-  it("forbids real logos/copyrighted characters, requiring generic invented stand-ins", () => {
+  it("forbids any figure/character standing in for a specific real named entity, requiring symbolic objects instead", () => {
     const prompt = buildArtPrompt(makeSelected({}), "Pop-surrealist mashup poster");
-    expect(prompt).toMatch(/NEVER depict their actual logo,\s+trademark/);
-    expect(prompt).toMatch(/generic, original visual stand-in/);
+    expect(prompt).toMatch(/DO NOT depict ANY\s+humanoid figure, character, or creature/);
+    expect(prompt).toMatch(/Never a player or any figure wearing a\s+jersey\/uniform/);
+    expect(prompt).toMatch(/animal-chase or\s+predator-and-prey pairing/);
   });
 
   it("weaves the day's actual headlines into the prompt as background atmosphere, not the main subject", () => {
