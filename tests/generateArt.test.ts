@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildArtPrompt, pickArtStyle } from "../src/art/generateArt.js";
+import { buildArtPrompt, pickDailyEnvironment } from "../src/art/generateArt.js";
+import type { CuratedTrendItem } from "../src/art/trendCuration.js";
 import type { SelectedContent, SelectedFact } from "../src/utils/types.js";
 
 function makeFact(overrides: Partial<SelectedFact>): SelectedFact {
@@ -56,86 +57,100 @@ function makeSelected(overrides: Partial<SelectedContent>): SelectedContent {
   };
 }
 
+function makeTrendItem(overrides: Partial<CuratedTrendItem>): CuratedTrendItem {
+  return {
+    topic: "Some Trending Topic",
+    significance: "It's widely discussed.",
+    peopleInvolved: [],
+    visualHooks: [],
+    humorPotential: "",
+    ...overrides,
+  };
+}
+
 describe("buildArtPrompt", () => {
-  it("always forbids text, letters, and numbers, including numbers on clothing/signage", () => {
+  it("allows short intentional text but still forbids the real logo/copyrighted-character rule", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }),
-      "Absurdist maximalist collage"
+      "a crowded, chaotic city street"
     );
-    expect(prompt).toMatch(/NO TEXT/);
-    expect(prompt).toMatch(/NO LETTERS/);
-    expect(prompt).toMatch(/NO NUMBERS/);
-    expect(prompt).toMatch(/NO NUMBERS OR MARKS ON\s+CLOTHING, SIGNAGE, PAPER, OR MAPS/);
+    expect(prompt).toMatch(/keep\s+it extremely short/);
+    expect(prompt).toMatch(/never depict their actual logo, trademark/);
   });
 
-  it("forbids any figure/character standing in for a specific real named entity, requiring symbolic objects instead", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Pop-surrealist mashup poster");
-    expect(prompt).toMatch(/DO NOT depict ANY\s+humanoid figure, character, or creature/);
-    expect(prompt).toMatch(/Never a player or any figure wearing a\s+jersey\/uniform/);
-    expect(prompt).toMatch(/animal-chase or\s+predator-and-prey pairing/);
+  it("explicitly allows recognizable caricature of real public figures", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "a bustling newsroom");
+    expect(prompt).toMatch(/portray them as affectionate or\nsatirical caricatures/);
+    expect(prompt).toMatch(/exaggerate\ndistinctive characteristics enough that viewers can identify them\nquickly/);
   });
 
   it("weaves the day's actual headlines into the prompt as background atmosphere, not the main subject", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Guillotine Used for First Time" })] }),
-      "Vintage editorial-cartoon linework"
+      "a dramatic courtroom"
     );
     expect(prompt).toContain("Guillotine Used for First Time");
-    expect(prompt).toMatch(/never\s+as the main subject/);
+    expect(prompt).toMatch(/purely as atmosphere/);
   });
 
-  it("includes the assigned style verbatim", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Whimsical storybook illustration");
-    expect(prompt).toContain("Whimsical storybook illustration");
+  it("includes today's assigned environment verbatim", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "a fantastical dreamlike landscape");
+    expect(prompt).toContain("Today's setting: a fantastical dreamlike landscape");
   });
 
-  it("makes the day's trending topics the literal main subject of the painting", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Absurdist maximalist collage", [
-      { topic: "t1", displayName: "NFL teams cut rosters", description: "", link: "" },
-      { topic: "t2", displayName: "Coyote vs. Acme hits theaters", description: "", link: "" },
+  it("includes the curated trend package - topic, significance, people, visual hooks, humor angle", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "a carnival midway", [
+      makeTrendItem({
+        topic: "NFL teams cut rosters",
+        significance: "Roster deadlines just passed.",
+        peopleInvolved: ["Commissioner Roger Goodell"],
+        visualHooks: ["a locker room", "a giant scissors"],
+        humorPotential: "A comically oversized cut.",
+      }),
     ]);
-    expect(prompt).toContain('"NFL teams cut rosters"');
-    expect(prompt).toContain('"Coyote vs. Acme hits theaters"');
-    expect(prompt).toMatch(/THE MAIN SUBJECT/);
+    expect(prompt).toContain("NFL teams cut rosters");
+    expect(prompt).toContain("Roster deadlines just passed.");
+    expect(prompt).toContain("Commissioner Roger Goodell");
+    expect(prompt).toContain("a locker room");
+    expect(prompt).toContain("A comically oversized cut.");
   });
 
-  it("degrades gracefully with no trending topics at all", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Absurdist maximalist collage", []);
+  it("degrades gracefully with no curated trends at all", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "a busy train station", []);
     expect(prompt).toContain("invent a lighthearted, gently absurd everyday scene instead");
   });
 
-  it("never crashes and stays text-forbidding when there is no content at all", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Folk-art naive painting");
-    expect(prompt).toMatch(/NO TEXT/);
+  it("never crashes with no content at all", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "a strange civic plaza");
     expect(prompt.length).toBeGreaterThan(0);
   });
 });
 
-describe("pickArtStyle", () => {
-  it("is deterministic - the same date always returns the same style", () => {
-    expect(pickArtStyle("2026-07-04")).toBe(pickArtStyle("2026-07-04"));
+describe("pickDailyEnvironment", () => {
+  it("is deterministic - the same date always returns the same environment", () => {
+    expect(pickDailyEnvironment("2026-07-04")).toBe(pickDailyEnvironment("2026-07-04"));
   });
 
-  it("never picks the same style on two consecutive calendar days", () => {
-    expect(pickArtStyle("2026-07-04")).not.toBe(pickArtStyle("2026-07-05"));
-    expect(pickArtStyle("2026-12-31")).not.toBe(pickArtStyle("2027-01-01"));
+  it("never picks the same environment on two consecutive calendar days", () => {
+    expect(pickDailyEnvironment("2026-07-04")).not.toBe(pickDailyEnvironment("2026-07-05"));
+    expect(pickDailyEnvironment("2026-12-31")).not.toBe(pickDailyEnvironment("2027-01-01"));
   });
 
-  it("cycles through every style before repeating any", () => {
+  it("cycles through every environment before repeating any", () => {
     const seenOnFirstCycle = new Set<string>();
     let date = new Date("2026-01-01T00:00:00Z");
     let firstRepeatAt = -1;
     for (let i = 0; i < 100; i++) {
       const iso = date.toISOString().slice(0, 10);
-      const style = pickArtStyle(iso);
-      if (seenOnFirstCycle.has(style)) {
+      const env = pickDailyEnvironment(iso);
+      if (seenOnFirstCycle.has(env)) {
         firstRepeatAt = i;
         break;
       }
-      seenOnFirstCycle.add(style);
+      seenOnFirstCycle.add(env);
       date = new Date(date.getTime() + 86_400_000);
     }
-    // The first repeat must not happen until every distinct style has been used at least once.
+    // The first repeat must not happen until every distinct environment has been used at least once.
     expect(firstRepeatAt).toBe(seenOnFirstCycle.size);
   });
 });

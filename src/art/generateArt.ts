@@ -7,27 +7,29 @@ import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
 import { BLUESKY_MAX_IMAGE_BYTES } from "../bluesky/publish.js";
 import type { TrendingTopic } from "../bluesky/trending.js";
+import { curateTrends, type CuratedTrendItem } from "./trendCuration.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult, SizeRenderResult } from "../render/renderInfographic.js";
 
 /**
- * Stage: generates the day's entire published image as a comic mashup
- * painting - all of today's real Bluesky trending topics, humorously
- * combined into one chaotic scene, set against a backdrop evoking that
- * day's verified historical facts. This REPLACES the deterministic
- * HTML/CSS/Playwright infographic renderer as the daily pipeline's sole
- * image source (see render/renderInfographic.ts, which stays in the
- * codebase but is no longer called by the daily run).
+ * Stage: generates the day's entire published image as a dense editorial
+ * cartoon - the day's real trending topics synthesized into one richly
+ * composed, humorous scene, set against a backdrop evoking that day's
+ * verified historical facts. This REPLACES the deterministic HTML/CSS/
+ * Playwright infographic renderer as the daily pipeline's sole image
+ * source (see render/renderInfographic.ts, which stays in the codebase
+ * but is no longer called by the daily run).
  *
  * Because there is no fallback image once this replaces the renderer, a
  * missing API key or a failed generation call must fail the run - unlike
  * the formerly-optional decorative asset generator, this is not
- * skippable. Two hard safety rules carry through even into literal,
- * comic depiction: no legible text (never let an image model typeset
- * facts), and no actual recognizable likeness/logo/copyrighted character
- * of any real person, brand, or franchise mentioned in a trending topic -
- * only generic, original, invented stand-ins that capture the idea. Both
- * are enforced by the art-specific vision QA check.
+ * skippable. Per explicit direction, recognizable caricature of real
+ * public figures and very short intentional text/symbols are both
+ * allowed here (a deliberate, discussed departure from this pipeline's
+ * original "never let an AI model typeset facts, never a real likeness"
+ * defaults) - but actual real brand logos or copyrighted-character
+ * designs are still never allowed, and long/garbled text is still a
+ * defect. All enforced by the art-specific vision QA check.
  */
 export async function generateDailyArt(
   config: AppConfig,
@@ -39,9 +41,10 @@ export async function generateDailyArt(
   const client = makeOpenAIClient(config);
   if (!client) throw new MissingApiKeyError("art");
 
-  const style = pickArtStyle(selected.date);
-  const prompt = buildArtPrompt(selected, style, trendingTopics);
-  logger.info("art", `Generating comic mashup art for ${selected.date}`, { style, trendingTopicCount: trendingTopics.length });
+  const curatedTrends = await curateTrends(config, logger, trendingTopics);
+  const environment = pickDailyEnvironment(selected.date);
+  const prompt = buildArtPrompt(selected, environment, curatedTrends);
+  logger.info("art", `Generating editorial cartoon art for ${selected.date}`, { environment, trendItemCount: curatedTrends.length });
 
   const feed = await generateOneImage(client, config, logger, runDir, prompt, {
     fileBaseName: "infographic",
@@ -62,124 +65,210 @@ export async function generateDailyArt(
 }
 
 /**
- * A curated set of distinct comic/illustrative painting styles, suited to
- * a busy, literal, humorous mashup scene (unlike the old purely abstract
- * fine-art movements this list replaced). Kept deliberately varied in
- * mood, palette, and technique so consecutive days genuinely look
- * different rather than reading as "the same comic painting every day."
+ * Per explicit direction: the overall visual IDENTITY (painterly editorial
+ * cartoon, caricature, ink+paint hybrid) stays consistent day to day for
+ * brand recognition - daily variety instead comes from rotating the
+ * SETTING the scene takes place in. List drawn directly from the supplied
+ * master prompt's "Good settings include" guidance.
  */
-const ART_STYLES: string[] = [
-  "Absurdist maximalist collage - every element crammed into one chaotic scene, bold outlines, exaggerated proportions",
-  "Vintage editorial-cartoon linework - bold ink linework, cross-hatching, satirical exaggeration, muted newsprint palette",
-  "Pop-surrealist mashup poster - vivid saturated colors, dreamlike impossible juxtapositions, bold graphic shapes",
-  "Whimsical storybook illustration - soft rounded forms, warm inviting palette, playful exaggerated scale",
-  "Retro pulp-poster illustration - bold flat color blocks, dramatic exaggerated action poses, mid-century print texture",
-  "Chaotic scrapbook collage - torn-paper layered textures, mixed scale, playful clutter",
-  "Rube Goldberg-style absurdist diagram painting - whimsical interconnected contraptions linking every element together",
-  "Loose gestural caricature illustration - exaggerated proportions, energetic sketchy linework, humor-forward poses",
-  "Giant-monster-movie-poster energy - oversized dramatic scale, bold dynamic composition, vivid saturated color",
-  "Toy-diorama miniature collage - bright plastic-toy color palette, playful exaggerated scale contrasts",
-  "Symbolic political-cartoon illustration - clear visual metaphors and exaggerated symbolic objects, satirical energy",
-  "Psychedelic poster mashup - swirling organic shapes, vivid clashing colors, dense overlapping imagery",
-  "Comic-strip panel painting - bold flat colors, dynamic diagonal composition, halftone-dot shading texture",
-  "Folk-art naive painting - flattened perspective, bright unmixed color, charmingly crowded composition",
+const ART_ENVIRONMENTS: string[] = [
+  "a crowded, chaotic city street",
+  "a surreal public square",
+  "a bustling newsroom",
+  "a carnival midway",
+  "a sprawling open-air marketplace",
+  "a busy train station",
+  "an airport terminal",
+  "an ornate theater",
+  "a packed stadium",
+  "a dramatic courtroom",
+  "a grand museum hall",
+  "a chaotic open-plan office",
+  "a fantastical dreamlike landscape",
+  "a strange civic plaza",
 ];
 
 /**
- * Deterministically rotates through ART_STYLES by calendar date (days
- * since the Unix epoch, UTC), the same "stateless, reproducible" approach
- * the old text infographic used for its theme rotation. Guarantees two
- * consecutive calendar days never share a style, and every style gets
- * used before any repeats.
+ * Deterministically rotates through ART_ENVIRONMENTS by calendar date
+ * (days since the Unix epoch, UTC), the same "stateless, reproducible"
+ * approach the old text infographic used for its theme rotation.
+ * Guarantees two consecutive calendar days never share a setting, and
+ * every setting gets used before any repeats.
  */
-export function pickArtStyle(isoDate: string): string {
+export function pickDailyEnvironment(isoDate: string): string {
   const days = Math.floor(Date.parse(`${isoDate}T00:00:00Z`) / 86_400_000);
-  const idx = ((days % ART_STYLES.length) + ART_STYLES.length) % ART_STYLES.length;
-  return ART_STYLES[idx]!;
+  const idx = ((days % ART_ENVIRONMENTS.length) + ART_ENVIRONMENTS.length) % ART_ENVIRONMENTS.length;
+  return ART_ENVIRONMENTS[idx]!;
 }
 
-export function buildArtPrompt(selected: SelectedContent, style: string, trendingTopics: TrendingTopic[] = []): string {
+function formatCuratedTrends(items: CuratedTrendItem[]): string {
+  if (items.length === 0) return "No notable trending topics today - invent a lighthearted, gently absurd everyday scene instead.";
+  return items
+    .map((t, i) => {
+      const people = t.peopleInvolved.length > 0 ? t.peopleInvolved.join(", ") : "none named";
+      const hooks = t.visualHooks.length > 0 ? t.visualHooks.join("; ") : "(none supplied)";
+      return `${i + 1}. "${t.topic}" - ${t.significance}
+   People involved: ${people}
+   Visual hooks: ${hooks}
+   Humor angle: ${t.humorPotential || "(none supplied)"}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Builds the image-generation prompt from the user-supplied master
+ * template (a detailed editorial-cartoon art direction brief), adapted
+ * in two explicitly-discussed ways: recognizable caricature of real
+ * public figures is allowed (was previously banned after a caught
+ * likeness violation), and very short intentional text/symbols are
+ * allowed (was previously a hard zero-text rule). One guardrail from the
+ * pipeline's original design is kept regardless, since it protects
+ * against a different kind of risk (IP infringement, not satire) that
+ * wasn't part of that discussion: never a real brand's actual logo or a
+ * real copyrighted character's actual design.
+ */
+export function buildArtPrompt(selected: SelectedContent, environment: string, curatedTrends: CuratedTrendItem[] = []): string {
   const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
   const themes = allItems
     .slice(0, 8)
     .map((f) => f.headline)
     .join("; ");
   const categories = Array.from(new Set(allItems.map((f) => f.category))).slice(0, 6).join(", ");
-  const trendingLines = trendingTopics
-    .slice(0, 8)
-    .map((t) => t.displayName || t.topic);
-  const trendingList = trendingLines.length > 0 ? trendingLines.map((t) => `"${t}"`).join(", ") : null;
 
-  return `A single busy, funny mashup painting for a daily historical almanac.
+  return `You are creating one highly detailed daily editorial cartoon image based on
+the most important, strange, funny, culturally relevant, or widely
+discussed trending topics of the day.
 
-THE MAIN SUBJECT (this is the whole point of the painting): comically and
-chaotically combine ALL of the following real concepts, currently trending
-right now, into ONE single scene - as if every one of them is colliding,
-interacting, or crashing into the same absurd moment together. Use
-inventive visual sight-gags, playful juxtaposition, and physical comedy
-between the elements, not a literal news-photo-style depiction of any one
-of them:
-${trendingList ?? "no notable trending topics today - invent a lighthearted, gently absurd everyday scene instead"}.
+The finished image should feel like an ambitious full-page illustrated
+editorial cartoon created by an exceptionally skilled newspaper
+caricaturist, painter, satirist, and visual storyteller.
 
-Set against a backdrop that loosely evokes the mood/era of these real
-historical moments from ${selected.displayDate}, purely as background
-atmosphere (costuming, setting, color palette, period texture) - never
-as the main subject and never depicted as a literal historical scene:
-${themes || "a quiet day in history"}. Loosely inspired by themes of:
-${categories || "history and memory"}.
+CORE GOAL
+Create a single richly composed scene that visually summarizes the day.
+Do not simply illustrate one headline. Instead, synthesize several of the
+day's strongest trending subjects into one coherent, humorous, densely
+layered image - a visual snapshot of today's collective internet
+consciousness. The viewer should be able to explore the image and
+continually discover additional jokes, references, visual metaphors,
+background details, and tiny narrative moments.
 
-Today's assigned style: ${style}. Render fully in that style.
+VISUAL STYLE
+Use a highly expressive painterly cartoon style - hand-created, not
+digitally sterile. Favor expressive brushwork, visible painted texture,
+ink-like outlines mixed with painterly edges, bold color, rich shadows
+and highlights, exaggerated facial expressions, caricature, theatrical
+poses, energetic gesture, intricate environmental detail, humorous visual
+exaggeration, slightly surreal visual metaphors. Avoid flat corporate
+vector graphics, generic AI concept-art aesthetics, clean sterile 3D
+rendering, or photographic realism - it must clearly read as an
+illustration.
+
+CARICATURE
+When recognizable public figures appear, portray them as affectionate or
+satirical caricatures rather than photorealistic portraits. Capture
+recognizable hairstyle, facial structure, signature expressions,
+clothing, posture, famous accessories, public persona - exaggerate
+distinctive characteristics enough that viewers can identify them
+quickly. Caricatures should remain visually appealing, expressive, and
+readable; mix subtle caricature with occasional dramatic exaggeration
+rather than making every character grotesque.
+
+COMPOSITION
+A single unified scene, not a grid of unrelated panels, though it may
+contain many simultaneous events. Use foreground/middle-ground/background
+storytelling; important subjects larger, secondary stories around the
+margins; let scenes overlap; characters may react to things happening
+elsewhere in the image. Aim for roughly 2-4 dominant visual ideas, 5-10
+secondary references, and numerous tiny background details/Easter eggs -
+the viewer should notice new things after staring for several seconds.
+
+HUMOR
+Use absurdity, visual metaphor, exaggeration, irony, juxtaposition,
+parody, gentle satire, surreal background gags, callbacks between
+unrelated stories, literal interpretations of phrases, tiny character
+reactions, background signs or objects. Whenever possible, combine two
+unrelated trending topics into a single visual joke. Prefer clever visual
+ideas over text-heavy jokes.
+
+WORLD BUILDING
+Do not place characters against empty backgrounds - build a complete
+environment. Today's setting: ${environment}. The environment itself
+should help tell the story - objects, vehicles, screens, weather,
+architecture, signs, statues, and scenery may all reference additional
+trending topics.
+
+COLOR
+Rich, lively, saturated color (reds, cobalt/sky blues, glowing yellows,
+greens, warm oranges, deep purples, expressive skin tones, unusual accent
+colors) used to separate subjects and direct attention. Avoid a muddy,
+beige/gray/brown/monochromatic overall palette - different areas may have
+slightly different color moods while staying one unified painting.
+
+DETAIL
+Unusually detailed: small background characters, tiny signs, newspaper
+scraps, animals, vehicles, screens, props, posters, architectural
+details, visual callbacks, hidden jokes, tiny narrative scenes - while
+preserving a clear visual hierarchy so important elements stay
+immediately readable even at smaller display sizes.
+
+TEXT INSIDE THE IMAGE
+Use very little text; prefer imagery over captions. If text appears, keep
+it extremely short (one or two words or a short symbol - e.g. "AI",
+"SALE", "404", "VOTE", "$", "?"). Never a long sentence, a headline
+block, or a speech balloon full of dialogue, and never depend on
+generated text for the central joke - the comedy should land through
+imagery even if the text weren't there.
+
+VISUAL METAPHOR
+Translate abstract news into physical visual metaphors wherever possible
+(e.g. inflation -> an object swelling uncontrollably; a market story ->
+a roller coaster or seesaw; an election -> a race or tug-of-war; social
+media -> a giant megaphone or swarming birds; a tech story -> a bizarre
+malfunctioning machine).
+
+FAILURE MODES TO AVOID
+Do not create a collage of floating heads, a grid of unrelated boxes, a
+news infographic, sterile vector illustration, generic glossy AI art,
+excessive written headlines, a meme template, empty backgrounds,
+characters simply standing side by side, or a composition that repeats a
+previous day's structure. Something should always be happening.
+
+ONE HARD LIMIT (kept regardless of the above): for any real named brand,
+company, product, or specific copyrighted character/franchise referenced
+in the trending topics below - never depict their actual logo, trademark,
+or the copyrighted character's real design. Invent a generic, original
+visual stand-in that captures the idea instead (this protects against
+trademark/copyright issues, a different risk than the caricature of a
+real person discussed above, which IS allowed here). This is especially
+easy to get wrong for a chase/pursuit gag between an animal predator and
+its prey (e.g. a coyote and a bird, a cat and a mouse) - that specific
+visual pairing reliably drifts into a specific studio's actual
+copyrighted character designs even when not intended, so avoid that exact
+pairing/staging entirely and invent a different visual joke for that idea
+instead.
+
+No sexually explicit, gory, or otherwise inappropriate content.
+
 Portrait orientation, full-bleed edge-to-edge composition with no border
 or frame.
 
-CRITICAL SAFETY RULES, even in this literal/comic context - read carefully,
-these are the most common reasons a painting gets rejected:
-- For ANY trending topic centered on a specific named real person (a
-  public figure, celebrity, politician), a specific named brand/product,
-  or a specific copyrighted character/franchise - DO NOT depict ANY
-  humanoid figure, character, or creature standing in for them AT ALL,
-  not even a "generic" one. A generic figure meant to evoke a specific
-  real person or character keeps drifting into looking like the real
-  one, which is exactly what must never happen. Instead represent that
-  concept ONLY through symbolic objects, props, and setting - never a
-  figure/character:
-  - A specific real named film/show/franchise (e.g. a movie release) ->
-    an empty cinema seat, a film reel, popcorn, a ticket stub, a red
-    carpet, a blank poster frame. Never any character from it, generic
-    or otherwise - especially never any kind of animal-chase or
-    predator-and-prey pairing, which reliably drifts into a specific
-    studio's actual copyrighted characters.
-  - A specific real sports story -> a ball, a goalpost, a trophy, empty
-    stadium seating, a whistle. Never a player or any figure wearing a
-    jersey/uniform - jersey numbers are the single most common source of
-    hallucinated legible text in this pipeline.
-  - A specific real politician or political story -> a podium, a flag,
-    a gavel, a government-building silhouette, a ballot box. Never any
-    human figure standing in for the person, generic or otherwise.
-  - A specific real brand/company/app -> a plain, unbranded generic
-    equivalent object (e.g. a compass-rose or globe instead of a mapping
-    app's logo) - never any logo, trademark, or mascot.
-- For any OTHER, non-entity-specific human presence in the scene (an
-  anonymous crowd, an unnamed figure reacting to the chaos) - generic,
-  unmistakably-not-a-portrait figures are fine.
-- Certain OBJECT TYPES almost always want to grow legible text/numbers by
-  default and must be handled with extra care:
-  - Maps, atlases, globes, or signposts (common for any renaming/
-    geography-related trending topic): show ONLY a plain, blank,
-    unlabeled shape - a bare landmass silhouette, an unmarked signpost,
-    a spinning compass. NEVER include place names, labels, or any text
-    on a map-like object.
-  - Papers, documents, clipboards, scoreboards, tickets, or lists
-    (common for any sports/roster/score-related trending topic): keep
-    them completely blank, or replace them entirely with a non-textual
-    object (a ball, a trophy, a whistle, a stopwatch) - NEVER show any
-    figure holding or reading a paper/document/list with numbers or
-    marks on it.
-- ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
-  CAPTIONS, NO SPEECH BUBBLES, NO SIGNATURE, NO NUMBERS OR MARKS ON
-  CLOTHING, SIGNAGE, PAPER, OR MAPS anywhere in the image - the comedy
-  must land through imagery alone, nothing legible, ever.
-- No sexually explicit, gory, or otherwise inappropriate content.`;
+---
+
+TODAY'S CURATED TRENDING MATERIAL - synthesize the strongest several of
+these into one coherent scene per everything above (do not force every
+item in; pick whichever combination makes the strongest single image):
+
+${formatCuratedTrends(curatedTrends)}
+
+---
+
+Set against a backdrop that loosely evokes the mood/era of these real
+historical moments from ${selected.displayDate}, purely as atmosphere
+(costuming, setting details, color palette, period texture) - not the
+main subject: ${themes || "a quiet day in history"}. Loosely inspired by
+themes of: ${categories || "history and memory"}.
+
+Return only the completed image.`;
 }
 
 /**
