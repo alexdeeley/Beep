@@ -1,0 +1,82 @@
+name: Weekly card draw post
+
+# Independent of daily.yml on purpose - separate schedule, separate
+# concurrency group, separate pipeline (src/weeklyCard/). A problem here
+# can never block, delay, or corrupt the daily "On This Day" app, and vice
+# versa. Cron is always evaluated in UTC; two triggers 1 hour apart cover
+# both PST (UTC-8) and PDT (UTC-7) so a ~2:22am Pacific Sunday post lands
+# reliably across DST transitions, same reasoning as daily.yml. Whichever
+# trigger fires second on a given Sunday finds this week already published
+# (idempotency guard in src/weeklyCard/runWeekly.ts) and exits immediately.
+on:
+  schedule:
+    - cron: "22 10 * * 0" # ~2:22am America/Los_Angeles during PST
+    - cron: "22 9 * * 0" # ~2:22am America/Los_Angeles during PDT
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Override run date (YYYY-MM-DD). Leave blank to use today in APP_TIMEZONE."
+        required: false
+        type: string
+      dry_run:
+        description: "Run the full pipeline but never actually publish to Bluesky"
+        required: false
+        type: boolean
+        default: false
+      force_decade:
+        description: "Test-only: force the once-a-decade special post regardless of the anchor-date math"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: on-this-day-weekly-card
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run weekly card pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          APP_TIMEZONE: ${{ vars.APP_TIMEZONE }}
+          WEEKLY_CARD_ANCHOR_DATE: ${{ vars.WEEKLY_CARD_ANCHOR_DATE }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.date }}" ]; then ARGS="$ARGS --date ${{ inputs.date }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force_decade }}" = "true" ]; then ARGS="$ARGS --force-decade"; fi
+          echo "Running: npm run weekly -- $ARGS"
+          npm run weekly -- $ARGS
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-card-run-${{ github.run_id }}
+          path: runs/
+          retention-days: 30

@@ -18,6 +18,7 @@
     "caption": "tsx src/cli/index.ts caption",
     "publish": "tsx src/cli/index.ts publish",
     "daily": "tsx src/cli/index.ts daily",
+    "weekly": "tsx src/cli/index.ts weekly",
     "inspect": "tsx src/cli/index.ts inspect",
     "test": "vitest run",
     "test:watch": "vitest"
