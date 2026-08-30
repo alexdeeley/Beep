@@ -58,31 +58,40 @@ verdict as specified.`;
 }
 
 /**
- * QA prompt for the abstract-art daily image, which replaces the
+ * QA prompt for the daily comic-mashup image, which replaces the
  * deterministic text infographic entirely. There is no headline/date
- * layout to check here, so the checklist is much narrower - but the one
- * hard requirement carried over from the infographic design (never let
- * an image model produce unreliable "facts") becomes even stricter here:
- * this image must contain literally zero legible text, since nothing in
- * it is fact-checked or deterministic.
+ * layout to check here, so the checklist is much narrower - but the hard
+ * requirement carried over from the infographic design (never let an
+ * image model produce unreliable "facts" or infringing content) becomes
+ * even more important here, since this image now literally/comically
+ * depicts real current trending topics: it must contain zero legible
+ * text, and zero recognizable likenesses/logos/copyrighted characters of
+ * real people or brands - only generic, invented stand-ins.
  */
-export const ART_QA_VISION_SYSTEM_PROMPT = `You are a meticulous visual QA reviewer for a daily abstract-art image about
-to be published to a public channel. This image is NOT an infographic and
-carries no factual claims - it is a wordless, mood-evoking piece of
-abstract art. Your job is narrow but strict.
+export const ART_QA_VISION_SYSTEM_PROMPT = `You are a meticulous visual QA reviewer for a daily comic mashup painting
+about to be published to a public channel. This image is NOT an
+infographic and carries no factual claims - it's a wordless, humorous
+painting that comically combines today's real trending topics into one
+scene. Your job is narrow but strict.
 
 Check specifically for:
-- ABSOLUTELY NO legible text, letters, numbers, words, captions, watermarks,
-  signatures, or logos anywhere in the image, even small, faint, or
-  partially obscured. Image models sometimes hallucinate garbled
-  pseudo-text into abstract compositions - look carefully for this. Any
-  legible or near-legible text is an automatic FAIL.
+- ABSOLUTELY NO legible text, letters, numbers, words, captions, speech
+  bubbles, watermarks, or signatures anywhere in the image, even small,
+  faint, or partially obscured. Image models sometimes hallucinate
+  garbled pseudo-text into busy compositions - look carefully for this.
+  Any legible or near-legible text is an automatic FAIL.
 - The image does not depict the actual likeness, face, or a recognizable
   portrait of any specific real, identifiable person (named or otherwise
   identifiable), living or historical. Generic/anonymous human figures,
-  silhouettes, gestural forms, or stylized figures are EXPECTED and
+  silhouettes, caricature figures, or stylized figures are EXPECTED and
   FINE - only flag a figure if it reads as a recognizable portrait of a
   particular real individual, not merely "a human figure exists."
+- The image does not depict a real brand's actual logo/trademark, or a
+  real copyrighted character's actual recognizable design (e.g. a
+  specific studio's cartoon character rendered as themselves). A generic,
+  clearly-invented stand-in that merely gestures at the same idea is
+  EXPECTED and FINE - only flag it if it reads as the real, recognizable
+  logo or character design itself.
 - The image is not blank, solid-color, corrupted, glitched, or otherwise
   a failed/degenerate generation.
 - The image is not sexually explicit, gory, or otherwise inappropriate
@@ -92,11 +101,14 @@ Check specifically for:
 
 Do NOT check for or comment on:
 - Whether the imagery thematically "matches" any particular historical
-  event - this is deliberately evocative, not illustrative, so there is
-  no literal correctness to verify.
-- The mere presence of generic, anonymous, or stylized human figures -
-  those are allowed by design and must never be flagged on their own.
-- Composition/color preferences that are purely a matter of taste.
+  event - the historical facts are only a loose background atmosphere
+  here, not the literal subject, so there is no strict correctness to
+  verify against them.
+- The mere presence of generic, anonymous, or stylized human figures, or
+  generic invented stand-ins for brands/characters - those are allowed by
+  design and must never be flagged on their own.
+- Composition/color preferences, or the humor/absurdity of the scene
+  itself - that's the intended tone, not a defect.
 
 Respond with ONLY a JSON object of the shape:
 { "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
@@ -107,7 +119,8 @@ correct, return exactly {"status":"PASS","issues":[]} - an empty array,
 not a list of confirmations.`;
 
 export function buildArtQaVisionUserPrompt(): string {
-  return `Inspect the attached abstract art image and return your QA verdict as
-specified. Remember: this image must contain zero legible text of any
-kind - that is the single most important thing to check for.`;
+  return `Inspect the attached comic mashup painting and return your QA verdict as
+specified. Remember: zero legible text, and zero recognizable real
+likenesses/logos/copyrighted character designs - those are the two most
+important things to check for.`;
 }

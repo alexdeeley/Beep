@@ -57,49 +57,54 @@ function makeSelected(overrides: Partial<SelectedContent>): SelectedContent {
 }
 
 describe("buildArtPrompt", () => {
-  it("always forbids text, letters, and numbers, but allows generic human figures", () => {
+  it("always forbids text, letters, and numbers, and requires generic stand-ins for real people", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Robinson Crusoe Published" })] }),
-      "Color Field painting"
+      "Absurdist maximalist collage"
     );
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt).toMatch(/NO LETTERS/);
     expect(prompt).toMatch(/NO NUMBERS/);
-    expect(prompt).toMatch(/Human figures are welcome/);
-    expect(prompt).toMatch(/GENERIC and ANONYMOUS/);
-    expect(prompt).not.toMatch(/no recognizable figures/i);
+    expect(prompt).toMatch(/Invent a generic, anonymous, unmistakably-not-a-portrait/);
   });
 
-  it("weaves the day's actual headlines into the prompt", () => {
+  it("forbids real logos/copyrighted characters, requiring generic invented stand-ins", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "Pop-surrealist mashup poster");
+    expect(prompt).toMatch(/NEVER depict their actual logo,\s+trademark/);
+    expect(prompt).toMatch(/generic, original visual stand-in/);
+  });
+
+  it("weaves the day's actual headlines into the prompt as background atmosphere, not the main subject", () => {
     const prompt = buildArtPrompt(
       makeSelected({ majorEvents: [makeFact({ headline: "Guillotine Used for First Time" })] }),
-      "Cubist fragmentation"
+      "Vintage editorial-cartoon linework"
     );
     expect(prompt).toContain("Guillotine Used for First Time");
+    expect(prompt).toMatch(/never\s+as the main subject/);
   });
 
   it("includes the assigned style verbatim", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Japanese sumi-e ink wash");
-    expect(prompt).toContain("Japanese sumi-e ink wash");
+    const prompt = buildArtPrompt(makeSelected({}), "Whimsical storybook illustration");
+    expect(prompt).toContain("Whimsical storybook illustration");
   });
 
-  it("weaves today's trending topics into the prompt as a mood undertone, never as literal depiction", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Color Field painting", [
+  it("makes the day's trending topics the literal main subject of the painting", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "Absurdist maximalist collage", [
       { topic: "t1", displayName: "NFL teams cut rosters", description: "", link: "" },
       { topic: "t2", displayName: "Coyote vs. Acme hits theaters", description: "", link: "" },
     ]);
-    expect(prompt).toContain("NFL teams cut rosters");
-    expect(prompt).toContain("Coyote vs. Acme hits theaters");
-    expect(prompt).toMatch(/never depicted literally/);
+    expect(prompt).toContain('"NFL teams cut rosters"');
+    expect(prompt).toContain('"Coyote vs. Acme hits theaters"');
+    expect(prompt).toMatch(/THE MAIN SUBJECT/);
   });
 
   it("degrades gracefully with no trending topics at all", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Color Field painting", []);
-    expect(prompt).toContain("no notable trending mood today");
+    const prompt = buildArtPrompt(makeSelected({}), "Absurdist maximalist collage", []);
+    expect(prompt).toContain("invent a lighthearted, gently absurd everyday scene instead");
   });
 
   it("never crashes and stays text-forbidding when there is no content at all", () => {
-    const prompt = buildArtPrompt(makeSelected({}), "Minimalist geometric abstraction");
+    const prompt = buildArtPrompt(makeSelected({}), "Folk-art naive painting");
     expect(prompt).toMatch(/NO TEXT/);
     expect(prompt.length).toBeGreaterThan(0);
   });

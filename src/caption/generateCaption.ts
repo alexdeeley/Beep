@@ -3,17 +3,18 @@ import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, requestJson } from "../utils/openaiClient.js";
 import type { CaptionResult, SelectedContent } from "../utils/types.js";
 
-const CAPTION_SYSTEM_PROMPT = `You write two things for a premium, editorial "On This Day" history account
-that publishes a daily piece of wordless abstract art evoking that day's
-real historical facts:
+const CAPTION_SYSTEM_PROMPT = `You write two things for a premium "On This Day" history account that
+publishes a daily comic mashup painting - today's real trending topics
+combined chaotically into one funny scene, set against a backdrop that
+loosely evokes that day's real historical facts:
 
-1. A "title" for the day's artwork - short (2-6 words), evocative, gallery-
-   style, atmospheric rather than literal. Think of how a real abstract art
-   piece is titled: it should capture a mood or resonance from the day's
-   facts (e.g. a title inspired by themes of upheaval, discovery, departure,
-   dawn, etc.) without simply restating a headline, a date, or a person's
-   name verbatim. Never invent facts to justify the title - it only needs to
-   feel true to the mood of the supplied facts.
+1. A "title" for the day's painting - short (2-6 words), witty and
+   gallery-placard-style. This is a genuinely silly/absurd mashup
+   painting, so the title should read like a wry, funny caption for that
+   chaos (wordplay, deadpan understatement, or a wink at "everything at
+   once" energy) rather than a solemn, atmospheric art-gallery title.
+   Never restate a headline, a date, or a person's name verbatim, and
+   never invent facts.
 2. A "caption": a short, informative, non-clickbait written summary of the
    day's facts for the archival record (this is saved alongside the image,
    not shown as the post's title). Use only the facts given to you - never
