@@ -25,6 +25,7 @@ import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../ca
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
 import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
+import { fetchTrendingTopics, trendingTopicsToTags, type TrendingTopic } from "../bluesky/trending.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -108,15 +109,32 @@ export async function runAssetsStage(ctx: RunContext, selected: SelectedContent)
 }
 
 /**
- * Stage: generates the day's published image. The daily pipeline now
- * always produces wordless abstract art (see art/generateArt.ts) rather
- * than the deterministic HTML/CSS infographic - the old renderer
- * (render/renderInfographic.ts) stays in the codebase but is no longer
- * called here.
+ * Stage: fetches Bluesky's live trending topics ONCE per run, so the same
+ * data thematically informs the art (render stage) and fills the tag
+ * slots (publish stage) - what inspired the image and what it's tagged
+ * with always agree. Best-effort: see bluesky/trending.ts for why a
+ * failure here returns [] rather than blocking the run.
  */
-export async function runRenderStage(ctx: RunContext, selected: SelectedContent): Promise<RenderResult> {
+export async function runTrendingStage(ctx: RunContext): Promise<TrendingTopic[]> {
+  const { logger, store } = ctx;
+  const topics = await fetchTrendingTopics(logger);
+  store.writeJson("trending.json", topics);
+  return topics;
+}
+
+/**
+ * Stage: generates the day's published image - a comic mashup painting
+ * (see art/generateArt.ts) rather than the deterministic HTML/CSS
+ * infographic - the old renderer (render/renderInfographic.ts) stays in
+ * the codebase but is no longer called here.
+ */
+export async function runRenderStage(
+  ctx: RunContext,
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
+): Promise<RenderResult> {
   const { config, logger, store } = ctx;
-  const result = await generateDailyArt(config, logger, store.dir, selected);
+  const result = await generateDailyArt(config, logger, store.dir, selected, trendingTopics);
   store.writeJson("render.json", result);
   return result;
 }
@@ -127,6 +145,50 @@ export async function runQAStage(ctx: RunContext, selected: SelectedContent, ren
   const result = await runQualityChecks(config, logger, resolved.isoDate, selected, render.feed, "art");
   store.writeJson("qa.json", result);
   return result;
+}
+
+/**
+ * Runs render + QA together, regenerating a fresh image (not just
+ * re-checking the same one) up to config.art.maxQaRegenerationAttempts
+ * times when QA rejects it purely for an image-content problem the
+ * vision check flags (hallucinated text, a recognizable real
+ * likeness/logo) - a fresh generation can plausibly avoid the same
+ * mistake since image generation is stochastic. A QA failure caused by a
+ * DATA problem (e.g. unverified facts, wrong dimensions) is never worth
+ * burning an image-generation attempt on - regenerating the image can't
+ * fix that, so it returns immediately on the first attempt instead.
+ */
+export async function runRenderAndQAStage(
+  ctx: RunContext,
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
+): Promise<{ render: RenderResult; qa: QAResult }> {
+  const { config, logger } = ctx;
+  const maxAttempts = config.art.maxQaRegenerationAttempts;
+
+  let render: RenderResult | undefined;
+  let qa: QAResult | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    render = await runRenderStage(ctx, selected, trendingTopics);
+    qa = await runQAStage(ctx, selected, render);
+    if (qa.status === "PASS") return { render, qa };
+
+    const blocking = qa.issues.filter((i) => i.severity === "blocking");
+    const onlyImageContentIssues = blocking.length > 0 && blocking.every((i) => i.message.startsWith("[vision-qa]"));
+    if (!onlyImageContentIssues) {
+      logger.warn("qa", "QA failure is a data problem, not an image-content problem; regenerating the image would not help - not retrying", {
+        issues: blocking.map((i) => i.message),
+      });
+      return { render, qa };
+    }
+    if (attempt < maxAttempts) {
+      logger.warn("qa", `Image rejected by vision QA (attempt ${attempt}/${maxAttempts}); regenerating a fresh image`, {
+        issues: blocking.map((i) => i.message),
+      });
+    }
+  }
+  return { render: render!, qa: qa! };
 }
 
 /** Stage: caption generation. */
@@ -149,6 +211,7 @@ export async function runPublishStage(
   selected: SelectedContent,
   render: RenderResult,
   caption: CaptionResult,
+  trendingTopics: TrendingTopic[],
   dryRun: boolean
 ): Promise<PublishRecord> {
   const { config, logger, store, resolved } = ctx;
@@ -170,13 +233,17 @@ export async function runPublishStage(
     }
   }
 
-  // Content-derived tags (people, places, event topics, categories - all
-  // ranked by each fact's own importance) get first claim on the 8 tag
-  // slots; the LLM's own hashtag guesses and the evergreen brand pool
-  // only fill in whatever room is left. See src/caption/hashtagExtraction.ts.
+  // Per explicit direction, Bluesky's own live platform-wide trending
+  // topics get first claim on the 8 tag slots (maximum discovery reach
+  // over thematic relevance - see src/bluesky/trending.ts for the
+  // tradeoffs). Content-derived tags (people, places, event topics,
+  // categories - ranked by each fact's own importance), the LLM's own
+  // hashtag guesses, and the evergreen brand pool fill in whatever room
+  // is left, in that order. See src/caption/hashtagExtraction.ts.
   // Resolved to the same final 8-tag list used both as Bluesky's separate
   // discovery tags AND inline in the alt text, so the two never disagree.
-  const tagPool = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  const trendingTags = trendingTopicsToTags(trendingTopics);
+  const tagPool = [...trendingTags, ...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
   const tags = selectBlueskyTags(tagPool);
   const altText = buildArtAltText(caption.title, selected, tags);
 
@@ -261,10 +328,13 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
       throw new StageFailure("selection", "No verified items met selection criteria for this date");
     }
 
-    render = await runRenderStage(ctx, selected);
-    markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
+    const trendingTopics = await runTrendingStage(ctx);
+    markStage(record, "trending", "OK", `${trendingTopics.length} topic(s)`);
 
-    const qa = await runQAStage(ctx, selected, render);
+    const renderAndQa = await runRenderAndQAStage(ctx, selected, trendingTopics);
+    render = renderAndQa.render;
+    const qa = renderAndQa.qa;
+    markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
     markStage(record, "qa", qa.status === "PASS" ? "OK" : "FAILED", `${qa.issues.length} issue(s)`);
     if (qa.status !== "PASS") {
       throw new StageFailure("qa", `QA failed with ${qa.issues.filter((i) => i.severity === "blocking").length} blocking issue(s): ${qa.issues.map((i) => i.message).join(" | ")}`);
@@ -273,7 +343,7 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     const caption = await runCaptionStage(ctx, selected);
     markStage(record, "caption", "OK");
 
-    const publish = await runPublishStage(ctx, selected, render, caption, options.dryRun);
+    const publish = await runPublishStage(ctx, selected, render, caption, trendingTopics, options.dryRun);
     markStage(record, "publish", publish.status === "FAILED" ? "FAILED" : "OK", publish.status);
     record.publishStatus = publish.status;
 

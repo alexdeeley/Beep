@@ -6,37 +6,42 @@ import type { AppConfig } from "../config/index.js";
 import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
 import { BLUESKY_MAX_IMAGE_BYTES } from "../bluesky/publish.js";
+import type { TrendingTopic } from "../bluesky/trending.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult, SizeRenderResult } from "../render/renderInfographic.js";
 
 /**
- * Stage: generates the day's entire published image as wordless abstract
- * art evoking that day's verified historical facts. This REPLACES the
- * deterministic HTML/CSS/Playwright infographic renderer as the daily
- * pipeline's sole image source (see render/renderInfographic.ts, which
- * stays in the codebase but is no longer called by the daily run).
+ * Stage: generates the day's entire published image as a comic mashup
+ * painting - all of today's real Bluesky trending topics, humorously
+ * combined into one chaotic scene, set against a backdrop evoking that
+ * day's verified historical facts. This REPLACES the deterministic
+ * HTML/CSS/Playwright infographic renderer as the daily pipeline's sole
+ * image source (see render/renderInfographic.ts, which stays in the
+ * codebase but is no longer called by the daily run).
  *
  * Because there is no fallback image once this replaces the renderer, a
  * missing API key or a failed generation call must fail the run - unlike
  * the formerly-optional decorative asset generator, this is not
- * skippable. "No text" is the one hard safety requirement carried over
- * from the old design (never let an image model typeset facts): since
- * this image contains no factual claims at all, only mood/texture, that
- * requirement becomes "the image must contain no legible text
- * whatsoever", enforced by the art-specific vision QA check.
+ * skippable. Two hard safety rules carry through even into literal,
+ * comic depiction: no legible text (never let an image model typeset
+ * facts), and no actual recognizable likeness/logo/copyrighted character
+ * of any real person, brand, or franchise mentioned in a trending topic -
+ * only generic, original, invented stand-ins that capture the idea. Both
+ * are enforced by the art-specific vision QA check.
  */
 export async function generateDailyArt(
   config: AppConfig,
   logger: RunLogger,
   runDir: string,
-  selected: SelectedContent
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
 ): Promise<RenderResult> {
   const client = makeOpenAIClient(config);
   if (!client) throw new MissingApiKeyError("art");
 
   const style = pickArtStyle(selected.date);
-  const prompt = buildArtPrompt(selected, style);
-  logger.info("art", `Generating abstract art for ${selected.date}`, { style });
+  const prompt = buildArtPrompt(selected, style, trendingTopics);
+  logger.info("art", `Generating comic mashup art for ${selected.date}`, { style, trendingTopicCount: trendingTopics.length });
 
   const feed = await generateOneImage(client, config, logger, runDir, prompt, {
     fileBaseName: "infographic",
@@ -57,28 +62,27 @@ export async function generateDailyArt(
 }
 
 /**
- * A curated set of distinct fine-art movements/techniques, each described
- * in fully abstract (never figurative) terms so it stays compatible with
- * the hard "no recognizable faces" rule below. Kept deliberately varied
- * in mood, palette, and technique so consecutive days genuinely look
- * different rather than reading as "the same abstract painting with
- * different colors."
+ * A curated set of distinct comic/illustrative painting styles, suited to
+ * a busy, literal, humorous mashup scene (unlike the old purely abstract
+ * fine-art movements this list replaced). Kept deliberately varied in
+ * mood, palette, and technique so consecutive days genuinely look
+ * different rather than reading as "the same comic painting every day."
  */
 const ART_STYLES: string[] = [
-  "Bauhaus geometric abstraction - flat planes of primary color, strong geometric structure, disciplined composition",
-  "Japanese sumi-e ink wash - minimal brushwork, generous negative space, monochrome or near-monochrome ink tones",
-  "Color Field painting - large luminous fields of color, soft edges, meditative scale, few forms",
-  "Cubist fragmentation - faceted overlapping planes, fractured perspective, muted earth-toned palette",
-  "Art Deco geometric elegance - symmetrical ornamental geometry, metallic gold and deep jewel tones",
-  "Abstract Expressionist gesture - energetic brushstrokes, dynamic sweeping movement, bold high-contrast color",
-  "Constructivist collage - angular industrial forms, structured diagonals, bold red/black/white palette",
-  "Watercolor wash - soft bleeding pigment, translucent layered color, organic irregular edges",
-  "Bold Pop Art graphic - flat saturated color blocks, high contrast, graphic silhouette shapes",
-  "Minimalist geometric abstraction - a few precise shapes, generous negative space, restrained palette",
-  "Textured mixed-media collage - layered paper and paint textures, tactile surface, muted tones",
-  "Op Art optical pattern - rhythmic repeating geometric pattern, high contrast, sense of visual movement",
-  "Biomorphic abstraction - organic flowing forms, curved lines, warm earthy or oceanic color",
-  "Impressionist abstraction - dappled broken color, soft atmospheric light, loose visible brushwork",
+  "Absurdist maximalist collage - every element crammed into one chaotic scene, bold outlines, exaggerated proportions",
+  "Vintage editorial-cartoon linework - bold ink linework, cross-hatching, satirical exaggeration, muted newsprint palette",
+  "Pop-surrealist mashup poster - vivid saturated colors, dreamlike impossible juxtapositions, bold graphic shapes",
+  "Whimsical storybook illustration - soft rounded forms, warm inviting palette, playful exaggerated scale",
+  "Retro pulp-poster illustration - bold flat color blocks, dramatic exaggerated action poses, mid-century print texture",
+  "Chaotic scrapbook collage - torn-paper layered textures, mixed scale, playful clutter",
+  "Rube Goldberg-style absurdist diagram painting - whimsical interconnected contraptions linking every element together",
+  "Loose gestural caricature illustration - exaggerated proportions, energetic sketchy linework, humor-forward poses",
+  "Giant-monster-movie-poster energy - oversized dramatic scale, bold dynamic composition, vivid saturated color",
+  "Toy-diorama miniature collage - bright plastic-toy color palette, playful exaggerated scale contrasts",
+  "Symbolic political-cartoon illustration - clear visual metaphors and exaggerated symbolic objects, satirical energy",
+  "Psychedelic poster mashup - swirling organic shapes, vivid clashing colors, dense overlapping imagery",
+  "Comic-strip panel painting - bold flat colors, dynamic diagonal composition, halftone-dot shading texture",
+  "Folk-art naive painting - flattened perspective, bright unmixed color, charmingly crowded composition",
 ];
 
 /**
@@ -94,27 +98,58 @@ export function pickArtStyle(isoDate: string): string {
   return ART_STYLES[idx]!;
 }
 
-export function buildArtPrompt(selected: SelectedContent, style: string): string {
+export function buildArtPrompt(selected: SelectedContent, style: string, trendingTopics: TrendingTopic[] = []): string {
   const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
   const themes = allItems
     .slice(0, 8)
     .map((f) => f.headline)
     .join("; ");
   const categories = Array.from(new Set(allItems.map((f) => f.category))).slice(0, 6).join(", ");
+  const trendingLines = trendingTopics
+    .slice(0, 8)
+    .map((t) => t.displayName || t.topic);
+  const trendingList = trendingLines.length > 0 ? trendingLines.map((t) => `"${t}"`).join(", ") : null;
 
-  return `A single striking piece of fine-art abstract art for a daily historical
-almanac. Evoke the mood, era, and energy of these real historical moments
-from ${selected.displayDate} without depicting any of them literally and
-without any recognizable figures, portraits, or scenes: ${themes || "a quiet day in history"}.
-Loosely inspired by themes of: ${categories || "history and memory"}.
-Today's assigned style: ${style}.
-Render fully in that style - gallery-quality, evocative rather than
-illustrative or literal. Portrait orientation, full-bleed edge-to-edge
-composition with no border or frame.
-ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
-CAPTIONS, NO SIGNATURE, NO LOGOS anywhere in the image - pure abstract
-art only, nothing legible. No recognizable human faces or portraits of
-real people.`;
+  return `A single busy, funny mashup painting for a daily historical almanac.
+
+THE MAIN SUBJECT (this is the whole point of the painting): comically and
+chaotically combine ALL of the following real concepts, currently trending
+right now, into ONE single scene - as if every one of them is colliding,
+interacting, or crashing into the same absurd moment together. Use
+inventive visual sight-gags, playful juxtaposition, and physical comedy
+between the elements, not a literal news-photo-style depiction of any one
+of them:
+${trendingList ?? "no notable trending topics today - invent a lighthearted, gently absurd everyday scene instead"}.
+
+Set against a backdrop that loosely evokes the mood/era of these real
+historical moments from ${selected.displayDate}, purely as background
+atmosphere (costuming, setting, color palette, period texture) - never
+as the main subject and never depicted as a literal historical scene:
+${themes || "a quiet day in history"}. Loosely inspired by themes of:
+${categories || "history and memory"}.
+
+Today's assigned style: ${style}. Render fully in that style.
+Portrait orientation, full-bleed edge-to-edge composition with no border
+or frame.
+
+CRITICAL SAFETY RULES, even in this literal/comic context:
+- For any real named person referenced above (a public figure, celebrity,
+  or politician) - NEVER depict their actual recognizable face or
+  likeness. Invent a generic, anonymous, unmistakably-not-a-portrait
+  stand-in figure instead (e.g. a generic besuited figure, a generic
+  athlete silhouette) that gestures at the idea without being
+  identifiable as that specific individual.
+- For any real named brand, company, product, or copyrighted
+  character/franchise referenced above - NEVER depict their actual logo,
+  trademark, or the copyrighted character's real design. Invent a
+  generic, original visual stand-in that captures the idea instead (e.g.
+  a generic cartoon dog-and-bird chase instead of a specific studio's
+  copyrighted characters, a plain compass-rose or globe icon instead of a
+  real mapping app's actual logo).
+- ABSOLUTELY NO TEXT, NO LETTERS, NO NUMBERS, NO WORDS, NO WRITING, NO
+  CAPTIONS, NO SPEECH BUBBLES, NO SIGNATURE anywhere in the image - the
+  comedy must land through imagery alone, nothing legible.
+- No sexually explicit, gory, or otherwise inappropriate content.`;
 }
 
 /**
@@ -184,11 +219,11 @@ async function generateOneImage(
 
 /**
  * Bluesky hard-caps an uploaded image blob at BLUESKY_MAX_IMAGE_BYTES.
- * Abstract art is photographic/textured (unlike the old flat-color text
- * infographic), so a full-bleed PNG routinely lands well over that cap.
- * Try the configured format first; if it doesn't fit, fall back to JPEG
- * (which compresses photographic content far better than PNG ever will)
- * and step the quality down until the output actually fits.
+ * A detailed, busy painting is photographic/textured (unlike the old
+ * flat-color text infographic), so a full-bleed PNG routinely lands well
+ * over that cap. Try the configured format first; if it doesn't fit,
+ * fall back to JPEG (which compresses this kind of content far better
+ * than PNG ever will) and step the quality down until it actually fits.
  */
 async function encodeUnderSizeCap(
   raw: Buffer,

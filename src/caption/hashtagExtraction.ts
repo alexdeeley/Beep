@@ -40,7 +40,7 @@ const CATEGORY_LABELS: Partial<Record<Category, string>> = {
   // "birth"/"death" deliberately omitted - redundant with the person's own name tag.
 };
 
-function toPascalTag(text: string): string {
+export function toPascalTag(text: string): string {
   return text
     .split(/\s+/)
     .map((w) => w.replace(/[^A-Za-z0-9]/g, ""))
@@ -49,14 +49,19 @@ function toPascalTag(text: string): string {
     .join("");
 }
 
-/** Picks up to 3 non-stopword words from a headline as a fallback tag for events without a named person. */
-function headlinePhraseTag(headline: string): string | null {
-  const words = headline
+/**
+ * Picks up to `maxWords` non-stopword words from a phrase and PascalCases
+ * them into a single bare tag. Used both for a headline without a named
+ * person, and (see src/bluesky/trending.ts) to turn a multi-word Bluesky
+ * trending-topic phrase into a tag-shaped token.
+ */
+export function phraseToTag(phrase: string, maxWords = 3): string | null {
+  const words = phrase
     .split(/\s+/)
     .map((w) => w.replace(/[^A-Za-z0-9]/g, ""))
     .filter(Boolean);
   const significant = words.filter((w) => !STOPWORDS.has(w.toLowerCase()));
-  const chosen = significant.slice(0, 3);
+  const chosen = (significant.length > 0 ? significant : words).slice(0, maxWords);
   if (chosen.length === 0) return null;
   return toPascalTag(chosen.join(" "));
 }
@@ -95,7 +100,7 @@ export function deriveContentHashtags(selected: SelectedContent): string[] {
     if (person) {
       personTags.push(person);
     } else {
-      const phrase = headlinePhraseTag(item.headline);
+      const phrase = phraseToTag(item.headline);
       if (phrase) phraseTags.push(phrase);
     }
 
