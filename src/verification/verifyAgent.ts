@@ -110,7 +110,8 @@ export function applyProgrammaticGate(config: AppConfig, facts: VerifiedFact[]):
       !f.checks.yearConfirmed ||
       !f.checks.kindConfirmed ||
       !f.checks.notPublicationDateConfusion ||
-      !f.checks.headlineMatchesDescription
+      !f.checks.headlineMatchesDescription ||
+      !f.checks.categoryMatchesContent
     ) {
       reasons.push("one or more required checks failed despite an overall 'verified' label");
     }
@@ -154,6 +155,7 @@ function rejectDueToError(c: CandidateFact): VerifiedFact {
       kindConfirmed: false,
       notPublicationDateConfusion: false,
       headlineMatchesDescription: false,
+      categoryMatchesContent: false,
       notExaggerated: false,
       sufficientlyNotable: false,
       corroboratingSources: false,

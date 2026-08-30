@@ -32,6 +32,7 @@ function makeFact(overrides: Partial<VerifiedFact> = {}): VerifiedFact {
       sufficientlyNotable: true,
       corroboratingSources: true,
       headlineMatchesDescription: true,
+      categoryMatchesContent: true,
     },
     rejectionReason: null,
     ...overrides,
@@ -67,6 +68,15 @@ describe("applyProgrammaticGate (strict verification threshold enforcement)", ()
     const [result] = applyProgrammaticGate(
       config,
       [makeFact({ checks: { ...makeFact().checks, notPublicationDateConfusion: false } })]
+    );
+    expect(result!.verificationStatus).toBe("needs_review");
+  });
+
+  it("downgrades when the category doesn't match the content despite an overall 'verified' label", () => {
+    const config = loadConfig();
+    const [result] = applyProgrammaticGate(
+      config,
+      [makeFact({ checks: { ...makeFact().checks, categoryMatchesContent: false } })]
     );
     expect(result!.verificationStatus).toBe("needs_review");
   });

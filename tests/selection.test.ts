@@ -36,6 +36,7 @@ function makeFact(overrides: Partial<VerifiedFact>): VerifiedFact {
       sufficientlyNotable: true,
       corroboratingSources: true,
       headlineMatchesDescription: true,
+      categoryMatchesContent: true,
     },
     rejectionReason: null,
     ...overrides,
