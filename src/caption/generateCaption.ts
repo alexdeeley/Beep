@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config/index.js";
 import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, requestJson } from "../utils/openaiClient.js";
+import { formatHumanDate } from "../utils/dateUtils.js";
 import type { CaptionResult, SelectedContent } from "../utils/types.js";
 
 const CAPTION_SYSTEM_PROMPT = `You write two things for a premium "On This Day" history account that
@@ -117,11 +118,6 @@ function titleCase(s: string): string {
 export function composeFinalCaptionText(result: CaptionResult): string {
   const hashtagLine = result.hashtags.join(" ");
   return `${result.caption}\n\n${hashtagLine}`.trim();
-}
-
-function formatHumanDate(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(d);
 }
 
 /**
