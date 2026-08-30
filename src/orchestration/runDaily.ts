@@ -21,10 +21,10 @@ import { generateSupportingAssets } from "../assets/generateAssets.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 import { generateDailyArt } from "../art/generateArt.js";
 import { runQualityChecks } from "../qa/runQA.js";
-import { generateCaption, composeFinalCaptionText } from "../caption/generateCaption.js";
+import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../caption/generateCaption.js";
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
-import { publishToBluesky } from "../bluesky/publish.js";
+import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -174,13 +174,17 @@ export async function runPublishStage(
   // ranked by each fact's own importance) get first claim on the 8 tag
   // slots; the LLM's own hashtag guesses and the evergreen brand pool
   // only fill in whatever room is left. See src/caption/hashtagExtraction.ts.
-  const tags = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  // Resolved to the same final 8-tag list used both as Bluesky's separate
+  // discovery tags AND inline in the alt text, so the two never disagree.
+  const tagPool = [...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
+  const tags = selectBlueskyTags(tagPool);
+  const altText = buildArtAltText(caption.title, selected, tags);
 
   const record = await publishToBluesky(config, logger, {
     date: resolved.isoDate,
     localImagePath: render.feed.imagePath,
     publicImageUrl: publicUrl,
-    altText: caption.caption,
+    altText,
     tags,
     dryRun,
     alreadyPublished,

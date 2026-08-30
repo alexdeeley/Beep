@@ -130,6 +130,8 @@ export interface QAResult {
 }
 
 export interface CaptionResult {
+  /** Short, evocative, gallery-style title for the day's abstract art piece (2-6 words, atmospheric not literal). */
+  title: string;
   caption: string;
   hashtags: string[];
 }

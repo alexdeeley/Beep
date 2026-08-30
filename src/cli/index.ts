@@ -104,6 +104,8 @@ program
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
     const caption = await runCaptionStage(ctx, selected);
+    console.log(`Title: ${caption.title}`);
+    console.log("");
     console.log(caption.caption);
     console.log("");
     console.log(caption.hashtags.join(" "));
@@ -118,7 +120,7 @@ program
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
     const render = requireStage<RenderResult>(ctx.store, "render.json", "render");
-    const caption = ctx.store.tryReadJson<{ caption: string; hashtags: string[] }>("caption.json");
+    const caption = ctx.store.tryReadJson<{ title: string; caption: string; hashtags: string[] }>("caption.json");
     if (!caption) throw new Error(`Missing caption.json for this date. Run the "caption" stage first.`);
     const record = await runPublishStage(ctx, selected, render, caption, Boolean(opts.dryRun));
     console.log(`Publish status: ${record.status}`);
