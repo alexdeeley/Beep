@@ -153,8 +153,18 @@ export async function runPublishStage(
 
   let publicUrl: string | null = null;
   if (!dryRun && !alreadyPublished) {
-    const upload = await uploadImage(config, logger, render.feed.imagePath, resolved.isoDate);
-    publicUrl = upload.publicUrl;
+    // The archival upload is best-effort: Bluesky uploads the image bytes
+    // directly and does not need this URL, so a storage failure (bad
+    // credentials, DNS, network) must not block publishing - it only means
+    // losing the durable public archival copy for this run.
+    try {
+      const upload = await uploadImage(config, logger, render.feed.imagePath, resolved.isoDate);
+      publicUrl = upload.publicUrl;
+    } catch (err) {
+      logger.error("storage", "Archival upload failed; continuing without a public archival URL", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Content-derived tags (people, places, event topics, categories - all
