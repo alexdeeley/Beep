@@ -12,6 +12,9 @@ import { nowIso } from "../utils/dateUtils.js";
 const BLUESKY_MAX_TAGS = 8;
 const BLUESKY_MAX_TAG_GRAPHEMES = 64;
 
+/** Hard AT Protocol limit on an uploaded image blob's size in bytes. */
+export const BLUESKY_MAX_IMAGE_BYTES = 2_000_000;
+
 interface CreateSessionResponse {
   accessJwt: string;
   did: string;
