@@ -123,11 +123,10 @@ export async function runTrendingStage(ctx: RunContext): Promise<TrendingTopic[]
 }
 
 /**
- * Stage: generates the day's published image. The daily pipeline now
- * always produces wordless abstract art (see art/generateArt.ts) rather
- * than the deterministic HTML/CSS infographic - the old renderer
- * (render/renderInfographic.ts) stays in the codebase but is no longer
- * called here.
+ * Stage: generates the day's published image - a comic mashup painting
+ * (see art/generateArt.ts) rather than the deterministic HTML/CSS
+ * infographic - the old renderer (render/renderInfographic.ts) stays in
+ * the codebase but is no longer called here.
  */
 export async function runRenderStage(
   ctx: RunContext,
@@ -146,6 +145,50 @@ export async function runQAStage(ctx: RunContext, selected: SelectedContent, ren
   const result = await runQualityChecks(config, logger, resolved.isoDate, selected, render.feed, "art");
   store.writeJson("qa.json", result);
   return result;
+}
+
+/**
+ * Runs render + QA together, regenerating a fresh image (not just
+ * re-checking the same one) up to config.art.maxQaRegenerationAttempts
+ * times when QA rejects it purely for an image-content problem the
+ * vision check flags (hallucinated text, a recognizable real
+ * likeness/logo) - a fresh generation can plausibly avoid the same
+ * mistake since image generation is stochastic. A QA failure caused by a
+ * DATA problem (e.g. unverified facts, wrong dimensions) is never worth
+ * burning an image-generation attempt on - regenerating the image can't
+ * fix that, so it returns immediately on the first attempt instead.
+ */
+export async function runRenderAndQAStage(
+  ctx: RunContext,
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
+): Promise<{ render: RenderResult; qa: QAResult }> {
+  const { config, logger } = ctx;
+  const maxAttempts = config.art.maxQaRegenerationAttempts;
+
+  let render: RenderResult | undefined;
+  let qa: QAResult | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    render = await runRenderStage(ctx, selected, trendingTopics);
+    qa = await runQAStage(ctx, selected, render);
+    if (qa.status === "PASS") return { render, qa };
+
+    const blocking = qa.issues.filter((i) => i.severity === "blocking");
+    const onlyImageContentIssues = blocking.length > 0 && blocking.every((i) => i.message.startsWith("[vision-qa]"));
+    if (!onlyImageContentIssues) {
+      logger.warn("qa", "QA failure is a data problem, not an image-content problem; regenerating the image would not help - not retrying", {
+        issues: blocking.map((i) => i.message),
+      });
+      return { render, qa };
+    }
+    if (attempt < maxAttempts) {
+      logger.warn("qa", `Image rejected by vision QA (attempt ${attempt}/${maxAttempts}); regenerating a fresh image`, {
+        issues: blocking.map((i) => i.message),
+      });
+    }
+  }
+  return { render: render!, qa: qa! };
 }
 
 /** Stage: caption generation. */
@@ -288,10 +331,10 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     const trendingTopics = await runTrendingStage(ctx);
     markStage(record, "trending", "OK", `${trendingTopics.length} topic(s)`);
 
-    render = await runRenderStage(ctx, selected, trendingTopics);
+    const renderAndQa = await runRenderAndQAStage(ctx, selected, trendingTopics);
+    render = renderAndQa.render;
+    const qa = renderAndQa.qa;
     markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
-
-    const qa = await runQAStage(ctx, selected, render);
     markStage(record, "qa", qa.status === "PASS" ? "OK" : "FAILED", `${qa.issues.length} issue(s)`);
     if (qa.status !== "PASS") {
       throw new StageFailure("qa", `QA failed with ${qa.issues.filter((i) => i.severity === "blocking").length} blocking issue(s): ${qa.issues.map((i) => i.message).join(" | ")}`);

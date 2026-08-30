@@ -77,6 +77,7 @@ export interface AppConfig {
 
   art: {
     maxGenerationAttempts: number;
+    maxQaRegenerationAttempts: number;
   };
 
   storage: {
@@ -163,6 +164,7 @@ export function loadConfig(): AppConfig {
 
     art: {
       maxGenerationAttempts: envInt("ART_MAX_GENERATION_ATTEMPTS", 3),
+      maxQaRegenerationAttempts: envInt("ART_MAX_QA_REGENERATION_ATTEMPTS", 3),
     },
 
     storage: {
