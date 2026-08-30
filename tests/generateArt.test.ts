@@ -75,12 +75,14 @@ describe("buildArtPrompt", () => {
       "a crowded, chaotic city street"
     );
     expect(prompt).toMatch(/keep\s+it extremely short/);
-    expect(prompt).toMatch(/never depict their actual logo, trademark/);
+    expect(prompt).toMatch(/never depict any specific real copyrighted character's\n {2}actual design, or any real brand's actual logo\/trademark\/mascot/);
   });
 
-  it("forbids any recognizable likeness of a real named person, requiring a generic figure instead", () => {
+  it("forbids any recognizable likeness of a real person, as a blanket rule not tied to a named topic", () => {
     const prompt = buildArtPrompt(makeSelected({}), "a bustling newsroom");
-    expect(prompt).toMatch(/do NOT depict their\nactual recognizable likeness, face, or identifiable caricature - use a\ngeneric, anonymous figure instead/);
+    expect(prompt).toMatch(/GENERIC PEOPLE AND CHARACTERS - AS A RULE, ALWAYS/);
+    expect(prompt).toMatch(/whether or not\nthe trending topic below names a specific individual, brand, or\nfranchise/);
+    expect(prompt).toMatch(/never depict any specific real, identifiable person's actual\n {2}likeness, face, or recognizable caricature, named or not/);
   });
 
   it("weaves the day's actual headlines into the prompt as background atmosphere, not the main subject", () => {

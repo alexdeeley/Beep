@@ -165,17 +165,25 @@ vector graphics, generic AI concept-art aesthetics, clean sterile 3D
 rendering, or photographic realism - it must clearly read as an
 illustration.
 
-PEOPLE IN THE SCENE
-When a real named person is part of a trending topic, do NOT depict their
-actual recognizable likeness, face, or identifiable caricature - use a
-generic, anonymous figure instead (an unmistakably-not-a-portrait
-besuited figure, a generic athlete silhouette, a generic uniform/role
-costume) that gestures at their role in the story (a podium, a flag, a
-famous accessory, a signature prop) without being identifiable as that
-specific individual. Anonymous crowd figures, unnamed reacting
-bystanders, and other non-entity-specific people in the scene should
-still be expressive, characterful, and full of personality - just never
-a likeness of one particular real person.
+GENERIC PEOPLE AND CHARACTERS - AS A RULE, ALWAYS
+Every person and every character anywhere in the scene - whether or not
+the trending topic below names a specific individual, brand, or
+franchise - must be generic and invented, never a real one. This is a
+blanket rule for the whole image, not a case-by-case judgment call:
+- People: never depict any specific real, identifiable person's actual
+  likeness, face, or recognizable caricature, named or not. Use a
+  generic, anonymous figure instead (an unmistakably-not-a-portrait
+  besuited figure, a generic athlete silhouette, a generic uniform/role
+  costume) that gestures at their role in the story (a podium, a flag, a
+  famous accessory, a signature prop) without being identifiable as that
+  individual.
+- Characters: never depict any specific real copyrighted character's
+  actual design, or any real brand's actual logo/trademark/mascot,
+  named or not. Invent a generic, original visual stand-in instead.
+Every figure - crowd, bystander, protagonist, background extra - stays
+fully expressive, characterful, and full of personality within that
+limit; "generic" means not a real identifiable person or character, not
+bland or lifeless.
 
 COMPOSITION
 A single unified scene, not a grid of unrelated panels, though it may
@@ -237,20 +245,12 @@ excessive written headlines, a meme template, empty backgrounds,
 characters simply standing side by side, or a composition that repeats a
 previous day's structure. Something should always be happening.
 
-HARD LIMIT ON LOGOS/CHARACTERS (kept regardless of the above, in addition
-to the PEOPLE rule above): for any real named brand, company, product, or
-specific copyrighted character/franchise referenced in the trending
-topics below - never depict their actual logo, trademark, or the
-copyrighted character's real design. Invent a generic, original visual
-stand-in that captures the idea instead (this protects against
-trademark/copyright issues, a different risk from the personal-likeness
-rule above). This is especially easy to get wrong for a chase/pursuit gag
-between an animal predator and its prey (e.g. a coyote and a bird, a cat
-and a mouse) - that specific visual pairing reliably drifts into a
-specific studio's actual copyrighted character designs even when not
-intended, so avoid that exact
-pairing/staging entirely and invent a different visual joke for that idea
-instead.
+REMINDER on the generic-characters rule above: a chase/pursuit gag between
+an animal predator and its prey (e.g. a coyote and a bird, a cat and a
+mouse) is especially easy to get wrong - that specific visual pairing
+reliably drifts into a specific studio's actual copyrighted character
+designs even when not intended, so avoid that exact pairing/staging
+entirely and invent a different visual joke for that idea instead.
 
 No sexually explicit, gory, or otherwise inappropriate content.
 
