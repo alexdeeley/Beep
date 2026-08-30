@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { AppConfig } from "../config/index.js";
 import type { RunLogger } from "../utils/logger.js";
 import type { PublishRecord } from "../utils/types.js";
-import { nowIso } from "../utils/dateUtils.js";
+import { nowIso, formatHumanDate } from "../utils/dateUtils.js";
 
 /** Hard AT Protocol limits on app.bsky.feed.post's "tags" field - this is
  * NOT the same thing as an in-text "#hashtag" facet. It's separate
@@ -63,6 +63,63 @@ export function selectBlueskyTags(hashtagPool: string[]): string[] {
     tags.push(bare.length > BLUESKY_MAX_TAG_GRAPHEMES ? bare.slice(0, BLUESKY_MAX_TAG_GRAPHEMES) : bare);
   }
   return tags;
+}
+
+interface AuthorFeedImage {
+  alt?: string;
+}
+
+interface AuthorFeedResponse {
+  feed?: { post?: { record?: { embed?: { images?: AuthorFeedImage[] } } } }[];
+}
+
+/**
+ * Idempotency safety net for scheduled runs: checks the account's own
+ * recent Bluesky posts (durable, external state) for one whose alt text
+ * already carries today's date line - unlike runs/<date>/publish.json,
+ * which lives only on the local filesystem and does NOT persist across
+ * separate GitHub Actions runs (each starts from a fresh checkout with
+ * no prior runs/ directory). The daily schedule fires via two DST-safe
+ * cron triggers about an hour apart; without this check, the second
+ * firing would never see the first firing's local state and would
+ * silently republish the same day - discovered via a live test where a
+ * date already published earlier in the day was re-attempted from
+ * scratch by a fresh workflow run.
+ *
+ * Best-effort and read-only (no auth needed - public API). On any
+ * failure (network error, unexpected shape, no configured identifier),
+ * returns false rather than blocking the run: the local file check still
+ * catches same-process re-runs, and a rare failed check here just means
+ * a small residual chance of the exact bug this exists to fix, not a
+ * blocked run over a transient hiccup - consistent with how R2 archival
+ * upload and trending-topic fetch failures are already handled elsewhere
+ * in this pipeline (best-effort, never fatal).
+ */
+export async function isAlreadyPublishedOnBluesky(config: AppConfig, logger: RunLogger, isoDate: string): Promise<boolean> {
+  const identifier = config.bluesky.identifier;
+  if (!identifier) return false;
+
+  const dateLine = formatHumanDate(isoDate);
+  try {
+    const res = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(identifier)}&limit=20`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as AuthorFeedResponse;
+    const alreadyPosted = (data.feed ?? []).some((item) =>
+      (item.post?.record?.embed?.images ?? []).some((img) => img.alt?.includes(dateLine))
+    );
+    if (alreadyPosted) {
+      logger.info("bluesky", `Found an existing Bluesky post whose alt text contains "${dateLine}"; treating ${isoDate} as already published`);
+    }
+    return alreadyPosted;
+  } catch (err) {
+    logger.warn("bluesky", "Failed to check Bluesky's own post history for idempotency; falling back to the local file check only", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
 }
 
 async function xrpcFetch<T>(service: string, method: string, opts: RequestInit): Promise<T> {

@@ -24,7 +24,7 @@ import { runQualityChecks } from "../qa/runQA.js";
 import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../caption/generateCaption.js";
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
-import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
+import { publishToBluesky, selectBlueskyTags, isAlreadyPublishedOnBluesky } from "../bluesky/publish.js";
 import { fetchTrendingTopics, trendingTopicsToTags, type TrendingTopic } from "../bluesky/trending.js";
 import { loadFixture } from "./fixtures.js";
 
@@ -215,7 +215,11 @@ export async function runPublishStage(
   dryRun: boolean
 ): Promise<PublishRecord> {
   const { config, logger, store, resolved } = ctx;
-  const alreadyPublished = isAlreadyPublished(config, resolved.isoDate);
+  // Local file check first (cheap, sync); the Bluesky check only runs when
+  // needed, since it's the one that catches cross-run cases the local
+  // file can't (see isAlreadyPublishedOnBluesky for why that matters).
+  const alreadyPublished =
+    isAlreadyPublished(config, resolved.isoDate) || (await isAlreadyPublishedOnBluesky(config, logger, resolved.isoDate));
 
   let publicUrl: string | null = null;
   if (!dryRun && !alreadyPublished) {
@@ -294,7 +298,14 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     fixture: options.fixture,
   });
 
-  if (isAlreadyPublished(config, resolved.isoDate)) {
+  // Local file check first (cheap, sync); only hit Bluesky's API if the
+  // local check doesn't already know. This is what catches the case a
+  // local-only check can't: two separate GitHub Actions runs (e.g. the
+  // schedule's two DST-safe cron triggers, ~1 hour apart) each start from
+  // a fresh checkout with no local runs/ history to compare against.
+  const alreadyPublished =
+    isAlreadyPublished(config, resolved.isoDate) || (await isAlreadyPublishedOnBluesky(config, logger, resolved.isoDate));
+  if (alreadyPublished) {
     logger.info("orchestrator", `${resolved.isoDate} was already published successfully; exiting without doing any work`);
     markStage(record, "idempotency_check", "SKIPPED", "already published");
     record.finishedAt = nowIso();

@@ -85,3 +85,9 @@ const MILESTONE_ANNIVERSARIES = [25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 
 export function anniversaryMilestone(years: number): number | null {
   return MILESTONE_ANNIVERSARIES.includes(years) ? years : null;
 }
+
+/** "2026-08-30" -> "August 30, 2026". Shared by the alt-text builder and the Bluesky-based idempotency check, which both need the exact same format to match against each other. */
+export function formatHumanDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(d);
+}
