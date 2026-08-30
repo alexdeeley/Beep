@@ -83,6 +83,21 @@ describe("buildArtPrompt", () => {
     expect(prompt).toContain("Japanese sumi-e ink wash");
   });
 
+  it("weaves today's trending topics into the prompt as a mood undertone, never as literal depiction", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "Color Field painting", [
+      { topic: "t1", displayName: "NFL teams cut rosters", description: "", link: "" },
+      { topic: "t2", displayName: "Coyote vs. Acme hits theaters", description: "", link: "" },
+    ]);
+    expect(prompt).toContain("NFL teams cut rosters");
+    expect(prompt).toContain("Coyote vs. Acme hits theaters");
+    expect(prompt).toMatch(/never depicted literally/);
+  });
+
+  it("degrades gracefully with no trending topics at all", () => {
+    const prompt = buildArtPrompt(makeSelected({}), "Color Field painting", []);
+    expect(prompt).toContain("no notable trending mood today");
+  });
+
   it("never crashes and stays text-forbidding when there is no content at all", () => {
     const prompt = buildArtPrompt(makeSelected({}), "Minimalist geometric abstraction");
     expect(prompt).toMatch(/NO TEXT/);

@@ -9,6 +9,7 @@ import {
   runResearchStage,
   runVerificationStage,
   runSelectionStage,
+  runTrendingStage,
   runRenderStage,
   runQAStage,
   runCaptionStage,
@@ -78,7 +79,8 @@ program
   .action(async (opts) => {
     const ctx = makeRunContext(config, opts.date);
     const selected = requireStage<SelectedContent>(ctx.store, "selected.json", "select");
-    const result = await runRenderStage(ctx, selected);
+    const trendingTopics = await runTrendingStage(ctx);
+    const result = await runRenderStage(ctx, selected, trendingTopics);
     console.log(`Generated feed image: ${result.feed.imagePath} (${result.feed.width}x${result.feed.height})`);
     if (result.story) console.log(`Generated story image: ${result.story.imagePath}`);
   });
@@ -122,7 +124,8 @@ program
     const render = requireStage<RenderResult>(ctx.store, "render.json", "render");
     const caption = ctx.store.tryReadJson<{ title: string; caption: string; hashtags: string[] }>("caption.json");
     if (!caption) throw new Error(`Missing caption.json for this date. Run the "caption" stage first.`);
-    const record = await runPublishStage(ctx, selected, render, caption, Boolean(opts.dryRun));
+    const trendingTopics = await runTrendingStage(ctx);
+    const record = await runPublishStage(ctx, selected, render, caption, trendingTopics, Boolean(opts.dryRun));
     console.log(`Publish status: ${record.status}`);
     if (record.postUri) console.log(`Bluesky post URI: ${record.postUri}`);
     if (record.error) console.log(`Error: ${record.error}`);

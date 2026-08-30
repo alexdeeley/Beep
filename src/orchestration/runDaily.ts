@@ -25,7 +25,7 @@ import { generateCaption, composeFinalCaptionText, buildArtAltText } from "../ca
 import { deriveContentHashtags } from "../caption/hashtagExtraction.js";
 import { uploadImage } from "../storage/storage.js";
 import { publishToBluesky, selectBlueskyTags } from "../bluesky/publish.js";
-import { fetchTrendingTags } from "../bluesky/trending.js";
+import { fetchTrendingTopics, trendingTopicsToTags, type TrendingTopic } from "../bluesky/trending.js";
 import { loadFixture } from "./fixtures.js";
 
 export interface RunContext {
@@ -109,15 +109,33 @@ export async function runAssetsStage(ctx: RunContext, selected: SelectedContent)
 }
 
 /**
+ * Stage: fetches Bluesky's live trending topics ONCE per run, so the same
+ * data thematically informs the art (render stage) and fills the tag
+ * slots (publish stage) - what inspired the image and what it's tagged
+ * with always agree. Best-effort: see bluesky/trending.ts for why a
+ * failure here returns [] rather than blocking the run.
+ */
+export async function runTrendingStage(ctx: RunContext): Promise<TrendingTopic[]> {
+  const { logger, store } = ctx;
+  const topics = await fetchTrendingTopics(logger);
+  store.writeJson("trending.json", topics);
+  return topics;
+}
+
+/**
  * Stage: generates the day's published image. The daily pipeline now
  * always produces wordless abstract art (see art/generateArt.ts) rather
  * than the deterministic HTML/CSS infographic - the old renderer
  * (render/renderInfographic.ts) stays in the codebase but is no longer
  * called here.
  */
-export async function runRenderStage(ctx: RunContext, selected: SelectedContent): Promise<RenderResult> {
+export async function runRenderStage(
+  ctx: RunContext,
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
+): Promise<RenderResult> {
   const { config, logger, store } = ctx;
-  const result = await generateDailyArt(config, logger, store.dir, selected);
+  const result = await generateDailyArt(config, logger, store.dir, selected, trendingTopics);
   store.writeJson("render.json", result);
   return result;
 }
@@ -150,6 +168,7 @@ export async function runPublishStage(
   selected: SelectedContent,
   render: RenderResult,
   caption: CaptionResult,
+  trendingTopics: TrendingTopic[],
   dryRun: boolean
 ): Promise<PublishRecord> {
   const { config, logger, store, resolved } = ctx;
@@ -180,7 +199,7 @@ export async function runPublishStage(
   // is left, in that order. See src/caption/hashtagExtraction.ts.
   // Resolved to the same final 8-tag list used both as Bluesky's separate
   // discovery tags AND inline in the alt text, so the two never disagree.
-  const trendingTags = await fetchTrendingTags(logger);
+  const trendingTags = trendingTopicsToTags(trendingTopics);
   const tagPool = [...trendingTags, ...deriveContentHashtags(selected), ...caption.hashtags, ...config.brand.hashtags];
   const tags = selectBlueskyTags(tagPool);
   const altText = buildArtAltText(caption.title, selected, tags);
@@ -266,7 +285,10 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
       throw new StageFailure("selection", "No verified items met selection criteria for this date");
     }
 
-    render = await runRenderStage(ctx, selected);
+    const trendingTopics = await runTrendingStage(ctx);
+    markStage(record, "trending", "OK", `${trendingTopics.length} topic(s)`);
+
+    render = await runRenderStage(ctx, selected, trendingTopics);
     markStage(record, "render", "OK", `${render.feed.width}x${render.feed.height}`);
 
     const qa = await runQAStage(ctx, selected, render);
@@ -278,7 +300,7 @@ export async function runDailyHistoricalPost(config: AppConfig, options: DailyRu
     const caption = await runCaptionStage(ctx, selected);
     markStage(record, "caption", "OK");
 
-    const publish = await runPublishStage(ctx, selected, render, caption, options.dryRun);
+    const publish = await runPublishStage(ctx, selected, render, caption, trendingTopics, options.dryRun);
     markStage(record, "publish", publish.status === "FAILED" ? "FAILED" : "OK", publish.status);
     record.publishStatus = publish.status;
 

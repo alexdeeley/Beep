@@ -6,6 +6,7 @@ import type { AppConfig } from "../config/index.js";
 import type { RunLogger } from "../utils/logger.js";
 import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
 import { BLUESKY_MAX_IMAGE_BYTES } from "../bluesky/publish.js";
+import type { TrendingTopic } from "../bluesky/trending.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult, SizeRenderResult } from "../render/renderInfographic.js";
 
@@ -29,14 +30,15 @@ export async function generateDailyArt(
   config: AppConfig,
   logger: RunLogger,
   runDir: string,
-  selected: SelectedContent
+  selected: SelectedContent,
+  trendingTopics: TrendingTopic[]
 ): Promise<RenderResult> {
   const client = makeOpenAIClient(config);
   if (!client) throw new MissingApiKeyError("art");
 
   const style = pickArtStyle(selected.date);
-  const prompt = buildArtPrompt(selected, style);
-  logger.info("art", `Generating abstract art for ${selected.date}`, { style });
+  const prompt = buildArtPrompt(selected, style, trendingTopics);
+  logger.info("art", `Generating abstract art for ${selected.date}`, { style, trendingTopicCount: trendingTopics.length });
 
   const feed = await generateOneImage(client, config, logger, runDir, prompt, {
     fileBaseName: "infographic",
@@ -94,19 +96,27 @@ export function pickArtStyle(isoDate: string): string {
   return ART_STYLES[idx]!;
 }
 
-export function buildArtPrompt(selected: SelectedContent, style: string): string {
+export function buildArtPrompt(selected: SelectedContent, style: string, trendingTopics: TrendingTopic[] = []): string {
   const allItems = [...selected.majorEvents, ...selected.births, ...selected.deaths, ...selected.incidents];
   const themes = allItems
     .slice(0, 8)
     .map((f) => f.headline)
     .join("; ");
   const categories = Array.from(new Set(allItems.map((f) => f.category))).slice(0, 6).join(", ");
+  const trendingLine = trendingTopics
+    .slice(0, 6)
+    .map((t) => t.displayName || t.topic)
+    .join("; ");
 
   return `A single striking piece of fine-art abstract-adjacent art for a daily
 historical almanac. Evoke the mood, era, and energy of these real
 historical moments from ${selected.displayDate} without depicting any of
 them literally as a scene: ${themes || "a quiet day in history"}.
 Loosely inspired by themes of: ${categories || "history and memory"}.
+Also loosely echo the mood and energy of what's trending right now (again,
+never depicted literally, never as text or a headline, never as a specific
+identifiable real person - purely as an undertone of mood/color/energy):
+${trendingLine || "no notable trending mood today"}.
 Today's assigned style: ${style}.
 Render fully in that style - gallery-quality, evocative rather than a
 literal illustration. Portrait orientation, full-bleed edge-to-edge
