@@ -17,6 +17,7 @@ import {
   runPublishStage,
   runDailyHistoricalPost,
 } from "../orchestration/runDaily.js";
+import { runWeeklyCardPost } from "../weeklyCard/runWeekly.js";
 import type { ResearchOutput } from "../research/researchAgent.js";
 import type { VerificationOutput } from "../verification/verifyAgent.js";
 import type { SelectedContent } from "../utils/types.js";
@@ -160,6 +161,33 @@ program
       // would report `Publish status: FAILED` yet still exit 0, making a
       // scheduled CI run show green while silently never posting.
       console.log(`Failed to publish: ${summary.publish?.error ?? "unknown error"}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("weekly")
+  .description("Run the independent weekly 'card draw' pipeline (see src/weeklyCard/) - fully separate from the daily pipeline")
+  .option("--date <YYYY-MM-DD>", "Local run date (defaults to today in APP_TIMEZONE; normally a Sunday, but any date works for testing)")
+  .option("--dry-run", "Run the entire pipeline but never actually publish to Bluesky", false)
+  .option("--force-decade", "Test-only: force the once-a-decade special post regardless of the anchor-date math", false)
+  .action(async (opts) => {
+    const summary = await runWeeklyCardPost(config, {
+      dateOverride: opts.date,
+      dryRun: Boolean(opts.dryRun),
+      forceDecade: Boolean(opts.forceDecade),
+    });
+    console.log(`\n=== Weekly card run summary for ${summary.isoDate} ===`);
+    console.log(`  retired:    ${summary.retired}`);
+    console.log(`  card:       ${summary.card}`);
+    console.log(`  decade:     ${summary.isDecade}`);
+    console.log(`  qa:         ${summary.qa?.status ?? "N/A"}`);
+    console.log(`  publish:    ${summary.publish?.status ?? "N/A"}`);
+    if (summary.qa && summary.qa.status !== "PASS") {
+      console.log(`Failed at QA: ${summary.qa.issues.map((i) => i.message).join(" | ")}`);
+      process.exitCode = 1;
+    } else if (summary.publish?.status === "FAILED") {
+      console.log(`Failed to publish: ${summary.publish.error ?? "unknown error"}`);
       process.exitCode = 1;
     }
   });

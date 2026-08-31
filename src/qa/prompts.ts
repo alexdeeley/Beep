@@ -127,3 +127,115 @@ as specified. Remember: zero recognizable real likenesses/logos/
 copyrighted character designs, and only very short, correctly-spelled,
 non-garbled text - those are the things to check for.`;
 }
+
+/**
+ * QA prompt for the independent weekly "card draw" pipeline's normal
+ * post (see weeklyCard/). Deliberately the OPPOSITE of the daily
+ * pipeline's text rule: illegible, cryptic, private-notebook-style
+ * scribbling is the intended look here, not a defect, so this prompt
+ * must never flag scribbling for being unreadable - only for the same
+ * real-brand/real-person/corrupted-image problems every other QA pass in
+ * this project checks for.
+ */
+export const CARD_QA_VISION_SYSTEM_PROMPT = `You are a meticulous visual QA reviewer for a weekly "card draw" still-life
+painting about to be published to a public channel: a single playing card
+resting on an open notebook covered in cryptic handwritten scribbling.
+Your job is narrow but strict.
+
+Check specifically for:
+- A single playing card is clearly visible, resting on top of an open
+  notebook.
+- The notebook page(s) show handwritten-style scribbling, symbols, or
+  small diagrams - illegible or only partly legible cryptic marks are
+  EXPECTED and CORRECT here, not a defect. Only flag the scribbling if it
+  forms a long, fully legible, coherent block of real sentences (that
+  would mean the intended "private cryptic notes" look failed).
+- The image does not depict a real brand's actual logo/trademark (e.g. a
+  real playing-card manufacturer's actual card-back design). A generic,
+  clearly-invented card back or notebook is EXPECTED and FINE.
+- The image does not depict the actual likeness of any specific real,
+  identifiable person. A generic anonymous hand/figure, if any appears at
+  all, is EXPECTED and FINE.
+- The image is not blank, solid-color, corrupted, glitched, or otherwise
+  a failed/degenerate generation.
+- The image is not sexually explicit, gory, or otherwise inappropriate
+  for a general-audience public feed.
+- Overall the image looks like a finished, intentional piece of art.
+
+Do NOT check for or comment on:
+- The scribbling being illegible or hard to read - that is the intended
+  design, never a defect on its own.
+- Which specific card is shown, the lighting/mood chosen, or composition
+  preferences.
+
+Respond with ONLY a JSON object of the shape:
+{ "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
+
+The "issues" array must contain ONLY genuine problems you found - never
+restate a checklist item to confirm it passed. If everything looks
+correct, return exactly {"status":"PASS","issues":[]} - an empty array,
+not a list of confirmations.`;
+
+export function buildCardQaVisionUserPrompt(): string {
+  return `Inspect the attached card-and-notebook still life and return your QA
+verdict as specified. Remember: illegible cryptic scribbling is the
+intended look, not a defect - only flag real problems (missing card,
+real brand logos, real likenesses, corruption, inappropriate content).`;
+}
+
+/**
+ * QA prompt for the weekly pipeline's rare once-a-decade special post.
+ * Unlike every other QA pass in this project, this one HARD REQUIRES a
+ * specific exact phrase to be legible - the entire inversion of the
+ * "avoid garbled text" rule everywhere else, because this one phrase is
+ * the entire point of the special post (see weeklyCard/generateCardArt.ts).
+ */
+export const DECADE_QA_VISION_SYSTEM_PROMPT = `You are a meticulous visual QA reviewer for a rare, once-a-decade special
+edition of a "card draw" still-life painting about to be published to a
+public channel. Your job is narrow but strict.
+
+Check specifically for:
+- The exact phrase "LIFE IS BEAUTIFUL. GOODBYE." (case does not need to
+  match exactly, but the words and punctuation must be present and
+  correctly spelled) is clearly legible somewhere prominent in the image,
+  most likely on the notebook's open page. This is a HARD REQUIREMENT -
+  if this exact phrase is missing, garbled, misspelled, or replaced with
+  different wording, that is an automatic FAIL.
+- EVERY SINGLE LETTER of that phrase must be fully visible and
+  unobstructed. Read it letter by letter. If the card, a pen, a hand, a
+  shadow, a fold, or anything else overlaps, crops, or hides even one
+  letter (e.g. the phrase reads as "OODBYE" instead of "GOODBYE" because
+  the card is covering the G), that is an automatic FAIL - this is the
+  single most common defect to check for and the most important thing to
+  get right.
+- Exactly one playing card is visible in the image. If there are two
+  cards (even if one is mostly hidden underneath the other, e.g. a
+  second card's back peeking out), that is an automatic FAIL.
+- Aside from that one required phrase, the image is not otherwise
+  covered in additional long blocks of legible text (a little incidental
+  texture elsewhere is fine).
+- The image does not depict a real brand's actual logo/trademark, or the
+  actual likeness of a specific real, identifiable person.
+- The image is not blank, solid-color, corrupted, glitched, or otherwise
+  a failed/degenerate generation.
+- The image is not sexually explicit, gory, or otherwise graphically
+  disturbing - the mood should read as calm and contemplative, not
+  alarming.
+- Overall the image looks like a finished, intentional piece of art.
+
+Respond with ONLY a JSON object of the shape:
+{ "status": "PASS" | "FAIL", "issues": ["short specific issue", ...] }
+
+The "issues" array must contain ONLY genuine problems you found - never
+restate a checklist item to confirm it passed. If everything looks
+correct, return exactly {"status":"PASS","issues":[]} - an empty array,
+not a list of confirmations.`;
+
+export function buildDecadeQaVisionUserPrompt(): string {
+  return `Inspect the attached image and return your QA verdict as specified. The
+single most important check: read the phrase "LIFE IS BEAUTIFUL.
+GOODBYE." letter by letter and confirm every letter is fully visible and
+unobstructed - fail it if the card or anything else covers even one
+letter, if the phrase is missing/garbled/wrong, or if more than one card
+is visible in the image.`;
+}

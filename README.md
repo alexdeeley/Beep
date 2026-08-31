@@ -412,13 +412,57 @@ src/
   storage/         # R2/S3 upload
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
+  weeklyCard/      # fully independent weekly "card draw" pipeline - own schedule, own state, own concurrency group (see below)
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
 
 templates/infographic/   # CSS design system + bundled fonts (no network dependency)
 tests/                   # vitest unit tests + the August 29 fixture
 runs/                    # generated output (gitignored, per-date)
-.github/workflows/       # the daily scheduled GitHub Action
+.github/workflows/       # daily.yml (the "On This Day" scheduled post) + weekly-card.yml (the weekly card draw)
+```
+
+### The weekly "card draw" pipeline
+
+A second, completely independent posting pipeline lives in `src/weeklyCard/`
+and posts to the same Bluesky account every Sunday at ~2:22am Pacific: a
+single playing card resting on an open notebook covered in cryptic
+handwritten scribbling. It shares almost nothing with the daily app above
+on purpose, so a bug or outage in one can never affect the other:
+
+- **Own schedule and workflow**: `.github/workflows/weekly-card.yml`, a
+  separate `concurrency` group (`on-this-day-weekly-card`, distinct from
+  the daily app's `on-this-day-daily`).
+- **Own state**: run artifacts live under `runs/weekly-<date>/`, never
+  `runs/<date>/`, so the two pipelines' local idempotency checks can never
+  collide.
+- **Own Bluesky idempotency check**: matches on a `"Card Draw"` alt-text
+  marker + the ISO date, never the daily app's `"<Month Day, Year>"`
+  format - so neither pipeline's posts can ever be mistaken for the
+  other's on the shared account.
+- **Own QA**: `src/weeklyCard/runCardQA.ts`, not `qa/runQA.ts` (which is
+  tightly coupled to the daily app's historical-facts data shape).
+- Every ten years (from `WEEKLY_CARD_ANCHOR_DATE`, see `.env.example`),
+  the normal card post is replaced by a special edition reading exactly
+  "LIFE IS BEAUTIFUL. GOODBYE." - see `src/weeklyCard/decadeCheck.ts`.
+- Once that special edition is ever successfully published, the pipeline
+  **stops permanently** - not just for that week. `runWeeklyCardPost`
+  checks for `state/weekly-card-retired.json` before doing any work at
+  all; once the decade post succeeds, that file is written and
+  `weekly-card.yml` commits it back to the repo (its one `contents:
+  write` step), so the shutdown survives every future run's fresh
+  checkout forever. See `src/weeklyCard/retirement.ts`.
+
+The only code the two pipelines actually share is low-level plumbing with
+no daily-pipeline-specific state: `art/imageGeneration.ts` (the
+gpt-image-1 call + size-cap encoder) and `bluesky/publish.ts`'s
+`publishToBluesky` (a generic "upload bytes, create a post" function).
+
+Test it locally the same way as `daily`:
+
+```bash
+npm run weekly -- --date 2026-09-06 --dry-run           # a normal week
+npm run weekly -- --date 2026-09-06 --dry-run --force-decade  # preview the decade special
 ```
 
 ---
