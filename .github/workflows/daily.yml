@@ -3,16 +3,16 @@ name: Daily On This Day post
 # Cron is always evaluated in UTC by GitHub Actions, but the publish
 # decision itself is timezone-safe: the app resolves "today" using
 # APP_TIMEZONE (default America/Los_Angeles) via Luxon, not the runner's
-# UTC clock. We schedule TWO triggers, 20:34 UTC and 19:34 UTC, to cover
-# both PST (UTC-8) and PDT (UTC-7) so a ~12:34pm Pacific post lands
+# UTC clock. We schedule TWO triggers, 16:00 UTC and 15:00 UTC, to cover
+# both PST (UTC-8) and PDT (UTC-7) so an ~8:00am Pacific post lands
 # reliably across DST transitions. Whichever run fires second on a given
 # day will find today's post already published (idempotency guard in
 # src/utils/stateStore.ts) and exit immediately without doing any
 # research/render/publish work.
 on:
   schedule:
-    - cron: "34 20 * * *" # ~12:34pm America/Los_Angeles during PST
-    - cron: "34 19 * * *" # ~12:34pm America/Los_Angeles during PDT
+    - cron: "0 16 * * *" # ~8:00am America/Los_Angeles during PST
+    - cron: "0 15 * * *" # ~8:00am America/Los_Angeles during PDT
   workflow_dispatch:
     inputs:
       date:
