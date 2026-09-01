@@ -35,9 +35,8 @@ offline once installed.
 GitHub Pages automatically on every push to `main` that touches
 `symphonic-noise/`, and can also be run manually from the Actions tab.
 
-**One-time setup** (repo owner, done once in the GitHub UI — not something
-a workflow file can do): go to **Settings → Pages** and set **Source** to
-**GitHub Actions**. After that, every push to `main` redeploys automatically.
+The workflow enables Pages itself (`enablement: true` on the
+`configure-pages` step) — no manual Settings → Pages step needed.
 
 Once enabled, the app is live at:
 
