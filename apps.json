@@ -14,11 +14,32 @@
     "path": "DrumMachine.html"
   },
   {
+    "id": "dss1",
+    "name": "DSS1",
+    "description": "A full digital sound studio in one page — step-sequenced drums, a filter-swept bass synth, an ambient pad, a Euclidean rhythm generator, and more, with built-in reverb/delay.",
+    "category": "Music Tools",
+    "path": "DSS1.html"
+  },
+  {
+    "id": "bitcrusher-worklet-demo",
+    "name": "BitCrusher Worklet Demo",
+    "description": "A bit-depth and sample-rate-reduction bitcrusher built as a real AudioWorklet, demoed live on a sine tone.",
+    "category": "Music Tools",
+    "path": "BitCrusherWorkletDemo.html"
+  },
+  {
     "id": "sound-of-functions",
     "name": "The Sound of Functions",
     "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
     "category": "Art",
     "path": "SoundOfFunctions.html"
+  },
+  {
+    "id": "oscillate-scroll-bars",
+    "name": "Oscillate — Scroll Bars",
+    "description": "Turns your microphone input into a scrolling neon bar-graph waveform that streams by and slowly fades.",
+    "category": "Art",
+    "path": "OscillateScrollBars.html"
   },
   {
     "id": "one-thumb-racer",
@@ -47,5 +68,19 @@
     "description": "Grow a hungry rainbow unicorn by eating everything smaller than you across ten whimsical levels.",
     "category": "Games",
     "path": "MaisieEatsEverything2.html"
+  },
+  {
+    "id": "ballz-game",
+    "name": "Ballz Game",
+    "description": "A physics ball-breaker: aim with the slider, launch a volley of balls at descending numbered bricks, and grab the gold dot to add another ball.",
+    "category": "Games",
+    "path": "BallzGame.html"
+  },
+  {
+    "id": "peggle-minimal-forge",
+    "name": "Peggle Minimal Forge",
+    "description": "A minimal Peggle-style peg board — drop balls to bounce, spark, and ricochet through a grid of pegs.",
+    "category": "Games",
+    "path": "PeggleMinimalForge.html"
   }
 ]
