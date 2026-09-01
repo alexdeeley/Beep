@@ -63,6 +63,13 @@
     "path": "HeavySpinMorph.html"
   },
   {
+    "id": "maisie-magic-draw",
+    "name": "Maisie's Magic Draw",
+    "description": "A sparkly finger-painting app — glowing ink trails, draggable emoji stickers, a magic wand burst, and a save/share button.",
+    "category": "Art",
+    "path": "MaisieMagicDraw.html"
+  },
+  {
     "id": "one-thumb-racer",
     "name": "One-Thumb Racer",
     "description": "Drive with just your thumb. Drag anywhere in the pad to steer, long-press for nitro.",
@@ -110,5 +117,19 @@
     "description": "Catch falling stars for points and dodge the squares in a fast arcade bucket-catcher.",
     "category": "Games",
     "path": "StarBucket.html"
+  },
+  {
+    "id": "ricochet-8bit",
+    "name": "Ricochet 8-Bit",
+    "description": "A pixel-art Peggle/Breakout hybrid — launch a volley of balls to ricochet off descending blocks, chain combos, and grab power-ups like fireball, split, and rewind.",
+    "category": "Games",
+    "path": "Ricochet8Bit.html"
+  },
+  {
+    "id": "ricochet-8bit-sequence11",
+    "name": "Ricochet 8-Bit: Sequence 11",
+    "description": "An expanded build of Ricochet 8-Bit with giant balls, homing shots, laser-blaster blocks, multi-cell L/T/giant shapes, and a one-time second-chance save.",
+    "category": "Games",
+    "path": "Sequence11.html"
   }
 ]
