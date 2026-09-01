@@ -28,6 +28,13 @@
     "path": "BitCrusherWorkletDemo.html"
   },
   {
+    "id": "hnw9",
+    "name": "HNW9",
+    "description": "A nine-pad harsh noise wall instrument — drag each black-and-white pad to sculpt noise thickness, filter, drive, oscillators, bitcrush, feedback, and motion.",
+    "category": "Music Tools",
+    "path": "HNW9.html"
+  },
+  {
     "id": "sound-of-functions",
     "name": "The Sound of Functions",
     "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
@@ -40,6 +47,20 @@
     "description": "Turns your microphone input into a scrolling neon bar-graph waveform that streams by and slowly fades.",
     "category": "Art",
     "path": "OscillateScrollBars.html"
+  },
+  {
+    "id": "checkerboard-swirl",
+    "name": "Checkerboard Swirl",
+    "description": "A 16×16 checkerboard that bursts into color and swirls when you tap, swipe, or press — then gently settles back to crisp black and white.",
+    "category": "Art",
+    "path": "CheckerboardSwirl.html"
+  },
+  {
+    "id": "heavy-spin-morph",
+    "name": "Heavy Spin Morph",
+    "description": "A wireframe icosphere you can spin and fling, slowly morphing between cube, sphere, and octahedron. Double-tap to jump shapes.",
+    "category": "Art",
+    "path": "HeavySpinMorph.html"
   },
   {
     "id": "one-thumb-racer",
@@ -82,5 +103,12 @@
     "description": "A minimal Peggle-style peg board — drop balls to bounce, spark, and ricochet through a grid of pegs.",
     "category": "Games",
     "path": "PeggleMinimalForge.html"
+  },
+  {
+    "id": "star-bucket",
+    "name": "Star Bucket",
+    "description": "Catch falling stars for points and dodge the squares in a fast arcade bucket-catcher.",
+    "category": "Games",
+    "path": "StarBucket.html"
   }
 ]
