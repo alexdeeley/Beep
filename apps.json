@@ -1,0 +1,16 @@
+[
+  {
+    "id": "symphonic-noise",
+    "name": "Symphonic Noise",
+    "description": "A generative wall of orchestral-style sound for study or art. Slow-shifting chords, layered voices, never loops.",
+    "category": "Music Tools",
+    "path": "symphonic-noise/index.html"
+  },
+  {
+    "id": "one-thumb-racer",
+    "name": "One-Thumb Racer",
+    "description": "Drive with just your thumb. Drag anywhere in the pad to steer, long-press for nitro.",
+    "category": "Games",
+    "path": "OneThumbRacer.html"
+  }
+]
