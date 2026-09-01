@@ -524,6 +524,10 @@ and whatever gets added later), published together as a static site via
   everything in the repo except this bot's own source/config (see the
   `rsync --exclude` list in the workflow) automatically — no workflow edit
   needed. A new `category` value just becomes its own section.
+- **Apps only, no media or images:** the gallery is for self-contained
+  HTML apps. Skip anything that isn't one (audio/video clips,
+  screenshots, standalone image files) rather than adding it to
+  `apps.json` or the repo root.
 - The one manual, one-time setup step (already done for this repo): a
   human has to go to **Settings → Pages → Source → GitHub Actions** once —
   GitHub's API won't let a workflow token create a Pages site itself.
