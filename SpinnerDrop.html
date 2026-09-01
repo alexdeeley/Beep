@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Spinner Drop — Responsive Physics</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:manipulation; }
+  .overlay {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  }
+  .card {
+    position: relative;
+    width: min(80vw, 560px); height: min(60vh, 420px);
+    border: 2px solid #fff; border-radius: 18px;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    box-shadow: 0 0 40px rgba(255,255,255,0.2), 0 0 120px rgba(255,255,255,0.08) inset;
+    background: radial-gradient( circle at 50% 40%, rgba(255,255,255,0.06), rgba(0,0,0,0.2) 60%);
+  }
+  .score {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    color: #fff; font-weight: 900; letter-spacing: 0.04em;
+    font-size: clamp(60px, 16vw, 160px);
+    line-height: 1; user-select:none;
+    text-shadow: 0 0 16px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.25);
+  }
+  .replay {
+    margin-top: 10px;
+    width: clamp(72px, 12vw, 110px); aspect-ratio:1;
+    border: 3px solid #fff; border-radius: 999px;
+    display:grid; place-items:center;
+    cursor: pointer; user-select:none;
+    box-shadow: 0 0 22px rgba(255,255,255,0.35);
+    transition: transform .08s ease, box-shadow .2s ease;
+  }
+  .replay:active { transform: scale(0.96); box-shadow: 0 0 10px rgba(255,255,255,0.25); }
+  .replay svg { width: 55%; height: 55%; fill:#fff; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="card">
+    <div class="score" id="score">0</div>
+    <div class="replay" id="replay" title="Replay" aria-label="Replay">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5V1L7 6l5 5V7c2.757 0 5 2.243 5 5s-2.243 5-5 5-5-2.243-5-5H5c0 3.86 3.14 7 7 7s7-3.14 7-7-3.14-7-7-7z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  const DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  let W=0, H=0;
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    W = Math.floor(rect.width * DPR);
+    H = Math.floor(rect.height * DPR);
+    canvas.width = W;
+    canvas.height = H;
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive:true });
+
+  // Physics constants
+  const px = n => n * DPR;
+  const PHYS = {
+    g: 0.0020 * DPR,        // gravity
+    air: 0.00003,           // air drag
+    wallRest: 0.96,         // wall restitution
+    spinnerRest: 1.02,      // a touch >1 for lively bounces
+    ballRest: 0.96
+  };
+
+  // Game state
+  let state;
+
+  function newGame() {
+    state = {
+      level: 1,
+      score: 0,
+      shotsUsed: 0,
+      maxShots: 10,
+      balls: [],
+      spinners: [],
+      bucket: null,
+      lastT: performance.now(),
+    };
+    layout(1);
+  }
+
+  function layout(level) {
+    // Bucket setup (unchanged visuals, slightly bigger)
+    const bucketW = px(Math.max(120, 200 - level*10));
+    const bucketH = px(26);
+    const bucketY = H - px(40);
+    const speed = (0.08 + level*0.03) * DPR;
+    state.bucket = { w:bucketW, h:bucketH, y:bucketY, x:(W - bucketW)/2, dir:1, speed };
+
+    // Single row of bigger spinners just above bucket
+    const rowY = bucketY - px(90);
+    const count = Math.min(7, 4 + level);
+    const pad = px(30);
+    const usable = W - pad*2;
+    const baseR = px(30);
+    const spinners = [];
+    for (let i=0;i<count;i++) {
+      const x = pad + usable * (i+0.5)/count;
+      const r = baseR * (0.9 + Math.random()*0.4);
+      const av = (Math.random()<0.5?-1:1) * (0.004 + level*0.0015 + Math.random()*0.0035);
+      spinners.push({ x, y:rowY, r, a:Math.random()*Math.PI*2, av });
+    }
+    state.spinners = spinners;
+  }
+
+  function spawnBall(sx, sy) {
+    const r = px(24);
+    const x = Math.max(r+px(2), Math.min(W - r - px(2), sx));
+    const y = Math.max(r+px(2), Math.min(H - r - px(2), sy));
+    // small random initial nudge
+    const vx = (Math.random()*px(0.30) - px(0.15));
+    const vy = (Math.random()*px(0.10) - px(0.05));
+    state.balls.push({ x, y, vx, vy, r, alive:true });
+  }
+
+  function reflect(vx, vy, nx, ny, e) {
+    // Separate normal/tangent, dampen/boost normal by e, preserve tangent
+    const vn = vx*nx + vy*ny;
+    const vt_x = vx - vn*nx;
+    const vt_y = vy - vn*ny;
+    const rvx = vt_x - vn*nx*e;
+    const rvy = vt_y - vn*ny*e;
+    return [rvx, rvy];
+  }
+
+  function update(dt) {
+    const s = state;
+
+    // Spinners rotate & bucket moves
+    for (const sp of s.spinners) sp.a += sp.av * dt;
+    const b = s.bucket;
+    b.x += b.dir * b.speed * dt;
+    if (b.x <= px(8)) { b.x = px(8); b.dir = 1; }
+    if (b.x + b.w >= W - px(8)) { b.x = W - px(8) - b.w; b.dir = -1; }
+
+    // Update each ball
+    for (const ball of s.balls) {
+      if (!ball.alive) continue;
+
+      // Gravity & drag
+      ball.vy += PHYS.g * dt;
+      const drag = 1 - PHYS.air * dt;
+      ball.vx *= drag; ball.vy *= drag;
+
+      // Integrate
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+
+      // Walls (left/right)
+      if (ball.x - ball.r < px(2)) {
+        ball.x = px(2) + ball.r;
+        ball.vx = Math.abs(ball.vx) * PHYS.wallRest;
+      } else if (ball.x + ball.r > W - px(2)) {
+        ball.x = W - px(2) - ball.r;
+        ball.vx = -Math.abs(ball.vx) * PHYS.wallRest;
+      }
+      // Ceiling
+      if (ball.y - ball.r < px(2)) {
+        ball.y = px(2) + ball.r;
+        ball.vy = Math.abs(ball.vy) * PHYS.wallRest;
+      }
+
+      // Spinner collisions — robust separation + impulse + tangential kick
+      for (const sp of s.spinners) {
+        const dx = ball.x - sp.x;
+        const dy = ball.y - sp.y;
+        let dist = Math.hypot(dx, dy);
+        const rs = sp.r + ball.r;
+        if (dist < rs) {
+          // Normal
+          const nx = dx / (dist || 1e-6);
+          const ny = dy / (dist || 1e-6);
+
+          // Separate so surfaces just touch
+          const overlap = rs - dist;
+          const sep = overlap + px(0.8);
+          ball.x += nx * sep;
+          ball.y += ny * sep;
+
+          // Reflect velocity
+          [ball.vx, ball.vy] = reflect(ball.vx, ball.vy, nx, ny, PHYS.spinnerRest);
+
+          // Tangential kick from spinner rotation
+          const tx = -ny, ty = nx;
+          const tangentialKick = sp.av * (sp.r * 950); // strong & pretty
+          ball.vx += tx * tangentialKick;
+          ball.vy += ty * tangentialKick;
+
+          // Mild outward push to avoid sticking
+          const outward = 0.06 * DPR;
+          ball.vx += nx * outward;
+          ball.vy += ny * outward;
+        }
+      }
+
+      // Bucket capture (open top)
+      const openY = s.bucket.y + px(4);
+      const inX = (ball.x > b.x + ball.r*0.7) && (ball.x < b.x + b.w - ball.r*0.7);
+      const inY = (ball.y + ball.r > openY) && (ball.y - ball.r < openY + b.h*0.7);
+      if (inX && inY && ball.vy > px(0.12)) {
+        s.score += 1;
+        ball.alive = false;
+      }
+
+      // Fell off-screen (past bottom)
+      if (ball.y - ball.r > H + px(80)) {
+        ball.alive = false;
+      }
+    }
+
+    // Cull dead balls
+    state.balls = state.balls.filter(b => b.alive);
+  }
+
+  function draw() {
+    const s = state;
+
+    // Background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // Vignette
+    const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
+    g.addColorStop(0, 'rgba(255,255,255,0.03)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    // Bucket
+    const b = s.bucket;
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.lineWidth = px(3);
+    ctx.strokeStyle = '#fff';
+    ctx.strokeRect(0, 0, b.w, b.h);
+    ctx.beginPath();
+    ctx.moveTo(px(10), px(4)); ctx.lineTo(b.w - px(10), px(4));
+    ctx.stroke();
+    ctx.shadowColor = 'rgba(255,255,255,0.35)';
+    ctx.shadowBlur = px(12);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.strokeRect(px(2), px(2), b.w - px(4), b.h - px(4));
+    ctx.restore();
+
+    // Spinners
+    for (const sp of s.spinners) {
+      ctx.save();
+      ctx.translate(sp.x, sp.y);
+      ctx.beginPath();
+      ctx.arc(0,0, sp.r + px(6), 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = px(3);
+      ctx.stroke();
+
+      ctx.rotate(sp.a);
+      ctx.lineWidth = px(5);
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      for (let k=0;k<3;k++) {
+        ctx.beginPath();
+        const a0 = k * (Math.PI*2/3) - Math.PI*0.22;
+        const a1 = k * (Math.PI*2/3) + Math.PI*0.22;
+        ctx.arc(0,0, sp.r - px(4), a0, a1);
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0,0, px(4), 0, Math.PI*2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Balls + trails
+    for (const ball of s.balls) {
+      // Glow
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r + px(5), 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fill();
+      // Body
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      // Shine
+      const shineR = ball.r * 0.6;
+      const shine = ctx.createRadialGradient(ball.x - ball.r*0.45, ball.y - ball.r*0.45, 0, ball.x, ball.y, shineR*2);
+      shine.addColorStop(0, 'rgba(255,255,255,0.9)');
+      shine.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = shine;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, shineR, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function loop(t) {
+    const dt = Math.min(32, t - state.lastT);
+    state.lastT = t;
+    update(dt);
+    draw();
+
+    const finished = (state.shotsUsed >= state.maxShots && state.balls.length === 0);
+    if (finished) { showOverlay(state.score); return; }
+    requestAnimationFrame(loop);
+  }
+
+  function start() {
+    newGame();
+    requestAnimationFrame(ts => { state.lastT = ts; requestAnimationFrame(loop); });
+  }
+
+  // SPAWN A BALL EXACTLY WHERE TOUCHED/CLICKED
+  function addBallAtPointer(e) {
+    const s = state;
+    if (s.shotsUsed >= s.maxShots) return;
+    const rect = canvas.getBoundingClientRect();
+    const isTouch = e.touches && e.touches.length;
+    const x = (isTouch ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (isTouch ? e.touches[0].clientY : e.clientY) - rect.top;
+    const sx = x * DPR, sy = y * DPR;
+    spawnBall(sx, sy);
+    s.shotsUsed++;
+  }
+  canvas.addEventListener('pointerdown', addBallAtPointer, { passive:true });
+  canvas.addEventListener('touchstart', addBallAtPointer, { passive:true });
+
+  // Overlay controls
+  const overlay = document.getElementById('overlay');
+  const scoreEl = document.getElementById('score');
+  const replayBtn = document.getElementById('replay');
+  replayBtn.addEventListener('click', () => { overlay.style.display = 'none'; start(); });
+  function showOverlay(score) { scoreEl.textContent = String(score); overlay.style.display = 'flex'; }
+
+  // iOS gesture guards
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('gesturechange', e => e.preventDefault());
+  document.addEventListener('gestureend', e => e.preventDefault());
+
+  start();
+})();</script>
+</body>
+</html>

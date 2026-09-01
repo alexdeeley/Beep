@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>smooth</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="view" aria-hidden="true"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); // cap for perf
+
+  // ---------- sizing ----------
+  let W=0, H=0;
+  function resize(){
+    const w = Math.floor(innerWidth), h = Math.floor(innerHeight);
+    if (W===w && H===h) return;
+    W=w; H=h;
+    canvas.width = Math.floor(W*DPR);
+    canvas.height = Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    rebuildGrids();
+    rebuildHilbert();
+    rebuildPost();
+  }
+  // NOTE: not calling resize() here — it reaches into rebuildGrids(), which
+  // reads TRI/CELL below before their own `let` declarations have run yet
+  // (temporal dead zone), throwing and halting the whole script. The
+  // resize()+loop() call at the bottom of this IIFE, after every parameter
+  // is declared, does the real first sizing.
+  addEventListener('resize', resize, {passive:true});
+
+  // ---------- controls / gestures (no visible UI) ----------
+  // gestures:
+  // - tap/drag: paint ripples
+  // - double-tap: clear
+  // - triple-tap: toggle density
+  // - two-finger tap: switch renderer (triangles → circles → squares → pixels → mirror-tris)
+  // - pinch/wheel: scale cell/tri size
+  // - 5-tap: invert
+  // - 6-tap: toggle vivid color vs bw
+  // - long press (450ms): burst at point
+
+  let tapCount=0, lastTap=0, longTimer=null, pressPos=null;
+
+  // ripple store
+  const ripples = []; // {x,y,t0,amp}
+  const MAX_RIPPLES = 64;
+
+  function addRipple(x,y,amp=1){
+    ripples.push({x,y,t0: performance.now()*0.001, amp});
+    if (ripples.length > MAX_RIPPLES) ripples.splice(0, ripples.length - MAX_RIPPLES);
+  }
+
+  function posFromEvent(e){
+    const r = canvas.getBoundingClientRect();
+    let cx, cy;
+    if (e.touches && e.touches.length){
+      cx = e.touches[0].clientX; cy = e.touches[0].clientY;
+    } else {
+      cx = e.clientX; cy = e.clientY;
+    }
+    return { x: cx - r.left, y: cy - r.top };
+  }
+
+  function handlePressStart(e){
+    e.preventDefault();
+    const p = posFromEvent(e);
+    pressPos = p;
+    addRipple(p.x, p.y, 1.15);
+    longTimer = setTimeout(() => {
+      // burst
+      const n = 14, r0 = 14;
+      for (let i=0;i<n;i++){
+        const a = (i/n)*Math.PI*2;
+        const r = r0 + i*4;
+        addRipple(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r, 0.9);
+      }
+    }, 450);
+  }
+  function handleMove(e){
+    const p = posFromEvent(e);
+    if (e.buttons || (e.touches && e.touches.length)){
+      // paint along path; amp scales with velocity
+      const now = performance.now();
+      const dt = Math.max(1, now - (handleMove._t || now));
+      const last = handleMove._p || p;
+      const v = Math.hypot(p.x-last.x, p.y-last.y)/dt;
+      const amp = Math.min(2.2, 0.35 + v*1.6);
+      addRipple(p.x, p.y, amp);
+      handleMove._p = p; handleMove._t = now;
+    }
+  }
+  function handlePressEnd(){
+    clearTimeout(longTimer); longTimer = null; pressPos=null;
+    handleMove._p = null;
+  }
+
+  // multi-tap logic
+  function handleTap(e){
+    const now = performance.now();
+    tapCount = (now - lastTap < 300) ? tapCount + 1 : 1;
+    lastTap = now;
+
+    // special: two-finger tap to change renderer
+    if (e.touches && e.touches.length===2){
+      nextRenderer();
+      tapCount = 0;
+      return;
+    }
+
+    if (tapCount === 2){
+      ripples.length = 0; // clear
+    } else if (tapCount === 3){
+      toggleDensity();
+      tapCount = 0;
+    } else if (tapCount === 5){
+      INVERT = !INVERT;
+      tapCount = 0;
+    } else if (tapCount === 6){
+      VIVID = !VIVID;
+      tapCount = 0;
+    }
+  }
+
+  canvas.addEventListener('pointerdown', handlePressStart, {passive:false});
+  canvas.addEventListener('pointermove', handleMove, {passive:false});
+  addEventListener('pointerup', handlePressEnd, {passive:true});
+  addEventListener('pointercancel', handlePressEnd, {passive:true});
+
+  canvas.addEventListener('touchstart', handlePressStart, {passive:false});
+  canvas.addEventListener('touchmove', handleMove, {passive:false});
+  addEventListener('touchend', handlePressEnd, {passive:true});
+  addEventListener('touchcancel', handlePressEnd, {passive:true});
+
+  canvas.addEventListener('pointerdown', handleTap, {passive:false}); // taps piggyback on pointerdown timing
+
+  // wheel to scale
+  addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    CELL = clamp(CELL + delta*2, 8, 96);
+    TRI = clamp(TRI + delta*1.5, 8, 80);
+    rebuildGrids();
+    rebuildHilbert();
+  }, {passive:false});
+
+  // pinch (basic)
+  let pinchDist=0;
+  canvas.addEventListener('touchmove', (e)=>{
+    if (e.touches && e.touches.length===2){
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const d = Math.hypot(dx,dy);
+      if (pinchDist){
+        const scale = Math.pow(d/pinchDist, 0.5);
+        CELL = clamp(CELL*scale, 8, 96);
+        TRI  = clamp(TRI*scale, 8, 80);
+        rebuildGrids(); rebuildHilbert();
+      }
+      pinchDist = d;
+    }
+  }, {passive:false});
+  addEventListener('touchend', ()=>{ pinchDist=0; }, {passive:true});
+
+  // ---------- parameters ----------
+  let VIVID = true;     // vivid color vs B/W
+  let INVERT = false;
+
+  // wave parameters (global)
+  let BASE_SPEED = 0.045;    // ambient hue drift / base phase speed
+  let WAVE_SPEED = 0.45;     // wave temporal rate
+  let WAVE_NUM   = 0.020;    // spatial frequency (lower = longer)
+  let DECAY      = 3.4;      // seconds for ripple envelope
+  let FALLOFF    = 0.0025;   // spatial attenuation
+
+  // density / scale
+  let ORDER = 7; // for pixel/Hilbert mode (128)
+  let CELL = 10; // square cell size for squares / pixels
+  let TRI  = 22; // triangle size for triangle mode
+  function toggleDensity(){
+    ORDER = (ORDER===7) ? 6 : 7; // 128 <-> 64
+    CELL  = (ORDER===7) ? 10 : 14;
+    TRI   = (ORDER===7) ? 22 : 28;
+    rebuildGrids(); rebuildHilbert();
+  }
+
+  // ---------- utility ----------
+  const clamp = (v, lo, hi)=> Math.max(lo, Math.min(hi, v));
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  // ---------- grids for shapes ----------
+  let triGrid=[], triCols=0, triRows=0;
+  function rebuildGrids(){
+    // triangles (hex-like stagger)
+    const s = TRI;
+    const h = Math.sin(Math.PI/3)*s;
+    triCols = Math.ceil(W/s)+3;
+    triRows = Math.ceil(H/h)+3;
+    triGrid = [];
+    for (let r=0;r<triRows;r++){
+      for (let c=0;c<triCols;c++){
+        const x = c*s + (r%2 ? s/2 : 0) - s;
+        const y = r*h - h;
+        const up = ((r+c)&1)===0;
+        triGrid.push({x,y,up, jitter:(Math.random()*2-1)*0.3});
+      }
+    }
+
+    // circles hex-pack centers
+    circleGrid = [];
+    const spacing = Math.max(16, Math.min(W,H)/32);
+    const stepX = spacing, stepY = spacing*Math.sqrt(3)/2;
+    const r = spacing*0.42;
+    const cols = Math.ceil(W/stepX)+2, rows = Math.ceil(H/stepY)+2;
+    for (let row=0; row<rows; row++){
+      const y = row*stepY;
+      const off = (row%2)? stepX*0.5 : 0;
+      for (let col=0; col<cols; col++){
+        const x = col*stepX + off;
+        if (x>-stepX && x<W+stepX && y>-stepY && y<H+stepY) circleGrid.push({x,y,r});
+      }
+    }
+
+    // squares grid
+    sqCols = Math.ceil(W/CELL)+2; sqRows = Math.ceil(H/CELL)+2;
+  }
+
+  // circles
+  let circleGrid = [];
+
+  // squares
+  let sqCols=0, sqRows=0;
+
+  // ---------- Hilbert precompute for pixel mode ----------
+  let N = 1<<ORDER, xs=null, ys=null;
+  function d2xy(N,d){
+    let x=0,y=0,t=d;
+    for (let s=1; s<N; s<<=1){
+      const rx = 1 & (t>>1);
+      const ry = 1 & (t ^ rx);
+      if (ry===0){
+        if (rx===1){ x = s-1-x; y = s-1-y; }
+        const tmp=x; x=y; y=tmp;
+      }
+      x += s*rx; y += s*ry; t >>= 2;
+    }
+    return [x,y];
+  }
+  function rebuildHilbert(){
+    N = 1<<ORDER;
+    xs = new Uint16Array(N*N);
+    ys = new Uint16Array(N*N);
+    for (let d=0; d<N*N; d++){
+      const p = d2xy(N,d); xs[d]=p[0]; ys[d]=p[1];
+    }
+    off.width = N; off.height = N; img = octx.createImageData(N,N);
+    data = img.data;
+  }
+
+  // ---------- offscreen for pixel mode ----------
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d', {alpha:false});
+  let img=null, data=null;
+
+  // ---------- renderer selection ----------
+  // 0: triangles; 1: circles; 2: squares; 3: pixels (Hilbert); 4: mirrored triangles
+  let MODE = 0;
+  function nextRenderer(){ MODE = (MODE+1)%5; }
+
+  // ---------- shiny post-process ----------
+  // We'll render to a temp offscreen, then apply a bloom-like pass with additive blending.
+  let post = document.createElement('canvas');
+  let pctx = post.getContext('2d', {alpha:false});
+  function rebuildPost(){
+    post.width = Math.max(1, Math.floor(W*DPR));
+    post.height = Math.max(1, Math.floor(H*DPR));
+  }
+
+  // simple blur by successive drawImage scales (Kawase-ish)
+  function bloomPass(){
+    // copy main canvas into post
+    pctx.setTransform(1,0,0,1,0,0);
+    pctx.drawImage(canvas, 0,0, post.width, post.height);
+    // downsample
+    const s1 = Math.max(1, (post.width/4)|0), s2 = Math.max(1, (post.height/4)|0);
+    pctx.globalCompositeOperation = 'source-over';
+    pctx.filter = 'blur(6px)';
+    pctx.drawImage(post, 0,0, post.width, post.height, 0,0, post.width, post.height);
+    pctx.filter = 'none';
+    // additively blend a softened highlight layer back
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.33;
+    ctx.drawImage(post, 0,0, post.width/DPR, post.height/DPR);
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // ---------- render helpers ----------
+  function waveField(x,y,t){
+    // base phase drift
+    const base = t * BASE_SPEED * 2*Math.PI;
+    // sum ripple influences
+    let rsum = 0;
+    for (let i=0;i<ripples.length;i++){
+      const rp = ripples[i];
+      const age = t - rp.t0;
+      if (age > DECAY) continue;
+      const dx = x - rp.x, dy = y - rp.y;
+      const dist = Math.hypot(dx,dy);
+      const env = Math.exp(-age/DECAY) * Math.exp(-dist*FALLOFF) * rp.amp;
+      rsum += env * Math.sin(dist*WAVE_NUM + age*WAVE_SPEED*2*Math.PI);
+    }
+    return base + rsum;
+  }
+
+  function bwFromPhase(ph){
+    // high-contrast bands with smoothstep
+    const s = 0.5 + 0.5*Math.sin(ph);
+    const k = 6.0; // steeper = crisper
+    const v = Math.pow(s, k) / (Math.pow(s,k) + Math.pow(1-s,k));
+    return INVERT ? (1-v) : v;
+  }
+
+  function colorFromPhase(ph){
+    // vivid HSL-ish gradient -> RGB
+    const h = ((ph/(2*Math.PI)) % 1 + 1) % 1;
+    const s = 0.85, l = 0.5;
+    const q = l < 0.5 ? l*(1+s) : l + s - l*s;
+    const p = 2*l - q;
+    function hue2rgb(p,q,t){
+      if (t<0) t+=1; if (t>1) t-=1;
+      if (t<1/6) return p + (q-p)*6*t;
+      if (t<1/2) return q;
+      if (t<2/3) return p + (q-p)*(2/3 - t)*6;
+      return p;
+    }
+    const r = Math.round(255*hue2rgb(p,q,h+1/3));
+    const g = Math.round(255*hue2rgb(p,q,h));
+    const b = Math.round(255*hue2rgb(p,q,h-1/3));
+    return [r,g,b];
+  }
+
+  function strokeShiny(alpha){
+    ctx.globalAlpha = alpha;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowBlur = 0;
+  }
+
+  function drawTriangles(t){
+    ctx.clearRect(0,0,W,H);
+    const lw = Math.max(0.9, TRI*0.07);
+    ctx.lineWidth = lw;
+    strokeShiny(1);
+
+    for (let i=0;i<triGrid.length;i++){
+      const {x,y,up} = triGrid[i];
+      const cx = x, cy = y;
+      const ph = waveField(cx, cy, t);
+      if (VIVID){
+        const [r,g,b] = colorFromPhase(ph);
+        ctx.strokeStyle = 'rgb('+r+','+g+','+b+')';
+      } else {
+        const v = Math.floor(255*bwFromPhase(ph));
+        ctx.strokeStyle = 'rgb('+v+','+v+','+v+')';
+      }
+      const s = TRI;
+      const h = Math.sin(Math.PI/3)*s;
+      ctx.beginPath();
+      if (up){
+        ctx.moveTo(cx, cy-h/2);
+        ctx.lineTo(cx-s/2, cy+h/2);
+        ctx.lineTo(cx+s/2, cy+h/2);
+      } else {
+        ctx.moveTo(cx, cy+h/2);
+        ctx.lineTo(cx-s/2, cy-h/2);
+        ctx.lineTo(cx+s/2, cy-h/2);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    bloomPass();
+  }
+
+  function drawCircles(t){
+    ctx.clearRect(0,0,W,H);
+    const lw = Math.max(0.9, Math.min(2.2, CELL*0.08));
+    ctx.lineWidth = lw;
+    strokeShiny(0.95);
+
+    for (let i=0;i<circleGrid.length;i++){
+      const {x,y,r} = circleGrid[i];
+      const ph = waveField(x,y,t);
+      const rad = r * (0.9 + 0.1*Math.sin(ph));
+      if (VIVID){
+        const [R,G,B] = colorFromPhase(ph + 0.4);
+        ctx.strokeStyle = 'rgb('+R+','+G+','+B+')';
+      } else {
+        const v = Math.floor(255*bwFromPhase(ph));
+        ctx.strokeStyle = 'rgb('+v+','+v+','+v+')';
+      }
+      ctx.beginPath();
+      ctx.arc(x,y,rad,0,Math.PI*2);
+      ctx.stroke();
+    }
+    bloomPass();
+  }
+
+  function drawSquares(t){
+    ctx.clearRect(0,0,W,H);
+    const lw = Math.max(1, CELL*0.08);
+    ctx.lineWidth = lw;
+    strokeShiny(0.95);
+    for (let ry= -1; ry<sqRows; ry++){
+      for (let rx= -1; rx<sqCols; rx++){
+        const cx = rx*CELL + CELL*0.5;
+        const cy = ry*CELL + CELL*0.5;
+        const ph = waveField(cx,cy,t);
+        const s = CELL * (0.82 + 0.12*Math.sin(ph*0.5));
+        if (VIVID){
+          const [R,G,B] = colorFromPhase(ph+0.2);
+          ctx.strokeStyle = 'rgb('+R+','+G+','+B+')';
+        } else {
+          const v = Math.floor(255*bwFromPhase(ph));
+          ctx.strokeStyle = 'rgb('+v+','+v+','+v+')';
+        }
+        const half = s*0.5;
+        ctx.strokeRect(cx-half, cy-half, s, s);
+      }
+    }
+    bloomPass();
+  }
+
+  function drawPixels(t){
+    // render low-res into offscreen
+    const N2 = N*N;
+    const imgData = img;
+    const d = data;
+    let k=0;
+    for (let i=0;i<N2;i++){
+      const x = (xs[i]/(N-1))*W;
+      const y = (ys[i]/(N-1))*H;
+      const ph = waveField(x,y,t);
+      if (VIVID){
+        const rgb = colorFromPhase(ph);
+        d[k++] = rgb[0]; d[k++] = rgb[1]; d[k++] = rgb[2]; d[k++] = 255;
+      } else {
+        const v = Math.floor(255*bwFromPhase(ph));
+        d[k++] = v; d[k++] = v; d[k++] = v; d[k++] = 255;
+      }
+    }
+    octx.putImageData(imgData,0,0);
+    // scale up sharp
+    ctx.clearRect(0,0,W,H);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0,0, N, N, 0,0, W, H);
+    bloomPass();
+  }
+
+  function drawTriMirror(t){
+    // mirrored triangle outlines (left-right symmetry)
+    ctx.clearRect(0,0,W,H);
+    const lw = Math.max(0.9, TRI*0.06);
+    ctx.lineWidth = lw;
+    strokeShiny(0.95);
+
+    const mid = W*0.5;
+    for (let i=0;i<triGrid.length;i++){
+      const {x,y,up} = triGrid[i];
+      const a = Math.min(x, 2*mid - x); // mirror around center
+      const cx = a, cy = y;
+      const ph = waveField(cx, cy, t);
+      if (VIVID){
+        const [r,g,b] = colorFromPhase(ph+0.65);
+        ctx.strokeStyle = 'rgb('+r+','+g+','+b+')';
+      } else {
+        const v = Math.floor(255*bwFromPhase(ph));
+        ctx.strokeStyle = 'rgb('+v+','+v+','+v+')';
+      }
+      const s = TRI;
+      const h = Math.sin(Math.PI/3)*s;
+      ctx.beginPath();
+      if (up){
+        ctx.moveTo(cx, cy-h/2);
+        ctx.lineTo(cx-s/2, cy+h/2);
+        ctx.lineTo(cx+s/2, cy+h/2);
+      } else {
+        ctx.moveTo(cx, cy+h/2);
+        ctx.lineTo(cx-s/2, cy-h/2);
+        ctx.lineTo(cx+s/2, cy-h/2);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    // center glow spine
+    ctx.globalCompositeOperation = 'lighter';
+    const grad = ctx.createLinearGradient(W*0.5,0,W*0.5,H);
+    grad.addColorStop(0,'rgba(255,255,255,0.05)');
+    grad.addColorStop(0.5,'rgba(255,255,255,0.2)');
+    grad.addColorStop(1,'rgba(255,255,255,0.05)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = Math.max(1.5, W*0.002);
+    ctx.beginPath(); ctx.moveTo(W*0.5,0); ctx.lineTo(W*0.5,H); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    bloomPass();
+  }
+
+  // ---------- animation loop ----------
+  function loop(){
+    const t = performance.now()*0.001;
+    switch (MODE){
+      case 0: drawTriangles(t); break;
+      case 1: drawCircles(t); break;
+      case 2: drawSquares(t); break;
+      case 3: drawPixels(t); break;
+      case 4: drawTriMirror(t); break;
+    }
+    requestAnimationFrame(loop);
+  }
+  resize(); loop();
+})();
+</script>
+</body>
+</html>
