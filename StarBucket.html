@@ -71,6 +71,44 @@
 </style>
 </head>
 <body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
 <canvas id="game"></canvas>
 
 <!-- End screen -->

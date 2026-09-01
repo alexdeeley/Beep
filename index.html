@@ -7,6 +7,12 @@
 <meta name="description" content="A small gallery of self-contained apps — music tools, games, art." />
 <meta name="theme-color" content="#0a0a12" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Beep" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -176,8 +182,9 @@ function buildCard(app) {
   const card = document.createElement("a");
   card.className = "card";
   card.href = app.path;
-  card.target = "_blank";
-  card.rel = "noopener";
+  // Same-window navigation (no target="_blank") so tapping an app stays
+  // inside the installed standalone PWA instead of kicking out to a new
+  // browser tab, which would show Safari/Chrome chrome again.
 
   const preview = document.createElement("div");
   preview.className = "preview";
