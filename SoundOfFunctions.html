@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>THE SOUND OF FUNCTIONS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<style>
+  :root{
+    --accent:#3ad1ff;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#000; color:#fff;
+    overflow:hidden; overscroll-behavior:none;
+    font-family:Helvetica, Arial, sans-serif;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    padding-top:calc(var(--safe-top) + 10px);
+    padding-bottom:calc(var(--safe-bottom) + 10px);
+    padding-left:calc(var(--safe-left) + 12px);
+    padding-right:calc(var(--safe-right) + 12px);
+  }
+
+  /* ---------- TOP ---------- */
+  #top{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    flex:0 0 auto;
+  }
+  #titleBlock{ line-height:1.15; }
+  #title{
+    font-weight:700; font-size:11px; letter-spacing:2.5px;
+    color:#8a8a8a; text-transform:uppercase;
+  }
+  #patternNum{
+    font-weight:700; font-size:20px; letter-spacing:1px;
+    color:#fff; margin-top:2px;
+  }
+  .iconBtn{
+    width:56px; height:56px; min-width:56px; min-height:56px;
+    border-radius:50%; border:2px solid #333; background:#0a0a0a;
+    color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .iconBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  #topRight{ display:flex; gap:10px; }
+
+  /* ---------- CENTER ---------- */
+  #graphWrap{
+    flex:1 1 auto; position:relative; min-height:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  canvas#graph{ width:100%; height:100%; display:block; }
+
+  /* ---------- FORMULA ---------- */
+  #formulaWrap{
+    flex:0 0 auto; text-align:center; padding:6px 4px 10px;
+    min-height:38px;
+  }
+  #formula{
+    font-size:19px; font-weight:700; letter-spacing:0.5px;
+    color:var(--accent);
+    text-shadow:0 0 14px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  #loopIndicator{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    margin-top:6px; font-size:10px; letter-spacing:2px; color:#777;
+    text-transform:uppercase; font-weight:700;
+  }
+  #loopDot{
+    width:6px; height:6px; border-radius:50%; background:var(--accent);
+    animation:pulseDot 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseDot{ 0%,100%{opacity:.25} 50%{opacity:1} }
+
+  /* ---------- BOTTOM ---------- */
+  #controls{ flex:0 0 auto; display:flex; flex-direction:column; gap:10px; padding-top:4px; }
+  button{ font-family:Helvetica, Arial, sans-serif; }
+  #nextBtn{
+    width:100%; height:72px; border-radius:20px; border:none;
+    background:var(--accent); color:#000;
+    font-weight:700; font-size:20px; letter-spacing:2px;
+    cursor:pointer; text-transform:uppercase;
+  }
+  #nextBtn:active{ transform:scale(0.98); }
+  #pauseBtn{
+    width:100%; height:56px; border-radius:16px;
+    background:#0d0d0d; border:2px solid #2a2a2a; color:#eee;
+    font-weight:700; font-size:15px; letter-spacing:2px;
+    cursor:pointer; text-transform:uppercase;
+  }
+  button:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
+
+  /* ---------- OVERLAY ---------- */
+  #overlay{
+    position:fixed; inset:0; background:#000; z-index:50;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:22px;
+    padding:24px;
+  }
+  #overlay h1{
+    font-size:13px; letter-spacing:4px; color:#888; font-weight:700; text-transform:uppercase; text-align:center; margin:0;
+  }
+  #beginBtn{
+    width:min(84vw, 420px); height:120px; border-radius:24px; border:none;
+    background:#fff; color:#000; font-weight:700; font-size:22px; letter-spacing:3px;
+    cursor:pointer; text-transform:uppercase;
+    box-shadow:0 0 60px rgba(255,255,255,0.15);
+  }
+  #beginBtn:active{ transform:scale(0.97); }
+  .hidden{ display:none !important; }
+
+  /* ---------- INFO MODAL ---------- */
+  #infoModal{
+    position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:60;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #infoCard{
+    width:100%; max-width:440px; background:#0a0a0a; border:1px solid #262626;
+    border-radius:20px; padding:24px; max-height:82vh; overflow:auto;
+  }
+  #infoCard h2{ font-size:16px; letter-spacing:1px; margin:0 0 14px; }
+  #infoCard dl{ margin:0; font-size:14px; line-height:1.6; }
+  #infoCard dt{ color:#888; margin-top:10px; }
+  #infoCard dd{ margin:0; color:#fff; word-break:break-word; }
+  #infoActions{ display:flex; gap:10px; margin-top:18px; }
+  #infoActions button{
+    flex:1; height:48px; border-radius:12px; border:1px solid #333;
+    background:#111; color:#fff; font-weight:700; font-size:12px; letter-spacing:1px; cursor:pointer;
+  }
+  #closeInfo{
+    position:absolute; top:16px; right:16px; width:44px; height:44px; border-radius:50%;
+    background:#161616; border:1px solid #2c2c2c; color:#fff; font-size:18px; cursor:pointer;
+  }
+
+  #srStatus{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+  @media (prefers-reduced-motion: reduce){
+    #loopDot{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app" aria-hidden="false">
+  <div id="top">
+    <div id="titleBlock">
+      <div id="title">The Sound of Functions</div>
+      <div id="patternNum">OSCILLATION 001</div>
+    </div>
+    <div id="topRight">
+      <button id="infoBtn" class="iconBtn" aria-label="Show pattern details">ⓘ</button>
+      <button id="muteBtn" class="iconBtn" aria-label="Mute audio">🔊</button>
+    </div>
+  </div>
+
+  <div id="graphWrap">
+    <canvas id="graph" role="img" aria-label="Animated graph of the current mathematical function"></canvas>
+  </div>
+
+  <div id="formulaWrap">
+    <div id="formula" aria-hidden="true">f(x) = sin(x)</div>
+    <div id="loopIndicator"><span id="loopDot"></span><span>Looping</span></div>
+  </div>
+
+  <div id="controls">
+    <button id="pauseBtn" aria-label="Pause">Pause</button>
+    <button id="nextBtn" aria-label="Generate next pattern">Next</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <h1>The Sound of Functions</h1>
+  <button id="beginBtn" aria-label="Tap to begin the audiovisual experience">Tap to Begin</button>
+</div>
+
+<div id="infoModal" class="hidden" role="dialog" aria-modal="true" aria-label="Pattern details">
+  <div id="infoCard">
+    <button id="closeInfo" aria-label="Close details">✕</button>
+    <h2>Pattern Details</h2>
+    <dl>
+      <dt>Formula</dt><dd id="infoFormula">—</dd>
+      <dt>Family</dt><dd id="infoFamily">—</dd>
+      <dt>Seed</dt><dd id="infoSeed">—</dd>
+      <dt>Loop length</dt><dd id="infoLoop">—</dd>
+      <dt>Sound</dt><dd id="infoSound">—</dd>
+    </dl>
+    <div id="infoActions">
+      <button id="newVariationBtn">New Variation</button>
+      <button id="copyFormulaBtn">Copy Formula</button>
+    </div>
+  </div>
+</div>
+
+<div id="srStatus" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   SEEDED RANDOM
+   ============================================================ */
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function makeRng(seed){
+  const rand = mulberry32(seed);
+  return {
+    next: rand,
+    range: (lo, hi) => lo + rand() * (hi - lo),
+    int: (lo, hi) => Math.floor(lo + rand() * (hi - lo + 1)),
+    pick: (arr) => arr[Math.floor(rand() * arr.length)],
+    sign: () => (rand() < 0.5 ? -1 : 1),
+    chance: (p) => rand() < p
+  };
+}
+
+/* ============================================================
+   ACCENT COLORS
+   ============================================================ */
+const PALETTE = [
+  { name:"Hot Pink",     hex:"#ff2d95" },
+  { name:"Electric Blue",hex:"#2d6bff" },
+  { name:"Bright Orange",hex:"#ff7a1a" },
+  { name:"Acid Green",   hex:"#8bff2d" },
+  { name:"Lavender",     hex:"#b18bff" },
+  { name:"Cyan",         hex:"#22e7e7" },
+  { name:"Warm Yellow",  hex:"#ffd21a" },
+  { name:"Coral Red",    hex:"#ff5252" }
+];
+
+/* ============================================================
+   MUSICAL SCALES (semitone offsets within an octave)
+   ============================================================ */
+const SCALES = {
+  "Major Pentatonic":[0,2,4,7,9],
+  "Minor Pentatonic":[0,3,5,7,10],
+  "Dorian":[0,2,3,5,7,9,10],
+  "Whole Tone":[0,2,4,6,8,10],
+  "Harmonic Minor":[0,2,3,5,7,8,11],
+  "Continuous":null
+};
+
+/* ============================================================
+   SAFE MATH HELPERS
+   ============================================================ */
+const clamp = (v,lo,hi)=> v<lo?lo:(v>hi?hi:v);
+function safe(v){ return (isFinite(v) ? v : 0); }
+function tanhClip(v){ return Math.tanh(v); }
+function sinc(x){ return x===0 ? 1 : Math.sin(Math.PI*x)/(Math.PI*x); }
+function smoothstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+
+/* Unicode helpers for formula strings */
+function sup(n){
+  const map = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","-":"⁻"};
+  return String(n).split("").map(c=>map[c]||c).join("");
+}
+function fmtNum(n, d=2){
+  const r = Math.round(n*Math.pow(10,d))/Math.pow(10,d);
+  return (r % 1 === 0) ? String(r) : r.toFixed(d).replace(/0+$/,"").replace(/\.$/,"");
+}
+
+/* ============================================================
+   FUNCTION FAMILIES
+   Each generator returns:
+     { fn(x), formula, family, domain:[a,b], mode:'A'|'B', scaleHint }
+   ============================================================ */
+const FAMILIES = [];
+
+// 1. Harmonic combinations
+FAMILIES.push({
+  name: "harmonic",
+  build(rng){
+    const n = rng.int(2,6);
+    const fundamental = rng.range(0.5,2.2);
+    const parts = [];
+    let formulaTerms = [];
+    for(let i=0;i<n;i++){
+      const ratio = (i===0) ? 1 : rng.pick([2,3,4,5,1.5,2.5]);
+      const freq = fundamental * ratio * (1 + rng.range(-0.01,0.01));
+      const amp = Math.pow(rng.range(0.55,0.85), i);
+      const phase = rng.range(0, Math.PI*2);
+      parts.push({freq, amp, phase});
+      formulaTerms.push(`${fmtNum(amp)}sin(${fmtNum(freq)}x${phase>0.05?"+"+fmtNum(phase):""})`);
+    }
+    const fn = (x)=> parts.reduce((s,p)=> s + p.amp*Math.sin(p.freq*x + p.phase), 0);
+    return {
+      fn,
+      formula: `f(x) = ${formulaTerms.join(" + ")}`,
+      domain: [-8,8],
+      mode: rng.chance(0.7) ? 'A' : 'B'
+    };
+  }
+});
+
+// 2. Amplitude modulation
+FAMILIES.push({
+  name: "amplitude-modulation",
+  build(rng){
+    const a = rng.range(1.5,6);
+    const b = rng.range(0.2,1.2);
+    const style = rng.pick(['product','envelope','sinc']);
+    let fn, formula;
+    if(style==='product'){
+      fn = (x)=> Math.sin(a*x)*Math.cos(b*x);
+      formula = `f(x) = sin(${fmtNum(a)}x) · cos(${fmtNum(b)}x)`;
+    } else if(style==='envelope'){
+      fn = (x)=> Math.sin(a*x)*(0.5+0.5*Math.cos(b*x));
+      formula = `f(x) = sin(${fmtNum(a)}x) · [0.5+0.5cos(${fmtNum(b)}x)]`;
+    } else {
+      const c = rng.range(0.2,0.7);
+      fn = (x)=> sinc(c*x)*Math.sin(a*x);
+      formula = `f(x) = sinc(${fmtNum(c)}x) · sin(${fmtNum(a)}x)`;
+    }
+    return { fn, formula, domain:[-8,8], mode: rng.chance(0.65)?'A':'B' };
+  }
+});
+
+// 3. Frequency modulation / chirps
+FAMILIES.push({
+  name: "frequency-modulation",
+  build(rng){
+    const a = rng.range(0.6,3);
+    const style = rng.pick(['fm','square-chirp','cube-chirp']);
+    let fn, formula;
+    if(style==='fm'){
+      const b = rng.range(0.3,1.5);
+      const m = rng.range(1,4);
+      fn = (x)=> Math.sin(a*x + m*Math.sin(b*x));
+      formula = `f(x) = sin(${fmtNum(a)}x + ${fmtNum(m)}sin(${fmtNum(b)}x))`;
+    } else if(style==='square-chirp'){
+      fn = (x)=> Math.sin(a*x*x);
+      formula = `f(x) = sin(${fmtNum(a)}x${sup(2)})`;
+    } else {
+      const aSmall = rng.range(0.05,0.25);
+      fn = (x)=> Math.sin(aSmall*x*x*x);
+      formula = `f(x) = sin(${fmtNum(aSmall)}x${sup(3)})`;
+    }
+    return { fn, formula, domain:[-6,6], mode:'B' };
+  }
+});
+
+// 4. Damped oscillations
+FAMILIES.push({
+  name: "damped",
+  build(rng){
+    const a = rng.range(2,10);
+    const d = rng.range(0.15,0.6);
+    const style = rng.pick(['exp-abs','exp-sq','rational','sinc-cos']);
+    let fn, formula;
+    if(style==='exp-abs'){
+      fn = (x)=> Math.exp(-d*Math.abs(x))*Math.sin(a*x);
+      formula = `f(x) = e${sup("-")}${fmtNum(d)}${"|x|"} sin(${fmtNum(a)}x)`;
+    } else if(style==='exp-sq'){
+      const dd = d*0.3;
+      fn = (x)=> Math.exp(-dd*x*x)*Math.cos(a*x);
+      formula = `f(x) = e${sup("-")}${fmtNum(dd)}x${sup(2)} cos(${fmtNum(a)}x)`;
+    } else if(style==='rational'){
+      fn = (x)=> Math.sin(a*x)/(1+d*Math.abs(x));
+      formula = `f(x) = sin(${fmtNum(a)}x) / (1+${fmtNum(d)}|x|)`;
+    } else {
+      const c = rng.range(0.2,0.6);
+      fn = (x)=> sinc(c*x)*Math.cos(a*x);
+      formula = `f(x) = sinc(${fmtNum(c)}x) cos(${fmtNum(a)}x)`;
+    }
+    return { fn, formula, domain:[-8,8], mode: rng.chance(0.75)?'A':'B' };
+  }
+});
+
+// 5. Nonlinear shaping (wraps another simple oscillator)
+FAMILIES.push({
+  name:"nonlinear-shaping",
+  build(rng){
+    const a = rng.range(1,4);
+    const base = (x)=> Math.sin(a*x);
+    const style = rng.pick(['abs','tanh','fold','power']);
+    let fn, formula;
+    if(style==='abs'){
+      const b = rng.range(1,3);
+      fn = (x)=> Math.abs(Math.sin(a*x)*Math.cos(b*x));
+      formula = `f(x) = |sin(${fmtNum(a)}x) cos(${fmtNum(b)}x)|`;
+    } else if(style==='tanh'){
+      const k = rng.range(1.5,4);
+      fn = (x)=> Math.tanh(k*base(x));
+      formula = `f(x) = tanh(${fmtNum(k)} sin(${fmtNum(a)}x))`;
+    } else if(style==='fold'){
+      fn = (x)=>{
+        let v = base(x)*1.8;
+        while(v>1||v<-1){ if(v>1) v = 2-v; if(v<-1) v = -2-v; }
+        return v;
+      };
+      formula = `f(x) = fold(1.8 sin(${fmtNum(a)}x))`;
+    } else {
+      const p = rng.range(0.4,0.8);
+      fn = (x)=> Math.sign(base(x))*Math.pow(Math.abs(base(x)), p);
+      formula = `f(x) = sgn(sin(${fmtNum(a)}x)) |sin(${fmtNum(a)}x)|${sup(fmtNum(p))}`;
+    }
+    return { fn, formula, domain:[-8,8], mode:'A' };
+  }
+});
+
+// 6. Step / rhythmic
+FAMILIES.push({
+  name:"step-rhythmic",
+  build(rng){
+    const a = rng.range(1,4);
+    const q = rng.int(3,9);
+    const style = rng.pick(['quantized-sine','staircase','gate']);
+    let fn, formula;
+    if(style==='quantized-sine'){
+      fn = (x)=> Math.floor(q*Math.sin(a*x))/q;
+      formula = `f(x) = ⌊${q}sin(${fmtNum(a)}x)⌋ / ${q}`;
+    } else if(style==='staircase'){
+      const w = rng.range(0.8,2.2);
+      fn = (x)=> Math.round(Math.sin(a*x)*q)/q * Math.sign(Math.sin(w*x)+0.001);
+      formula = `f(x) = round(${q}sin(${fmtNum(a)}x))/${q} · sgn(sin(${fmtNum(w)}x))`;
+    } else {
+      const period = rng.range(1.2,2.8);
+      fn = (x)=>{
+        const gatePos = ((x % period)+period)%period;
+        const open = gatePos < period*0.4;
+        return open ? Math.sin(a*x) : 0;
+      };
+      formula = `f(x) = gate(x) · sin(${fmtNum(a)}x)`;
+    }
+    return { fn, formula, domain:[-8,8], mode:'B' };
+  }
+});
+
+// 7. Piecewise
+FAMILIES.push({
+  name:"piecewise",
+  build(rng){
+    const split = rng.range(-1.5,1.5);
+    const a1 = rng.range(2,6), a2 = rng.range(0.5,2.5);
+    const style = rng.pick(['damped-slow','pulse-center','mirror']);
+    let fn, formula;
+    const blend = 1.2; // smoothing width
+    if(style==='damped-slow'){
+      const left = (x)=> Math.exp(-0.3*Math.abs(x-split))*Math.sin(a1*x);
+      const right = (x)=> 0.6*Math.sin(a2*x);
+      fn = (x)=>{
+        const t = smoothstep((x-split+blend)/(2*blend));
+        return left(x)*(1-t) + right(x)*t;
+      };
+      formula = `f(x) = piecewise[damped sin(${fmtNum(a1)}x) → sin(${fmtNum(a2)}x)]`;
+    } else if(style==='pulse-center'){
+      fn = (x)=> Math.exp(-0.4*x*x)*Math.sin(a1*x) + (1-Math.exp(-0.4*x*x))*0.4*Math.sin(a2*x);
+      formula = `f(x) = center-pulse[sin(${fmtNum(a1)}x)] + outer[sin(${fmtNum(a2)}x)]`;
+    } else {
+      fn = (x)=> x<0 ? Math.sin(a1*x) : -Math.sin(a1*x)*0.8;
+      formula = `f(x) = mirror[sin(${fmtNum(a1)}x)]`;
+    }
+    return { fn, formula, domain:[-8,8], mode: rng.chance(0.6)?'A':'B' };
+  }
+});
+
+// 8. Recursive / fractal-like (bounded octave sum)
+FAMILIES.push({
+  name:"fractal-like",
+  build(rng){
+    const octaves = rng.int(3,5);
+    const baseFreq = rng.range(0.5,1.5);
+    const lac = rng.range(1.7,2.3);
+    const gain = rng.range(0.45,0.65);
+    const fn = (x)=>{
+      let sum=0, amp=1, freq=baseFreq, norm=0;
+      for(let i=0;i<octaves;i++){
+        sum += amp*Math.sin(freq*x + i*0.7);
+        norm += amp;
+        amp *= gain; freq *= lac;
+      }
+      return sum/norm;
+    };
+    const formula = `f(x) = Σ${sup("n")} ${fmtNum(gain)}${sup("n")}sin(${fmtNum(baseFreq)}·${fmtNum(lac)}${sup("n")}x)`;
+    return { fn, formula, domain:[-8,8], mode: rng.chance(0.6)?'A':'B' };
+  }
+});
+
+/* ============================================================
+   CANDIDATE GENERATION + VALIDATION
+   ============================================================ */
+const SAMPLE_COUNT = 2048;
+
+function sampleFn(fn, domain, count){
+  const [a,b] = domain;
+  const xs = new Float64Array(count);
+  const ys = new Float64Array(count);
+  for(let i=0;i<count;i++){
+    const x = a + (b-a)*(i/(count-1));
+    xs[i] = x;
+    ys[i] = safe(fn(x));
+  }
+  return {xs, ys};
+}
+
+function validateSamples(ys){
+  let min=Infinity, max=-Infinity, sum=0, badJumps=0, flatCount=0;
+  for(let i=0;i<ys.length;i++){
+    const v = ys[i];
+    if(!isFinite(v)) return {ok:false, reason:"non-finite"};
+    if(v<min) min=v; if(v>max) max=v;
+    sum += v;
+    if(i>0){
+      const jump = Math.abs(ys[i]-ys[i-1]);
+      if(jump > 8) badJumps++;
+    }
+  }
+  const mean = sum/ys.length;
+  const range = max-min;
+  if(range < 0.02) return {ok:false, reason:"flat"};
+  if(badJumps > ys.length*0.02) return {ok:false, reason:"discontinuous"};
+  // peak-to-average
+  let absSum=0, peak=0;
+  for(let i=0;i<ys.length;i++){ const a=Math.abs(ys[i]-mean); absSum+=a; if(a>peak) peak=a; }
+  const avg = absSum/ys.length;
+  const crest = peak/(avg||0.0001);
+  if(crest > 40) return {ok:false, reason:"harsh-crest"};
+  return {ok:true, min, max, mean, range};
+}
+
+function generateValidPattern(seed){
+  let attempt = 0;
+  let rngOuter = makeRng(seed);
+  while(attempt < 12){
+    attempt++;
+    const family = rngOuter.pick(FAMILIES);
+    const localSeed = (seed + attempt*7919) >>> 0;
+    const rng = makeRng(localSeed);
+    let candidate;
+    try{
+      candidate = family.build(rng);
+    }catch(e){ continue; }
+    const {xs, ys} = sampleFn(candidate.fn, candidate.domain, SAMPLE_COUNT);
+    const check = validateSamples(ys);
+    if(!check.ok) continue;
+
+    // normalize
+    const norm = Math.max(Math.abs(check.min), Math.abs(check.max), 0.0001);
+    const normYs = new Float64Array(ys.length);
+    for(let i=0;i<ys.length;i++) normYs[i] = clamp(ys[i]/norm, -1, 1);
+
+    return {
+      family: family.name,
+      formula: candidate.formula,
+      domain: candidate.domain,
+      mode: candidate.mode,
+      xs, ys: normYs,
+      seed: localSeed,
+      mean: check.mean/norm
+    };
+  }
+  // fallback guaranteed-safe pattern
+  const {xs, ys} = sampleFn((x)=>Math.sin(x), [-8,8], SAMPLE_COUNT);
+  return { family:"harmonic", formula:"f(x) = sin(x)", domain:[-8,8], mode:'A', xs, ys, seed, mean:0 };
+}
+
+/* ============================================================
+   AUDIO ENGINE
+   ============================================================ */
+const AudioEngine = (function(){
+  let ctx = null;
+  let masterGain = null;
+  let compressor = null;
+  let muted = false;
+  let currentNodes = null; // {kind, source/oscillator, gain, startTime, duration}
+  let scheduleTimer = null;
+
+  function ensureContext(){
+    if(!ctx){
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 0.25;
+      compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.knee.value = 20;
+      compressor.ratio.value = 6;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.25;
+      masterGain.connect(compressor);
+      compressor.connect(ctx.destination);
+    }
+    if(ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function setMuted(m){
+    muted = m;
+    if(masterGain){
+      const target = muted ? 0 : 0.25;
+      masterGain.gain.cancelScheduledValues(ctx.currentTime);
+      masterGain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.08);
+    }
+  }
+  function isMuted(){ return muted; }
+
+  function stopCurrent(fadeSec){
+    if(scheduleTimer){ clearTimeout(scheduleTimer); scheduleTimer = null; }
+    if(!currentNodes) return;
+    const now = ctx.currentTime;
+    try{
+      currentNodes.gain.gain.cancelScheduledValues(now);
+      currentNodes.gain.gain.setValueAtTime(currentNodes.gain.gain.value, now);
+      currentNodes.gain.gain.linearRampToValueAtTime(0, now + fadeSec);
+    }catch(e){}
+    const nodesToKill = currentNodes;
+    setTimeout(()=>{
+      try{
+        if(nodesToKill.source){ nodesToKill.source.stop(); nodesToKill.source.disconnect(); }
+        if(nodesToKill.oscillator){ nodesToKill.oscillator.stop(); nodesToKill.oscillator.disconnect(); }
+        nodesToKill.gain.disconnect();
+        if(nodesToKill.extra) nodesToKill.extra.forEach(n=>{ try{n.disconnect();}catch(e){} });
+      }catch(e){}
+    }, fadeSec*1000 + 60);
+    currentNodes = null;
+  }
+
+  // Build a periodic buffer from normalized samples (Mode A)
+  function buildBufferSource(ys, duration){
+    const sr = ctx.sampleRate;
+    const len = Math.max(64, Math.round(duration*sr));
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    // resample ys (length N) -> len, remove DC, crossfade edges
+    const N = ys.length;
+    let mean = 0;
+    for(let i=0;i<len;i++){
+      const pos = (i/len)*(N-1);
+      const i0 = Math.floor(pos), i1 = Math.min(N-1, i0+1);
+      const frac = pos - i0;
+      const v = ys[i0]*(1-frac) + ys[i1]*frac;
+      data[i] = v;
+      mean += v;
+    }
+    mean /= len;
+    let peak = 0.0001;
+    for(let i=0;i<len;i++){ data[i]-=mean; if(Math.abs(data[i])>peak) peak=Math.abs(data[i]); }
+    const gainNorm = 0.9/peak;
+    for(let i=0;i<len;i++) data[i]*=gainNorm;
+    // edge crossfade to avoid loop click
+    const fadeLen = Math.min(len>>2, Math.round(sr*0.02));
+    for(let i=0;i<fadeLen;i++){
+      const t = i/fadeLen;
+      const headVal = data[i];
+      const tailVal = data[len-fadeLen+i];
+      const blended = headVal*t + tailVal*(1-t);
+      data[i] = blended;
+      data[len-fadeLen+i] = blended;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    // gentle lowpass to tame harshness from discontinuous shapes
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 9000;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(masterGain);
+    return { source: src, gain: g, extra:[filter] };
+  }
+
+  function freqScaleMap(scaleName, tonicMidi){
+    const intervals = SCALES[scaleName];
+    if(!intervals) return null;
+    return function(norm){ // norm in [-1,1]
+      const octaveSpan = 2.5;
+      const semis = norm*octaveSpan*12;
+      const idx = Math.round(semis / (12/intervals.length));
+      const octave = Math.floor(idx / intervals.length);
+      const degree = ((idx % intervals.length)+intervals.length)%intervals.length;
+      const midi = tonicMidi + octave*12 + intervals[degree];
+      return 440*Math.pow(2,(midi-69)/12);
+    };
+  }
+
+  // Build oscillator + scheduled frequency curve (Mode B)
+  function buildPitchTrace(ys, duration, scaleName, tonicMidi){
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    const scaleMap = freqScaleMap(scaleName, tonicMidi);
+    const N = 256; // curve resolution
+    const curve = new Float32Array(N);
+    for(let i=0;i<N;i++){
+      const pos = (i/(N-1))*(ys.length-1);
+      const i0 = Math.floor(pos), i1 = Math.min(ys.length-1,i0+1);
+      const frac = pos-i0;
+      const norm = ys[i0]*(1-frac)+ys[i1]*frac;
+      let f;
+      if(scaleMap){
+        f = scaleMap(norm);
+      } else {
+        const logLo = Math.log(90), logHi = Math.log(1500);
+        f = Math.exp(logLo + (norm*0.5+0.5)*(logHi-logLo));
+      }
+      curve[i] = clamp(f, 60, 1800);
+    }
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 4000;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(masterGain);
+    return { oscillator: osc, gain: g, extra:[filter], curve };
+  }
+
+  function scheduleOscLoop(nodes, duration, startTime){
+    // re-apply the frequency curve every cycle, scheduled slightly ahead
+    function apply(t){
+      try{
+        nodes.oscillator.frequency.setValueCurveAtTime(nodes.curve, t, duration);
+      }catch(e){}
+    }
+    apply(startTime);
+    function tick(){
+      const now = ctx.currentTime;
+      const elapsedCycles = Math.floor((now - startTime)/duration);
+      const nextCycleStart = startTime + (elapsedCycles+1)*duration;
+      if(nextCycleStart - now < 0.25){
+        apply(nextCycleStart);
+      }
+      scheduleTimer = setTimeout(tick, 80);
+    }
+    scheduleTimer = setTimeout(tick, 80);
+  }
+
+  function play(pattern, duration, scaleName, tonicMidi){
+    ensureContext();
+    const now = ctx.currentTime;
+    const startAt = now + 0.03;
+    let nodes;
+    if(pattern.mode === 'A'){
+      nodes = buildBufferSource(pattern.ys, duration);
+      nodes.kind = 'A';
+      nodes.source.start(startAt);
+    } else {
+      nodes = buildPitchTrace(pattern.ys, duration, scaleName, tonicMidi);
+      nodes.kind = 'B';
+      nodes.oscillator.start(startAt);
+      scheduleOscLoop(nodes, duration, startAt);
+    }
+    nodes.gain.gain.setValueAtTime(0, startAt);
+    nodes.gain.gain.linearRampToValueAtTime(1, startAt + 0.09);
+    currentNodes = nodes;
+    return startAt;
+  }
+
+  function crossfadeTo(pattern, duration, scaleName, tonicMidi){
+    stopCurrent(0.11);
+    return play(pattern, duration, scaleName, tonicMidi);
+  }
+
+  function suspend(){ if(ctx && ctx.state === 'running') ctx.suspend(); }
+  function resume(){ if(ctx && ctx.state === 'suspended') ctx.resume(); }
+  function getCtx(){ return ctx; }
+
+  return { ensureContext, play, crossfadeTo, stopCurrent, setMuted, isMuted, suspend, resume, getCtx };
+})();
+
+/* ============================================================
+   APP STATE + RENDERING
+   ============================================================ */
+const canvas = document.getElementById('graph');
+const ctx2d = canvas.getContext('2d');
+const formulaEl = document.getElementById('formula');
+const patternNumEl = document.getElementById('patternNum');
+const nextBtn = document.getElementById('nextBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const muteBtn = document.getElementById('muteBtn');
+const infoBtn = document.getElementById('infoBtn');
+const infoModal = document.getElementById('infoModal');
+const closeInfo = document.getElementById('closeInfo');
+const newVariationBtn = document.getElementById('newVariationBtn');
+const copyFormulaBtn = document.getElementById('copyFormulaBtn');
+const overlay = document.getElementById('overlay');
+const beginBtn = document.getElementById('beginBtn');
+const srStatus = document.getElementById('srStatus');
+
+const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let patternIndex = 0;
+let current = null;      // current validated pattern object
+let currentColor = PALETTE[0];
+let lastFamily = null;
+let duration = 5;        // seconds
+let cycleStart = 0;       // audioCtx time when current cycle started
+let audioStartTime = 0;   // audioCtx time when source actually started
+let paused = false;
+let pausedProgress = 0;
+let nextLock = false;
+let scaleName = "Continuous";
+let tonicMidi = 60;
+let dpr = Math.max(1, window.devicePixelRatio || 1);
+let seedCounter = Math.floor(Math.random()*1e9);
+
+function resizeCanvas(){
+  const wrap = document.getElementById('graphWrap');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if(w<=0||h<=0) return;
+  dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.round(w*dpr);
+  canvas.height = Math.round(h*dpr);
+  canvas.style.width = w+"px";
+  canvas.style.height = h+"px";
+  ctx2d.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', ()=> setTimeout(resizeCanvas, 200));
+
+function pickColor(){
+  let c;
+  do { c = PALETTE[Math.floor(Math.random()*PALETTE.length)]; } while(c.hex === currentColor.hex && PALETTE.length>1);
+  return c;
+}
+
+function newPattern(){
+  seedCounter = (seedCounter + 104729) >>> 0;
+  let p;
+  let tries = 0;
+  do{
+    p = generateValidPattern(seedCounter + tries*13);
+    tries++;
+  } while(p.family === lastFamily && tries < 4);
+  lastFamily = p.family;
+  return p;
+}
+
+function chooseScale(mode){
+  if(mode !== 'B') { scaleName = "Continuous"; return; }
+  const useScale = Math.random() < 0.55;
+  if(!useScale){ scaleName = "Continuous"; return; }
+  const names = Object.keys(SCALES).filter(n=>n!=="Continuous");
+  scaleName = names[Math.floor(Math.random()*names.length)];
+  tonicMidi = 52 + Math.floor(Math.random()*12);
+}
+
+function formatDuration(d){ return `${d.toFixed(1)}s`; }
+
+function announce(pattern, dur){
+  const familyLabel = pattern.family.replace(/-/g,' ');
+  srStatus.textContent = `Oscillation ${patternIndex}, ${familyLabel}, ${formatDuration(dur)} loop.`;
+}
+
+function updateInfoModal(){
+  document.getElementById('infoFormula').textContent = current.formula;
+  document.getElementById('infoFamily').textContent = current.family.replace(/-/g,' ');
+  document.getElementById('infoSeed').textContent = current.seed;
+  document.getElementById('infoLoop').textContent = formatDuration(duration);
+  document.getElementById('infoSound').textContent = current.mode==='A'
+    ? "Direct waveform sonification"
+    : `Pitch-trace sonification (${scaleName})`;
+}
+
+function applyColor(color){
+  currentColor = color;
+  document.documentElement.style.setProperty('--accent', color.hex);
+}
+
+function loadPattern(isFirst){
+  patternIndex++;
+  current = newPattern();
+  duration = current.mode === 'A' ? rand2(4,7) : rand2(3,6.5);
+  // occasional wider range for interest
+  if(Math.random()<0.15) duration = rand2(2.5,9);
+  chooseScale(current.mode);
+  applyColor(pickColor());
+  formulaEl.textContent = current.formula;
+  patternNumEl.textContent = `OSCILLATION ${String(patternIndex).padStart(3,'0')}`;
+  updateInfoModal();
+  announce(current, duration);
+
+  const actx = AudioEngine.getCtx();
+  if(actx){
+    const startAt = isFirst
+      ? AudioEngine.play(current, duration, scaleName, tonicMidi)
+      : AudioEngine.crossfadeTo(current, duration, scaleName, tonicMidi);
+    audioStartTime = startAt;
+  }
+  paused = false;
+  pauseBtn.textContent = "Pause";
+  pauseBtn.setAttribute('aria-label','Pause');
+}
+function rand2(a,b){ return a + Math.random()*(b-a); }
+
+/* ---------- Rendering loop ---------- */
+function progressNow(){
+  const actx = AudioEngine.getCtx();
+  if(!actx || paused) return pausedProgress;
+  const t = actx.currentTime - audioStartTime;
+  if(t < 0) return 0;
+  return (t % duration) / duration;
+}
+
+function drawFrame(){
+  requestAnimationFrame(drawFrame);
+  if(!current) return;
+  const w = canvas.width/dpr, h = canvas.height/dpr;
+  if(w<=0||h<=0) return;
+  ctx2d.clearRect(0,0,w,h);
+
+  const progress = progressNow();
+  const padX = 18, padY = 18;
+  const plotW = w - padX*2, plotH = h - padY*2;
+  const midY = padY + plotH/2;
+
+  // axes
+  ctx2d.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx2d.lineWidth = 1;
+  ctx2d.beginPath();
+  ctx2d.moveTo(padX, midY); ctx2d.lineTo(padX+plotW, midY);
+  ctx2d.moveTo(padX+plotW/2, padY); ctx2d.lineTo(padX+plotW/2, padY+plotH);
+  ctx2d.stroke();
+  // arrowheads
+  ctx2d.fillStyle = "rgba(255,255,255,0.35)";
+  ctx2d.beginPath();
+  ctx2d.moveTo(padX+plotW, midY); ctx2d.lineTo(padX+plotW-8, midY-4); ctx2d.lineTo(padX+plotW-8, midY+4);
+  ctx2d.fill();
+  ctx2d.beginPath();
+  ctx2d.moveTo(padX+plotW/2, padY); ctx2d.lineTo(padX+plotW/2-4, padY+8); ctx2d.lineTo(padX+plotW/2+4, padY+8);
+  ctx2d.fill();
+  // ticks
+  ctx2d.strokeStyle = "rgba(255,255,255,0.2)";
+  for(let i=1;i<8;i++){
+    const tx = padX + plotW*(i/8);
+    ctx2d.beginPath(); ctx2d.moveTo(tx, midY-4); ctx2d.lineTo(tx, midY+4); ctx2d.stroke();
+  }
+
+  const N = current.ys.length;
+  const visibleCount = Math.max(2, Math.round(N*progress));
+
+  ctx2d.save();
+  ctx2d.shadowColor = currentColor.hex;
+  ctx2d.shadowBlur = reducedMotion ? 4 : 16;
+  ctx2d.strokeStyle = currentColor.hex;
+  ctx2d.lineWidth = 4;
+  ctx2d.lineJoin = "round";
+  ctx2d.lineCap = "round";
+  ctx2d.beginPath();
+  let lastValid = false;
+  for(let i=0;i<visibleCount;i++){
+    const x = padX + plotW*(i/(N-1));
+    const y = midY - (current.ys[i]*plotH*0.42);
+    if(!lastValid){ ctx2d.moveTo(x,y); lastValid=true; }
+    else ctx2d.lineTo(x,y);
+  }
+  ctx2d.stroke();
+  ctx2d.restore();
+
+  // playhead
+  if(visibleCount>0){
+    const i = Math.min(N-1, visibleCount-1);
+    const px = padX + plotW*(i/(N-1));
+    const py = midY - (current.ys[i]*plotH*0.42);
+    // halo
+    const grad = ctx2d.createRadialGradient(px,py,0,px,py,22);
+    grad.addColorStop(0, currentColor.hex+"aa");
+    grad.addColorStop(1, currentColor.hex+"00");
+    ctx2d.fillStyle = grad;
+    ctx2d.beginPath(); ctx2d.arc(px,py,22,0,Math.PI*2); ctx2d.fill();
+    // dot
+    ctx2d.fillStyle = "#ffffff";
+    ctx2d.beginPath(); ctx2d.arc(px,py, reducedMotion?5:7, 0, Math.PI*2); ctx2d.fill();
+  }
+}
+requestAnimationFrame(drawFrame);
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+beginBtn.addEventListener('click', ()=>{
+  AudioEngine.ensureContext();
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden','true');
+  resizeCanvas();
+  loadPattern(true);
+});
+
+nextBtn.addEventListener('click', ()=>{
+  if(nextLock) return;
+  nextLock = true;
+  nextBtn.disabled = true;
+  loadPattern(false);
+  setTimeout(()=>{ nextLock = false; nextBtn.disabled = false; }, 220);
+});
+
+pauseBtn.addEventListener('click', ()=>{
+  const actx = AudioEngine.getCtx();
+  if(!actx) return;
+  if(!paused){
+    pausedProgress = progressNow();
+    paused = true;
+    AudioEngine.suspend();
+    pauseBtn.textContent = "Play";
+    pauseBtn.setAttribute('aria-label','Play');
+  } else {
+    paused = false;
+    // re-anchor audioStartTime so progress continues smoothly
+    AudioEngine.resume();
+    const actxNow = AudioEngine.getCtx();
+    audioStartTime = actxNow.currentTime - pausedProgress*duration;
+    pauseBtn.textContent = "Pause";
+    pauseBtn.setAttribute('aria-label','Pause');
+  }
+});
+
+let isMuted = false;
+muteBtn.addEventListener('click', ()=>{
+  isMuted = !isMuted;
+  AudioEngine.setMuted(isMuted);
+  muteBtn.textContent = isMuted ? "🔇" : "🔊";
+  muteBtn.setAttribute('aria-label', isMuted ? "Unmute audio" : "Mute audio");
+});
+
+infoBtn.addEventListener('click', ()=>{
+  if(!current) return;
+  updateInfoModal();
+  infoModal.classList.remove('hidden');
+});
+closeInfo.addEventListener('click', ()=> infoModal.classList.add('hidden'));
+infoModal.addEventListener('click', (e)=>{ if(e.target===infoModal) infoModal.classList.add('hidden'); });
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && !infoModal.classList.contains('hidden')) infoModal.classList.add('hidden');
+});
+newVariationBtn.addEventListener('click', ()=>{
+  infoModal.classList.add('hidden');
+  if(!nextLock) nextBtn.click();
+});
+copyFormulaBtn.addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(current.formula);
+    copyFormulaBtn.textContent = "Copied!";
+    setTimeout(()=> copyFormulaBtn.textContent = "Copy Formula", 1200);
+  }catch(e){ /* clipboard may be unavailable; ignore silently */ }
+});
+
+/* Visibility handling */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(!paused) AudioEngine.suspend();
+  } else {
+    if(!paused){
+      AudioEngine.resume();
+      const actx = AudioEngine.getCtx();
+      if(actx){
+        // re-anchor to avoid drift after long background suspension
+        const elapsedProgress = progressNow();
+        audioStartTime = actx.currentTime - elapsedProgress*duration;
+      }
+    }
+  }
+});
+
+/* Prevent iOS gestures */
+document.addEventListener('gesturestart', (e)=> e.preventDefault());
+document.addEventListener('touchmove', (e)=>{ e.preventDefault(); }, {passive:false});
+document.addEventListener('dblclick', (e)=> e.preventDefault());
+
+/* Initial sizing */
+resizeCanvas();
+formulaEl.textContent = "f(x) = sin(x)";
+
+})();
+</script>
+</body>
+</html>

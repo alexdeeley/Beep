@@ -1,0 +1,114 @@
+[
+  {
+    "id": "symphonic-noise",
+    "name": "Symphonic Noise",
+    "description": "A generative wall of orchestral-style sound for study or art. Slow-shifting chords, layered voices, never loops.",
+    "category": "Music Tools",
+    "path": "symphonic-noise/index.html"
+  },
+  {
+    "id": "drum-machine",
+    "name": "Drum Machine",
+    "description": "A 16-step drum sequencer with five synthesized voices and a drive/fold/crush distortion chain.",
+    "category": "Music Tools",
+    "path": "DrumMachine.html"
+  },
+  {
+    "id": "dss1",
+    "name": "DSS1",
+    "description": "A full digital sound studio in one page — step-sequenced drums, a filter-swept bass synth, an ambient pad, a Euclidean rhythm generator, and more, with built-in reverb/delay.",
+    "category": "Music Tools",
+    "path": "DSS1.html"
+  },
+  {
+    "id": "bitcrusher-worklet-demo",
+    "name": "BitCrusher Worklet Demo",
+    "description": "A bit-depth and sample-rate-reduction bitcrusher built as a real AudioWorklet, demoed live on a sine tone.",
+    "category": "Music Tools",
+    "path": "BitCrusherWorkletDemo.html"
+  },
+  {
+    "id": "hnw9",
+    "name": "HNW9",
+    "description": "A nine-pad harsh noise wall instrument — drag each black-and-white pad to sculpt noise thickness, filter, drive, oscillators, bitcrush, feedback, and motion.",
+    "category": "Music Tools",
+    "path": "HNW9.html"
+  },
+  {
+    "id": "sound-of-functions",
+    "name": "The Sound of Functions",
+    "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
+    "category": "Art",
+    "path": "SoundOfFunctions.html"
+  },
+  {
+    "id": "oscillate-scroll-bars",
+    "name": "Oscillate — Scroll Bars",
+    "description": "Turns your microphone input into a scrolling neon bar-graph waveform that streams by and slowly fades.",
+    "category": "Art",
+    "path": "OscillateScrollBars.html"
+  },
+  {
+    "id": "checkerboard-swirl",
+    "name": "Checkerboard Swirl",
+    "description": "A 16×16 checkerboard that bursts into color and swirls when you tap, swipe, or press — then gently settles back to crisp black and white.",
+    "category": "Art",
+    "path": "CheckerboardSwirl.html"
+  },
+  {
+    "id": "heavy-spin-morph",
+    "name": "Heavy Spin Morph",
+    "description": "A wireframe icosphere you can spin and fling, slowly morphing between cube, sphere, and octahedron. Double-tap to jump shapes.",
+    "category": "Art",
+    "path": "HeavySpinMorph.html"
+  },
+  {
+    "id": "one-thumb-racer",
+    "name": "One-Thumb Racer",
+    "description": "Drive with just your thumb. Drag anywhere in the pad to steer, long-press for nitro.",
+    "category": "Games",
+    "path": "OneThumbRacer.html"
+  },
+  {
+    "id": "tilt-pipe-quest",
+    "name": "Tilt Pipe Quest",
+    "description": "Tilt your device to guide balls through neon pipes into the goal zone. Five handcrafted levels, touch-joystick fallback included.",
+    "category": "Games",
+    "path": "TiltPipeQuest.html"
+  },
+  {
+    "id": "threes-minimal",
+    "name": "Threes Minimal",
+    "description": "A minimalist sliding-tile merge puzzle — combine matching tiles and chase a new high score.",
+    "category": "Games",
+    "path": "ThreesMinimal.html"
+  },
+  {
+    "id": "maisie-eats-everything",
+    "name": "Maisie Eats Everything 2",
+    "description": "Grow a hungry rainbow unicorn by eating everything smaller than you across ten whimsical levels.",
+    "category": "Games",
+    "path": "MaisieEatsEverything2.html"
+  },
+  {
+    "id": "ballz-game",
+    "name": "Ballz Game",
+    "description": "A physics ball-breaker: aim with the slider, launch a volley of balls at descending numbered bricks, and grab the gold dot to add another ball.",
+    "category": "Games",
+    "path": "BallzGame.html"
+  },
+  {
+    "id": "peggle-minimal-forge",
+    "name": "Peggle Minimal Forge",
+    "description": "A minimal Peggle-style peg board — drop balls to bounce, spark, and ricochet through a grid of pegs.",
+    "category": "Games",
+    "path": "PeggleMinimalForge.html"
+  },
+  {
+    "id": "star-bucket",
+    "name": "Star Bucket",
+    "description": "Catch falling stars for points and dodge the squares in a fast arcade bucket-catcher.",
+    "category": "Games",
+    "path": "StarBucket.html"
+  }
+]

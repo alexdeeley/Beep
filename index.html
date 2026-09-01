@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beep</title>
+<meta name="description" content="A small gallery of self-contained apps — music tools, games, art." />
+<meta name="theme-color" content="#0a0a12" />
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(ellipse at 50% 0%, #171426 0%, #0a0a12 55%, #050508 100%);
+    color: #e8e6f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+  }
+  header { text-align: center; margin-bottom: 56px; }
+  h1 {
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    font-size: 2rem;
+    margin: 0 0 8px;
+  }
+  header p {
+    color: #9c98b4;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+  section { margin-bottom: 48px; }
+  section h2 {
+    font-weight: 400;
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #a89fd8;
+    border-bottom: 1px solid #2a2650;
+    padding-bottom: 10px;
+    margin: 0 0 20px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+  a.card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: #12101f;
+    border: 1px solid #2a2650;
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  a.card:hover {
+    border-color: #6a62b0;
+    transform: translateY(-2px);
+  }
+  .preview {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #000;
+    border-bottom: 1px solid #2a2650;
+  }
+  .preview iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1280px;
+    height: 800px;
+    border: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  .preview .placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4a4670;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+  }
+  .card-body { padding: 14px 16px 18px; }
+  .card-body h3 {
+    margin: 0 0 6px;
+    font-weight: 500;
+    font-size: 1.02rem;
+  }
+  .card-body p {
+    margin: 0;
+    color: #9c98b4;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  .empty {
+    color: #6f6b8a;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>BEEP</h1>
+    <p>Small self-contained apps. Click one to open it.</p>
+  </header>
+  <div id="sections"></div>
+</main>
+
+<script>
+// Preferred section order; any category not listed here is appended
+// alphabetically afterward, so new categories "just work" with no code
+// changes — only an apps.json entry is needed.
+const CATEGORY_ORDER = ["Music Tools", "Games", "Art"];
+
+async function main() {
+  const res = await fetch("./apps.json");
+  const apps = await res.json();
+
+  const byCategory = new Map();
+  for (const app of apps) {
+    const list = byCategory.get(app.category) || [];
+    list.push(app);
+    byCategory.set(app.category, list);
+  }
+
+  const categories = [...byCategory.keys()].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a);
+    const bi = CATEGORY_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  const sectionsEl = document.getElementById("sections");
+
+  if (categories.length === 0) {
+    sectionsEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
+    return;
+  }
+
+  for (const category of categories) {
+    const section = document.createElement("section");
+    const heading = document.createElement("h2");
+    heading.textContent = category;
+    section.appendChild(heading);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    for (const app of byCategory.get(category)) {
+      grid.appendChild(buildCard(app));
+    }
+
+    section.appendChild(grid);
+    sectionsEl.appendChild(section);
+  }
+
+  observeLazyPreviews();
+}
+
+function buildCard(app) {
+  const card = document.createElement("a");
+  card.className = "card";
+  card.href = app.path;
+  card.target = "_blank";
+  card.rel = "noopener";
+
+  const preview = document.createElement("div");
+  preview.className = "preview";
+  preview.dataset.src = app.path;
+
+  const placeholder = document.createElement("div");
+  placeholder.className = "placeholder";
+  placeholder.textContent = app.name;
+  preview.appendChild(placeholder);
+
+  const body = document.createElement("div");
+  body.className = "card-body";
+  const title = document.createElement("h3");
+  title.textContent = app.name;
+  const desc = document.createElement("p");
+  desc.textContent = app.description;
+  body.appendChild(title);
+  body.appendChild(desc);
+
+  card.appendChild(preview);
+  card.appendChild(body);
+  return card;
+}
+
+// Only load an app's iframe (and whatever JS/audio it boots up) once its
+// preview card is actually about to scroll into view.
+function observeLazyPreviews() {
+  const previews = document.querySelectorAll(".preview[data-src]");
+
+  const loadPreview = (el) => {
+    const iframe = document.createElement("iframe");
+    iframe.src = el.dataset.src;
+    iframe.loading = "lazy";
+    iframe.tabIndex = -1;
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    iframe.setAttribute("aria-hidden", "true");
+    el.innerHTML = "";
+    el.appendChild(iframe);
+
+    const rescale = () => {
+      const scale = el.clientWidth / 1280;
+      iframe.style.transform = `scale(${scale})`;
+    };
+    rescale();
+    new ResizeObserver(rescale).observe(el);
+  };
+
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        loadPreview(entry.target);
+        io.unobserve(entry.target);
+      }
+    }
+  }, { rootMargin: "200px" });
+
+  previews.forEach((el) => io.observe(el));
+}
+
+main();
+</script>
+</body>
+</html>

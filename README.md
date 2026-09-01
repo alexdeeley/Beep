@@ -506,3 +506,24 @@ text-length safety net used by the renderer.
   without a stale hard-coded UTC offset; this means the workflow runs
   twice most days (the second run is a fast no-op thanks to idempotency),
   which is a deliberate trade-off over risking a missed post.
+
+## 17. Also in this repo: a small app gallery
+
+Separately from the On This Day bot, this repo also hosts a handful of
+self-contained single-page apps (`symphonic-noise/`, `OneThumbRacer.html`,
+and whatever gets added later), published together as a static site via
+`.github/workflows/deploy-pages.yml`.
+
+- **Live at:** `https://alexdeeley.github.io/Beep/`
+- **Root `index.html`** is the gallery page — it reads `apps.json` and
+  renders a live iframe preview, name, and description for each app,
+  grouped into sections (Music Tools, Games, Art, ...).
+- **To add a new app:** drop the HTML file or folder anywhere in the repo
+  root, add one entry to `apps.json` (`id`, `name`, `description`,
+  `category`, `path`), and push to `main`. The deploy workflow publishes
+  everything in the repo except this bot's own source/config (see the
+  `rsync --exclude` list in the workflow) automatically — no workflow edit
+  needed. A new `category` value just becomes its own section.
+- The one manual, one-time setup step (already done for this repo): a
+  human has to go to **Settings → Pages → Source → GitHub Actions** once —
+  GitHub's API won't let a workflow token create a Pages site itself.

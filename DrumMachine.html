@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DRUM MACHINE</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000;
+    color: #eee;
+    font-family: 'Courier New', 'Share Tech Mono', monospace;
+    overflow-x: hidden;
+  }
+  #wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 18px 14px 40px;
+  }
+  .row {
+    margin-bottom: 14px;
+  }
+  .label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: #ddd;
+    margin-bottom: 6px;
+    padding-left: 2px;
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 3px;
+    height: 46px;
+  }
+  .step {
+    background: #0a0a0a;
+    border: 1px solid #3a3a3a;
+    position: relative;
+    cursor: pointer;
+    transition: background .04s linear;
+  }
+  .step:nth-child(4n+1) { border-color: #555; }
+  .step.on {
+    background: #eee;
+    border-color: #eee;
+  }
+  .step.playing {
+    box-shadow: inset 0 0 0 2px #ff2d2d;
+  }
+  .step.on.playing {
+    background: #ff2d2d;
+  }
+
+  #ruler {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 3px;
+    margin: 8px 0 4px;
+  }
+  #ruler span {
+    text-align: center;
+    font-size: 9px;
+    color: #666;
+  }
+  #ruler span.playing { color: #ff2d2d; }
+
+  #transport {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 20px 0 26px;
+  }
+  #playBtn {
+    width: 56px; height: 56px;
+    border: 1px solid #eee;
+    background: #000;
+    color: #eee;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  #playBtn.active { background: #eee; color: #000; }
+  #tempoWrap { flex: 1; display: flex; align-items: center; gap: 10px; }
+  #tempoWrap input[type=range] { flex: 1; }
+  #tempoVal { font-size: 12px; width: 70px; text-align: right; color: #999; }
+
+  .fxblock {
+    border-top: 1px solid #333;
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  .fx-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .fx-name {
+    width: 92px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #aaa;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 2px;
+    background: #444;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 22px;
+    background: #eee;
+    cursor: pointer;
+    border: none;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 22px;
+    background: #eee;
+    cursor: pointer;
+    border: none;
+  }
+  .fx-val {
+    width: 40px;
+    font-size: 10px;
+    color: #666;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <div id="tracks"></div>
+
+  <div id="ruler"></div>
+
+  <div id="transport">
+    <button id="playBtn">▶</button>
+    <div id="tempoWrap">
+      <input type="range" id="tempo" min="60" max="200" value="128">
+      <div id="tempoVal">128 BPM</div>
+    </div>
+  </div>
+
+  <div class="fxblock" id="fxblock"></div>
+
+</div>
+
+<script>
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let actx = null;
+
+const TRACKS = ['KICK','SNARE','TOM','HAT','CLAV'];
+const steps = {};
+TRACKS.forEach(t => steps[t] = new Array(16).fill(false));
+
+// default pattern
+steps.KICK = [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0].map(Boolean);
+steps.SNARE = [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0].map(Boolean);
+steps.HAT   = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1].map(Boolean);
+steps.TOM   = new Array(16).fill(false);
+steps.CLAV  = [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0].map(Boolean);
+
+const tracksEl = document.getElementById('tracks');
+const stepEls = {};
+
+TRACKS.forEach(t => {
+  const row = document.createElement('div');
+  row.className = 'row';
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = t;
+  const stepsWrap = document.createElement('div');
+  stepsWrap.className = 'steps';
+  stepEls[t] = [];
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement('div');
+    s.className = 'step' + (steps[t][i] ? ' on' : '');
+    s.addEventListener('click', () => {
+      steps[t][i] = !steps[t][i];
+      s.classList.toggle('on', steps[t][i]);
+    });
+    stepsWrap.appendChild(s);
+    stepEls[t].push(s);
+  }
+  row.appendChild(label);
+  row.appendChild(stepsWrap);
+  tracksEl.appendChild(row);
+});
+
+const rulerEl = document.getElementById('ruler');
+const rulerSpans = [];
+for (let i = 0; i < 16; i++) {
+  const sp = document.createElement('span');
+  sp.textContent = i + 1;
+  rulerEl.appendChild(sp);
+  rulerSpans.push(sp);
+}
+
+// ---- FX ----
+const fxDefs = [
+  { key: 'drive',  name: 'DRIVE',   min: 0, max: 100, val: 55 },
+  { key: 'fold',   name: 'FOLD',    min: 0, max: 100, val: 20 },
+  { key: 'crush',  name: 'CRUSH',   min: 0, max: 100, val: 15 },
+  { key: 'tone',   name: 'TONE',    min: 0, max: 100, val: 65 },
+  { key: 'mix',    name: 'MIX',     min: 0, max: 100, val: 80 },
+];
+const fxState = {};
+const fxblock = document.getElementById('fxblock');
+fxDefs.forEach(f => {
+  fxState[f.key] = f.val;
+  const row = document.createElement('div');
+  row.className = 'fx-row';
+  const name = document.createElement('div');
+  name.className = 'fx-name';
+  name.textContent = f.name;
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = f.min; input.max = f.max; input.value = f.val;
+  const valEl = document.createElement('div');
+  valEl.className = 'fx-val';
+  valEl.textContent = f.val;
+  input.addEventListener('input', () => {
+    fxState[f.key] = Number(input.value);
+    valEl.textContent = input.value;
+    rebuildDistortion();
+  });
+  row.appendChild(name);
+  row.appendChild(input);
+  row.appendChild(valEl);
+  fxblock.appendChild(row);
+});
+
+function makeDistortionCurve(amount, foldAmount) {
+  const n = 4096;
+  const curve = new Float32Array(n);
+  const k = amount;
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    let y = Math.tanh(k * x) / Math.tanh(k || 0.0001);
+    if (foldAmount > 0) {
+      const f = 1 + foldAmount * 4;
+      y = Math.sin(x * f * Math.PI) * (1 - foldAmount * 0.3) + y * (1 - foldAmount * 0.5);
+    }
+    curve[i] = Math.max(-1, Math.min(1, y));
+  }
+  return curve;
+}
+
+let masterShaper, masterFilter, masterCrush, dryGain, wetGain, masterOut;
+
+function buildFxChain(ctx) {
+  masterShaper = ctx.createWaveShaper();
+  masterShaper.oversample = '4x';
+
+  masterFilter = ctx.createBiquadFilter();
+  masterFilter.type = 'lowpass';
+
+  wetGain = ctx.createGain();
+  dryGain = ctx.createGain();
+  masterOut = ctx.createGain();
+  masterOut.gain.value = 0.9;
+
+  masterShaper.connect(masterFilter);
+  masterFilter.connect(wetGain);
+  wetGain.connect(masterOut);
+  dryGain.connect(masterOut);
+  masterOut.connect(ctx.destination);
+
+  rebuildDistortion();
+}
+
+function rebuildDistortion() {
+  if (!actx) return;
+  const driveAmt = 1 + (fxState.drive / 100) * 40;
+  const foldAmt = fxState.fold / 100;
+  masterShaper.curve = makeDistortionCurve(driveAmt, foldAmt);
+
+  const toneNorm = fxState.tone / 100;
+  masterFilter.frequency.setTargetAtTime(300 + toneNorm * 9000, actx.currentTime, 0.01);
+  masterFilter.Q.value = 0.7;
+
+  const mix = fxState.mix / 100;
+  wetGain.gain.setTargetAtTime(mix, actx.currentTime, 0.01);
+  dryGain.gain.setTargetAtTime(1 - mix, actx.currentTime, 0.01);
+}
+
+function crushSample(x) {
+  const bits = Math.max(1, Math.round(16 - (fxState.crush / 100) * 13));
+  const step = Math.pow(0.5, bits);
+  return Math.round(x / step) * step;
+}
+
+function fxInputNode(ctx) {
+  // splits to dry + distortion(wet) chains; returns a gain node to feed into
+  const input = ctx.createGain();
+  input.connect(dryGain);
+  input.connect(masterShaper);
+  return input;
+}
+
+// ---- Drum synthesis ----
+function playKick(ctx, t, dest) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.exponentialRampToValueAtTime(45, t + 0.25);
+  gain.gain.setValueAtTime(1, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start(t);
+  osc.stop(t + 0.35);
+}
+
+function playSnare(ctx, t, dest) {
+  const bufSize = ctx.sampleRate * 0.2;
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'highpass';
+  noiseFilter.frequency.value = 1000;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(1, t);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = 180;
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.6, t);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(dest);
+  osc.connect(oscGain);
+  oscGain.connect(dest);
+
+  noise.start(t); noise.stop(t + 0.2);
+  osc.start(t); osc.stop(t + 0.13);
+}
+
+function playTom(ctx, t, dest) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(180, t);
+  osc.frequency.exponentialRampToValueAtTime(80, t + 0.22);
+  gain.gain.setValueAtTime(0.9, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start(t);
+  osc.stop(t + 0.3);
+}
+
+function playHat(ctx, t, dest) {
+  const bufSize = ctx.sampleRate * 0.08;
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = 7000;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.5, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(dest);
+  noise.start(t);
+  noise.stop(t + 0.06);
+}
+
+function playClav(ctx, t, dest) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = 750;
+  gain.gain.setValueAtTime(0.5, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 1000;
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(dest);
+  osc.start(t);
+  osc.stop(t + 0.08);
+}
+
+const playFns = { KICK: playKick, SNARE: playSnare, TOM: playTom, HAT: playHat, CLAV: playClav };
+
+// ---- Sequencer ----
+let currentStep = 0;
+let nextStepTime = 0;
+let timerId = null;
+let isPlaying = false;
+const lookahead = 25; // ms
+const scheduleAhead = 0.1; // s
+
+function bpm() { return Number(document.getElementById('tempo').value); }
+function stepDur() { return 60 / bpm() / 4; }
+
+function scheduler() {
+  while (nextStepTime < actx.currentTime + scheduleAhead) {
+    scheduleStep(currentStep, nextStepTime);
+    nextStepTime += stepDur();
+    currentStep = (currentStep + 1) % 16;
+  }
+  timerId = setTimeout(scheduler, lookahead);
+}
+
+function scheduleStep(stepIndex, time) {
+  TRACKS.forEach(t => {
+    if (steps[t][stepIndex]) {
+      const input = fxInputNode(actx);
+      playFns[t](actx, time, input);
+    }
+  });
+  const delay = (time - actx.currentTime) * 1000;
+  setTimeout(() => highlightStep(stepIndex), Math.max(0, delay));
+}
+
+let lastHighlighted = -1;
+function highlightStep(i) {
+  if (lastHighlighted >= 0) {
+    TRACKS.forEach(t => stepEls[t][lastHighlighted].classList.remove('playing'));
+    rulerSpans[lastHighlighted].classList.remove('playing');
+  }
+  TRACKS.forEach(t => stepEls[t][i].classList.add('playing'));
+  rulerSpans[i].classList.add('playing');
+  lastHighlighted = i;
+}
+
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', async () => {
+  if (!actx) {
+    actx = new AudioCtx();
+    buildFxChain(actx);
+  }
+  if (actx.state === 'suspended') await actx.resume();
+
+  if (!isPlaying) {
+    isPlaying = true;
+    playBtn.classList.add('active');
+    playBtn.textContent = '■';
+    currentStep = 0;
+    nextStepTime = actx.currentTime + 0.05;
+    scheduler();
+  } else {
+    isPlaying = false;
+    playBtn.classList.remove('active');
+    playBtn.textContent = '▶';
+    clearTimeout(timerId);
+    if (lastHighlighted >= 0) {
+      TRACKS.forEach(t => stepEls[t][lastHighlighted].classList.remove('playing'));
+      rulerSpans[lastHighlighted].classList.remove('playing');
+      lastHighlighted = -1;
+    }
+  }
+});
+
+const tempoInput = document.getElementById('tempo');
+const tempoVal = document.getElementById('tempoVal');
+tempoInput.addEventListener('input', () => {
+  tempoVal.textContent = tempoInput.value + ' BPM';
+});
+</script>
+</body>
+</html>
