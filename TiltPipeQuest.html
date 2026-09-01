@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>TILT PIPE QUEST // 5 LEVELS</title>
+<style>
+  :root{
+    --bg:#000;
+    --ink:#0b89ff;
+    --ink2:#18b6ff;
+    --good:#ff00d4;
+    --ball:#ffd34d;
+    --ball2:#ffeaa3;
+    --ui:#ffffff;
+    --muted:rgba(255,255,255,.65);
+    --glass:rgba(255,255,255,.08);
+    --glass2:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--bg);overflow:hidden;}
+  body{touch-action:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  canvas{display:block;width:100vw;height:100vh;}
+  /* HUD */
+  #hud{
+    position:fixed;left:12px;right:12px;top:12px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    pointer-events:none;
+  }
+  .pill{
+    pointer-events:auto;
+    display:inline-flex;align-items:center;gap:10px;
+    padding:10px 12px;border:1px solid var(--glass2);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    border-radius:999px;color:var(--ui);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 10px 24px rgba(0,0,0,.5);
+  }
+  .pill b{letter-spacing:.12em;font-size:12px;}
+  .pill span{font-size:12px;color:var(--muted);letter-spacing:.08em;}
+  .btn{
+    pointer-events:auto;
+    border:1px solid var(--glass2);
+    background:rgba(255,255,255,.06);
+    color:var(--ui);
+    padding:10px 12px;border-radius:999px;
+    font-weight:700;letter-spacing:.1em;font-size:11px;
+  }
+  .btn:active{transform:scale(.98);}
+  #bottomBar{
+    position:fixed;left:12px;right:12px;bottom:12px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    pointer-events:none;
+  }
+  #help{
+    pointer-events:auto;
+    max-width:min(520px, 68vw);
+    padding:10px 12px;border-radius:18px;
+    border:1px solid var(--glass2);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    color:var(--muted);
+    font-size:12px;line-height:1.25;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  #help b{color:var(--ui);letter-spacing:.08em}
+  #stickWrap{
+    pointer-events:auto;
+    width:132px;height:132px;border-radius:24px;
+    border:1px solid var(--glass2);
+    background:rgba(255,255,255,.04);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    overflow:hidden;
+  }
+  #stickRing{
+    width:96px;height:96px;border-radius:50%;
+    border:1px dashed rgba(255,255,255,.24);
+  }
+  #stickKnob{
+    position:absolute;width:46px;height:46px;border-radius:50%;
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.28);
+    box-shadow: 0 10px 25px rgba(0,0,0,.5);
+    transform: translate(0px,0px);
+  }
+
+  /* Permission / Title Overlay */
+  #overlay{
+    position:fixed;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 30%, rgba(0,140,255,.18), transparent 60%),
+               radial-gradient(ellipse at 70% 70%, rgba(255,0,212,.12), transparent 60%),
+               rgba(0,0,0,.86);
+    color:var(--ui);
+    z-index:10;
+    padding:24px;
+  }
+  #panel{
+    width:min(620px, 100%);
+    border-radius:28px;
+    border:1px solid rgba(255,255,255,.18);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    box-shadow: 0 40px 120px rgba(0,0,0,.65);
+    padding:22px 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  #title{
+    font-weight:900;
+    letter-spacing:.14em;
+    font-size:16px;
+    margin-bottom:10px;
+  }
+  #sub{
+    color:rgba(255,255,255,.78);
+    font-size:13px;
+    line-height:1.35;
+    margin-bottom:16px;
+  }
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .cta{
+    border:none;
+    background:linear-gradient(90deg, rgba(11,137,255,.95), rgba(24,182,255,.95));
+    color:#00121f;
+    padding:12px 14px;
+    border-radius:999px;
+    font-weight:900;
+    letter-spacing:.12em;
+    font-size:12px;
+  }
+  .cta2{
+    border:1px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.08);
+    color:var(--ui);
+    padding:12px 14px;
+    border-radius:999px;
+    font-weight:900;
+    letter-spacing:.12em;
+    font-size:12px;
+  }
+  .fine{
+    margin-top:14px;
+    color:rgba(255,255,255,.55);
+    font-size:11px;
+    line-height:1.3;
+  }
+
+  /* Win */
+  #toast{
+    position:fixed;left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    padding:16px 18px;border-radius:22px;
+    border:1px solid rgba(255,255,255,.18);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    color:var(--ui);
+    letter-spacing:.12em;
+    font-weight:900;
+    font-size:12px;
+    display:none;
+    z-index:9;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 30px 90px rgba(0,0,0,.7);
+    text-align:center;
+    min-width:min(420px, 88vw);
+  }
+  #toast .small{display:block;margin-top:8px;color:rgba(255,255,255,.72);font-weight:700;letter-spacing:.08em;font-size:11px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="overlay" role="dialog" aria-modal="true">
+  <div id="panel">
+    <div id="title">TILT PIPE QUEST // 5 LEVELS</div>
+    <div id="sub">
+      Tilt your device to guide the <b style="color:var(--ball)">balls</b> through neon pipes into the <b style="color:var(--good)">pink zone</b>.
+      iPhone Safari requires a motion permission tap.
+    </div>
+    <div class="row">
+      <button class="cta" id="btnEnable">ENABLE TILT</button>
+      <button class="cta2" id="btnNoTilt">PLAY WITHOUT TILT</button>
+      <button class="cta2" id="btnCal">CALIBRATE</button>
+    </div>
+    <div class="fine">
+      Tip: Keep your device mostly upright. Tap <b>CALIBRATE</b> if gravity feels “off”.
+    </div>
+  </div>
+</div>
+
+<div id="toast">
+  LEVEL COMPLETE
+  <span class="small" id="toastSub">tap NEXT to continue</span>
+  <div class="row" style="justify-content:center;margin-top:12px;">
+    <button class="cta" id="btnNext">NEXT LEVEL</button>
+    <button class="cta2" id="btnReplay">REPLAY</button>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="pill" id="leftPill" aria-live="polite">
+    <b id="lvlLabel">LEVEL 1/5</b>
+    <span id="ballsLabel">BALLS: 0</span>
+  </div>
+  <div class="pill">
+    <button class="btn" id="btnReset" title="Restart level">RESTART</button>
+    <button class="btn" id="btnCal2" title="Calibrate tilt baseline">CAL</button>
+  </div>
+</div>
+
+<div id="bottomBar">
+  <div id="help">
+    <b>HOW:</b> tilt to roll • get <b>all balls</b> into the pink zone • tap <b>RESTART</b> anytime
+  </div>
+  <div id="stickWrap" title="Touch fallback control (drag)">
+    <div id="stickRing"></div>
+    <div id="stickKnob"></div>
+  </div>
+</div>
+
+<script>
+/*
+  TILT PIPE QUEST // 5 LEVELS
+  Single-file physics toy (no external libs)
+  - Circle particles ("balls")
+  - Static thick segments + static circles
+  - Tilt (deviceorientation) controls gravity (with iOS permission)
+  - Touch fallback joystick
+  - 5 handcrafted levels
+*/
+
+(() => {
+  // ===== Canvas / DPR =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let W=0, H=0, DPR=1;
+
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, window.innerWidth);
+    H = Math.max(1, window.innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ===== UI =====
+  const overlay = document.getElementById('overlay');
+  const btnEnable = document.getElementById('btnEnable');
+  const btnNoTilt = document.getElementById('btnNoTilt');
+  const btnCal = document.getElementById('btnCal');
+  const btnReset = document.getElementById('btnReset');
+  const btnCal2 = document.getElementById('btnCal2');
+
+  const lvlLabel = document.getElementById('lvlLabel');
+  const ballsLabel = document.getElementById('ballsLabel');
+
+  const toast = document.getElementById('toast');
+  const toastSub = document.getElementById('toastSub');
+  const btnNext = document.getElementById('btnNext');
+  const btnReplay = document.getElementById('btnReplay');
+
+  const stickWrap = document.getElementById('stickWrap');
+  const stickKnob = document.getElementById('stickKnob');
+
+  // ===== Math helpers =====
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp  = (a,b,t)=>a+(b-a)*t;
+  const hypot = Math.hypot;
+  const TAU = Math.PI*2;
+
+  function vec(x=0,y=0){ return {x,y}; }
+  function vadd(a,b){ return {x:a.x+b.x,y:a.y+b.y}; }
+  function vsub(a,b){ return {x:a.x-b.x,y:a.y-b.y}; }
+  function vmul(a,s){ return {x:a.x*s,y:a.y*s}; }
+  function vdot(a,b){ return a.x*b.x + a.y*b.y; }
+  function vlen(a){ return Math.hypot(a.x,a.y); }
+  function vnorm(a){ const L=vlen(a)||1; return {x:a.x/L,y:a.y/L}; }
+
+  function closestPointOnSegment(p, a, b){
+    const ab = vsub(b,a);
+    const t = clamp(vdot(vsub(p,a), ab) / (vdot(ab,ab) || 1), 0, 1);
+    return { x: a.x + ab.x*t, y: a.y + ab.y*t, t };
+  }
+
+  // ===== Physics tuning =====
+  const PHYS = {
+    ballRadius: 10,
+    ballRestitution: 0.25,
+    ballFriction: 0.02,
+    wallFriction: 0.08,
+    circleFriction: 0.10,
+    iterations: 4,
+    maxSpeed: 1600,
+    gravityStrength: 1400, // px/s^2 at full tilt
+    airDrag: 0.006,
+  };
+
+  // ===== Game state =====
+  const state = {
+    running: false,
+    levelIndex: 0,
+    balls: [],
+    segments: [],
+    circles: [],
+    goal: {x:0,y:0,r:44},
+    bowl: {x:0,y:0,w:0,h:0},
+    spawn: {x:0,y:0},
+    ballsToSpawn: 10,
+    spawnTimer: 0,
+    spawnRate: 0.14, // seconds
+    won: false,
+    wonLatch: 0,
+  };
+
+  // ===== Tilt + Fallback =====
+  let hasTilt = false;
+  let tilt = {beta:0, gamma:0};
+  let base = {beta:0, gamma:0};
+  let joy = {x:0, y:0, active:false}; // -1..1
+  let usingJoystick = false;
+
+  function setJoystickVisual(){
+    const range = 36;
+    stickKnob.style.transform = `translate(${joy.x*range}px, ${joy.y*range}px)`;
+  }
+  setJoystickVisual();
+
+  function handleTilt(e){
+    if (typeof e.beta === 'number') tilt.beta = e.beta;
+    if (typeof e.gamma === 'number') tilt.gamma = e.gamma;
+  }
+
+  function calibrate(){
+    base.beta = tilt.beta || 0;
+    base.gamma = tilt.gamma || 0;
+  }
+
+  function getGravity(){
+    // Map gamma (left/right), beta (front/back) into gravity vector.
+    // Calibrated baseline subtracts drift; clamp to keep stable.
+    const gLR = clamp(((tilt.gamma || 0) - base.gamma) / 45, -1, 1); // left/right
+    const gFB = clamp(((tilt.beta  || 0) - base.beta ) / 45, -1, 1); // forward/back
+    const g = vec(gLR, gFB);
+
+    // If no tilt permission or joystick active, blend in joystick.
+    if (!hasTilt || usingJoystick){
+      return vec(joy.x, joy.y);
+    }
+    return g;
+  }
+
+  // iOS permission
+  async function enableMotion(){
+    try{
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res === 'granted'){
+          window.addEventListener('deviceorientation', handleTilt, true);
+          hasTilt = true;
+          calibrate();
+          start();
+          overlay.style.display = 'none';
+        } else {
+          alert('Motion permission denied. You can still play with the touch control pad.');
+          hasTilt = false;
+          start();
+          overlay.style.display = 'none';
+        }
+      } else {
+        // Non-iOS / already allowed
+        window.addEventListener('deviceorientation', handleTilt, true);
+        hasTilt = true;
+        calibrate();
+        start();
+        overlay.style.display = 'none';
+      }
+    } catch(err){
+      console.error(err);
+      alert('Motion permission error. You can still play with the touch control pad.');
+      hasTilt = false;
+      start();
+      overlay.style.display = 'none';
+    }
+  }
+
+  // ===== Touch joystick =====
+  let stickRect = null;
+  function refreshStickRect(){ stickRect = stickWrap.getBoundingClientRect(); }
+  window.addEventListener('resize', refreshStickRect, {passive:true});
+  refreshStickRect();
+
+  function setJoyFromClient(x,y){
+    if (!stickRect) refreshStickRect();
+    const cx = stickRect.left + stickRect.width/2;
+    const cy = stickRect.top  + stickRect.height/2;
+    const dx = (x - cx) / (stickRect.width/2);
+    const dy = (y - cy) / (stickRect.height/2);
+    const m = Math.hypot(dx,dy) || 1;
+    const s = m > 1 ? 1/m : 1;
+    joy.x = clamp(dx*s, -1, 1);
+    joy.y = clamp(dy*s, -1, 1);
+    setJoystickVisual();
+  }
+
+  function stickDown(e){
+    usingJoystick = true;
+    joy.active = true;
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    setJoyFromClient(p.clientX, p.clientY);
+    e.preventDefault?.();
+  }
+  function stickMove(e){
+    if (!joy.active) return;
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    setJoyFromClient(p.clientX, p.clientY);
+    e.preventDefault?.();
+  }
+  function stickUp(){
+    joy.active = false;
+    joy.x = joy.y = 0;
+    setJoystickVisual();
+    // keep usingJoystick true (so people without tilt can play)
+  }
+
+  stickWrap.addEventListener('pointerdown', stickDown);
+  window.addEventListener('pointermove', stickMove, {passive:false});
+  window.addEventListener('pointerup', stickUp, {passive:true});
+  stickWrap.addEventListener('touchstart', stickDown, {passive:false});
+  window.addEventListener('touchmove', stickMove, {passive:false});
+  window.addEventListener('touchend', stickUp, {passive:true});
+
+  // ===== Level design =====
+  // Each level: { balls, spawnRate, pipes:[{a,b,r}], bumpers:[{x,y,r}], goal:{x,y,r}, bowl:{x,y,w,h} }
+  function makeArc(cx, cy, R, a0, a1, segments){
+    const out = [];
+    for(let i=0;i<segments;i++){
+      const t0 = i/segments;
+      const t1 = (i+1)/segments;
+      const A0 = a0 + (a1-a0)*t0;
+      const A1 = a0 + (a1-a0)*t1;
+      out.push({
+        a:{x: cx + Math.cos(A0)*R, y: cy + Math.sin(A0)*R},
+        b:{x: cx + Math.cos(A1)*R, y: cy + Math.sin(A1)*R},
+      });
+    }
+    return out;
+  }
+
+  function L(x,y){ return {x,y}; }
+
+  function buildLevels(){
+    // Responsive coordinates using fractions of screen dimensions.
+    // We'll translate these each load so it feels good on different aspect ratios.
+    const levels = [];
+
+    // Helper to push pipes
+    function levelTemplate(def){
+      // def uses normalized coords [0..1] for x and y
+      return def;
+    }
+
+    levels.push(levelTemplate({
+      name:"BASIN DROP",
+      balls: 10,
+      spawnRate: 0.12,
+      bowl:{x:0.50,y:0.12,w:0.68,h:0.26},
+      pipes:[
+        // main trunk
+        {a:L(0.50,0.25), b:L(0.50,0.48), r:0.028},
+        // upper branch loops
+        {a:L(0.50,0.38), b:L(0.30,0.46), r:0.026},
+        {a:L(0.50,0.38), b:L(0.70,0.46), r:0.026},
+        {a:L(0.30,0.46), b:L(0.22,0.38), r:0.024},
+        {a:L(0.70,0.46), b:L(0.78,0.38), r:0.024},
+
+        // mid hub down
+        {a:L(0.50,0.48), b:L(0.50,0.60), r:0.030},
+        // lower cluster
+        {a:L(0.50,0.60), b:L(0.32,0.72), r:0.028},
+        {a:L(0.50,0.60), b:L(0.68,0.72), r:0.028},
+        {a:L(0.32,0.72), b:L(0.24,0.84), r:0.028},
+        {a:L(0.68,0.72), b:L(0.76,0.84), r:0.028},
+
+        // victory pipe
+        {a:L(0.76,0.84), b:L(0.88,0.90), r:0.022},
+      ],
+      bumpers:[
+        {x:0.30,y:0.46,r:0.11},
+        {x:0.70,y:0.46,r:0.11},
+        {x:0.32,y:0.76,r:0.11},
+        {x:0.68,y:0.76,r:0.11},
+        {x:0.50,y:0.64,r:0.06},
+      ],
+      goal:{x:0.90,y:0.90,r:0.06},
+    }));
+
+    levels.push(levelTemplate({
+      name:"THE SWITCHBACK",
+      balls: 12,
+      spawnRate: 0.11,
+      bowl:{x:0.52,y:0.12,w:0.72,h:0.28},
+      pipes:[
+        {a:L(0.52,0.25), b:L(0.52,0.35), r:0.030},
+
+        {a:L(0.52,0.35), b:L(0.22,0.48), r:0.026},
+        {a:L(0.22,0.48), b:L(0.72,0.58), r:0.026},
+        {a:L(0.72,0.58), b:L(0.30,0.70), r:0.026},
+        {a:L(0.30,0.70), b:L(0.82,0.80), r:0.026},
+
+        // final into goal
+        {a:L(0.82,0.80), b:L(0.92,0.90), r:0.022},
+      ],
+      bumpers:[
+        {x:0.22,y:0.48,r:0.09},
+        {x:0.72,y:0.58,r:0.09},
+        {x:0.30,y:0.70,r:0.09},
+        {x:0.52,y:0.55,r:0.07},
+        {x:0.55,y:0.72,r:0.07},
+        {x:0.70,y:0.74,r:0.07},
+      ],
+      goal:{x:0.93,y:0.90,r:0.06},
+    }));
+
+    levels.push(levelTemplate({
+      name:"THE PINCH",
+      balls: 14,
+      spawnRate: 0.10,
+      bowl:{x:0.48,y:0.11,w:0.70,h:0.28},
+      pipes:[
+        {a:L(0.48,0.25), b:L(0.48,0.40), r:0.030},
+
+        // narrow canyon
+        {a:L(0.48,0.40), b:L(0.38,0.55), r:0.020},
+        {a:L(0.38,0.55), b:L(0.58,0.70), r:0.020},
+        {a:L(0.58,0.70), b:L(0.46,0.82), r:0.020},
+        {a:L(0.46,0.82), b:L(0.88,0.88), r:0.022},
+      ],
+      bumpers:[
+        {x:0.44,y:0.50,r:0.10},
+        {x:0.56,y:0.60,r:0.10},
+        {x:0.42,y:0.70,r:0.10},
+        {x:0.62,y:0.78,r:0.10},
+        // pinch posts
+        {x:0.48,y:0.52,r:0.05},
+        {x:0.48,y:0.64,r:0.05},
+      ],
+      goal:{x:0.92,y:0.88,r:0.06},
+    }));
+
+    levels.push(levelTemplate({
+      name:"THE CAROUSEL",
+      balls: 16,
+      spawnRate: 0.095,
+      bowl:{x:0.50,y:0.12,w:0.76,h:0.30},
+      pipes:[
+        {a:L(0.50,0.25), b:L(0.50,0.36), r:0.030},
+
+        // spiral-ish route
+        {a:L(0.50,0.36), b:L(0.28,0.44), r:0.026},
+        {a:L(0.28,0.44), b:L(0.32,0.62), r:0.026},
+        {a:L(0.32,0.62), b:L(0.66,0.58), r:0.026},
+        {a:L(0.66,0.58), b:L(0.60,0.78), r:0.026},
+        {a:L(0.60,0.78), b:L(0.86,0.84), r:0.024},
+        {a:L(0.86,0.84), b:L(0.92,0.92), r:0.022},
+      ],
+      bumpers:[
+        {x:0.50,y:0.50,r:0.18},
+        {x:0.30,y:0.52,r:0.10},
+        {x:0.67,y:0.68,r:0.10},
+        {x:0.45,y:0.72,r:0.09},
+        {x:0.78,y:0.76,r:0.08},
+      ],
+      goal:{x:0.93,y:0.92,r:0.06},
+    }));
+
+    levels.push(levelTemplate({
+      name:"THE GAUNTLET",
+      balls: 18,
+      spawnRate: 0.085,
+      bowl:{x:0.50,y:0.12,w:0.78,h:0.30},
+      pipes:[
+        {a:L(0.50,0.25), b:L(0.50,0.34), r:0.030},
+
+        // split + recombine
+        {a:L(0.50,0.34), b:L(0.22,0.44), r:0.024},
+        {a:L(0.50,0.34), b:L(0.78,0.44), r:0.024},
+
+        {a:L(0.22,0.44), b:L(0.28,0.62), r:0.022},
+        {a:L(0.78,0.44), b:L(0.72,0.62), r:0.022},
+
+        // central choke
+        {a:L(0.28,0.62), b:L(0.50,0.66), r:0.018},
+        {a:L(0.72,0.62), b:L(0.50,0.66), r:0.018},
+
+        // zig to finish
+        {a:L(0.50,0.66), b:L(0.34,0.76), r:0.020},
+        {a:L(0.34,0.76), b:L(0.62,0.84), r:0.020},
+        {a:L(0.62,0.84), b:L(0.44,0.90), r:0.020},
+        {a:L(0.44,0.90), b:L(0.90,0.92), r:0.022},
+      ],
+      bumpers:[
+        // gauntlet drums
+        {x:0.36,y:0.48,r:0.08},
+        {x:0.64,y:0.48,r:0.08},
+        {x:0.36,y:0.58,r:0.08},
+        {x:0.64,y:0.58,r:0.08},
+        {x:0.50,y:0.58,r:0.06},
+        // choke teeth
+        {x:0.48,y:0.66,r:0.045},
+        {x:0.52,y:0.66,r:0.045},
+        // late bumpers
+        {x:0.42,y:0.78,r:0.07},
+        {x:0.58,y:0.86,r:0.07},
+      ],
+      goal:{x:0.92,y:0.92,r:0.06},
+    }));
+
+    return levels;
+  }
+
+  const LEVELS = buildLevels();
+
+  // ===== Convert normalized level data to pixels =====
+  function loadLevel(idx){
+    state.levelIndex = clamp(idx, 0, LEVELS.length-1);
+    const L = LEVELS[state.levelIndex];
+
+    state.balls = [];
+    state.segments = [];
+    state.circles = [];
+    state.won = false;
+    state.wonLatch = 0;
+
+    // scale factors
+    const pad = 14;
+    const usableW = W - pad*2;
+    const usableH = H - pad*2;
+
+    function pxX(nx){ return pad + nx * usableW; }
+    function pxY(ny){ return pad + ny * usableH; }
+    function pxR(nr){ return nr * Math.min(usableW, usableH); }
+
+    // bowl
+    const bowl = L.bowl;
+    state.bowl = {
+      x: pxX(bowl.x),
+      y: pxY(bowl.y),
+      w: pxR(bowl.w),
+      h: pxR(bowl.h)
+    };
+
+    // spawn point (center-bottom of bowl)
+    state.spawn = { x: state.bowl.x, y: state.bowl.y + state.bowl.h*0.20 };
+
+    // level tuning
+    state.ballsToSpawn = L.balls;
+    state.spawnRate = L.spawnRate;
+
+    // pipes/segments
+    for (const p of L.pipes){
+      state.segments.push({
+        a: {x: pxX(p.a.x), y: pxY(p.a.y)},
+        b: {x: pxX(p.b.x), y: pxY(p.b.y)},
+        r: pxR(p.r) // thickness radius
+      });
+    }
+
+    // bumpers
+    for (const c of L.bumpers){
+      state.circles.push({
+        x: pxX(c.x),
+        y: pxY(c.y),
+        r: pxR(c.r)
+      });
+    }
+
+    // goal
+    state.goal = {
+      x: pxX(L.goal.x),
+      y: pxY(L.goal.y),
+      r: pxR(L.goal.r)
+    };
+
+    // Add world bounds as thick segments (walls)
+    const wallR = Math.max(10, Math.min(W,H)*0.015);
+    const top = pad, left = pad, right = W-pad, bottom = H-pad;
+    state.segments.push({ a:{x:left,y:top}, b:{x:right,y:top}, r:wallR});
+    state.segments.push({ a:{x:right,y:top}, b:{x:right,y:bottom}, r:wallR});
+    state.segments.push({ a:{x:right,y:bottom}, b:{x:left,y:bottom}, r:wallR});
+    state.segments.push({ a:{x:left,y:bottom}, b:{x:left,y:top}, r:wallR});
+
+    // bowl shape as arc segments (static)
+    // We carve a basin at top: two arcs (left and right), plus a lip.
+    const bowlCx = state.bowl.x;
+    const bowlCy = state.bowl.y + state.bowl.h*0.02;
+    const bowlR = state.bowl.w*0.48;
+    const arc = makeArc(bowlCx, bowlCy, bowlR, Math.PI*1.08, Math.PI*1.92, 18);
+    const lipR = Math.max(12, wallR*0.95);
+
+    for (const s of arc){
+      state.segments.push({ a:s.a, b:s.b, r:lipR });
+    }
+    // a short "gate" that keeps balls in until spawn flow opens
+    state.gate = {
+      a:{x: bowlCx - bowlR*0.35, y: bowlCy + bowlR*0.42},
+      b:{x: bowlCx + bowlR*0.35, y: bowlCy + bowlR*0.42},
+      r: lipR*0.7,
+      open: false
+    };
+
+    // Pre-place the balls in the bowl, slightly jittered.
+    const R = PHYS.ballRadius;
+    const count = state.ballsToSpawn;
+    for (let i=0;i<count;i++){
+      const t = i / Math.max(1,count-1);
+      const px = bowlCx + (t-0.5) * bowlR*0.8 + (Math.random()-0.5)*R*0.6;
+      const py = bowlCy + bowlR*0.20 + (Math.random()*bowlR*0.12);
+      state.balls.push(makeBall(px, py, R));
+    }
+
+    state.spawnTimer = 0;
+    state.gate.open = false;
+
+    // HUD
+    lvlLabel.textContent = `LEVEL ${state.levelIndex+1}/5`;
+    ballsLabel.textContent = `BALLS: ${state.balls.length}`;
+    toast.style.display = 'none';
+  }
+
+  function makeBall(x,y,r){
+    return {
+      x,y,r,
+      vx:(Math.random()-0.5)*40,
+      vy:(Math.random()-0.5)*40,
+      inGoal:false,
+      alive:true,
+    };
+  }
+
+  // ===== Collision: ball vs thick segment =====
+  function collideBallSegment(ball, seg){
+    const p = {x:ball.x, y:ball.y};
+    const cp = closestPointOnSegment(p, seg.a, seg.b);
+    const dx = p.x - cp.x;
+    const dy = p.y - cp.y;
+    const dist = Math.hypot(dx,dy) || 0.00001;
+    const minDist = ball.r + seg.r;
+    if (dist >= minDist) return;
+
+    // push out
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const penetration = (minDist - dist);
+
+    ball.x += nx * penetration;
+    ball.y += ny * penetration;
+
+    // velocity response: reflect component into normal
+    const vn = ball.vx*nx + ball.vy*ny;
+    if (vn < 0){
+      const bounce = PHYS.ballRestitution;
+      ball.vx -= (1 + bounce) * vn * nx;
+      ball.vy -= (1 + bounce) * vn * ny;
+    }
+
+    // friction along tangent
+    const tx = -ny, ty = nx;
+    const vt = ball.vx*tx + ball.vy*ty;
+    const fr = PHYS.wallFriction;
+    ball.vx -= vt * fr * tx;
+    ball.vy -= vt * fr * ty;
+  }
+
+  // ===== Collision: ball vs static circle =====
+  function collideBallCircle(ball, c){
+    const dx = ball.x - c.x;
+    const dy = ball.y - c.y;
+    const dist = Math.hypot(dx,dy) || 0.00001;
+    const minDist = ball.r + c.r;
+    if (dist >= minDist) return;
+
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const penetration = (minDist - dist);
+
+    ball.x += nx * penetration;
+    ball.y += ny * penetration;
+
+    const vn = ball.vx*nx + ball.vy*ny;
+    if (vn < 0){
+      const bounce = 0.30;
+      ball.vx -= (1 + bounce) * vn * nx;
+      ball.vy -= (1 + bounce) * vn * ny;
+    }
+
+    const tx = -ny, ty = nx;
+    const vt = ball.vx*tx + ball.vy*ty;
+    const fr = PHYS.circleFriction;
+    ball.vx -= vt * fr * tx;
+    ball.vy -= vt * fr * ty;
+  }
+
+  // ===== Collision: ball vs ball =====
+  function collideBallBall(a,b){
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.hypot(dx,dy) || 0.00001;
+    const minDist = a.r + b.r;
+    if (dist >= minDist) return;
+
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const penetration = (minDist - dist);
+
+    // separate
+    const total = 2;
+    a.x -= nx * penetration * (1/total);
+    a.y -= ny * penetration * (1/total);
+    b.x += nx * penetration * (1/total);
+    b.y += ny * penetration * (1/total);
+
+    // 1D impulse along normal (equal mass)
+    const rvx = b.vx - a.vx;
+    const rvy = b.vy - a.vy;
+    const vn = rvx*nx + rvy*ny;
+    if (vn > 0) return;
+
+    const e = 0.18;
+    const j = -(1+e)*vn / (1/1 + 1/1);
+    const ix = j*nx;
+    const iy = j*ny;
+
+    a.vx -= ix;
+    a.vy -= iy;
+    b.vx += ix;
+    b.vy += iy;
+
+    // tiny tangential damping
+    const tx = -ny, ty = nx;
+    const vt = rvx*tx + rvy*ty;
+    const fr = 0.02;
+    a.vx += vt*fr*tx;
+    a.vy += vt*fr*ty;
+    b.vx -= vt*fr*tx;
+    b.vy -= vt*fr*ty;
+  }
+
+  // ===== Goal check =====
+  function inGoal(ball){
+    const dx = ball.x - state.goal.x;
+    const dy = ball.y - state.goal.y;
+    const d = Math.hypot(dx,dy);
+    return d < (state.goal.r - ball.r*0.15);
+  }
+
+  // ===== Rendering helpers =====
+  function neonStroke(drawFn, core, glow){
+    // multi-pass glow
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = 'lighter';
+
+    ctx.strokeStyle = glow;
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 28;
+    ctx.lineWidth *= 1.18;
+    drawFn();
+
+    ctx.shadowBlur = 16;
+    ctx.lineWidth *= 0.96;
+    drawFn();
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = core;
+    drawFn();
+
+    ctx.restore();
+  }
+
+  function drawBackground(){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // subtle nebula
+    const grd = ctx.createRadialGradient(W*0.45,H*0.18, 10, W*0.45,H*0.18, Math.max(W,H)*0.9);
+    grd.addColorStop(0, 'rgba(11,137,255,0.14)');
+    grd.addColorStop(0.35, 'rgba(11,137,255,0.06)');
+    grd.addColorStop(0.7, 'rgba(255,0,212,0.05)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,W,H);
+
+    // tiny stars
+    ctx.globalAlpha = 0.18;
+    for(let i=0;i<70;i++){
+      const x = (i*131.7)%W;
+      const y = (i*313.1)%H;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x, y, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawGoal(){
+    const g = state.goal;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(g.x,g.y,g.r,0,TAU);
+    ctx.fillStyle = 'rgba(255,0,212,0.14)';
+    ctx.fill();
+
+    ctx.lineWidth = Math.max(10, g.r*0.22);
+    neonStroke(() => {
+      ctx.beginPath();
+      ctx.arc(g.x,g.y,g.r,0,TAU);
+      ctx.stroke();
+    }, 'rgba(255,0,212,0.95)', 'rgba(255,0,212,0.55)');
+
+    // inner ring
+    ctx.lineWidth = Math.max(2, g.r*0.10);
+    ctx.strokeStyle = 'rgba(255,140,240,0.9)';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(g.x,g.y,g.r*0.55,0,TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSegments(){
+    for (const s of state.segments){
+      ctx.lineWidth = Math.max(6, s.r*2);
+      neonStroke(() => {
+        ctx.beginPath();
+        ctx.moveTo(s.a.x, s.a.y);
+        ctx.lineTo(s.b.x, s.b.y);
+        ctx.stroke();
+      }, 'rgba(11,137,255,0.98)', 'rgba(24,182,255,0.55)');
+    }
+    // gate
+    if (state.gate && !state.gate.open){
+      const g = state.gate;
+      ctx.lineWidth = Math.max(6, g.r*2);
+      neonStroke(() => {
+        ctx.beginPath();
+        ctx.moveTo(g.a.x, g.a.y);
+        ctx.lineTo(g.b.x, g.b.y);
+        ctx.stroke();
+      }, 'rgba(24,182,255,0.9)', 'rgba(24,182,255,0.55)');
+    }
+  }
+
+  function drawCircles(){
+    for (const c of state.circles){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(c.x,c.y,c.r,0,TAU);
+      ctx.fillStyle = 'rgba(255,255,255,0.02)';
+      ctx.fill();
+
+      ctx.lineWidth = Math.max(8, c.r*0.24);
+      neonStroke(() => {
+        ctx.beginPath();
+        ctx.arc(c.x,c.y,c.r,0,TAU);
+        ctx.stroke();
+      }, 'rgba(11,137,255,0.95)', 'rgba(24,182,255,0.45)');
+      ctx.restore();
+    }
+  }
+
+  function drawBowl(){
+    const b = state.bowl;
+    // hint shape
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.beginPath();
+    ctx.ellipse(b.x, b.y, b.w*0.50, b.h*0.50, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(24,182,255,0.25)';
+    ctx.fill();
+    ctx.restore();
+
+    // sprinkle dots (decor) near top like your sketch
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    for(let i=0;i<14;i++){
+      const x = b.x + (Math.random()*0.46 - 0.23)*b.w;
+      const y = b.y - b.h*0.30 + Math.random()*b.h*0.25;
+      ctx.beginPath();
+      ctx.arc(x, y, 7.5, 0, TAU);
+      ctx.fillStyle = 'rgba(120,255,70,0.8)';
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawBalls(){
+    for (const ball of state.balls){
+      // ball glow
+      const r = ball.r;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = 'rgba(255,211,77,0.65)';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, r, 0, TAU);
+      ctx.fillStyle = 'rgba(255,211,77,0.92)';
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, r*0.92, 0, TAU);
+      ctx.fillStyle = 'rgba(255,234,163,0.70)';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawLevelName(){
+    // subtle label in top-left, but keep minimal
+    const name = LEVELS[state.levelIndex].name;
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 18px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+    ctx.fillText(name, 16, 70);
+    ctx.restore();
+  }
+
+  function draw(){
+    drawBackground();
+    drawLevelName();
+    drawBowl();
+    drawGoal();
+    drawSegments();
+    drawCircles();
+    drawBalls();
+  }
+
+  // ===== Simulation =====
+  let last = performance.now();
+  let acc = 0;
+  const fixed = 1/60;
+
+  function step(dt){
+    // open gate gradually after a small delay (lets player settle)
+    if (state.gate){
+      state.spawnTimer += dt;
+      if (state.spawnTimer > 0.6) state.gate.open = true;
+    }
+
+    // gravity
+    const gvec = getGravity();
+    const gx = gvec.x * PHYS.gravityStrength;
+    const gy = gvec.y * PHYS.gravityStrength;
+
+    for (const ball of state.balls){
+      // integrate
+      ball.vx += gx * dt;
+      ball.vy += gy * dt;
+
+      // air drag
+      const drag = 1 - PHYS.airDrag;
+      ball.vx *= drag;
+      ball.vy *= drag;
+
+      // clamp speed
+      const sp = Math.hypot(ball.vx, ball.vy);
+      if (sp > PHYS.maxSpeed){
+        const s = PHYS.maxSpeed / sp;
+        ball.vx *= s; ball.vy *= s;
+      }
+
+      // move
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+    }
+
+    // collisions (iterated for stability)
+    for (let it=0; it<PHYS.iterations; it++){
+      // ball-ball
+      for (let i=0;i<state.balls.length;i++){
+        for (let j=i+1;j<state.balls.length;j++){
+          collideBallBall(state.balls[i], state.balls[j]);
+        }
+      }
+      // ball-segment
+      for (const ball of state.balls){
+        for (const seg of state.segments){
+          collideBallSegment(ball, seg);
+        }
+        if (state.gate && !state.gate.open){
+          collideBallSegment(ball, state.gate);
+        }
+        // bumpers
+        for (const c of state.circles){
+          collideBallCircle(ball, c);
+        }
+      }
+    }
+
+    // friction floor-ish (tiny)
+    for (const ball of state.balls){
+      ball.vx *= (1 - PHYS.ballFriction);
+      ball.vy *= (1 - PHYS.ballFriction);
+    }
+
+    // goal detection
+    let inCount = 0;
+    for (const ball of state.balls){
+      ball.inGoal = inGoal(ball);
+      if (ball.inGoal) inCount++;
+    }
+
+    ballsLabel.textContent = `BALLS: ${state.balls.length}  IN: ${inCount}`;
+
+    if (!state.won && inCount === state.balls.length && state.balls.length > 0){
+      state.wonLatch += dt;
+      if (state.wonLatch > 0.55){
+        win();
+      }
+    } else {
+      state.wonLatch = 0;
+    }
+  }
+
+  function win(){
+    state.won = true;
+    toastSub.textContent = (state.levelIndex < 4) ? 'tap NEXT to continue' : 'you beat all 5 levels';
+    toast.style.display = 'block';
+  }
+
+  function loop(now){
+    if (!state.running){
+      last = now;
+      requestAnimationFrame(loop);
+      return;
+    }
+    const dt = Math.min(0.05, (now - last)/1000);
+    last = now;
+    acc += dt;
+
+    while(acc >= fixed){
+      if (!state.won) step(fixed);
+      acc -= fixed;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ===== Controls =====
+  function start(){
+    if (!state.running){
+      state.running = true;
+    }
+    loadLevel(state.levelIndex);
+  }
+
+  function restart(){
+    loadLevel(state.levelIndex);
+  }
+
+  function nextLevel(){
+    const nxt = state.levelIndex + 1;
+    if (nxt < LEVELS.length){
+      loadLevel(nxt);
+    } else {
+      // loop back to 1
+      loadLevel(0);
+    }
+  }
+
+  btnEnable.addEventListener('click', enableMotion);
+  btnNoTilt.addEventListener('click', () => {
+    hasTilt = false;
+    usingJoystick = true;
+    start();
+    overlay.style.display = 'none';
+  });
+  btnCal.addEventListener('click', () => {
+    calibrate();
+  });
+
+  btnReset.addEventListener('click', restart);
+  btnCal2.addEventListener('click', calibrate);
+
+  btnNext.addEventListener('click', () => {
+    toast.style.display = 'none';
+    state.won = false;
+    nextLevel();
+  });
+
+  btnReplay.addEventListener('click', () => {
+    toast.style.display = 'none';
+    state.won = false;
+    restart();
+  });
+
+  // keyboard for desktop testing
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') restart();
+    if (e.key === 'n' || e.key === 'N') { toast.style.display='none'; state.won=false; nextLevel(); }
+    if (e.key === 'c' || e.key === 'C') calibrate();
+    if (e.key === 'Escape') { overlay.style.display = ''; }
+  });
+
+  // Prevent accidental scroll/zoom on iOS
+  window.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+  window.addEventListener('touchmove', e => {
+    // allow joystick area to handle it, but prevent page scroll
+    e.preventDefault();
+  }, {passive:false});
+
+})();
+</script>
+</body>
+</html>

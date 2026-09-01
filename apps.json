@@ -7,10 +7,45 @@
     "path": "symphonic-noise/index.html"
   },
   {
+    "id": "drum-machine",
+    "name": "Drum Machine",
+    "description": "A 16-step drum sequencer with five synthesized voices and a drive/fold/crush distortion chain.",
+    "category": "Music Tools",
+    "path": "DrumMachine.html"
+  },
+  {
+    "id": "sound-of-functions",
+    "name": "The Sound of Functions",
+    "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
+    "category": "Art",
+    "path": "SoundOfFunctions.html"
+  },
+  {
     "id": "one-thumb-racer",
     "name": "One-Thumb Racer",
     "description": "Drive with just your thumb. Drag anywhere in the pad to steer, long-press for nitro.",
     "category": "Games",
     "path": "OneThumbRacer.html"
+  },
+  {
+    "id": "tilt-pipe-quest",
+    "name": "Tilt Pipe Quest",
+    "description": "Tilt your device to guide balls through neon pipes into the goal zone. Five handcrafted levels, touch-joystick fallback included.",
+    "category": "Games",
+    "path": "TiltPipeQuest.html"
+  },
+  {
+    "id": "threes-minimal",
+    "name": "Threes Minimal",
+    "description": "A minimalist sliding-tile merge puzzle — combine matching tiles and chase a new high score.",
+    "category": "Games",
+    "path": "ThreesMinimal.html"
+  },
+  {
+    "id": "maisie-eats-everything",
+    "name": "Maisie Eats Everything 2",
+    "description": "Grow a hungry rainbow unicorn by eating everything smaller than you across ten whimsical levels.",
+    "category": "Games",
+    "path": "MaisieEatsEverything2.html"
   }
 ]
