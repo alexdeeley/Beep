@@ -35,6 +35,13 @@
     "path": "HNW9.html"
   },
   {
+    "id": "factorial-melody-generator",
+    "name": "Factorial Melody Generator",
+    "description": "Turns the digits of n! into an evolving melody — tap to play/pause, swipe to change n, double-tap to switch modes.",
+    "category": "Music Tools",
+    "path": "FactorialMelodyGenerator.html"
+  },
+  {
     "id": "sound-of-functions",
     "name": "The Sound of Functions",
     "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
@@ -68,6 +75,13 @@
     "description": "A sparkly finger-painting app — glowing ink trails, draggable emoji stickers, a magic wand burst, and a save/share button.",
     "category": "Art",
     "path": "MaisieMagicDraw.html"
+  },
+  {
+    "id": "smooth-wave-field",
+    "name": "Smooth Wave Field",
+    "description": "A no-UI generative wave field — tap and drag to ripple through shifting triangle, circle, square, or pixel grids. Two-finger tap changes the renderer, pinch to rescale.",
+    "category": "Art",
+    "path": "SmoothWaveField.html"
   },
   {
     "id": "one-thumb-racer",
@@ -131,5 +145,19 @@
     "description": "An expanded build of Ricochet 8-Bit with giant balls, homing shots, laser-blaster blocks, multi-cell L/T/giant shapes, and a one-time second-chance save.",
     "category": "Games",
     "path": "Sequence11.html"
+  },
+  {
+    "id": "spinner-drop",
+    "name": "Spinner Drop",
+    "description": "Tap to drop balls through spinning obstacles into a moving bucket — 10 shots per round, physics-driven bounces.",
+    "category": "Games",
+    "path": "SpinnerDrop.html"
+  },
+  {
+    "id": "maisies-kitty-cat-adventure",
+    "name": "Maisie's Kitty Cat Adventure",
+    "description": "Drag a hungry kitty around a neon city, gobbling treats and growing from Tiny to WORLD size.",
+    "category": "Games",
+    "path": "MaisiesKittyCatAdventure.html"
   }
 ]
