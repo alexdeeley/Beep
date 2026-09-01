@@ -28,3 +28,24 @@ can't start until a user gesture, per browser autoplay policy).
 `lib/Tone.js` is vendored from [Tone.js](https://tonejs.github.io/) v14.8.49
 (MIT licensed) so the app has no external CDN dependency and works fully
 offline once installed.
+
+## Deployment (GitHub Pages)
+
+`.github/workflows/deploy-symphonic-noise.yml` publishes this folder to
+GitHub Pages automatically on every push to `main` that touches
+`symphonic-noise/`, and can also be run manually from the Actions tab.
+
+**One-time setup** (repo owner, done once in the GitHub UI — not something
+a workflow file can do): go to **Settings → Pages** and set **Source** to
+**GitHub Actions**. After that, every push to `main` redeploys automatically.
+
+Once enabled, the app is live at:
+
+```
+https://alexdeeley.github.io/Beep/
+```
+
+(GitHub Pages serves this at the repo's Pages URL because the workflow
+uploads the `symphonic-noise/` folder itself as the site root — every path
+in `index.html`, `manifest.json`, and `sw.js` is relative, so it works
+whether the site is served from a root domain or a `/Beep/` subpath.)
