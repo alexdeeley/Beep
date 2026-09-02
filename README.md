@@ -514,7 +514,10 @@ self-contained single-page apps (`symphonic-noise/`, `OneThumbRacer.html`,
 and whatever gets added later), published together as a static site via
 `.github/workflows/deploy-pages.yml`.
 
-- **Live at:** `https://alexdeeley.github.io/Beep/`
+- **Live at:** `https://alexdeeley.github.io/Site/` once the repo itself
+  is renamed from `Beep` to `Site` (see the note below — that step needs
+  a human, it's not reachable from here). Until then it's still at
+  `https://alexdeeley.github.io/Beep/`.
 - **Root `index.html`** is the gallery page — it reads `apps.json` and
   renders a live iframe preview, name, and description for each app,
   grouped into sections (Music Tools, Games, Art, ...).
@@ -531,3 +534,10 @@ and whatever gets added later), published together as a static site via
 - The one manual, one-time setup step (already done for this repo): a
   human has to go to **Settings → Pages → Source → GitHub Actions** once —
   GitHub's API won't let a workflow token create a Pages site itself.
+- **Renaming the repo from `Beep` to `Site`** is also a human-only step —
+  no GitHub tool available here can rename a repository. Go to
+  **Settings → General → Repository name**, change it to `Site`, and
+  save. GitHub will move the repo (old git remotes and web links get an
+  automatic redirect) and the Pages site will come up at
+  `https://alexdeeley.github.io/Site/`. Anyone who's already added the
+  gallery to their home screen will need to re-add it once the URL moves.
