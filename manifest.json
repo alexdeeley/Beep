@@ -1,6 +1,6 @@
 {
-  "name": "Beep",
-  "short_name": "Beep",
+  "name": "Site",
+  "short_name": "Site",
   "description": "A small gallery of self-contained apps — music tools, games, art.",
   "start_url": "./index.html",
   "scope": "./",
