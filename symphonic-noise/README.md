@@ -32,9 +32,8 @@ offline once installed.
 ## Deployment (GitHub Pages)
 
 This folder is one app in the repo's shared app gallery — see the root
-`README.md` and `apps.json` for how the overall site is deployed. Live at
-(once the repo is renamed from `Beep` to `Site` — see the root README):
+`README.md` and `apps.json` for how the overall site is deployed. Live at:
 
 ```
-https://alexdeeley.github.io/Site/symphonic-noise/
+https://alexdeeley.github.io/Beep/symphonic-noise/
 ```
