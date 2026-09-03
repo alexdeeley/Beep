@@ -10,8 +10,10 @@ const priorityTopicSchema = z.object({
 });
 
 const watchEntrySchema = z.object({
-  type: z.enum(["artist", "band", "person", "company"]),
+  type: z.enum(["artist", "band", "person", "company", "technology", "game", "place", "topic"]),
   name: z.string().min(1),
+  /** Optional short context for the discovery model - e.g. a genre/scene a band belongs to, so an adjacent story can bubble up even without an exact name match. */
+  note: z.string().min(1).optional(),
 });
 
 const excludeEntrySchema = z.object({
@@ -38,6 +40,8 @@ export const editorialFocusSchema = z.object({
   $schemaVersion: z.number().int(),
   priorityTopics: z.array(priorityTopicSchema).min(1),
   neutralityNote: z.string().min(1),
+  /** How discovery should treat priorityTopics/watch: an associative graph of related interests, not a literal keyword whitelist. Optional - falls back to a sensible default if omitted. */
+  topicGraphNote: z.string().min(1).optional(),
   watch: z.array(watchEntrySchema).default([]),
   exclude: z.array(excludeEntrySchema).default([]),
   sourceTiers: z.record(z.string(), z.array(z.string()).min(1)),

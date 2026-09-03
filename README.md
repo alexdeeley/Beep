@@ -610,9 +610,13 @@ under `src/`, and it's re-read fresh at the start of every run.
   higher = more influence on the importance score) and a
   `sourceTierTrack` (`"hard_news"` or `"entertainment"`, which decides
   which source-tier list applies during verification).
-- **`watch`** — specific people/bands/companies you personally care about.
-  This list starts **empty on purpose**: there's no way to automatically
-  detect "every band I've ever mentioned," so you maintain it by hand. A
+- **`watch`** — specific people/bands/companies/technologies/games/
+  places/topics you personally care about (`type` is one of `artist`,
+  `band`, `person`, `company`, `technology`, `game`, `place`, `topic`,
+  with an optional `note` for context). This list starts **empty by
+  default in a fresh checkout**, but the repo's own `editorial-focus.json`
+  is already populated with a large one — there's no way to automatically
+  detect "every band I've ever mentioned," so it's maintained by hand. A
   match here gives a story a boost in the importance score. Worked
   example — to make sure you never miss news about a band:
   ```json
@@ -632,6 +636,15 @@ under `src/`, and it's re-read fresh at the start of every run.
   `priorityTopics` selects *what* to cover, never *how* to editorialize
   it — the wire-service voice applies identically to every topic,
   including politics.
+- **`topicGraphNote`** (optional) — tells discovery to treat
+  `priorityTopics` and `watch` as a connected graph of related interests
+  rather than a literal keyword whitelist, so a story can qualify by
+  being genuinely related to something you care about even if it doesn't
+  name it outright (e.g. a new record from a post-punk band you didn't
+  explicitly list still counts under the `music_genres_scenes` topic).
+  This never overrides the verification/fact-check gates — it only
+  affects what counts as on-topic. Falls back to a sensible built-in
+  default if omitted.
 
 JSON doesn't support comments natively, but the loader
 (`src/newswire/editorialFocus.ts`) tolerates `//` line comments, so feel

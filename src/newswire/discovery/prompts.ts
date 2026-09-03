@@ -49,12 +49,18 @@ export function buildDiscoverySystemPrompt(): string {
   ].join(" ");
 }
 
+const DEFAULT_TOPIC_GRAPH_NOTE =
+  "Treat the priority topics and watch list below as a connected graph of related interests, not a literal keyword whitelist - " +
+  "a story can qualify by being genuinely related to a node (the same genre/scene, the same underlying technology, an adjacent " +
+  "local community) even if it doesn't literally name it. This only affects what counts as on-topic; it never overrides the " +
+  "verification/fact-check gates downstream.";
+
 export function buildDiscoveryUserPrompt(focus: EditorialFocus, nowIso: string): string {
   const topics = focus.priorityTopics
     .map((t) => `- ${t.key} (weight ${t.weight}, track: ${t.sourceTierTrack}): ${t.label}`)
     .join("\n");
   const watch = focus.watch.length
-    ? focus.watch.map((w) => `- ${w.type}: ${w.name}`).join("\n")
+    ? focus.watch.map((w) => `- ${w.type}: ${w.name}${w.note ? ` (${w.note})` : ""}`).join("\n")
     : "(none configured)";
   const exclude = focus.exclude.length
     ? focus.exclude.map((e) => `- ${e.key ?? e.phrase}`).join("\n")
@@ -66,8 +72,10 @@ export function buildDiscoveryUserPrompt(focus: EditorialFocus, nowIso: string):
     "Reader's priority topics (search across all of these):",
     topics,
     "",
-    "Specific people/bands/companies the reader has flagged as personally relevant - weight matches on these more heavily within their topic:",
+    "Specific people/bands/companies/technologies/games/places/topics the reader has flagged as personally relevant - weight matches on these more heavily within their topic:",
     watch,
+    "",
+    focus.topicGraphNote ?? DEFAULT_TOPIC_GRAPH_NOTE,
     "",
     "Explicitly excluded topics/phrases - do not surface these even if newsworthy:",
     exclude,
