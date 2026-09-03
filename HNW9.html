@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>HNW 9</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --gap:14px;
+    --pad:16px;
+    --stroke:6px;
+    --radius:14px;
+  }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;
+    position:fixed;
+  }
+  #grid{
+    width:100vw; height:100vh;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    gap:var(--gap);
+    padding:var(--pad);
+    box-sizing:border-box;
+    background:var(--bg);
+  }
+  .sq{
+    border:var(--stroke) solid var(--fg);
+    border-radius:var(--radius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    outline:none;
+  }
+  .sq:active{ transform:scale(0.995); }
+  /* Fill shows "amount" */
+  .fill{
+    position:absolute; left:0; bottom:0; width:100%;
+    height:0%;
+    background:var(--fg);
+  }
+  /* Invert when "armed" */
+  .sq.armed{ background:var(--fg); }
+  .sq.armed .fill{ background:var(--bg); }
+  /* Subtle stripes to differentiate pads (no text) */
+  .sq::after{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.12;
+    background:
+      repeating-linear-gradient(45deg, var(--fg) 0 2px, transparent 2px 12px);
+    mix-blend-mode:difference;
+    pointer-events:none;
+  }
+  /* Make each pad pattern a bit different */
+  .sq[data-ix="1"]::after{ background:repeating-linear-gradient(0deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .sq[data-ix="2"]::after{ background:repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .sq[data-ix="3"]::after{ background:repeating-linear-gradient(135deg, var(--fg) 0 2px, transparent 2px 14px); }
+  .sq[data-ix="4"]::after{ background:repeating-linear-gradient(25deg, var(--fg) 0 2px, transparent 2px 10px); }
+  .sq[data-ix="5"]::after{ background:repeating-linear-gradient(70deg, var(--fg) 0 2px, transparent 2px 16px); }
+  .sq[data-ix="6"]::after{ background:repeating-linear-gradient(110deg, var(--fg) 0 2px, transparent 2px 13px); }
+  .sq[data-ix="7"]::after{ background:repeating-linear-gradient(160deg, var(--fg) 0 2px, transparent 2px 11px); }
+  .sq[data-ix="8"]::after{ background:repeating-linear-gradient(200deg, var(--fg) 0 2px, transparent 2px 15px); }
+
+  /* No text anywhere */
+  *{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+  <div id="grid" aria-label="Harsh noise wall pads">
+    <div class="sq" data-ix="0" data-param="master" role="button" aria-label="Pad 1"><div class="fill"></div></div>
+    <div class="sq" data-ix="1" data-param="noise"  role="button" aria-label="Pad 2"><div class="fill"></div></div>
+    <div class="sq" data-ix="2" data-param="filter" role="button" aria-label="Pad 3"><div class="fill"></div></div>
+
+    <div class="sq" data-ix="3" data-param="drive"  role="button" aria-label="Pad 4"><div class="fill"></div></div>
+    <div class="sq" data-ix="4" data-param="oscMix" role="button" aria-label="Pad 5"><div class="fill"></div></div>
+    <div class="sq" data-ix="5" data-param="oscPit" role="button" aria-label="Pad 6"><div class="fill"></div></div>
+
+    <div class="sq" data-ix="6" data-param="crush"  role="button" aria-label="Pad 7"><div class="fill"></div></div>
+    <div class="sq" data-ix="7" data-param="fb"     role="button" aria-label="Pad 8"><div class="fill"></div></div>
+    <div class="sq" data-ix="8" data-param="motion" role="button" aria-label="Pad 9"><div class="fill"></div></div>
+  </div>
+
+<script>
+(() => {
+  // ======== Audio Engine ========
+  let ctx = null;
+
+  // Params are 0..1
+  const P = {
+    master: 0.00,   // output level
+    noise:  0.78,   // noise thickness
+    filter: 0.52,   // filter tone
+    drive:  0.62,   // distortion
+    oscMix: 0.20,   // oscillator mix
+    oscPit: 0.35,   // oscillator pitch
+    crush:  0.10,   // bitcrush
+    fb:     0.40,   // feedback
+    motion: 0.55    // slow modulation intensity
+  };
+
+  // Nodes
+  let out, masterGain, noiseGain, oscGain, preGain, shaper, comp, lp, hp;
+  let delay, fbGain, wetGain, dryGain;
+  let crushNode;
+  let noise1, noise2, noise3;
+  let osc1, osc2;
+
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function expMap(x, a=1.8){ return Math.pow(clamp01(x), a); }
+
+  function makeNoiseBuffer(seconds=2.0){
+    const sr = ctx.sampleRate;
+    const len = Math.floor(seconds * sr);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    // Slightly "gritty" noise: white + a tiny random walk
+    let rw = 0;
+    for(let i=0;i<len;i++){
+      const w = (Math.random()*2-1);
+      rw = 0.995*rw + 0.005*(Math.random()*2-1);
+      data[i] = 0.85*w + 0.35*rw;
+    }
+    return buf;
+  }
+
+  function makeShaperCurve(amount){
+    // amount: 0..1
+    const k = 1 + amount * 220;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2 / (n - 1)) - 1;
+      curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+    }
+    return curve;
+  }
+
+  function createBitCrusher(){
+    const sp = ctx.createScriptProcessor(4096, 1, 1);
+    let ph = 0;
+    let last = 0;
+    sp.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0);
+      const output = e.outputBuffer.getChannelData(0);
+      // crush: 0..1 -> step size (bigger = harsher)
+      const c = clamp01(P.crush);
+      const bits = 16 - Math.floor(c * 12);   // 16..4
+      const step = Math.pow(0.5, bits);
+      const rateDiv = 1 + Math.floor(c * 40); // 1..41 (sample rate reduction)
+      for(let i=0;i<input.length;i++){
+        ph++;
+        if(ph >= rateDiv){
+          ph = 0;
+          // quantize
+          last = Math.round(input[i] / step) * step;
+        }
+        output[i] = last;
+      }
+    };
+    return sp;
+  }
+
+  function build(){
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+
+    // Output chain
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.0001;
+
+    out = ctx.destination;
+
+    // Sources
+    const noiseBuf = makeNoiseBuffer(2.0);
+    function mkNoiseSource(playbackRate){
+      const s = ctx.createBufferSource();
+      s.buffer = noiseBuf;
+      s.loop = true;
+      s.playbackRate.value = playbackRate;
+      return s;
+    }
+    noise1 = mkNoiseSource(0.95);
+    noise2 = mkNoiseSource(1.00);
+    noise3 = mkNoiseSource(1.05);
+
+    noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.0001;
+
+    // Oscillators
+    osc1 = ctx.createOscillator();
+    osc2 = ctx.createOscillator();
+    osc1.type = "sawtooth";
+    osc2.type = "square";
+    oscGain = ctx.createGain();
+    oscGain.gain.value = 0.0001;
+
+    // Pre-gain -> distortion -> crusher -> comp -> filters -> mix
+    preGain = ctx.createGain();
+    preGain.gain.value = 1.0;
+
+    shaper = ctx.createWaveShaper();
+    shaper.oversample = "4x";
+
+    crushNode = createBitCrusher();
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -24;
+    comp.knee.value = 24;
+    comp.ratio.value = 12;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.25;
+
+    hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 25;
+    hp.Q.value = 0.7;
+
+    lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 12000;
+    lp.Q.value = 0.9;
+
+    // Feedback micro-delay for wall density
+    delay = ctx.createDelay(0.05);
+    delay.delayTime.value = 0.012;
+
+    fbGain = ctx.createGain();
+    fbGain.gain.value = 0.0;
+
+    wetGain = ctx.createGain();
+    dryGain = ctx.createGain();
+
+    // Routing:
+    // Noise sum
+    noise1.connect(noiseGain);
+    noise2.connect(noiseGain);
+    noise3.connect(noiseGain);
+
+    // Osc sum
+    osc1.connect(oscGain);
+    osc2.connect(oscGain);
+
+    const sum = ctx.createGain();
+    noiseGain.connect(sum);
+    oscGain.connect(sum);
+
+    sum.connect(preGain);
+    preGain.connect(shaper);
+    shaper.connect(crushNode);
+    crushNode.connect(comp);
+    comp.connect(hp);
+    hp.connect(lp);
+
+    // Dry
+    lp.connect(dryGain);
+    dryGain.connect(masterGain);
+
+    // Wet feedback loop
+    lp.connect(delay);
+    delay.connect(wetGain);
+    wetGain.connect(masterGain);
+
+    // Feedback back into delay input (careful)
+    delay.connect(fbGain);
+    fbGain.connect(delay);
+
+    masterGain.connect(out);
+
+    // Start sources
+    const now = ctx.currentTime + 0.01;
+    osc1.frequency.setValueAtTime(110, now);
+    osc2.frequency.setValueAtTime(110, now);
+    osc1.start(now);
+    osc2.start(now);
+    noise1.start(now);
+    noise2.start(now);
+    noise3.start(now);
+
+    // Keep things moving
+    tick();
+    applyAll(true);
+  }
+
+  let raf = 0;
+  function tick(){
+    if(!ctx) return;
+    // Motion is subtle modulation of filter + delay time + osc detune
+    const t = ctx.currentTime;
+    const m = expMap(P.motion, 1.2);
+
+    const lfo1 = Math.sin(t * (0.14 + m*0.9));
+    const lfo2 = Math.sin(t * (0.37 + m*1.7) + 1.7);
+    const lfo3 = Math.sin(t * (0.09 + m*0.6) + 0.4);
+
+    const baseLP = 300 + expMap(P.filter, 2.2) * 17500; // 300..17800
+    const wobLP  = baseLP * (1 + 0.12*m*lfo1);
+    lp.frequency.setTargetAtTime(Math.max(120, Math.min(19000, wobLP)), t, 0.05);
+
+    const baseDelay = 0.004 + expMap(P.noise, 1.6) * 0.020; // 4ms..24ms
+    const wobDelay  = baseDelay * (1 + 0.25*m*lfo2);
+    delay.delayTime.setTargetAtTime(Math.max(0.001, Math.min(0.05, wobDelay)), t, 0.05);
+
+    const baseHz = 28 + expMap(P.oscPit, 2.0) * 750; // 28..778
+    osc1.frequency.setTargetAtTime(baseHz, t, 0.05);
+    osc2.frequency.setTargetAtTime(baseHz * (1.003 + 0.012*m*(0.5+0.5*lfo3)), t, 0.05);
+    osc1.detune.setTargetAtTime((m*12)*lfo2, t, 0.05);
+    osc2.detune.setTargetAtTime((-m*18)*lfo1, t, 0.05);
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function applyAll(immediate=false){
+    if(!ctx) return;
+    const t = ctx.currentTime;
+
+    const set = (param, v, tc=0.03) => {
+      if(immediate) param.setValueAtTime(v, t);
+      else param.setTargetAtTime(v, t, tc);
+    };
+
+    // Master: 0..1 -> 0..0.9 (log-ish)
+    const mg = Math.max(0.0001, expMap(P.master, 2.0) * 0.9);
+    set(masterGain.gain, mg, 0.06);
+
+    // Noise thickness
+    const ng = 0.02 + expMap(P.noise, 1.3) * 0.98;
+    set(noiseGain.gain, ng, 0.05);
+
+    // Pre gain (pushes shaper)
+    const pg = 1.0 + expMap(P.drive, 1.7) * 18.0;
+    set(preGain.gain, pg, 0.06);
+
+    shaper.curve = makeShaperCurve(expMap(P.drive, 1.2));
+
+    // Osc mix
+    const og = expMap(P.oscMix, 1.6) * 0.7;
+    set(oscGain.gain, og, 0.05);
+
+    // Feedback
+    const fbg = expMap(P.fb, 1.6) * 0.92; // up to near-unstable, but capped
+    set(fbGain.gain, fbg, 0.08);
+
+    // Wet/dry bias with noise amount (more noise => more wet)
+    const wet = 0.25 + expMap(P.noise, 1.4) * 0.55;
+    set(wetGain.gain, wet, 0.08);
+    set(dryGain.gain, 1.0 - wet*0.6, 0.08);
+
+    // Highpass nudges to keep sub under control when drive rises
+    const hpHz = 20 + expMap(P.drive, 1.5) * 120;
+    set(hp.frequency, hpHz, 0.08);
+  }
+
+  // ======== UI / Pads ========
+  const pads = Array.from(document.querySelectorAll(".sq"));
+  const padState = new Map(); // pointerId -> {el, startY, startVal, started, lastMove}
+
+  function setFill(el, v){
+    el.querySelector(".fill").style.height = (clamp01(v) * 100).toFixed(2) + "%";
+  }
+
+  function refreshAll(){
+    pads.forEach(el => {
+      const key = el.dataset.param;
+      setFill(el, P[key] ?? 0);
+    });
+  }
+  refreshAll();
+
+  function startIfNeeded(){
+    if(ctx) return;
+    build();
+  }
+
+  function setArmed(el, on){
+    el.classList.toggle("armed", !!on);
+  }
+
+  function paramFromPad(el){ return el.dataset.param; }
+
+  function handleDown(e, el){
+    e.preventDefault();
+    startIfNeeded();
+    if(ctx && ctx.state === "suspended") ctx.resume();
+
+    const p = paramFromPad(el);
+    const rect = el.getBoundingClientRect();
+    const localY = e.clientY - rect.top;
+    const v = 1 - (localY / rect.height); // top=1, bottom=0
+    // On down: jump a bit toward touch (simple, direct)
+    const newV = clamp01(0.7 * (P[p] ?? 0) + 0.3 * v);
+    P[p] = newV;
+    setFill(el, newV);
+    setArmed(el, true);
+    applyAll(false);
+
+    padState.set(e.pointerId, {
+      el, p,
+      startY: e.clientY,
+      startVal: newV,
+      lastMove: performance.now()
+    });
+
+    el.setPointerCapture(e.pointerId);
+  }
+
+  function handleMove(e){
+    const st = padState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+    const el = st.el;
+    const p = st.p;
+
+    const rect = el.getBoundingClientRect();
+    const localY = e.clientY - rect.top;
+    let v = 1 - (localY / rect.height);
+
+    // Smoothing for nice feel
+    const now = performance.now();
+    const dt = Math.max(1, now - st.lastMove);
+    st.lastMove = now;
+    const alpha = Math.min(1, dt / 32); // adaptive
+
+    P[p] = clamp01((1-alpha) * (P[p] ?? 0) + alpha * v);
+
+    setFill(el, P[p]);
+    applyAll(false);
+  }
+
+  function handleUp(e){
+    const st = padState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+    setArmed(st.el, false);
+    padState.delete(e.pointerId);
+  }
+
+  pads.forEach(el => {
+    el.addEventListener("pointerdown", (e) => handleDown(e, el), {passive:false});
+  });
+  window.addEventListener("pointermove", handleMove, {passive:false});
+  window.addEventListener("pointerup", handleUp, {passive:false});
+  window.addEventListener("pointercancel", handleUp, {passive:false});
+
+  // Safety: stop audio when tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if(!ctx) return;
+    if(document.hidden) {
+      ctx.suspend();
+    } else {
+      // don't auto-resume; user gesture will resume
+    }
+  });
+
+  // Default: silent until first touch sets master > 0
+  // Make pad 1 (master) start near zero visually.
+  P.master = 0.0;
+  refreshAll();
+
+})();
+</script>
+</body>
+</html>

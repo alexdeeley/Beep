@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ballz Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body{
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      padding:20px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .game-container{
+      background:#1a1a2e;
+      border-radius:20px;
+      padding:20px;
+      box-shadow:0 20px 60px rgba(0,0,0,.4);
+      max-width: 520px;
+      width: 100%;
+    }
+
+    canvas{
+      display:block;
+      width: 100%;
+      height: auto;
+      background:#0f0f1e;
+      border-radius:10px;
+      cursor:crosshair;
+      border:3px solid #16213e;
+      touch-action: none;
+    }
+
+    .hud{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:15px;
+      padding:15px;
+      background:rgba(255,255,255,.05);
+      border-radius:10px;
+      gap: 12px;
+    }
+
+    .score,.balls-count{
+      color:#fff;
+      font-size:24px;
+      font-weight:bold;
+      text-shadow:0 2px 10px rgba(0,0,0,.5);
+      white-space: nowrap;
+    }
+    .score span,.balls-count span{ color:#ffd700; font-size:28px; }
+
+    .game-over{
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,.8);
+      display:none;
+      justify-content:center;
+      align-items:center;
+      z-index:1000;
+      padding: 24px;
+    }
+    .game-over.show{ display:flex; }
+    .game-over-content{
+      background:#1a1a2e;
+      padding:40px;
+      border-radius:20px;
+      text-align:center;
+      box-shadow:0 20px 60px rgba(0,0,0,.5);
+      width: min(520px, 100%);
+    }
+    .game-over-content h2{ color:#fff; font-size:48px; margin-bottom:20px; }
+    .game-over-content p{ color:#aaa; font-size:24px; margin-bottom:30px; }
+
+    .restart-btn{
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color:#fff;
+      border:none;
+      padding:15px 40px;
+      font-size:20px;
+      border-radius:10px;
+      cursor:pointer;
+      transition: transform .2s;
+    }
+    .restart-btn:hover{ transform:scale(1.05); }
+
+    .aim-control{
+      margin-top:15px;
+      padding:18px 20px;
+      background:rgba(255,255,255,.05);
+      border-radius:10px;
+    }
+    .aim-control label{
+      color:#fff;
+      font-size:18px;
+      font-weight:bold;
+      display:block;
+      margin-bottom:12px;
+      text-align:center;
+      letter-spacing: .5px;
+    }
+    .aim-slider{
+      width:100%;
+      height:20px;
+      -webkit-appearance:none;
+      appearance:none;
+      background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+      outline:none;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    .aim-slider::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      appearance:none;
+      width:40px; height:40px;
+      background:#ffff00;
+      cursor:pointer;
+      border-radius:50%;
+      box-shadow:0 0 20px rgba(255,255,0,.8);
+      border:3px solid #fff;
+    }
+    .aim-slider::-moz-range-thumb{
+      width:40px; height:40px;
+      background:#ffff00;
+      cursor:pointer;
+      border-radius:50%;
+      box-shadow:0 0 20px rgba(255,255,0,.8);
+      border:3px solid #fff;
+    }
+  </style>
+</head>
+
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+  <div class="game-container">
+    <div class="hud">
+      <div class="score">Score: <span id="score">0</span></div>
+      <div class="balls-count">Balls: <span id="balls">1</span></div>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="600" aria-label="Ballz Game"></canvas>
+
+    <div class="aim-control">
+      <label for="aimSlider">Aim Direction</label>
+      <input type="range" id="aimSlider" class="aim-slider" min="0" max="180" value="90" />
+    </div>
+  </div>
+
+  <div class="game-over" id="gameOver">
+    <div class="game-over-content">
+      <h2>Game Over!</h2>
+      <p>Final Score: <span id="finalScore">0</span></p>
+      <button class="restart-btn" id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // HUD
+  const scoreEl = document.getElementById('score');
+  const ballsEl = document.getElementById('balls');
+  const finalScoreEl = document.getElementById('finalScore');
+  const gameOverEl = document.getElementById('gameOver');
+  document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+  // Game state
+  let score = 0;
+  let ballCount = 1;
+  let shootingAngle = -Math.PI / 2;
+
+  // Slider aims only UP hemisphere:
+  // value 0 => up-right (-45°), 90 => straight up (-90°), 180 => up-left (-135°)
+  let sliderAngle = -Math.PI / 2;
+
+  // Ball properties
+  const ballRadius = 6;
+  const ballSpeed = 8;
+  let balls = [];
+  let shootingBalls = false;
+  let ballsToShoot = 0;
+  let shootTimer = 0;
+  let launchX = canvas.width / 2;
+  let launchY = canvas.height - 30;
+
+  // Bricks
+  let bricks = [];
+  const brickWidth = 50;
+  const brickHeight = 50;
+  const brickGap = 5;
+  const cols = Math.floor(canvas.width / (brickWidth + brickGap));
+
+  // Add-ball dots (one per row, not falling — they move down with rows)
+  let addDots = []; // {x,y,r}
+
+  class Ball{
+    constructor(x,y,vx,vy){
+      this.x=x; this.y=y;
+      this.vx=vx; this.vy=vy;
+      this.radius=ballRadius;
+      this.returned=false;
+    }
+    update(){
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // Wall collision
+      if (this.x - this.radius < 0 || this.x + this.radius > canvas.width){
+        this.vx = -this.vx;
+        this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+      }
+      // Top collision
+      if (this.y - this.radius < 0){
+        this.vy = Math.abs(this.vy);
+      }
+      // Bottom - return
+      if (this.y + this.radius > canvas.height - 20 && !this.returned){
+        this.returned = true;
+        if (!shootingBalls) launchX = this.x;
+        return true;
+      }
+      return false;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#00ff88';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  class Brick{
+    constructor(x,y,health){
+      this.x=x; this.y=y;
+      this.width=brickWidth;
+      this.height=brickHeight;
+      this.health=health;
+      this.maxHealth=health;
+    }
+    hit(){
+      this.health--;
+      return this.health <= 0;
+    }
+    draw(){
+      const hue = Math.max(0, 120 - (this.health/this.maxHealth)*120);
+      ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      ctx.strokeStyle = `hsl(${hue}, 80%, 40%)`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.health, this.x + this.width/2, this.y + this.height/2);
+    }
+  }
+
+  function calculateTrajectory(startX, startY, angle){
+    const points = [];
+    let vx = Math.cos(angle) * ballSpeed;
+    let vy = Math.sin(angle) * ballSpeed;
+
+    let x = startX, y = startY;
+
+    for (let i=0;i<110;i++){
+      x += vx; y += vy;
+
+      if (x - ballRadius < 0 || x + ballRadius > canvas.width){
+        vx = -vx;
+        x = Math.max(ballRadius, Math.min(canvas.width - ballRadius, x));
+      }
+      if (y - ballRadius < 0){
+        vy = Math.abs(vy);
+      }
+
+      let hitBrick = false;
+      for (const brick of bricks){
+        if (x > brick.x && x < brick.x + brick.width &&
+            y > brick.y && y < brick.y + brick.height){
+          hitBrick = true; break;
+        }
+      }
+      points.push({x, y, isBounce: hitBrick});
+      if (hitBrick) break;
+      if (y > canvas.height - 20) break;
+    }
+    return points;
+  }
+
+  function drawTrajectory(){
+    if (shootingBalls) return;
+
+    const angle = sliderAngle;
+    const trajectory = calculateTrajectory(launchX, launchY, angle);
+
+    for (let i=0;i<trajectory.length-1;i++){
+      const p = trajectory[i], n = trajectory[i+1];
+      const progress = i / Math.min(trajectory.length, 50);
+      const lw = Math.max(2, 10 - progress*8);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(n.x, n.y);
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = lw;
+      ctx.shadowBlur = 20 - progress*12;
+      ctx.shadowColor = '#ffff00';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce || n.isBounce) break;
+    }
+
+    for (let i=0;i<Math.min(trajectory.length, 30); i+=2){
+      const p = trajectory[i];
+      const prog = i/30;
+      const r = 7 - prog*3;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+      ctx.fillStyle = '#ffff00';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ffff00';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce) break;
+    }
+  }
+
+  function cellCenterX(col){
+    return col*(brickWidth+brickGap) + brickGap + brickWidth/2;
+  }
+  function rowCenterY(){
+    return brickGap + brickHeight/2;
+  }
+
+  function spawnBricks(){
+    const stepDown = brickHeight + brickGap;
+
+    // Move all bricks down
+    for (const brick of bricks){
+      brick.y += stepDown;
+    }
+
+    // Move add-dots down (they "come down between the squares" as rows advance)
+    for (const d of addDots){
+      d.y += stepDown;
+    }
+    // Remove dots that pass the bottom (missed)
+    addDots = addDots.filter(d => d.y < canvas.height + 40);
+
+    // Game over if any brick reaches bottom line
+    bricks = bricks.filter(brick => {
+      if (brick.y + brick.height >= canvas.height - 50){
+        gameOver();
+        return false;
+      }
+      return true;
+    });
+
+    // New row at top
+    const numBricks = Math.floor(Math.random()*3)+2;
+    const used = new Set();
+
+    for (let i=0;i<numBricks;i++){
+      let col;
+      do { col = Math.floor(Math.random()*cols); } while (used.has(col));
+      used.add(col);
+
+      const x = col*(brickWidth+brickGap) + brickGap;
+      const y = brickGap;
+      const health = score + Math.floor(Math.random()*5) + 1;
+      bricks.push(new Brick(x,y,health));
+    }
+
+    // EXACTLY one add-ball dot per row, placed in an open column if possible
+    let dotCol = -1;
+    const openCols = [];
+    for (let c=0;c<cols;c++){
+      if (!used.has(c)) openCols.push(c);
+    }
+    if (openCols.length){
+      dotCol = openCols[Math.floor(Math.random()*openCols.length)];
+    } else {
+      // if the row is full (rare), just pick any column and place dot centered (still visible between bricks gaps)
+      dotCol = Math.floor(Math.random()*cols);
+    }
+
+    addDots.push({
+      x: cellCenterX(dotCol),
+      y: rowCenterY(),
+      r: 7
+    });
+  }
+
+  function checkCollisions(){
+    for (const ball of balls){
+      // bricks
+      for (let i=bricks.length-1;i>=0;i--){
+        const b = bricks[i];
+        if (ball.x + ball.radius > b.x &&
+            ball.x - ball.radius < b.x + b.width &&
+            ball.y + ball.radius > b.y &&
+            ball.y - ball.radius < b.y + b.height){
+
+          const overlapLeft = (ball.x + ball.radius) - b.x;
+          const overlapRight = (b.x + b.width) - (ball.x - ball.radius);
+          const overlapTop = (ball.y + ball.radius) - b.y;
+          const overlapBottom = (b.y + b.height) - (ball.y - ball.radius);
+
+          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+          if (minOverlap === overlapLeft || minOverlap === overlapRight){
+            ball.vx = -ball.vx;
+          } else {
+            ball.vy = -ball.vy;
+          }
+
+          if (b.hit()){
+            bricks.splice(i,1);
+            score++;
+            scoreEl.textContent = score;
+          }
+        }
+      }
+
+      // add-ball dots
+      for (let i=addDots.length-1;i>=0;i--){
+        const d = addDots[i];
+        const dist = Math.hypot(ball.x - d.x, ball.y - d.y);
+        if (dist < ball.radius + d.r){
+          addDots.splice(i,1);
+          ballCount++;
+          ballsEl.textContent = ballCount;
+        }
+      }
+    }
+  }
+
+  function shootBall(){
+    if (ballsToShoot > 0){
+      shootTimer++;
+      if (shootTimer >= 3){
+        const vx = Math.cos(shootingAngle)*ballSpeed;
+        const vy = Math.sin(shootingAngle)*ballSpeed;
+        balls.push(new Ball(launchX, launchY, vx, vy));
+        ballsToShoot--;
+        shootTimer = 0;
+      }
+    } else if (balls.length === 0){
+      shootingBalls = false;
+      spawnBricks();
+    }
+  }
+
+  function update(){
+    for (let i=balls.length-1;i>=0;i--){
+      if (balls[i].update()){
+        balls.splice(i,1);
+      }
+    }
+    checkCollisions();
+    if (shootingBalls) shootBall();
+  }
+
+  function drawAddDots(){
+    for (const d of addDots){
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fillStyle = '#ffd700';
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#ffd700';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // tiny + hint
+      ctx.strokeStyle = '#0f0f1e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(d.x - 4, d.y);
+      ctx.lineTo(d.x + 4, d.y);
+      ctx.moveTo(d.x, d.y - 4);
+      ctx.lineTo(d.x, d.y + 4);
+      ctx.stroke();
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    drawTrajectory();
+
+    for (const b of bricks) b.draw();
+    drawAddDots();
+    for (const ball of balls) ball.draw();
+
+    // launcher
+    if (!shootingBalls){
+      ctx.beginPath();
+      ctx.arc(launchX, launchY, ballRadius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.fill();
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const lineLen = 60;
+      ctx.beginPath();
+      ctx.moveTo(launchX, launchY);
+      ctx.lineTo(
+        launchX + Math.cos(sliderAngle)*lineLen,
+        launchY + Math.sin(sliderAngle)*lineLen
+      );
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 10;
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = '#ffff00';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  function loop(){
+    if (!gameOverEl.classList.contains('show')){
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function gameOver(){
+    finalScoreEl.textContent = score;
+    gameOverEl.classList.add('show');
+  }
+
+  function fire(){
+    if (shootingBalls || gameOverEl.classList.contains('show')) return;
+    shootingAngle = sliderAngle;
+    shootingBalls = true;
+    ballsToShoot = ballCount;
+    shootTimer = 0;
+  }
+
+  canvas.addEventListener('click', fire);
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); fire(); }, { passive:false });
+
+  // Slider control
+  const slider = document.getElementById('aimSlider');
+  function setSliderAngle(deg){
+    sliderAngle = (-Math.PI/4) - (deg/180)*(Math.PI/2);
+  }
+  slider.addEventListener('input', (e) => setSliderAngle(parseFloat(e.target.value)));
+
+  // Init
+  setSliderAngle(parseFloat(slider.value));
+  spawnBricks();
+  loop();
+})();
+</script>
+</body>
+</html>

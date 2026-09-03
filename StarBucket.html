@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>STAR BUCKET</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  canvas { 
+    display: block; 
+    width: 100vw; 
+    height: 100vh; 
+  }
+
+  /* End screen overlay */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    background: rgba(0,0,0,0.85);
+    z-index: 10;
+  }
+  #scoreText {
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: clamp(28px, 6vw, 64px);
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .roundButtons {
+    display: flex;
+    gap: 18px;
+  }
+  .btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    display: grid;
+    place-items: center;
+    background: #000;
+    box-shadow: 0 0 0 3px #000, 0 0 20px rgba(255,255,255,0.15) inset;
+    transition: transform 0.08s ease;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn svg { width: 36px; height: 36px; fill: #fff; }
+
+  /* Hide anything not needed by screen readers */
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="game"></canvas>
+
+<!-- End screen -->
+<div id="overlay" role="dialog" aria-modal="true">
+  <div id="scoreText">SCORE: 0</div>
+  <div class="roundButtons">
+    <!-- Share button -->
+    <button id="shareBtn" class="btn" aria-label="Share Score" title="Share">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 16a3 3 0 0 0-2.4 1.2l-6.6-3.3a3.1 3.1 0 0 0 0-3.8l6.6-3.3A3 3 0 1 0 15 3a3 3 0 0 0 2.4 1.2l-6.6 3.3a3 3 0 1 0 0 9l6.6 3.3A3 3 0 1 0 18 16z"/>
+      </svg>
+    </button>
+    <!-- Replay button -->
+    <button id="replayBtn" class="btn" aria-label="Replay" title="Replay">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5V2L7 6l5 4V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let DPR = Math.min(window.devicePixelRatio || 1, 2); // cap for perf on iPhone
+  let W = 0, H = 0;
+
+  // Game state
+  let running = false;
+  let objects = [];
+  let bucket = { x: 0, y: 0, w: 160, h: 34, speed: 0 };
+  let score = 0;
+  let lives = 3;
+  let lastSpawn = 0;
+  let spawnInterval = 700; // ms, decreases for difficulty
+  let speedBase = 2.2;     // grows slowly
+  let tPrev = 0;
+  let pointerX = null;
+  let gameOverFlag = false;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const rectW = window.innerWidth;
+    const rectH = window.innerHeight;
+    canvas.width = Math.floor(rectW * DPR);
+    canvas.height = Math.floor(rectH * DPR);
+    canvas.style.width = rectW + 'px';
+    canvas.style.height = rectH + 'px';
+    W = canvas.width;
+    H = canvas.height;
+    // Scale bucket to screen
+    bucket.w = Math.max(120, Math.min(220, (W / DPR) * 0.28));
+    bucket.h = Math.max(28, Math.min(48, (H / DPR) * 0.05));
+    bucket.y = (H / DPR) - bucket.h * 1.7;
+    if (!running) bucket.x = (W / DPR - bucket.w) / 2;
+  }
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  function spawn(now) {
+    const isStar = Math.random() < 0.65; // more stars than squares
+    const sizePx = Math.round(rand(22, 48)); // logical pixels
+    const radius = sizePx / 2;
+    const x = rand(radius + 10, (W / DPR) - radius - 10);
+    const speed = (speedBase + rand(0.2, 1.0)) * DPR;
+    objects.push({
+      type: isStar ? 'star' : 'square',
+      x: x * DPR, // store in device pixels for precision
+      y: -radius * DPR,
+      r: radius * DPR,
+      speed: speed,
+      rot: rand(0, Math.PI),
+      rotSpeed: rand(-0.03, 0.03)
+    });
+    lastSpawn = now;
+    // Difficulty curve
+    spawnInterval = Math.max(280, spawnInterval - 0.5);
+    speedBase = Math.min(6.5, speedBase + 0.002);
+  }
+
+  function drawBucket() {
+    const x = bucket.x * DPR, y = bucket.y * DPR;
+    const w = bucket.w * DPR, h = bucket.h * DPR;
+    const rad = h / 1.5;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    // rounded-rect bucket
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+    ctx.fill();
+    // bucket lip
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x + rad * 0.3, y + h * 0.25, w - rad * 0.6, h * 0.2);
+  }
+
+  function drawStar(cx, cy, r, rot) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    const spikes = 5;
+    const outerR = r, innerR = r * 0.5;
+    for (let i = 0; i < spikes * 2; i++) {
+      const angle = (i * Math.PI) / spikes;
+      const rr = i % 2 === 0 ? outerR : innerR;
+      ctx.lineTo(Math.cos(angle) * rr, Math.sin(angle) * rr);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSquare(cx, cy, r, rot) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    const side = r * 1.6;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-side/2 - 3, -side/2 - 3, side + 6, side + 6);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-side/2, -side/2, side, side);
+    ctx.restore();
+  }
+
+  function clear() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function rectCircleCollide(rx, ry, rw, rh, cx, cy, cr) {
+    // axis-aligned rect vs circle
+    const testX = Math.max(rx, Math.min(cx, rx + rw));
+    const testY = Math.max(ry, Math.min(cy, ry + rh));
+    const dx = cx - testX;
+    const dy = cy - testY;
+    return (dx*dx + dy*dy) <= cr*cr;
+  }
+
+  function update(now) {
+    if (!running) return;
+    const dt = Math.min(32, now - tPrev);
+    tPrev = now;
+
+    clear();
+
+    // spawn
+    if (now - lastSpawn > spawnInterval) spawn(now);
+
+    // move & draw objects
+    for (let i = objects.length - 1; i >= 0; i--) {
+      const o = objects[i];
+      o.y += o.speed * (dt / 16.6667);
+      o.rot += o.rotSpeed;
+      if (o.type === 'star') {
+        drawStar(o.x, o.y, o.r, o.rot);
+      } else {
+        drawSquare(o.x, o.y, o.r, o.rot);
+      }
+
+      // collision with bucket
+      const rx = bucket.x * DPR;
+      const ry = bucket.y * DPR;
+      const rw = bucket.w * DPR;
+      const rh = bucket.h * DPR;
+      if (rectCircleCollide(rx, ry, rw, rh, o.x, o.y, o.r * 0.9)) {
+        if (o.type === 'star') {
+          score += 10;
+        } else {
+          lives -= 1;
+          screenFlash();
+        }
+        objects.splice(i, 1);
+        continue;
+      }
+
+      // off-screen
+      if (o.y - o.r > H + 20) {
+        objects.splice(i, 1);
+      }
+    }
+
+    drawBucket();
+
+    if (lives <= 0) {
+      endGame();
+      return;
+    }
+
+    requestAnimationFrame(update);
+  }
+
+  let flashT = 0;
+  function screenFlash() {
+    flashT = 120;
+  }
+
+  function drawFlash() {
+    if (flashT > 0) {
+      const alpha = Math.min(0.35, flashT / 400);
+      ctx.fillStyle = 'rgba(255,0,0,' + alpha + ')';
+      ctx.fillRect(0,0,W,H);
+      flashT -= 16;
+    }
+  }
+
+  // Wrap update to include flash overlay
+  const originalUpdate = update;
+  update = function(now) {
+    if (!running) return;
+    originalUpdate(now);
+    drawFlash();
+  };
+
+  function startGame() {
+    running = true;
+    gameOverFlag = false;
+    objects.length = 0;
+    score = 0;
+    lives = 3;
+    lastSpawn = 0;
+    spawnInterval = 700;
+    speedBase = 2.2;
+    tPrev = performance.now();
+    hideOverlay();
+    requestAnimationFrame(update);
+  }
+
+  function endGame() {
+    running = false;
+    gameOverFlag = true;
+    showOverlay(score);
+  }
+
+  // Pointer controls (touch / mouse)
+  function setPointer(x) {
+    // Constrain bucket to canvas width
+    const viewW = W / DPR;
+    bucket.x = Math.max(6, Math.min(viewW - bucket.w - 6, x - bucket.w / 2));
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointerX = e.clientX;
+    setPointer((e.clientX / window.innerWidth) * (W / DPR));
+  }, { passive: true });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pressure === 0 && e.pointerType !== 'mouse') return; // ignore hover
+    setPointer((e.clientX / window.innerWidth) * (W / DPR));
+  }, { passive: true });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && running) {
+      running = false;
+    } else if (!document.hidden && !running && !gameOverFlag) {
+      // resume
+      running = true;
+      tPrev = performance.now();
+      requestAnimationFrame(update);
+    }
+  });
+
+  // Overlay handling
+  const overlay = document.getElementById('overlay');
+  const scoreText = document.getElementById('scoreText');
+  const shareBtn = document.getElementById('shareBtn');
+  const replayBtn = document.getElementById('replayBtn');
+
+  function showOverlay(finalScore) {
+    scoreText.textContent = 'SCORE: ' + finalScore;
+    overlay.style.display = 'flex';
+  }
+  function hideOverlay() {
+    overlay.style.display = 'none';
+  }
+
+  replayBtn.addEventListener('click', startGame);
+  shareBtn.addEventListener('click', async () => {
+    const text = 'STAR BUCKET — SCORE: ' + score;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'STAR BUCKET', text });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        // brief visual tick on button
+        shareBtn.style.boxShadow = '0 0 0 3px #0f0';
+        setTimeout(() => shareBtn.style.boxShadow = '', 300);
+      }
+    } catch (e) {
+      // ignore
+    }
+  });
+
+  // Kick off
+  resize();
+  // Small intro delay so canvas paints cleanly before render
+  setTimeout(startGame, 60);
+})();
+</script>
+</body>
+</html>

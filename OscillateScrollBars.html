@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>OSCILLATE — Scroll Bars</title>
+<style>
+  :root{
+    --bg:#000407;
+    --neon-cyan:#00eeff;
+    --neon-green:#00ff9f;
+    --neon-pink:#ff00aa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;}
+  body{
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;
+  }
+  canvas{display:block;width:100vw;height:100vh;}
+  /* subtle CRT scanlines */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events:none;
+    z-index:10;
+  }
+  /* vignette */
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.85) 100%);
+    pointer-events:none;
+    z-index:9;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+
+<script>
+/*
+OSCILLATE — Scroll Bars
+- Tap to enable mic
+- Bars scroll RIGHT -> LEFT
+- Slow fade over time (older history dissolves)
+*/
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha:false });
+
+let W=0,H=0,DPR=1;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.floor(window.innerWidth * DPR);
+  H = Math.floor(window.innerHeight * DPR);
+  canvas.width = W;
+  canvas.height = H;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+
+  // Clear to bg on resize (history resets)
+  ctx.fillStyle = 'rgb(0,4,7)';
+  ctx.fillRect(0,0,W,H);
+}
+window.addEventListener('resize', resize, {passive:true});
+resize();
+
+let audioCtx=null, analyser=null, stream=null;
+let timeData=null;
+let running=false;
+let raf=0;
+
+const FADE_ALPHA = 0.035;      // lower = longer persistence
+const STEP_PX = 2;             // pixels per frame to scroll
+const BAR_GAP = 0;             // gap within the column
+const BASELINE = 0.90;         // where bars start (from bottom)
+
+function rmsFromTimeDomain(arr){
+  // arr is Uint8 [0..255], centered at 128
+  let sum=0;
+  for(let i=0;i<arr.length;i++){
+    const v=(arr[i]-128)/128;
+    sum += v*v;
+  }
+  return Math.sqrt(sum/arr.length); // 0..~1
+}
+
+function colorForLevel(level, t){
+  // level 0..1 -> neon gradient-ish without heavy math
+  // drift hue a bit for life
+  const hue = (190 + level*90 + t*0.02) % 360;
+  return `hsl(${hue}, 100%, ${55 + level*10}%)`;
+}
+
+function glowForLevel(level){
+  const a = 0.25 + level*0.55;
+  return `rgba(0, 238, 255, ${a})`;
+}
+
+async function initAudio(){
+  if(running) return;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.65;
+    src.connect(analyser);
+
+    timeData = new Uint8Array(analyser.fftSize);
+
+    running = true;
+    loop();
+  }catch(e){
+    // If denied, do nothing (keeps black screen)
+    console.log(e);
+  }
+}
+
+// Tap anywhere once to start (Safari-friendly user gesture)
+window.addEventListener('pointerdown', () => initAudio(), { once:true });
+
+let t = 0;
+
+function loop(){
+  if(!running) return;
+  raf = requestAnimationFrame(loop);
+  t++;
+
+  // Shift existing image left
+  // drawImage is fast enough for iPhone at 2px step
+  ctx.drawImage(canvas, -STEP_PX, 0);
+
+  // Fade entire canvas slightly (so history dissolves)
+  ctx.fillStyle = `rgba(0,4,7,${FADE_ALPHA})`;
+  ctx.fillRect(0,0,W,H);
+
+  // Sample audio (time domain -> loudness)
+  analyser.getByteTimeDomainData(timeData);
+  const level = rmsFromTimeDomain(timeData); // 0..1-ish
+
+  // Compute bar height
+  const barMax = Math.floor(H * BASELINE);
+  const barH = Math.max(2, Math.floor(level * barMax));
+
+  const x = W - STEP_PX; // right edge column
+  const y = H - barH;
+
+  // Glow settings
+  ctx.shadowBlur = Math.floor(18 * DPR);
+  ctx.shadowColor = glowForLevel(level);
+
+  // Main bar fill
+  ctx.fillStyle = colorForLevel(level, t);
+  ctx.fillRect(x, y, STEP_PX - BAR_GAP, barH);
+
+  // Peak cap (a little bright tick)
+  ctx.shadowBlur = Math.floor(26 * DPR);
+  ctx.shadowColor = 'rgba(255,255,255,0.35)';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(x, Math.max(0, y - Math.floor(2*DPR)), STEP_PX - BAR_GAP, Math.floor(2*DPR));
+
+  // Subtle center baseline guide (optional, faint)
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  ctx.fillRect(0, Math.floor(H*0.5), W, 1);
+}
+
+// Safety: stop tracks when leaving page
+window.addEventListener('pagehide', () => {
+  try{ if(stream) stream.getTracks().forEach(tr => tr.stop()); }catch(_){}
+  try{ if(audioCtx) audioCtx.close(); }catch(_){}
+  running=false;
+  if(raf) cancelAnimationFrame(raf);
+});
+</script>
+</body>
+</html>

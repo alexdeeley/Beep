@@ -13,8 +13,8 @@ spelled out. If a step feels obvious to you, skip ahead.
 > daily/weekly ones described below — an hourly autonomous "newswire" that
 > researches and posts real current news. It replaced the daily pipeline's
 > *schedule* (the code below still works and is still runnable by hand, it
-> just no longer fires automatically). See **[§17, The hourly newswire
-> pipeline](#17-the-hourly-newswire-pipeline)** for how it works.
+> just no longer fires automatically). See **[§18, The hourly newswire
+> pipeline](#18-the-hourly-newswire-pipeline)** for how it works.
 
 ---
 
@@ -420,14 +420,14 @@ src/
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
   weeklyCard/      # fully independent weekly "card draw" pipeline - own schedule, own state, own concurrency group (see below)
-  newswire/        # fully independent hourly wire-service pipeline - see §17 below
+  newswire/        # fully independent hourly wire-service pipeline - see §18 below
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
 
 templates/infographic/   # CSS design system + bundled fonts (no network dependency)
 tests/                   # vitest unit tests + the August 29 fixture
 runs/                    # generated output (gitignored, per-date)
-.github/workflows/       # daily.yml (workflow_dispatch only - see §17) + weekly-card.yml + news.yml + news-deep-research.yml
+.github/workflows/       # daily.yml (workflow_dispatch only - see §18) + weekly-card.yml + news.yml + news-deep-research.yml
 ```
 
 ### The weekly "card draw" pipeline
@@ -517,7 +517,34 @@ text-length safety net used by the renderer.
 
 ---
 
-## 17. The hourly newswire pipeline
+## 17. Also in this repo: a small app gallery
+
+Separately from the On This Day bot, this repo also hosts a handful of
+self-contained single-page apps (`symphonic-noise/`, `OneThumbRacer.html`,
+and whatever gets added later), published together as a static site via
+`.github/workflows/deploy-pages.yml`.
+
+- **Live at:** `https://alexdeeley.github.io/Beep/`
+- **Root `index.html`** is the gallery page — it reads `apps.json` and
+  renders a live iframe preview, name, and description for each app,
+  grouped into sections (Music Tools, Games, Art, ...).
+- **To add a new app:** drop the HTML file or folder anywhere in the repo
+  root, add one entry to `apps.json` (`id`, `name`, `description`,
+  `category`, `path`), and push to `main`. The deploy workflow publishes
+  everything in the repo except this bot's own source/config (see the
+  `rsync --exclude` list in the workflow) automatically — no workflow edit
+  needed. A new `category` value just becomes its own section.
+- **Apps only, no media or images:** the gallery is for self-contained
+  HTML apps. Skip anything that isn't one (audio/video clips,
+  screenshots, standalone image files) rather than adding it to
+  `apps.json` or the repo root.
+- The one manual, one-time setup step (already done for this repo): a
+  human has to go to **Settings → Pages → Source → GitHub Actions** once —
+  GitHub's API won't let a workflow token create a Pages site itself.
+
+---
+
+## 18. The hourly newswire pipeline
 
 A third, independent pipeline lives in `src/newswire/` and is now the
 account's primary posting cadence: once an hour, it researches real
@@ -534,7 +561,7 @@ persistent state (a SQLite database in the R2 bucket, not `runs/<date>/`),
 and its own idempotency/dedup logic. A failure here can't corrupt or block
 the daily/weekly pipelines, and vice versa.
 
-### 17.1 The hourly cycle, stage by stage
+### 18.1 The hourly cycle, stage by stage
 
 Each run (`npm run news:preview` or `news:publish`, or the `news.yml`
 schedule) does, in order:
@@ -570,7 +597,7 @@ schedule) does, in order:
    matches your stated topic weights, freshness, and whether it continues
    an already-important story. **Deliberately not** "how many outlets
    covered it" — that measures syndication reach, not significance.
-6. **Quiet-hours check** (`quietHours/`) — see §17.4. May end the run
+6. **Quiet-hours check** (`quietHours/`) — see §18.4. May end the run
    right here with nothing posted, which is expected.
 7. **Connections** (`connections/`) — extracts named entities and
    evidence-grounded relationships from the new facts (never an invented
@@ -601,7 +628,7 @@ schedule) does, in order:
     immediately after it succeeds — a mid-thread failure leaves an
     accurate record instead of retrying in a way that could double-post.
 
-### 17.2 Editing what it covers: `editorial-focus.json`
+### 18.2 Editing what it covers: `editorial-focus.json`
 
 The repo-root `editorial-focus.json` is yours to edit directly — it's not
 under `src/`, and it's re-read fresh at the start of every run.
@@ -631,7 +658,7 @@ under `src/`, and it's re-read fresh at the start of every run.
   authority ranking used during verification, and named outlets (Variety,
   Billboard, Pitchfork, etc.) recognized as the `entertainment_trade`
   tier.
-- **`quietHours`** and **`voice`** — see §17.4 and §17.1 step 8.
+- **`quietHours`** and **`voice`** — see §18.4 and §18.1 step 8.
 - **`neutralityNote`** — a fixed reminder (to the model, not to you) that
   `priorityTopics` selects *what* to cover, never *how* to editorialize
   it — the wire-service voice applies identically to every topic,
@@ -650,7 +677,7 @@ JSON doesn't support comments natively, but the loader
 (`src/newswire/editorialFocus.ts`) tolerates `//` line comments, so feel
 free to annotate your own copy.
 
-### 17.3 Per-stage models and cost control
+### 18.3 Per-stage models and cost control
 
 Every stage has its own model env var, independent of the daily
 pipeline's `RESEARCH_MODEL`/`VERIFICATION_MODEL` (which still exist and
@@ -662,7 +689,7 @@ often and don't need your strongest model, while verification and the
 mandatory fact-check gate are exactly where you want the most capable one
 you're willing to pay for.
 
-### 17.4 Quiet hours: silence is the point, not a failure
+### 18.4 Quiet hours: silence is the point, not a failure
 
 `editorial-focus.json`'s `quietHours` block defines a window (default
 23:00–06:00 in your configured timezone) where the bar for posting rises.
@@ -676,7 +703,7 @@ very likely the pipeline working correctly**, not a stuck or broken run —
 manufacturing a post to fill an hour is explicitly the wrong behavior
 here.
 
-### 17.5 The story database: R2-hosted SQLite, not `runs/<date>/`
+### 18.5 The story database: R2-hosted SQLite, not `runs/<date>/`
 
 Unlike the daily/weekly pipelines' git-committed or filesystem-only
 state, the newswire pipeline's memory is a SQLite database
@@ -697,7 +724,7 @@ Stories aren't deleted as they age — a story untouched for 30 days is
 archived (excluded from active matching) but stays in the database,
 queryable, forever.
 
-### 17.6 Commands
+### 18.6 Commands
 
 ```bash
 npm run news:preview                 # run everything for real, print the proposed thread, publish/persist NOTHING - safe to re-run
@@ -713,7 +740,7 @@ bearing here: `news:preview` is guaranteed to never touch the shared R2
 database or Bluesky account, so it's the one to run repeatedly while
 iterating on `editorial-focus.json` or prompts.
 
-### 17.7 Once-daily deep research
+### 18.7 Once-daily deep research
 
 Separately from the hourly cycle, `.github/workflows/news-deep-research.yml`
 runs once a day (~4:00am Pacific) and does one broader, unstructured

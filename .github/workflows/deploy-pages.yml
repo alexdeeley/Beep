@@ -1,0 +1,78 @@
+name: Deploy site to GitHub Pages
+
+# Publishes the whole repo as a static site, EXCLUDING the on-this-day bot's
+# own source/config (see the rsync excludes below). This means any new HTML
+# file or folder dropped in the repo root is published automatically — no
+# workflow edit needed. To make it show up in the gallery, add an entry to
+# apps.json; without one it's still reachable by direct URL, just unlisted.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "src/**"
+      - "tests/**"
+      - "samples/**"
+      - "templates/**"
+      - "runs/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+      - ".env.example"
+      - "README.md"
+      - ".github/workflows/daily.yml"
+      - ".github/workflows/weekly-card.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble public site
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='_site' \
+            --exclude='src' \
+            --exclude='tests' \
+            --exclude='samples' \
+            --exclude='templates' \
+            --exclude='runs' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='tsconfig.json' \
+            --exclude='vitest.config.ts' \
+            --exclude='.env.example' \
+            --exclude='.gitignore' \
+            --exclude='README.md' \
+            ./ _site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

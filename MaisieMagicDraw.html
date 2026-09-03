@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Maisie's Magic Draw</title>
+<style>
+  :root{
+    --pink1:#ff8fc9;
+    --pink2:#ff5fae;
+    --pink3:#e83f95;
+    --purple:#7b2ff7;
+    --purple-light:#c58bff;
+    --purple-glow:#e6c9ff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    position:fixed; inset:0; width:100%; height:100%;
+    margin:0; padding:0; overflow:hidden;
+    background:var(--pink2);
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+    overscroll-behavior:none;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  canvas{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+  #bgCanvas{z-index:1;}
+  #drawCanvas{z-index:2;}
+  #fxCanvas{z-index:3; pointer-events:none;}
+  #stickerLayer{position:absolute; inset:0; z-index:4; pointer-events:none;}
+  #interact{position:absolute; inset:0; z-index:5; touch-action:none;}
+
+  .sticker{
+    position:absolute; left:0; top:0;
+    font-size:64px; line-height:1;
+    pointer-events:auto; touch-action:none;
+    will-change:transform;
+    filter:drop-shadow(0 0 10px rgba(255,255,255,0.85)) drop-shadow(0 0 18px rgba(230,180,255,0.55));
+    user-select:none;
+  }
+  .sticker.bounce{ animation:bounce 0.45s ease; }
+  .sticker.wiggle{ animation:wiggle 0.6s ease; }
+  .sticker.poof{ animation:poof 0.28s ease forwards; }
+  @keyframes bounce{
+    0%{transform-origin:center; }
+    0%{ transform: translate(-50%,-50%) var(--r) var(--s) scale(1); }
+    35%{ transform: translate(-50%,-50%) var(--r) var(--s) scale(1.35); }
+    60%{ transform: translate(-50%,-50%) var(--r) var(--s) scale(0.9); }
+    100%{ transform: translate(-50%,-50%) var(--r) var(--s) scale(1); }
+  }
+  @keyframes wiggle{
+    0%,100%{ margin-left:0; }
+    20%{ margin-left:-6px; }
+    40%{ margin-left:6px; }
+    60%{ margin-left:-4px; }
+    80%{ margin-left:4px; }
+  }
+  @keyframes poof{
+    0%{ opacity:1; }
+    100%{ opacity:0; transform: translate(-50%,-50%) scale(1.8) rotate(30deg); }
+  }
+
+  /* ---------- UI ---------- */
+  #ui{position:absolute; inset:0; z-index:10; pointer-events:none;}
+  .rail{
+    position:absolute; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    pointer-events:auto;
+    max-height:88vh; overflow-y:auto; overflow-x:hidden;
+    padding:8px 6px; -ms-overflow-style:none; scrollbar-width:none;
+    touch-action:pan-y;
+  }
+  .rail::-webkit-scrollbar{display:none;}
+  #railLeft{ left: max(8px, env(safe-area-inset-left)); }
+  #railRight{ right: max(8px, env(safe-area-inset-right)); }
+
+  .btn{
+    width:56px; height:56px; border-radius:50%;
+    background:rgba(255,255,255,0.55);
+    border:3px solid #ffffff;
+    box-shadow:0 3px 10px rgba(123,47,247,0.35);
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; flex-shrink:0;
+    transition:transform 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  .btn:active{ transform:scale(0.88); }
+  .btn.active{
+    background:var(--purple);
+    box-shadow:0 0 0 4px var(--purple-glow), 0 4px 14px rgba(123,47,247,0.6);
+  }
+  .btn.warn{ background:#fff3c2; }
+  .btn.warn.armed{
+    background:#ff5959; box-shadow:0 0 0 5px rgba(255,89,89,0.5);
+    animation:pulseWarn 0.6s infinite;
+  }
+  @keyframes pulseWarn{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.12);} }
+
+  .sizeRow{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .sizeDot{
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #d9adff, var(--purple) 70%);
+    border:3px solid #ffffff;
+    box-shadow:0 2px 8px rgba(123,47,247,0.35);
+    flex-shrink:0;
+  }
+  .sizeDot.selected{ box-shadow:0 0 0 4px var(--purple-glow), 0 2px 10px rgba(123,47,247,0.6); }
+  .sizeDot.eraserDot{ background:radial-gradient(circle at 35% 30%, #ffffff, #ffd6ec 70%); }
+
+  #stickerTray{
+    position:absolute; left:50%; bottom:max(14px, env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(150%);
+    transition:transform 0.28s ease;
+    background:rgba(255,255,255,0.75);
+    border-radius:26px; border:3px solid #fff;
+    box-shadow:0 6px 22px rgba(123,47,247,0.4);
+    padding:10px 12px; z-index:11; pointer-events:auto;
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:6px;
+    max-width:92vw;
+  }
+  #stickerTray.open{ transform:translateX(-50%) translateY(0); }
+  .trayItem{
+    font-size:38px; width:52px; height:52px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:14px; touch-action:none;
+  }
+  .trayItem:active{ background:rgba(123,47,247,0.15); }
+
+  #trash{
+    position:absolute; left:50%; bottom:max(10px, env(safe-area-inset-bottom));
+    transform:translate(-50%, 130%) scale(1);
+    width:64px; height:64px; border-radius:50%;
+    background:rgba(255,255,255,0.7); border:3px solid #fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; z-index:12; pointer-events:none;
+    transition:transform 0.25s, background 0.2s;
+    opacity:0;
+  }
+  #trash.show{ opacity:1; transform:translate(-50%, 0) scale(1); pointer-events:none; }
+  #trash.hover{ background:rgba(255,89,89,0.55); transform:translate(-50%, 0) scale(1.2); }
+
+  #toast{
+    position:absolute; left:50%; top:max(14px, env(safe-area-inset-top));
+    transform:translateX(-50%) translateY(-140%);
+    background:rgba(255,255,255,0.9); color:#7b2ff7; font-weight:700;
+    padding:10px 18px; border-radius:18px; font-size:16px;
+    box-shadow:0 4px 14px rgba(123,47,247,0.35);
+    transition:transform 0.3s ease; z-index:20; pointer-events:none;
+    white-space:nowrap;
+  }
+  #toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="bgCanvas"></canvas>
+<canvas id="drawCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
+<div id="stickerLayer"></div>
+<div id="interact"></div>
+
+<div id="ui">
+  <div class="rail" id="railLeft">
+    <div class="btn active" id="btnPen" title="pen">🖌️</div>
+    <div class="btn" id="btnEraser" title="eraser">🩹</div>
+    <div class="sizeRow" id="sizeRow"></div>
+  </div>
+  <div class="rail" id="railRight">
+    <div class="btn" id="btnStickers" title="stickers">✨</div>
+    <div class="btn" id="btnWand" title="magic">🪄</div>
+    <div class="btn" id="btnUndo" title="undo">↩️</div>
+    <div class="btn warn" id="btnClear" title="clear">🗑️</div>
+    <div class="btn" id="btnSave" title="save">📸</div>
+    <div class="btn" id="btnSound" title="sound">🔇</div>
+  </div>
+</div>
+
+<div id="stickerTray"></div>
+<div id="trash">🗑️</div>
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   SETUP: canvases, dpr, sizing
+   ============================================================ */
+const bgCanvas = document.getElementById('bgCanvas');
+const drawCanvas = document.getElementById('drawCanvas');
+const fxCanvas = document.getElementById('fxCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+const drawCtx = drawCanvas.getContext('2d');
+const fxCtx = fxCanvas.getContext('2d');
+const interact = document.getElementById('interact');
+const stickerLayer = document.getElementById('stickerLayer');
+
+let W = 0, H = 0, DPR = 1;
+
+function resizeCanvas(cv, ctx){
+  cv.width = Math.round(W * DPR);
+  cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px';
+  cv.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+function doResize(){
+  W = window.innerWidth;
+  H = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  resizeCanvas(bgCanvas, bgCtx);
+  resizeCanvas(drawCanvas, drawCtx);
+  resizeCanvas(fxCanvas, fxCtx);
+  buildBgSparkles();
+  fullRedraw();
+  layoutStickers();
+}
+window.addEventListener('resize', doResize);
+window.addEventListener('orientationchange', ()=>setTimeout(doResize, 60));
+
+// block iOS gesture zoom
+document.addEventListener('gesturestart', e=>e.preventDefault());
+document.addEventListener('gesturechange', e=>e.preventDefault());
+document.addEventListener('dblclick', e=>e.preventDefault());
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+function rand(a,b){ return a + Math.random()*(b-a); }
+function pick(arr){ return arr[(Math.random()*arr.length)|0]; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+function toNormX(x){ return x / W; }
+function toNormY(y){ return y / H; }
+function toPixX(nx){ return nx * W; }
+function toPixY(ny){ return ny * H; }
+
+function showToast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(()=>t.classList.remove('show'), ms||1800);
+}
+
+/* ============================================================
+   SOUND (procedural Web Audio, optional, off by default)
+   ============================================================ */
+let soundOn = false;
+let actx = null;
+function ensureAudio(){
+  if(!actx){
+    try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx = null; }
+  }
+  if(actx && actx.state === 'suspended') actx.resume();
+}
+function tone(freq, t0, dur, gainPeak, type){
+  if(!actx) return;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(gainPeak, t0 + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(actx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+function playTwinkle(){
+  if(!soundOn || !actx) return;
+  const t0 = actx.currentTime;
+  tone(rand(1400,2200), t0, 0.12, 0.035, 'sine');
+}
+function playSticker(){
+  if(!soundOn) return; ensureAudio();
+  const t0 = actx.currentTime;
+  [880,1174,1568].forEach((f,i)=>tone(f, t0 + i*0.06, 0.25, 0.06, 'triangle'));
+}
+function playWand(){
+  if(!soundOn) return; ensureAudio();
+  const t0 = actx.currentTime;
+  const notes = [523,659,784,1046,1318];
+  notes.forEach((f,i)=>tone(f, t0 + i*0.07, 0.4, 0.05, 'sine'));
+}
+function playPoof(){
+  if(!soundOn) return; ensureAudio();
+  const t0 = actx.currentTime;
+  tone(300, t0, 0.15, 0.04, 'sine');
+}
+
+/* ============================================================
+   BACKGROUND SPARKLES (ambient, animated, cheap)
+   ============================================================ */
+let bgSparkles = [];
+function buildBgSparkles(){
+  const count = Math.round((W*H) / 26000);
+  bgSparkles = [];
+  for(let i=0;i<count;i++){
+    bgSparkles.push({
+      x: rand(0,W), y: rand(0,H),
+      r: rand(1.2, 3.4),
+      phase: rand(0, Math.PI*2),
+      speed: rand(0.6, 1.6),
+      star: Math.random() < 0.28,
+      drift: rand(-3,3)
+    });
+  }
+}
+function drawStarGlyph(ctx, x, y, r, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = Math.max(0.6, r*0.35);
+  ctx.beginPath();
+  ctx.moveTo(x-r,y); ctx.lineTo(x+r,y);
+  ctx.moveTo(x,y-r); ctx.lineTo(x,y+r);
+  ctx.stroke();
+  ctx.restore();
+}
+let bgTime = 0;
+function renderBg(dt){
+  bgTime += dt;
+  bgCtx.clearRect(0,0,W,H);
+  for(const s of bgSparkles){
+    const a = 0.25 + 0.55 * (0.5 + 0.5*Math.sin(bgTime*s.speed + s.phase));
+    s.x += s.drift * dt * 0.06;
+    if(s.x < -10) s.x = W+10;
+    if(s.x > W+10) s.x = -10;
+    if(s.star){
+      drawStarGlyph(bgCtx, s.x, s.y, s.r*2.2, a*0.9);
+    } else {
+      const g = bgCtx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*3.2);
+      g.addColorStop(0, `rgba(255,255,255,${a})`);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      bgCtx.fillStyle = g;
+      bgCtx.beginPath();
+      bgCtx.arc(s.x, s.y, s.r*3.2, 0, Math.PI*2);
+      bgCtx.fill();
+    }
+  }
+}
+
+/* ============================================================
+   DRAWING (strokes stored normalized, retained-mode redraw)
+   ============================================================ */
+const PEN_SIZES = [7, 14, 24, 40, 72];
+const ERASER_SIZES = [26, 46, 76, 118, 170];
+let tool = 'pen'; // 'pen' | 'eraser'
+let penSizeIdx = 1;
+let eraserSizeIdx = 1;
+
+const INK_COLOR = '#8b2fe0';
+const INK_GLOW = '#e6c9ff';
+
+let strokes = []; // finalized: {mode, size, points:[{nx,ny}], sparkles:[{nx,ny,r}]}
+const activeStrokes = new Map(); // pointerId -> live stroke state
+
+function currentSize(){
+  return tool === 'pen' ? PEN_SIZES[penSizeIdx] : ERASER_SIZES[eraserSizeIdx];
+}
+
+function drawSmoothSegment(ctx, p0, p1, p2, size, mode){
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = size;
+  if(mode === 'erase'){
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = size * 0.9;
+    ctx.shadowColor = INK_GLOW;
+    ctx.strokeStyle = INK_COLOR;
+  }
+  const mid1 = {x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2};
+  const mid2 = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+  ctx.beginPath();
+  ctx.moveTo(mid1.x, mid1.y);
+  ctx.quadraticCurveTo(p1.x, p1.y, mid2.x, mid2.y);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawDot(ctx, p, size, mode){
+  ctx.beginPath();
+  if(mode === 'erase'){
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = size*0.9;
+    ctx.shadowColor = INK_GLOW;
+    ctx.fillStyle = INK_COLOR;
+  }
+  ctx.arc(p.x, p.y, size/2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawEmbeddedSparkle(ctx, p, r){
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*3);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(p.x,p.y,r*3,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function fullRedraw(){
+  drawCtx.clearRect(0,0,W,H);
+  for(const s of strokes){
+    const pts = s.points.map(p=>({x:toPixX(p.nx), y:toPixY(p.ny)}));
+    if(pts.length === 1){
+      drawDot(drawCtx, pts[0], s.size, s.mode);
+    } else if(pts.length === 2){
+      drawSmoothSegment(drawCtx, pts[0], pts[0], pts[1], s.size, s.mode);
+    } else {
+      for(let i=0;i<pts.length-2;i++){
+        drawSmoothSegment(drawCtx, pts[i], pts[i+1], pts[i+2], s.size, s.mode);
+      }
+    }
+    if(s.mode === 'draw' && s.sparkles){
+      for(const sp of s.sparkles){
+        drawEmbeddedSparkle(drawCtx, {x:toPixX(sp.nx), y:toPixY(sp.ny)}, sp.r);
+      }
+    }
+  }
+}
+
+/* -------- live pointer stroke handling -------- */
+function beginStroke(id, x, y){
+  const s = {
+    mode: tool === 'eraser' ? 'erase' : 'draw',
+    size: currentSize(),
+    ptsPix: [{x,y}],
+    sparkles: [],
+    lastSparkleDist: 0
+  };
+  activeStrokes.set(id, s);
+  drawDot(drawCtx, {x,y}, s.size, s.mode);
+  if(s.mode === 'draw') spawnTrail(x,y,1.4);
+}
+
+function moveStroke(id, x, y){
+  const s = activeStrokes.get(id);
+  if(!s) return;
+  const pts = s.ptsPix;
+  pts.push({x,y});
+  const n = pts.length;
+  if(n >= 3){
+    drawSmoothSegment(drawCtx, pts[n-3], pts[n-2], pts[n-1], s.size, s.mode);
+  } else if(n === 2){
+    drawSmoothSegment(drawCtx, pts[0], pts[0], pts[1], s.size, s.mode);
+  }
+  if(s.mode === 'draw'){
+    spawnTrail(x,y,1);
+    const prev = pts[n-2] || pts[n-1];
+    s.lastSparkleDist += dist(prev.x, prev.y, x, y);
+    if(s.lastSparkleDist > 26){
+      s.lastSparkleDist = 0;
+      const r = rand(1,2.6);
+      const off = rand(-s.size*0.28, s.size*0.28);
+      const ang = rand(0, Math.PI*2);
+      const sx = x + Math.cos(ang)*off, sy = y + Math.sin(ang)*off;
+      drawEmbeddedSparkle(drawCtx, {x:sx,y:sy}, r);
+      s.sparkles.push({nx:toNormX(sx), ny:toNormY(sy), r});
+      if(Math.random() < 0.5) playTwinkle();
+    }
+  }
+}
+
+function endStroke(id){
+  const s = activeStrokes.get(id);
+  if(!s) return;
+  activeStrokes.delete(id);
+  const points = s.ptsPix.map(p=>({nx:toNormX(p.x), ny:toNormY(p.y)}));
+  strokes.push({mode:s.mode, size:s.size, points, sparkles:s.sparkles});
+  if(s.mode === 'draw'){
+    // a few drifting-away sparkles peel off the finished stroke
+    const count = Math.min(4, Math.max(1, Math.round(s.ptsPix.length/18)));
+    for(let i=0;i<count;i++){
+      const p = pick(s.ptsPix);
+      spawnDrift(p.x, p.y);
+    }
+  }
+}
+
+function undo(){
+  if(strokes.length === 0) return;
+  strokes.pop();
+  fullRedraw();
+}
+
+function clearAll(){
+  strokes = [];
+  fullRedraw();
+  clearStickers();
+}
+
+/* ============================================================
+   FOREGROUND FX PARTICLES (trail, drift, burst, wand sweep)
+   pooled, bounded, redrawn every frame
+   ============================================================ */
+const MAX_FX = 260;
+let fx = [];
+function spawnTrail(x,y,scale){
+  if(fx.length > MAX_FX) return;
+  for(let i=0;i<2;i++){
+    fx.push({
+      type:'trail', x, y,
+      vx: rand(-14,14), vy: rand(-20,-4),
+      r: rand(1.4,3.2)*scale, life: rand(0.35,0.7), age:0,
+      hue: Math.random()<0.5 ? '#ffffff' : '#e6c9ff'
+    });
+  }
+}
+function spawnDrift(x,y){
+  if(fx.length > MAX_FX) return;
+  fx.push({
+    type:'drift', x, y,
+    vx: rand(-8,8), vy: rand(-26,-12),
+    r: rand(1.8,3.6), life: rand(1.6,2.6), age:0,
+    hue:'#ffffff'
+  });
+}
+function spawnBurst(x,y,n,colors){
+  for(let i=0;i<(n||26);i++){
+    if(fx.length > MAX_FX+80) break;
+    const ang = rand(0,Math.PI*2);
+    const spd = rand(40,220);
+    fx.push({
+      type:'burst', x, y,
+      vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
+      r: rand(2,4.5), life: rand(0.5,1.0), age:0,
+      hue: pick(colors || ['#ffffff','#e6c9ff','#ffd6ec'])
+    });
+  }
+}
+let wandSweep = null;
+function spawnWand(){
+  wandSweep = {age:0, life:1.3};
+  spawnBurst(W/2, H/2, 60, ['#ffffff','#e6c9ff','#ffd6ec','#c58bff']);
+  for(let i=0;i<50;i++){
+    fx.push({
+      type:'sweep', x: rand(0,W), y: H+20,
+      vx: rand(-20,20), vy: rand(-260,-140),
+      r: rand(2,4.5), life: rand(0.9,1.6), age: -rand(0,0.5),
+      hue: pick(['#ffffff','#e6c9ff','#ffd6ec'])
+    });
+  }
+}
+
+function updateFx(dt){
+  for(let i=fx.length-1;i>=0;i--){
+    const p = fx[i];
+    p.age += dt;
+    if(p.age < 0) continue;
+    if(p.age > p.life){ fx.splice(i,1); continue; }
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    if(p.type !== 'sweep') p.vy += 30*dt;
+  }
+}
+function renderFx(){
+  fxCtx.clearRect(0,0,W,H);
+  for(const p of fx){
+    if(p.age < 0) continue;
+    const t = p.age / p.life;
+    const a = 1 - t;
+    fxCtx.save();
+    fxCtx.globalAlpha = clamp(a,0,1);
+    const g = fxCtx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3.4);
+    g.addColorStop(0, p.hue);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    fxCtx.fillStyle = g;
+    fxCtx.beginPath();
+    fxCtx.arc(p.x,p.y,p.r*3.4,0,Math.PI*2);
+    fxCtx.fill();
+    fxCtx.restore();
+  }
+  if(wandSweep){
+    wandSweep.age += 1/60;
+    if(wandSweep.age > wandSweep.life) wandSweep = null;
+  }
+}
+
+/* ============================================================
+   MAGIC WAND — glow pulse on drawing + wiggle stickers
+   ============================================================ */
+let wandGlow = 0; // 0..1 extra glow amount applied in fullRedraw via CSS filter trick
+function triggerWand(){
+  playWand();
+  spawnWand();
+  // brighten strokes briefly via filter on the draw canvas
+  let t0 = performance.now();
+  const dur = 900;
+  function step(){
+    const t = (performance.now()-t0)/dur;
+    if(t >= 1){ drawCanvas.style.filter = ''; return; }
+    const k = Math.sin(Math.min(t,1)*Math.PI); // 0->1->0
+    drawCanvas.style.filter = `brightness(${1+k*0.55}) saturate(${1+k*0.4}) drop-shadow(0 0 ${k*18}px #e6c9ff)`;
+    requestAnimationFrame(step);
+  }
+  step();
+  // wiggle stickers
+  for(const st of stickers){
+    st.el.classList.remove('wiggle'); void st.el.offsetWidth;
+    st.el.classList.add('wiggle');
+    setTimeout(()=>st.el.classList.remove('wiggle'), 650);
+  }
+}
+
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+  renderBg(dt);
+  updateFx(dt);
+  renderFx();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ============================================================
+   STICKERS (DOM-driven, state array is source of truth)
+   ============================================================ */
+const STICKER_EMOJI = ['🦄','🌈','🦋','🐝','🌸','💜','⭐','✨','🐱','🐧','🍓','🍭','👑','🌙','☁️'];
+let stickers = []; // {id,emoji,nx,ny,rot,scale,el}
+let stickerIdSeq = 1;
+
+function layoutStickers(){
+  for(const st of stickers) applyStickerTransform(st);
+}
+function applyStickerTransform(st){
+  const x = toPixX(st.nx), y = toPixY(st.ny);
+  st.el.style.setProperty('--r', `rotate(${st.rot}deg)`);
+  st.el.style.setProperty('--s', `scale(${st.scale})`);
+  st.el.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%) rotate(${st.rot}deg) scale(${st.scale})`;
+}
+
+function createSticker(emoji, x, y){
+  const el = document.createElement('div');
+  el.className = 'sticker';
+  el.textContent = emoji;
+  const st = {
+    id: stickerIdSeq++, emoji,
+    nx: toNormX(x), ny: toNormY(y),
+    rot: rand(-12,12), scale: 1,
+    el
+  };
+  stickerLayer.appendChild(el);
+  applyStickerTransform(st);
+  stickers.push(st);
+  attachStickerHandlers(st);
+  spawnBurst(x,y,22,['#ffffff','#ffd6ec','#e6c9ff']);
+  playSticker();
+  el.classList.add('bounce');
+  setTimeout(()=>el.classList.remove('bounce'), 460);
+  return st;
+}
+
+function removeSticker(st){
+  st.el.classList.add('poof');
+  playPoof();
+  setTimeout(()=>{ st.el.remove(); }, 300);
+  stickers = stickers.filter(s=>s!==st);
+}
+function clearStickers(){
+  for(const st of stickers) st.el.remove();
+  stickers = [];
+}
+
+function attachStickerHandlers(st){
+  const el = st.el;
+  const pointers = new Map(); // pointerId -> {x,y}
+  let startState = null; // for gesture math
+  let moved = false;
+  let downTime = 0;
+
+  function overTrash(x,y){
+    const tEl = document.getElementById('trash');
+    const r = tEl.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    return dist(x,y,cx,cy) < r.width*0.75;
+  }
+
+  el.addEventListener('pointerdown', (e)=>{
+    e.stopPropagation();
+    ensureAudio();
+    el.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    moved = false;
+    downTime = performance.now();
+    if(pointers.size === 1){
+      startState = {
+        nx: st.nx, ny: st.ny,
+        px: e.clientX, py: e.clientY
+      };
+      document.getElementById('trash').classList.add('show');
+    } else if(pointers.size === 2){
+      const pts = [...pointers.values()];
+      startState = {
+        d0: dist(pts[0].x,pts[0].y,pts[1].x,pts[1].y),
+        ang0: Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x),
+        scale0: st.scale, rot0: st.rot
+      };
+    }
+  });
+
+  el.addEventListener('pointermove', (e)=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pointers.size === 1 && startState){
+      const dx = e.clientX - startState.px;
+      const dy = e.clientY - startState.py;
+      if(Math.hypot(dx,dy) > 4) moved = true;
+      const nx = toNormX(toPixX(startState.nx) + dx);
+      const ny = toNormY(toPixY(startState.ny) + dy);
+      st.nx = clamp(nx, -0.05, 1.05);
+      st.ny = clamp(ny, -0.05, 1.05);
+      applyStickerTransform(st);
+      const tEl = document.getElementById('trash');
+      if(overTrash(e.clientX, e.clientY)) tEl.classList.add('hover');
+      else tEl.classList.remove('hover');
+    } else if(pointers.size === 2 && startState){
+      const pts = [...pointers.values()];
+      const d1 = dist(pts[0].x,pts[0].y,pts[1].x,pts[1].y);
+      const ang1 = Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
+      const scaleFactor = d1 / (startState.d0 || 1);
+      const rotDelta = (ang1 - startState.ang0) * 180/Math.PI;
+      st.scale = clamp(startState.scale0 * scaleFactor, 0.35, 4.5);
+      st.rot = startState.rot0 + rotDelta;
+      moved = true;
+      applyStickerTransform(st);
+    }
+  });
+
+  function finishPointer(e){
+    pointers.delete(e.pointerId);
+    const tEl = document.getElementById('trash');
+    if(pointers.size === 0){
+      if(!moved && (performance.now()-downTime) < 300){
+        el.classList.remove('bounce'); void el.offsetWidth;
+        el.classList.add('bounce');
+        setTimeout(()=>el.classList.remove('bounce'), 460);
+        playSticker();
+      }
+      if(overTrash(e.clientX, e.clientY) && moved){
+        removeSticker(st);
+      }
+      tEl.classList.remove('show');
+      tEl.classList.remove('hover');
+      startState = null;
+    } else if(pointers.size === 1){
+      const pts = [...pointers.values()];
+      startState = { nx: st.nx, ny: st.ny, px: pts[0].x, py: pts[0].y };
+    }
+  }
+  el.addEventListener('pointerup', finishPointer);
+  el.addEventListener('pointercancel', finishPointer);
+}
+
+/* -------- sticker tray -------- */
+const tray = document.getElementById('stickerTray');
+STICKER_EMOJI.forEach(emoji=>{
+  const item = document.createElement('div');
+  item.className = 'trayItem';
+  item.textContent = emoji;
+  tray.appendChild(item);
+
+  item.addEventListener('pointerdown', (e)=>{
+    e.stopPropagation();
+    ensureAudio();
+    const ghost = document.createElement('div');
+    ghost.className = 'sticker';
+    ghost.textContent = emoji;
+    ghost.style.opacity = '0.85';
+    ghost.style.zIndex = '30';
+    stickerLayer.appendChild(ghost);
+    function place(x,y){
+      ghost.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`;
+    }
+    place(e.clientX, e.clientY - 40);
+    let lastPos = {x:e.clientX, y:e.clientY-40};
+
+    function onMove(ev){
+      lastPos = {x:ev.clientX, y:ev.clientY-40};
+      place(lastPos.x, lastPos.y);
+    }
+    function onUp(ev){
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      ghost.remove();
+      const y = ev.clientY - 40;
+      createSticker(emoji, ev.clientX, clamp(y, 40, H-40));
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, {once:true});
+  });
+
+  item.addEventListener('click', ()=>{}); // no-op, drag/pointer handles it
+});
+
+let trayOpen = false;
+function toggleTray(open){
+  trayOpen = (open === undefined) ? !trayOpen : open;
+  tray.classList.toggle('open', trayOpen);
+  document.getElementById('btnStickers').classList.toggle('active', trayOpen);
+}
+
+/* ============================================================
+   CANVAS POINTER (drawing) — multitouch aware
+   ============================================================ */
+interact.addEventListener('pointerdown', (e)=>{
+  ensureAudio();
+  interact.setPointerCapture(e.pointerId);
+  beginStroke(e.pointerId, e.clientX, e.clientY);
+});
+interact.addEventListener('pointermove', (e)=>{
+  if(e.getCoalescedEvents){
+    const evts = e.getCoalescedEvents();
+    if(evts.length){
+      for(const ev of evts) moveStroke(e.pointerId, ev.clientX, ev.clientY);
+      return;
+    }
+  }
+  moveStroke(e.pointerId, e.clientX, e.clientY);
+});
+function pointerEnd(e){ endStroke(e.pointerId); }
+interact.addEventListener('pointerup', pointerEnd);
+interact.addEventListener('pointercancel', pointerEnd);
+interact.addEventListener('pointerleave', (e)=>{ if(e.pointerType==='mouse') endStroke(e.pointerId); });
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+const btnPen = document.getElementById('btnPen');
+const btnEraser = document.getElementById('btnEraser');
+const btnStickers = document.getElementById('btnStickers');
+const btnWand = document.getElementById('btnWand');
+const btnUndo = document.getElementById('btnUndo');
+const btnClear = document.getElementById('btnClear');
+const btnSave = document.getElementById('btnSave');
+const btnSound = document.getElementById('btnSound');
+const sizeRow = document.getElementById('sizeRow');
+
+function setTool(t){
+  tool = t;
+  btnPen.classList.toggle('active', t==='pen');
+  btnEraser.classList.toggle('active', t==='eraser');
+  buildSizeRow();
+}
+function buildSizeRow(){
+  sizeRow.innerHTML = '';
+  const sizes = tool === 'pen' ? PEN_SIZES : ERASER_SIZES;
+  const selIdx = tool === 'pen' ? penSizeIdx : eraserSizeIdx;
+  sizes.forEach((sz, i)=>{
+    const dot = document.createElement('div');
+    const display = clamp(14 + sz*0.42, 16, 50);
+    dot.className = 'sizeDot' + (tool==='eraser' ? ' eraserDot' : '') + (i===selIdx ? ' selected' : '');
+    dot.style.width = display+'px';
+    dot.style.height = display+'px';
+    dot.addEventListener('pointerdown', (e)=>{
+      e.stopPropagation();
+      if(tool==='pen') penSizeIdx = i; else eraserSizeIdx = i;
+      buildSizeRow();
+    });
+    sizeRow.appendChild(dot);
+  });
+}
+
+btnPen.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); setTool('pen'); });
+btnEraser.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); setTool('eraser'); });
+btnStickers.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); ensureAudio(); toggleTray(); });
+btnWand.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); ensureAudio(); triggerWand(); });
+btnUndo.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); undo(); });
+
+let clearArmed = false, clearTimer = null;
+btnClear.addEventListener('pointerdown', (e)=>{
+  e.stopPropagation();
+  if(!clearArmed){
+    clearArmed = true;
+    btnClear.classList.add('armed');
+    showToast('Tap again to clear the picture!', 2200);
+    clearTimer = setTimeout(()=>{ clearArmed=false; btnClear.classList.remove('armed'); }, 2200);
+  } else {
+    clearArmed = false;
+    btnClear.classList.remove('armed');
+    clearTimeout(clearTimer);
+    clearAll();
+  }
+});
+
+btnSound.addEventListener('pointerdown', (e)=>{
+  e.stopPropagation();
+  ensureAudio();
+  soundOn = !soundOn;
+  btnSound.textContent = soundOn ? '🔊' : '🔇';
+  btnSound.classList.toggle('active', soundOn);
+  if(soundOn) playSticker();
+});
+
+btnSave.addEventListener('pointerdown', async (e)=>{
+  e.stopPropagation();
+  await savePicture();
+});
+
+// tapping empty canvas area closes the tray
+interact.addEventListener('pointerdown', ()=>{ if(trayOpen) toggleTray(false); });
+
+async function savePicture(){
+  try{
+    const out = document.createElement('canvas');
+    out.width = W*DPR; out.height = H*DPR;
+    const octx = out.getContext('2d');
+    octx.setTransform(DPR,0,0,DPR,0,0);
+    // pink background
+    const g = octx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, '#ff8fc9');
+    g.addColorStop(1, '#ff5fae');
+    octx.fillStyle = g;
+    octx.fillRect(0,0,W,H);
+    octx.drawImage(bgCanvas, 0,0, W, H);
+    octx.drawImage(drawCanvas, 0,0, W, H);
+    // stickers
+    for(const st of stickers){
+      octx.save();
+      octx.translate(toPixX(st.nx), toPixY(st.ny));
+      octx.rotate(st.rot * Math.PI/180);
+      octx.scale(st.scale, st.scale);
+      octx.font = '64px sans-serif';
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      octx.fillText(st.emoji, 0, 0);
+      octx.restore();
+    }
+    const blob = await new Promise(res=>out.toBlob(res, 'image/png'));
+    if(!blob){ showToast('Could not save right now'); return; }
+    const file = new File([blob], 'magic-picture.png', {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'My Magic Picture'});
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'magic-picture.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    showToast('Picture saved! ✨', 1800);
+  }catch(err){
+    showToast('Press and hold the picture to save it!', 2600);
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+buildSizeRow();
+doResize();
+})();
+</script>
+</body>
+</html>

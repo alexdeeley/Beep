@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Heavy Spin Morph — Front-Face Wire (White on Black)</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; height:100%; overflow:hidden;}
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  function resize() {
+    canvas.width = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ---------- Vec / quat helpers ----------
+  function v3(x=0,y=0,z=0){ return new Float32Array([x,y,z]); }
+  function add(a,b){ return v3(a[0]+b[0], a[1]+b[1], a[2]+b[2]); }
+  function sub(a,b){ return v3(a[0]-b[0], a[1]-b[1], a[2]-b[2]); }
+  function mul(a,s){ return v3(a[0]*s, a[1]*s, a[2]*s); }
+  function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+  function cross(a,b){ return v3(
+    a[1]*b[2]-a[2]*b[1],
+    a[2]*b[0]-a[0]*b[2],
+    a[0]*b[1]-a[1]*b[0]
+  ); }
+  function len(a){ return Math.hypot(a[0],a[1],a[2]); }
+  function norm(a){ const L = len(a); return L>0 ? mul(a, 1/L) : v3(); }
+
+  function qIdent(){ return new Float32Array([0,0,0,1]); }
+  function qMul(a,b){
+    const ax=a[0], ay=a[1], az=a[2], aw=a[3];
+    const bx=b[0], by=b[1], bz=b[2], bw=b[3];
+    return new Float32Array([
+      aw*bx + ax*bw + ay*bz - az*by,
+      aw*by - ax*bz + ay*bw + az*bx,
+      aw*bz + ax*by - ay*bx + az*bw,
+      aw*bw - ax*bx - ay*by - az*bz
+    ]);
+  }
+  function qFromAxisAngle(axis, angle){
+    const a = norm(axis);
+    const s = Math.sin(angle/2);
+    return new Float32Array([a[0]*s, a[1]*s, a[2]*s, Math.cos(angle/2)]);
+  }
+  function qRotateVec(q, v){
+    const x=q[0], y=q[1], z=q[2], w=q[3];
+    const tx = 2*(y*v[2] - z*v[1]);
+    const ty = 2*(z*v[0] - x*v[2]);
+    const tz = 2*(x*v[1] - y*v[0]);
+    return v3(
+      v[0] + w*tx + (y*tz - z*ty),
+      v[1] + w*ty + (z*tx - x*tz),
+      v[2] + w*tz + (x*ty - y*tx)
+    );
+  }
+
+  // ---------- Build mesh (icosphere topology) ----------
+  function icosahedron(){
+    const t = (1 + Math.sqrt(5)) / 2;
+    const verts = [
+      v3(-1,  t,  0), v3( 1,  t,  0), v3(-1, -t,  0), v3( 1, -t,  0),
+      v3( 0, -1,  t), v3( 0,  1,  t), v3( 0, -1, -t), v3( 0,  1, -t),
+      v3( t,  0, -1), v3( t,  0,  1), v3(-t,  0, -1), v3(-t,  0,  1),
+    ].map(norm);
+    const faces = [
+      [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+      [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+      [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+      [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]
+    ];
+    return {verts, faces};
+  }
+  function midpoint(a,b){ return norm(v3(a[0]+b[0], a[1]+b[1], a[2]+b[2])); }
+  function subdivide({verts, faces}){
+    const cache = new Map();
+    function key(i,j){ return i<j ? i+'_'+j : j+'_'+i; }
+    function getMid(i,j){
+      const k = key(i,j);
+      if(cache.has(k)) return cache.get(k);
+      const idx = verts.push(midpoint(verts[i], verts[j])) - 1;
+      cache.set(k, idx);
+      return idx;
+    }
+    const outFaces = [];
+    for(const [a,b,c] of faces){
+      const ab = getMid(a,b);
+      const bc = getMid(b,c);
+      const ca = getMid(c,a);
+      outFaces.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]);
+    }
+    return {verts, faces:outFaces};
+  }
+  function buildIcosphere(subdiv=2){
+    let mesh = icosahedron();
+    for(let i=0;i<subdiv;i++) mesh = subdivide(mesh);
+    const edgeMap = new Map();
+    const edges = [];
+    const adj = [];
+    function addEdge(i,j,fi){
+      const k = i<j ? i+'_'+j : j+'_'+i;
+      let idx = edgeMap.get(k);
+      if(idx == null){
+        idx = edges.push([i,j]) - 1;
+        edgeMap.set(k, idx);
+        adj[idx] = [];
+      }
+      adj[idx].push(fi);
+    }
+    mesh.faces.forEach((f, fi)=>{
+      addEdge(f[0],f[1],fi);
+      addEdge(f[1],f[2],fi);
+      addEdge(f[2],f[0],fi);
+    });
+    return {verts:mesh.verts, faces:mesh.faces, edges, edgeAdj:adj};
+  }
+
+  const base = buildIcosphere(2);
+
+  // ---------- Shape mappings ----------
+  function mapSphere(v){ return norm(v); }
+  function mapCube(v){
+    const ax=Math.abs(v[0]), ay=Math.abs(v[1]), az=Math.abs(v[2]);
+    const m = Math.max(ax,ay,az) || 1;
+    return v3(v[0]/m, v[1]/m, v[2]/m);
+  }
+  function mapOcta(v){
+    const s = Math.abs(v[0])+Math.abs(v[1])+Math.abs(v[2]) || 1;
+    return v3(v[0]/s, v[1]/s, v[2]/s);
+  }
+  function mapRoundedCube(v, p=0.6){
+    const ax=Math.abs(v[0]), ay=Math.abs(v[1]), az=Math.abs(v[2]);
+    const x = Math.sign(v[0]) * Math.pow(ax, p);
+    const y = Math.sign(v[1]) * Math.pow(ay, p);
+    const z = Math.sign(v[2]) * Math.pow(az, p);
+    const m = Math.max(Math.abs(x),Math.abs(y),Math.abs(z)) || 1;
+    return v3(x/m,y/m,z/m);
+  }
+  const shapeFns = [
+    {name:'Cube', fn:mapCube},
+    {name:'RoundedCube', fn:(v)=>mapRoundedCube(v, 0.6)},
+    {name:'Sphere', fn:mapSphere},
+    {name:'Octahedron', fn:mapOcta},
+  ];
+
+  let shapeIndex = 0, nextShapeIndex = 1, morphT = 0;
+  const MORPH_SPEED = 0.005, HOLD_TIME = 5000;
+  let lastShapeSwitch = performance.now();
+  const mappedByShape = shapeFns.map(s => base.verts.map(v => s.fn(v)));
+  function lerp(a,b,t){ return v3(a[0]*(1-t)+b[0]*t, a[1]*(1-t)+b[1]*t, a[2]*(1-t)+b[2]*t); }
+
+  // ---------- Interaction physics ----------
+  let orient = qIdent();
+  let angVel = v3(0,0,0);
+  const MAX_SPEED = 12.0, DAMP = 0.995, INPUT_SCALE = 0.003;
+  let dragging = false, lastPos = null;
+  function pointerPos(e){ if(e.touches && e.touches.length) e=e.touches[0]; return {x:e.clientX*DPR,y:e.clientY*DPR}; }
+  function onDown(e){ dragging=true; lastPos=pointerPos(e); }
+  function onMove(e){
+    if(!dragging) return;
+    const p = pointerPos(e); const dx=p.x-lastPos.x, dy=p.y-lastPos.y; lastPos=p;
+    const axis = v3(dy,-dx,0); const deltaSpeed=Math.min(MAX_SPEED, Math.hypot(dx,dy)*INPUT_SCALE);
+    angVel = add(angVel, mul(norm(axis), deltaSpeed)); e.preventDefault();
+  }
+  function onUp(){ dragging=false; }
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove, {passive:false});
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, {passive:false});
+  canvas.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend', onUp);
+
+  let lastTap=0;
+  function quickSwitch(){ shapeIndex=nextShapeIndex; nextShapeIndex=(shapeIndex+1)%shapeFns.length; morphT=0; lastShapeSwitch=performance.now(); }
+  canvas.addEventListener('dblclick', quickSwitch);
+  canvas.addEventListener('touchend',(e)=>{ const now=performance.now(); if(now-lastTap<300) quickSwitch(); lastTap=now; });
+
+  // ---------- Projection ----------
+  const zCam=3.2;
+  function project(v3p){
+    const w=canvas.width, h=canvas.height;
+    const scale = Math.min(w,h) * 0.80; // bigger
+    const z = v3p[2] + zCam;
+    return [(v3p[0]*scale)/z + w*0.5, (v3p[1]*scale)/z + h*0.5, z];
+  }
+
+  function step(dt){
+    const speed=len(angVel);
+    if(speed>0){
+      const dq=qFromAxisAngle(mul(angVel,1/(speed||1)), speed*dt);
+      orient=qMul(dq, orient);
+      angVel=mul(angVel, Math.pow(DAMP, dt*60));
+      if(len(angVel)>MAX_SPEED) angVel=mul(norm(angVel), MAX_SPEED);
+    }
+    const now=performance.now();
+    if(now-lastShapeSwitch>HOLD_TIME){
+      morphT += MORPH_SPEED * dt * 60;
+      if(morphT>=1){ morphT=0; shapeIndex=nextShapeIndex; nextShapeIndex=(shapeIndex+1)%shapeFns.length; lastShapeSwitch=now; }
+    }
+  }
+
+  function draw(){
+    const w=canvas.width, h=canvas.height;
+    ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+
+    const A=mappedByShape[shapeIndex], B=mappedByShape[nextShapeIndex];
+    const camVerts = base.verts.map((v,i)=> qRotateVec(orient, lerp(A[i],B[i],morphT)) );
+
+    // front-face detection
+    const faceFront = new Array(base.faces.length);
+    const faceDepth = new Array(base.faces.length);
+    for(let fi=0; fi<base.faces.length; fi++){
+      const [i,j,k] = base.faces[fi];
+      const a=camVerts[i], b=camVerts[j], c=camVerts[k];
+      const n = cross(sub(b,a), sub(c,a));
+      faceFront[fi] = (n[2] < 0); // camera looks +Z
+      faceDepth[fi] = (a[2]+b[2]+c[2])/3;
+    }
+    const order = [...base.faces.keys()].sort((u,v)=> faceDepth[v]-faceDepth[u]);
+
+    // occlusion fill (black) back-to-front
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='#000';
+    for(const fi of order){
+      const [i,j,k] = base.faces[fi];
+      const pa=project(camVerts[i]), pb=project(camVerts[j]), pc=project(camVerts[k]);
+      ctx.beginPath(); ctx.moveTo(pa[0],pa[1]); ctx.lineTo(pb[0],pb[1]); ctx.lineTo(pc[0],pc[1]); ctx.closePath(); ctx.fill();
+    }
+
+    // draw only edges attached to a front-facing face
+    ctx.lineWidth = Math.max(2.5*DPR, 2);
+    ctx.strokeStyle='#fff'; ctx.globalAlpha=1.0;
+    ctx.beginPath();
+    for(let ei=0; ei<base.edges.length; ei++){
+      const adjs = base.edgeAdj[ei];
+      let visible=false; for(const fi of adjs){ if(faceFront[fi]){ visible=true; break; } }
+      if(!visible) continue;
+      const [i,j]=base.edges[ei];
+      const a = project(camVerts[i]); const b = project(camVerts[j]);
+      if(a[2] <= 0.1 || b[2] <= 0.1) continue;
+      ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
+    }
+    ctx.stroke();
+  }
+
+  let last=performance.now();
+  function loop(now){ const dt=Math.max(0.001, Math.min(0.05, (now-last)/1000)); last=now; step(dt); draw(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+
+  angVel = v3(0.3,0.2,0.0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>RICOCHET 8-BIT</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #05070d; overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    position: fixed; inset: 0;
+  }
+  #wrap {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: #05070d;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<div id="wrap"><canvas id="game"></canvas></div>
+<script>
+(function(){
+"use strict";
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const CONFIG = {
+  TITLE: "RICOCHET 8-BIT",
+  COLS: 7,
+  VISIBLE_ROWS: 9,
+  CELL: 48,
+  CEILING_GAP: 48,                 // empty headroom above the top block row for ceiling bank shots
+  BORDER: 16,
+  HUD_H: 64,
+  LAUNCH_AREA_H: 104,
+  BLOCK_PAD: 3,
+  BALL_RADIUS: 6,
+  BALL_SPEED: 660,               // logical px / sec
+  LAUNCH_INTERVAL_MIN: 55,
+  LAUNCH_INTERVAL_MAX: 85,
+  STARTING_BALLS: 10,
+  MIN_AIM_DEG: 12,                // minimum degrees above horizontal
+  CANCEL_ZONE_H: 64,              // drag your finger this close to the bottom edge to cancel the shot
+  MAX_PREVIEW_COLLISIONS: 18,
+  PREVIEW_MAX_DIST_MULT: 34,
+  MAX_COLLISIONS_PER_FRAME: 10,
+  ROW_ADVANCE_PAUSE_MS: 300,
+  ROW_ADVANCE_ANIM_MS: 220,
+  AUDIO_VOLUME_DEFAULT: 0.6,
+  FASTFORWARD_MULT: 2.6,
+  FASTFORWARD_SHOW_AFTER_MS: 2600,
+};
+
+const PALETTE = {
+  navy:        "#0a0e1a",
+  navyDeep:    "#060912",
+  deepBlue:    "#132449",
+  electricBlue:"#2f5dff",
+  cyan:        "#3fe0ff",
+  white:       "#f5f8ff",
+  paleYellow:  "#fff1a8",
+  goldYellow:  "#ffd23f",
+  orange:      "#ff8c1a",
+  hotRed:      "#ff2d55",
+  magenta:     "#ff2df0",
+  purple:      "#8b2dff",
+  darkGreen:   "#0e6b3a",
+  brightGreen: "#3dff8c",
+  gray:        "#7f8aa3",
+  lightGray:   "#c7cfe0",
+  burgundy:    "#4a0f1f",
+};
+
+/* =========================================================
+   RNG (seeded)
+   ========================================================= */
+function makeRng(seed) {
+  // state is exposed on .s so game snapshots (for the rewind power-up)
+  // can capture and restore it exactly.
+  return {
+    s: seed >>> 0,
+    next() {
+      let a = this.s | 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      this.s = a;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+  };
+}
+function makeSeed() {
+  return (Math.floor(Math.random() * 0xffffffff)) >>> 0;
+}
+
+/* =========================================================
+   SAVE MANAGER
+   ========================================================= */
+const SaveManager = {
+  KEY: "ricochet8bit_save_v1",
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (!raw) return this.defaults();
+      const data = JSON.parse(raw);
+      return Object.assign(this.defaults(), data);
+    } catch (e) { return this.defaults(); }
+  },
+  defaults() {
+    return {
+      highScore: 0,
+      bestTurn: 0,
+      soundOn: true,
+      volume: CONFIG.AUDIO_VOLUME_DEFAULT,
+      screenShake: true,
+      reducedMotion: false,
+      largeUI: false,
+      trajectoryLength: "max", // 'standard' | 'long' | 'max'
+      lastSeed: null,
+    };
+  },
+  save(data) {
+    try { localStorage.setItem(this.KEY, JSON.stringify(data)); } catch (e) {}
+  }
+};
+
+/* =========================================================
+   AUDIO ENGINE
+   ========================================================= */
+class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.master = null;
+    this.enabled = true;
+    this.volume = CONFIG.AUDIO_VOLUME_DEFAULT;
+    this._lastImpactAt = 0;
+    this._impactBurst = 0;
+    this._unlocked = false;
+  }
+  unlock() {
+    if (this._unlocked) return;
+    this._unlocked = true;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new Ctx();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = this.volume;
+    this.master.connect(this.ctx.destination);
+    if (this.ctx.state === "suspended") this.ctx.resume();
+  }
+  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
+  setEnabled(v) { this.enabled = v; }
+
+  _env(gainNode, t0, attack, hold, decay, peak) {
+    const g = gainNode.gain;
+    g.cancelScheduledValues(t0);
+    g.setValueAtTime(0.0001, t0);
+    g.linearRampToValueAtTime(peak, t0 + attack);
+    g.setValueAtTime(peak, t0 + attack + hold);
+    g.exponentialRampToValueAtTime(0.0001, t0 + attack + hold + decay);
+  }
+
+  _osc(type, freq0, freq1, dur, gainPeak, t0, extra) {
+    if (!this.enabled || !this.ctx) return;
+    const ctx = this.ctx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq0, t0);
+    if (freq1 !== undefined && freq1 !== freq0) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq1), t0 + dur);
+    }
+    this._env(gain, t0, 0.004, dur * 0.15, dur * 0.85, gainPeak);
+    osc.connect(gain);
+    gain.connect(this.master);
+    if (extra) extra(osc, gain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }
+
+  _noise(dur, gainPeak, t0, filterFreq) {
+    if (!this.enabled || !this.ctx) return;
+    const ctx = this.ctx;
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    this._env(gain, t0, 0.002, dur * 0.1, dur * 0.9, gainPeak);
+    let node = src;
+    if (filterFreq) {
+      const filt = ctx.createBiquadFilter();
+      filt.type = "bandpass";
+      filt.frequency.value = filterFreq;
+      node.connect(filt);
+      node = filt;
+    }
+    node.connect(gain);
+    gain.connect(this.master);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+
+  now() { return this.ctx ? this.ctx.currentTime : 0; }
+
+  aimStart() { if (!this.ctx) return; this._osc("triangle", 220, 260, 0.06, 0.12, this.now()); }
+  shotRelease() { if (!this.ctx) return; this._osc("square", 520, 780, 0.08, 0.16, this.now()); }
+  ballLaunch(index) {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("square", 700 + (index % 5) * 12, 900, 0.035, 0.08, t);
+  }
+  wallBounce() {
+    if (!this.ctx) return;
+    this._osc("triangle", 300, 220, 0.045, 0.09, this.now());
+  }
+  ceilingBounce() {
+    if (!this.ctx) return;
+    this._osc("triangle", 380, 260, 0.045, 0.1, this.now());
+  }
+  blockHit(strength) {
+    if (!this.ctx) return;
+    const t = this.now();
+    const now = performance.now();
+    // rate-limit / thicken rapid impacts
+    if (now - this._lastImpactAt < 16) { this._impactBurst++; if (this._impactBurst % 2 !== 0) return; }
+    else { this._impactBurst = 0; }
+    this._lastImpactAt = now;
+    const base = 340 + (strength || 0) * 22 + Math.random() * 30;
+    this._osc("square", base, base * 0.6, 0.05, 0.14, t);
+  }
+  blockDestroy(comboLevel) {
+    if (!this.ctx) return;
+    const t = this.now();
+    const pitch = 1 + Math.min(comboLevel || 0, 8) * 0.06;
+    this._osc("sawtooth", 260 * pitch, 60, 0.22, 0.16, t);
+    this._noise(0.16, 0.12, t, 1800);
+  }
+  bonusCollect() {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("square", 520, 1180, 0.18, 0.14, t);
+    this._osc("square", 780, 1560, 0.16, 0.09, t + 0.03);
+  }
+  comboUp() {
+    if (!this.ctx) return;
+    this._osc("triangle", 900, 1200, 0.12, 0.12, this.now());
+  }
+  rowDescend() {
+    if (!this.ctx) return;
+    this._osc("triangle", 160, 100, 0.2, 0.1, this.now());
+  }
+  dangerWarn() {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("square", 200, 160, 0.16, 0.14, t);
+    this._osc("square", 200, 160, 0.16, 0.14, t + 0.18);
+  }
+  fastForward() {
+    if (!this.ctx) return;
+    this._osc("square", 500, 1000, 0.1, 0.1, this.now());
+  }
+  gameOver() {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("sawtooth", 400, 40, 0.9, 0.16, t);
+    this._noise(0.5, 0.12, t + 0.05, 600);
+  }
+  restart() {
+    if (!this.ctx) return;
+    this._osc("square", 300, 620, 0.14, 0.13, this.now());
+  }
+  uiTap() {
+    if (!this.ctx) return;
+    this._osc("square", 440, 440, 0.03, 0.08, this.now());
+  }
+}
+
+/* =========================================================
+   GEOMETRY / PHYSICS HELPERS (shared by live sim + predictor)
+   ========================================================= */
+const Physics = {
+  // Swept circle vs axis-aligned rect. Returns {t, nx, ny} or null.
+  // cx,cy = circle start; dx,dy = direction (unit); maxDist = distance budget
+  sweptCircleRect(cx, cy, dx, dy, maxDist, rect, radius) {
+    // Expand rect by radius (Minkowski sum), slab test for the rectangular
+    // core, then patch corner regions with true circle-vs-point tests.
+    const left = rect.x - radius, right = rect.x + rect.w + radius;
+    const top = rect.y - radius, bottom = rect.y + rect.h + radius;
+
+    let tmin = 0, tmax = maxDist;
+    let nx = 0, ny = 0;
+
+    // X slab
+    if (Math.abs(dx) < 1e-9) {
+      if (cx < left || cx > right) return null;
+    } else {
+      let t1 = (left - cx) / dx, t2 = (right - cx) / dx;
+      let sign = -1;
+      if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; sign = 1; }
+      if (t1 > tmin) { tmin = t1; nx = sign; ny = 0; }
+      if (t2 < tmax) tmax = t2;
+      if (tmin > tmax) return null;
+    }
+    // Y slab
+    if (Math.abs(dy) < 1e-9) {
+      if (cy < top || cy > bottom) return null;
+    } else {
+      let t1 = (top - cy) / dy, t2 = (bottom - cy) / dy;
+      let sign = -1;
+      if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; sign = 1; }
+      if (t1 > tmin) { tmin = t1; nx = 0; ny = sign; }
+      if (t2 < tmax) tmax = t2;
+      if (tmin > tmax) return null;
+    }
+    if (tmin < 0 || tmin > maxDist) return null;
+
+    // Corner correction: if the hit point's projected coordinate lies
+    // outside the true rect on the axis that wasn't the limiting one,
+    // it's actually a corner hit -- redo as circle-vs-point.
+    const hx = cx + dx * tmin, hy = cy + dy * tmin;
+    let cornerX = null, cornerY = null;
+    if (hx < rect.x) cornerX = rect.x; else if (hx > rect.x + rect.w) cornerX = rect.x + rect.w;
+    if (hy < rect.y) cornerY = rect.y; else if (hy > rect.y + rect.h) cornerY = rect.y + rect.h;
+    if (cornerX !== null && cornerY !== null) {
+      const t = Physics.circleVsPoint(cx, cy, dx, dy, maxDist, cornerX, cornerY, radius);
+      if (!t) return null;
+      return t;
+    }
+    return { t: tmin, nx, ny };
+  },
+
+  circleVsPoint(cx, cy, dx, dy, maxDist, px, py, radius) {
+    // Solve |P + D*t - C|^2 = r^2 for smallest t >= 0
+    const ox = cx - px, oy = cy - py;
+    const a = dx * dx + dy * dy;
+    const b = 2 * (ox * dx + oy * dy);
+    const c = ox * ox + oy * oy - radius * radius;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) return null;
+    const sq = Math.sqrt(disc);
+    const t1 = (-b - sq) / (2 * a);
+    let t = t1;
+    if (t < 0) {
+      const t2 = (-b + sq) / (2 * a);
+      t = t2;
+    }
+    if (t < 0 || t > maxDist) return null;
+    const hx = cx + dx * t, hy = cy + dy * t;
+    let nx = hx - px, ny = hy - py;
+    const len = Math.hypot(nx, ny) || 1;
+    nx /= len; ny /= len;
+    return { t, nx, ny };
+  },
+
+  reflect(dx, dy, nx, ny) {
+    const dot = dx * nx + dy * ny;
+    return { x: dx - 2 * dot * nx, y: dy - 2 * dot * ny };
+  }
+};
+
+/* =========================================================
+   BOARD
+   ========================================================= */
+class Block {
+  constructor(row, col, width, hp, isBomb) {
+    this.row = row;           // float row (top = 0)
+    this.col = col;           // leftmost column
+    this.width = width;       // 1 or 2 cells
+    this.hp = hp;
+    this.maxHp = hp;
+    this.isBomb = !!isBomb;   // exploding square: splash-damages neighbors on destroy
+    this.destroyed = false;
+    this.hitFlash = 0;
+    this.recoil = 0;
+    this.fillLevel = 1;       // animated 0..1 "remaining health" level, drops smoothly on hits
+    this.dangerOutlinePhase = Math.random() * Math.PI * 2;
+  }
+  rect(board) {
+    const pad = CONFIG.BLOCK_PAD;
+    const x = board.x + this.col * CONFIG.CELL + pad;
+    const y = board.gridY + this.row * CONFIG.CELL + pad;
+    const w = this.width * CONFIG.CELL - pad * 2;
+    const h = CONFIG.CELL - pad * 2;
+    return { x, y, w, h };
+  }
+  strengthBand(turn) {
+    const ratio = this.maxHp / Math.max(1, turn);
+    if (ratio >= 1.8) return "extreme";
+    if (ratio >= 1.35) return "strong";
+    if (ratio >= 0.9) return "moderate";
+    return "weak";
+  }
+}
+
+class Token {
+  constructor(row, col, value) {
+    this.row = row;
+    this.col = col;
+    this.value = value; // 1 or 3
+    this.collected = false;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+  center(board) {
+    return {
+      x: board.x + (this.col + 0.5) * CONFIG.CELL,
+      y: board.gridY + (this.row + 0.5) * CONFIG.CELL
+    };
+  }
+}
+
+class PowerToken {
+  constructor(row, col, power) {
+    this.row = row;
+    this.col = col;
+    this.power = power;
+    this.collected = false;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+  center(board) {
+    return {
+      x: board.x + (this.col + 0.5) * CONFIG.CELL,
+      y: board.gridY + (this.row + 0.5) * CONFIG.CELL
+    };
+  }
+}
+
+const POWER_TYPES = ["fireball", "split", "ricochet", "bomb", "freeze", "rewind", "double"];
+const POWER_INFO = {
+  fireball: { label: "FIREBALL", color: PALETTE.orange, icon: "F" },
+  split:    { label: "SPLIT BALL", color: PALETTE.cyan, icon: "S" },
+  ricochet: { label: "RICOCHET", color: PALETTE.magenta, icon: "R" },
+  bomb:     { label: "BOMB", color: PALETTE.hotRed, icon: "X" },
+  freeze:   { label: "FREEZE", color: PALETTE.electricBlue, icon: "Z" },
+  rewind:   { label: "REWIND", color: PALETTE.purple, icon: "\u21BA" },
+  double:   { label: "DOUBLE DMG", color: PALETTE.goldYellow, icon: "\u2605" },
+};
+
+class Board {
+  constructor(x, y, seed) {
+    this.x = x; this.y = y;
+    this.gridY = y + CONFIG.CEILING_GAP; // top-of-blocks line; leaves headroom above for ceiling bank shots
+    this.w = CONFIG.COLS * CONFIG.CELL;
+    this.h = CONFIG.CEILING_GAP + CONFIG.VISIBLE_ROWS * CONFIG.CELL;
+    this.blocks = [];
+    this.tokens = [];
+    this.powerTokens = [];
+    this.rng = makeRng(seed);
+    this.seed = seed;
+    this.lastTokenTurn = -99;
+    this.lastPowerTurn = -99;
+    this.rowAnimT = 0; // 0..1 during row-advance animation
+    this.animating = false;
+  }
+
+  reset(seed) {
+    this.rng = makeRng(seed);
+    this.seed = seed;
+    this.blocks = [];
+    this.tokens = [];
+    this.powerTokens = [];
+    this.lastTokenTurn = -99;
+    this.lastPowerTurn = -99;
+  }
+
+  wallRect() {
+    return { left: this.x, right: this.x + this.w, top: this.y, bottom: this.y + this.h };
+  }
+
+  aliveBlocks() { return this.blocks.filter(b => !b.destroyed); }
+
+  blockAt(row, col) {
+    for (const b of this.blocks) {
+      if (b.destroyed) continue;
+      if (Math.round(b.row) !== row) continue;
+      if (col >= b.col && col < b.col + b.width) return b;
+    }
+    return null;
+  }
+
+  occupancyForRow(rowIndex, excludeSet) {
+    const occ = new Array(CONFIG.COLS).fill(false);
+    for (const b of this.blocks) {
+      if (b.destroyed) continue;
+      if (Math.round(b.row) !== rowIndex) continue;
+      for (let c = b.col; c < b.col + b.width; c++) occ[c] = true;
+    }
+    for (const t of this.tokens) {
+      if (t.collected) continue;
+      if (Math.round(t.row) !== rowIndex) continue;
+      occ[t.col] = true;
+    }
+    for (const t of this.powerTokens) {
+      if (t.collected) continue;
+      if (Math.round(t.row) !== rowIndex) continue;
+      occ[t.col] = true;
+    }
+    return occ;
+  }
+
+  // Generate a fair new row for the given turn number. Returns list of
+  // {col,width,hp,isBomb} block specs, {col,value} token specs, and
+  // {col,power} power-token specs (row = 0).
+  generateRow(turn, guaranteeToken, guaranteePower) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const occ = new Array(CONFIG.COLS).fill(false);
+      const blockSpecs = [];
+      const tokenSpecs = [];
+      const powerSpecs = [];
+      let openLanes = 0;
+      let col = 0;
+      const fillChance = Math.min(0.62, 0.34 + turn * 0.012);
+      while (col < CONFIG.COLS) {
+        const r = this.rng.next();
+        if (r > fillChance) {
+          occ[col] = false; openLanes++; col++;
+          continue;
+        }
+        // occasional 2-wide rectangular block
+        const canWide = col <= CONFIG.COLS - 2 && this.rng.next() < 0.22;
+        const width = canWide ? 2 : 1;
+        const hp = this.rollHp(turn);
+        const isBomb = turn >= 3 && this.rng.next() < 0.07;
+        blockSpecs.push({ col, width, hp, isBomb });
+        for (let k = 0; k < width; k++) occ[col + k] = true;
+        col += width;
+      }
+      if (openLanes === 0) continue; // must have at least one open lane
+      // fully solid guard (shouldn't happen given above, but double check)
+      if (occ.every(v => v)) continue;
+
+      const openCols = [];
+      for (let c = 0; c < CONFIG.COLS; c++) if (!occ[c]) openCols.push(c);
+
+      // +1/+3 ball token
+      let placeToken = guaranteeToken || (this.rng.next() < 0.30);
+      if (placeToken && openCols.length > 0) {
+        const idx = Math.floor(this.rng.next() * openCols.length);
+        const c = openCols.splice(idx, 1)[0];
+        const isBig = turn > 12 && this.rng.next() < 0.08;
+        tokenSpecs.push({ col: c, value: isBig ? 3 : 1 });
+      } else if (guaranteeToken && openCols.length === 0) {
+        continue; // retry: need an open cell for guaranteed token
+      }
+
+      // power-up token (separate from the ball token, rarer)
+      let placePower = guaranteePower || (turn >= 2 && this.rng.next() < 0.16);
+      if (placePower && openCols.length > 0) {
+        const idx = Math.floor(this.rng.next() * openCols.length);
+        const c = openCols.splice(idx, 1)[0];
+        const type = POWER_TYPES[Math.floor(this.rng.next() * POWER_TYPES.length)];
+        powerSpecs.push({ col: c, power: type });
+      } else if (guaranteePower && openCols.length === 0) {
+        continue;
+      }
+
+      return { blockSpecs, tokenSpecs, powerSpecs };
+    }
+    // Fallback: guaranteed-safe simple row
+    const mid = Math.floor(CONFIG.COLS / 2);
+    return { blockSpecs: [{ col: 0, width: 1, hp: this.rollHp(turn), isBomb: false }], tokenSpecs: [{ col: mid, value: 1 }], powerSpecs: [] };
+  }
+
+  rollHp(turn) {
+    const r = this.rng.next();
+    let ratio;
+    if (r < 0.12) ratio = 0.35 + this.rng.next() * 0.3;          // weak
+    else if (r < 0.85) ratio = 0.7 + this.rng.next() * 0.6;       // common 0.7-1.3
+    else ratio = 1.8 + this.rng.next() * 0.4;                     // armored 1.8-2.2
+    return Math.max(1, Math.round(ratio * Math.max(1, turn)));
+  }
+
+  addRowAtTop(spec) {
+    for (const bs of spec.blockSpecs) {
+      this.blocks.push(new Block(0, bs.col, bs.width, bs.hp, bs.isBomb));
+    }
+    for (const ts of spec.tokenSpecs) {
+      this.tokens.push(new Token(0, ts.col, ts.value));
+    }
+    for (const ps of (spec.powerSpecs || [])) {
+      this.powerTokens.push(new PowerToken(0, ps.col, ps.power));
+    }
+  }
+
+  // returns true if a block crossed the danger line
+  shiftDown() {
+    for (const b of this.blocks) b.row += 1;
+    for (const t of this.tokens) t.row += 1;
+    for (const p of this.powerTokens) p.row += 1;
+    // purge tokens that fell fully out (safety)
+    this.tokens = this.tokens.filter(t => t.row < CONFIG.VISIBLE_ROWS + 1);
+    this.powerTokens = this.powerTokens.filter(p => p.row < CONFIG.VISIBLE_ROWS + 1);
+    let danger = false;
+    for (const b of this.blocks) {
+      if (b.destroyed) continue;
+      if (b.row >= CONFIG.VISIBLE_ROWS - 1) danger = true;
+    }
+    return danger;
+  }
+
+  isRowFull(rowIndex) {
+    const occ = this.occupancyForRow(rowIndex);
+    return occ.every(v => v);
+  }
+}
+
+/* =========================================================
+   BALL
+   ========================================================= */
+class Ball {
+  constructor(x, y, dirX, dirY) {
+    this.x = x; this.y = y;
+    this.dx = dirX; this.dy = dirY;
+    this.speed = CONFIG.BALL_SPEED;
+    this.active = true;
+    this.returned = false;
+    this.trailPts = [];
+    this.launched = false;
+    this.stuckTimer = 0;
+    this.wallBounces = 0;
+    // one-shot power-up charges, applied only to the first ball of a volley
+    this.fireballCharge = false;
+    this.splitCharge = false;
+    this.bombCharge = false;
+  }
+}
+
+/* =========================================================
+   PARTICLE SYSTEM
+   ========================================================= */
+class ParticleSystem {
+  constructor() { this.particles = []; this.popups = []; }
+  reset() { this.particles.length = 0; this.popups.length = 0; }
+
+  hitBurst(x, y, color) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 60 + Math.random() * 90;
+      this.particles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.22, age: 0, size: 2 + Math.random() * 2, color
+      });
+    }
+  }
+
+  explosion(x, y, color) {
+    const dirs = 8;
+    for (let i = 0; i < dirs; i++) {
+      const a = (i / dirs) * Math.PI * 2 + Math.random() * 0.2;
+      const sp = 110 + Math.random() * 140;
+      this.particles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.38, age: 0, size: 3 + Math.random() * 3, color
+      });
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = Math.random() * 60;
+      this.particles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.22, age: 0, size: 4, color: PALETTE.white
+      });
+    }
+  }
+
+  starburst(x, y) {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const sp = 90 + Math.random() * 70;
+      this.particles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.32, age: 0, size: 2.5, color: PALETTE.goldYellow
+      });
+    }
+  }
+
+  scorePopup(x, y, text, color) {
+    this.popups.push({ x, y, text, color, age: 0, life: 0.9 });
+  }
+
+  update(dt) {
+    for (const p of this.particles) {
+      p.age += dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.92; p.vy *= 0.92;
+    }
+    this.particles = this.particles.filter(p => p.age < p.life);
+    for (const s of this.popups) { s.age += dt; s.y -= dt * 26; }
+    this.popups = this.popups.filter(s => s.age < s.life);
+  }
+
+  draw(ctx) {
+    for (const p of this.particles) {
+      const a = 1 - p.age / p.life;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.fillStyle = p.color;
+      const s = p.size;
+      ctx.fillRect(Math.round(p.x - s / 2), Math.round(p.y - s / 2), Math.round(s), Math.round(s));
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = "bold 13px Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    for (const s of this.popups) {
+      const a = 1 - s.age / s.life;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.fillStyle = s.color;
+      ctx.fillText(s.text, s.x, s.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* =========================================================
+   TRAJECTORY PREDICTOR
+   ========================================================= */
+const TrajectoryPredictor = {
+  // Returns array of points [{x,y,impact:bool}] representing the path.
+  predict(startX, startY, dirX, dirY, board, radius, maxCollisions, maxDist) {
+    const points = [{ x: startX, y: startY, impact: false }];
+    let cx = startX, cy = startY, dx = dirX, dy = dirY;
+    let remaining = maxDist;
+    const wall = board.wallRect();
+    const blockRects = board.aliveBlocks().map(b => b.rect(board));
+
+    for (let i = 0; i < maxCollisions && remaining > 0; i++) {
+      const hit = findNearestCollision(cx, cy, dx, dy, remaining, wall, blockRects, radius);
+      if (!hit) {
+        points.push({ x: cx + dx * remaining, y: cy + dy * remaining, impact: false });
+        break;
+      }
+      const hx = cx + dx * hit.t, hy = cy + dy * hit.t;
+      points.push({ x: hx, y: hy, impact: true });
+      const r = Physics.reflect(dx, dy, hit.nx, hit.ny);
+      dx = r.x; dy = r.y;
+      // nudge off surface to avoid re-hitting same point
+      cx = hx + dx * 0.05; cy = hy + dy * 0.05;
+      remaining -= hit.t;
+      // stop preview once it would exit through the bottom (returned)
+      if (cy > board.y + board.h + radius * 2 && dy > 0) break;
+    }
+    return points;
+  }
+};
+
+function findNearestCollision(cx, cy, dx, dy, maxDist, wall, blockRects, radius) {
+  let best = null;
+  // left wall
+  if (dx < 0) {
+    const t = (wall.left + radius - cx) / dx;
+    if (t >= 0 && t <= maxDist) { if (!best || t < best.t) best = { t, nx: -1, ny: 0 }; }
+  }
+  // right wall
+  if (dx > 0) {
+    const t = (wall.right - radius - cx) / dx;
+    if (t >= 0 && t <= maxDist) { if (!best || t < best.t) best = { t, nx: 1, ny: 0 }; }
+  }
+  // ceiling
+  if (dy < 0) {
+    const t = (wall.top + radius - cy) / dy;
+    if (t >= 0 && t <= maxDist) { if (!best || t < best.t) best = { t, nx: 0, ny: -1 }; }
+  }
+  // blocks
+  for (const rect of blockRects) {
+    const res = Physics.sweptCircleRect(cx, cy, dx, dy, best ? best.t : maxDist, rect, radius);
+    if (res && (!best || res.t < best.t)) best = { t: res.t, nx: res.nx, ny: res.ny, rect };
+  }
+  return best;
+}
+
+/* =========================================================
+   INPUT MANAGER
+   ========================================================= */
+class InputManager {
+  constructor(canvas, game) {
+    this.canvas = canvas;
+    this.game = game;
+    this.pointerId = null;
+    this._bind();
+  }
+  _toLocal(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    // Use the dpr the canvas buffer was actually sized with (captured by the
+    // game's last _resize()), not a fresh devicePixelRatio read -- iOS Safari
+    // can transiently report a different value mid-gesture/chrome-animation,
+    // which is exactly what causes taps to land offset from the visible button.
+    const dpr = this.game.dpr || window.devicePixelRatio || 1;
+    const scaleX = this.canvas.width / rect.width / dpr;
+    const scaleY = this.canvas.height / rect.height / dpr;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+  _bind() {
+    const c = this.canvas;
+    const onDown = (e) => {
+      e.preventDefault();
+      this.game.audio.unlock();
+      this.pointerId = e.pointerId;
+      const p = this._toLocal(e.clientX, e.clientY);
+      this.game.onPointerDown(p.x, p.y);
+    };
+    const onMove = (e) => {
+      if (this.pointerId !== null && e.pointerId !== this.pointerId) return;
+      e.preventDefault();
+      const p = this._toLocal(e.clientX, e.clientY);
+      this.game.onPointerMove(p.x, p.y);
+    };
+    const onUp = (e) => {
+      if (this.pointerId !== null && e.pointerId !== this.pointerId) return;
+      e.preventDefault();
+      const p = this._toLocal(e.clientX, e.clientY);
+      this.game.onPointerUp(p.x, p.y);
+      this.pointerId = null;
+    };
+    c.addEventListener("pointerdown", onDown, { passive: false });
+    c.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp, { passive: false });
+    window.addEventListener("pointercancel", onUp, { passive: false });
+
+    document.addEventListener("touchmove", (e) => { e.preventDefault(); }, { passive: false });
+    document.addEventListener("gesturestart", (e) => { e.preventDefault(); });
+
+    window.addEventListener("keydown", (e) => this.game.onKeyDown(e));
+  }
+}
+
+/* =========================================================
+   GAME
+   ========================================================= */
+const STATE = {
+  TITLE: "title", HOWTO: "howto", AIMING: "aiming", LAUNCHING: "launching",
+  ROW_ADVANCE: "rowadvance", PAUSED: "paused", GAMEOVER: "gameover"
+};
+
+class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.audio = new AudioEngine();
+    this.particles = new ParticleSystem();
+    this.save = SaveManager.load();
+
+    this.LOGICAL_W = CONFIG.BORDER * 2 + CONFIG.COLS * CONFIG.CELL;
+    this.LOGICAL_H = CONFIG.BORDER * 2 + CONFIG.HUD_H + CONFIG.CEILING_GAP + CONFIG.VISIBLE_ROWS * CONFIG.CELL + CONFIG.LAUNCH_AREA_H;
+
+    const boardX = CONFIG.BORDER;
+    const boardY = CONFIG.BORDER + CONFIG.HUD_H;
+    this.seed = this.save.lastSeed != null ? this.save.lastSeed : makeSeed();
+    this.board = new Board(boardX, boardY, this.seed);
+
+    this.launcherX = boardX + this.board.w / 2;
+    this.launcherY = boardY + this.board.h + CONFIG.LAUNCH_AREA_H * 0.5;
+    this.nextLauncherX = this.launcherX;
+
+    this.state = STATE.TITLE;
+    this.prevState = null;
+    this.balls = [];
+    this.ballCount = CONFIG.STARTING_BALLS;
+    this.turn = 1;
+    this.score = 0;
+    this.blocksDestroyed = 0;
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.launchQueueRemaining = 0;
+    this.launchTimer = 0;
+    this.volleyTime = 0;
+    this.showFastForward = false;
+    this.fastForward = false;
+    this.rowAdvanceT = 0;
+    this.rowAdvancePhase = "pause"; // pause -> anim -> spawn
+    this.aiming = false;
+    this.aimCancelled = false; // true once the drag has been pulled down into the cancel zone
+    this.aimDX = 0; this.aimDY = -1;
+    this.aimPointerX = 0; this.aimPointerY = 0;
+    this.landingMarker = null;
+    this.landingMarkerT = 0;
+    this.shakeAmt = 0;
+    this.dangerFlash = 0;
+    this.buttons = [];
+    this.keyAimAngle = 0; // radians offset for keyboard aim
+    this.keyboardAiming = false;
+    this.gameOverAnimT = 0;
+    this.finalStats = null;
+    // power-up state
+    this.queuedPower = null;       // power waiting to be applied to the next volley/turn
+    this.volleyPower = null;       // power locked in for the volley currently in flight
+    this.volleyRicochet = false;
+    this.doubleCharges = 0;        // remaining shots with double-strength balls
+    this.volleyDouble = false;     // whether the volley in flight has double damage
+    this.ballsLaunchedThisVolley = 0;
+    this.rewindCharges = 0;
+    this.previousTurnSnapshot = null;
+    this._frozenThisTurn = false;
+
+    this._resize = this._resize.bind(this);
+    window.addEventListener("resize", this._resize);
+    window.addEventListener("orientationchange", this._resize);
+    window.addEventListener("pageshow", this._resize);
+    if (window.visualViewport) {
+      // iOS Safari animates its address/toolbar chrome in and out without
+      // always firing a window "resize" -- visualViewport does, and is also
+      // the more accurate source for the actually-visible/tappable area.
+      window.visualViewport.addEventListener("resize", this._resize);
+      window.visualViewport.addEventListener("scroll", this._resize);
+    }
+    document.addEventListener("visibilitychange", () => {
+      this.tabHidden = document.hidden;
+      if (!document.hidden) this._resize();
+    });
+    this._resize();
+    // Safari's chrome can still settle a little after first paint (and right
+    // after the very first touch); re-measure a couple of times so the
+    // canvas's on-screen box -- and therefore tap mapping -- stays accurate.
+    setTimeout(this._resize, 60);
+    setTimeout(this._resize, 350);
+
+    this.input = new InputManager(canvas, this);
+    this.audio.setEnabled(this.save.soundOn);
+    this.audio.setVolume(this.save.volume);
+
+    this.last = performance.now();
+    this.acc = 0;
+    this.FIXED_DT = 1 / 120;
+    requestAnimationFrame((t) => this.loop(t));
+
+    this._initFirstBoard();
+  }
+
+  _initFirstBoard() {
+    // gentle opening rows, guaranteeing a token within first two turns
+    this.board.reset(this.seed);
+    for (let r = 0; r < 3; r++) {
+      const guarantee = r === 1;
+      const spec = this.board.generateRow(1, guarantee);
+      this.board.addRowAtTop(spec);
+      this.board.blocks.forEach(b => { if (b.row === 0) b.row = CONFIG.VISIBLE_ROWS - 6 + r; });
+      this.board.tokens.forEach(t => { if (t.row === 0) t.row = CONFIG.VISIBLE_ROWS - 6 + r; });
+    }
+  }
+
+  _resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const vv = window.visualViewport;
+    // visualViewport reflects the actually-visible/tappable area (excludes
+    // collapsing browser chrome); window.innerWidth/Height can lag behind it
+    // on iOS Safari, which is the classic cause of "button is drawn here but
+    // I have to tap somewhere else" on mobile canvases.
+    const availW = vv ? vv.width : window.innerWidth;
+    const availH = vv ? vv.height : window.innerHeight;
+    const scale = Math.min(availW / this.LOGICAL_W, availH / this.LOGICAL_H);
+    const cssW = Math.floor(this.LOGICAL_W * scale);
+    const cssH = Math.floor(this.LOGICAL_H * scale);
+    this.canvas.style.width = cssW + "px";
+    this.canvas.style.height = cssH + "px";
+    this.canvas.width = Math.round(this.LOGICAL_W * dpr);
+    this.canvas.height = Math.round(this.LOGICAL_H * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.dpr = dpr;
+  }
+
+  persist() {
+    this.save.highScore = Math.max(this.save.highScore, this.score);
+    this.save.bestTurn = Math.max(this.save.bestTurn, this.turn);
+    this.save.lastSeed = this.seed;
+    SaveManager.save(this.save);
+  }
+
+  /* ---------------- Reset / Start ---------------- */
+  startGame(newSeed) {
+    this.seed = newSeed != null ? newSeed : makeSeed();
+    this.board.reset(this.seed);
+    this._initFirstBoard();
+    this.balls = [];
+    this.ballCount = CONFIG.STARTING_BALLS;
+    this.turn = 1;
+    this.score = 0;
+    this.blocksDestroyed = 0;
+    this.combo = 0;
+    this.launcherX = this.board.x + this.board.w / 2;
+    this.nextLauncherX = this.launcherX;
+    this.state = STATE.AIMING;
+    this.gameOverAnimT = 0;
+    this.queuedPower = null;
+    this.volleyPower = null;
+    this.volleyRicochet = false;
+    this.doubleCharges = 0;
+    this.volleyDouble = false;
+    this.rewindCharges = 0;
+    this._frozenThisTurn = false;
+    this.audio.restart();
+    this.previousTurnSnapshot = this._takeSnapshot();
+    this.persist();
+  }
+
+  /* ---------------- Snapshot / rewind ---------------- */
+  _takeSnapshot() {
+    return {
+      turn: this.turn,
+      score: this.score,
+      ballCount: this.ballCount,
+      blocksDestroyed: this.blocksDestroyed,
+      launcherX: this.launcherX,
+      nextLauncherX: this.nextLauncherX,
+      rngState: this.board.rng.s,
+      lastTokenTurn: this.board.lastTokenTurn,
+      lastPowerTurn: this.board.lastPowerTurn,
+      doubleCharges: this.doubleCharges,
+      blocks: this.board.blocks.filter(b => !b.destroyed).map(b => ({ row: b.row, col: b.col, width: b.width, hp: b.hp, maxHp: b.maxHp, isBomb: b.isBomb })),
+      tokens: this.board.tokens.filter(t => !t.collected).map(t => ({ row: t.row, col: t.col, value: t.value })),
+      powerTokens: this.board.powerTokens.filter(p => !p.collected).map(p => ({ row: p.row, col: p.col, power: p.power })),
+    };
+  }
+
+  _restoreSnapshot(snap) {
+    if (!snap) return;
+    this.turn = snap.turn;
+    this.score = snap.score;
+    this.ballCount = snap.ballCount;
+    this.blocksDestroyed = snap.blocksDestroyed;
+    this.launcherX = snap.launcherX;
+    this.nextLauncherX = snap.nextLauncherX;
+    this.board.rng.s = snap.rngState;
+    this.board.lastTokenTurn = snap.lastTokenTurn;
+    this.board.lastPowerTurn = snap.lastPowerTurn;
+    this.doubleCharges = snap.doubleCharges || 0;
+    this.board.blocks = snap.blocks.map(s => {
+      const b = new Block(s.row, s.col, s.width, s.hp, s.isBomb);
+      b.maxHp = s.maxHp;
+      return b;
+    });
+    this.board.tokens = snap.tokens.map(s => new Token(s.row, s.col, s.value));
+    this.board.powerTokens = snap.powerTokens.map(s => new PowerToken(s.row, s.col, s.power));
+    this.balls = [];
+    this.queuedPower = null;
+    this.volleyPower = null;
+    this.volleyDouble = false;
+    this.state = STATE.AIMING;
+  }
+
+  useRewind() {
+    if (this.rewindCharges <= 0 || this.state !== STATE.AIMING) return;
+    this._restoreSnapshot(this.previousTurnSnapshot);
+    this.rewindCharges--;
+    this.audio.restart();
+    this.particles.scorePopup(this.LOGICAL_W / 2, this.launcherY - 30, "REWOUND", PALETTE.purple);
+  }
+
+  /* ---------------- Input handlers ---------------- */
+  onPointerDown(x, y) {
+    if (this._hitButtons(x, y)) return;
+    if (this.state === STATE.AIMING) {
+      this.aiming = true;
+      this.aimCancelled = false;
+      this.aimPointerX = x; this.aimPointerY = y;
+      this.audio.aimStart();
+      this._updateAimDir(x, y);
+    }
+  }
+  onPointerMove(x, y) {
+    if (this.aiming) {
+      this.aimPointerX = x; this.aimPointerY = y;
+      // Drag all the way down to the bottom edge to cancel the shot --
+      // release there and nothing fires.
+      const wasCancelled = this.aimCancelled;
+      this.aimCancelled = y > this.LOGICAL_H - CONFIG.CANCEL_ZONE_H;
+      if (this.aimCancelled && !wasCancelled) this.audio.uiTap();
+      if (!this.aimCancelled) this._updateAimDir(x, y);
+    }
+  }
+  onPointerUp(x, y) {
+    if (this.aiming) {
+      this.aiming = false;
+      if (!this.aimCancelled) this.launchVolley();
+      this.aimCancelled = false;
+    }
+  }
+  _hitButtons(x, y) {
+    const pad = 6; // small forgiveness margin around each hit box
+    for (const b of this.buttons) {
+      if (x >= b.x - pad && x <= b.x + b.w + pad && y >= b.y - pad && y <= b.y + b.h + pad) {
+        this.audio.unlock();
+        this.audio.uiTap();
+        b.onClick();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  _updateAimDir(px, py) {
+    let dx = px - this.launcherX;
+    let dy = py - this.launcherY;
+    let angle = Math.atan2(dx, -dy); // 0 = straight up, +right, -left
+    const maxAngle = (90 - CONFIG.MIN_AIM_DEG) * Math.PI / 180;
+    if (angle > maxAngle) angle = maxAngle;
+    if (angle < -maxAngle) angle = -maxAngle;
+    this.aimDX = Math.sin(angle);
+    this.aimDY = -Math.cos(angle);
+  }
+
+  onKeyDown(e) {
+    const controlKeys = ["ArrowLeft", "ArrowRight", "Space", "Enter", "Escape", "KeyP", "KeyM", "KeyF", "KeyR"];
+    if (controlKeys.indexOf(e.code) !== -1) e.preventDefault();
+    if (e.code === "Escape" || e.code === "KeyP") {
+      this.togglePause();
+      return;
+    }
+    if (e.code === "KeyM") { this.toggleSound(); return; }
+    if (e.code === "KeyF") { this.toggleFastForward(); return; }
+    if (e.code === "KeyR") { if (this.state === STATE.GAMEOVER) this.startGame(); return; }
+
+    if (this.state === STATE.AIMING) {
+      const step = e.shiftKey ? 0.02 : 0.06;
+      if (e.code === "ArrowLeft") {
+        this.keyboardAiming = true;
+        this.keyAimAngle = Math.max(-1, this.keyAimAngle - step);
+        this._applyKeyAim();
+      } else if (e.code === "ArrowRight") {
+        this.keyboardAiming = true;
+        this.keyAimAngle = Math.min(1, this.keyAimAngle + step);
+        this._applyKeyAim();
+      } else if (e.code === "Space" || e.code === "Enter") {
+        if (this.keyboardAiming) this.launchVolley();
+      }
+    }
+  }
+  _applyKeyAim() {
+    const maxAngle = (90 - CONFIG.MIN_AIM_DEG) * Math.PI / 180;
+    const angle = this.keyAimAngle * maxAngle;
+    this.aimDX = Math.sin(angle);
+    this.aimDY = -Math.cos(angle);
+  }
+
+  togglePause() {
+    if (this.state === STATE.PAUSED) {
+      this.state = this.prevState || STATE.AIMING;
+    } else if (this.state === STATE.AIMING || this.state === STATE.LAUNCHING || this.state === STATE.ROW_ADVANCE) {
+      this.prevState = this.state;
+      this.state = STATE.PAUSED;
+    }
+  }
+  toggleSound() {
+    this.save.soundOn = !this.save.soundOn;
+    this.audio.setEnabled(this.save.soundOn);
+    SaveManager.save(this.save);
+  }
+  toggleFastForward() {
+    if (this.state !== STATE.LAUNCHING) return;
+    this.fastForward = !this.fastForward;
+    if (this.fastForward) this.audio.fastForward();
+  }
+
+  /* ---------------- Launch ---------------- */
+  launchVolley() {
+    if (this.state !== STATE.AIMING) return;
+    this.keyboardAiming = false;
+    this.audio.shotRelease();
+    this.state = STATE.LAUNCHING;
+    this.launchQueueRemaining = this.ballCount;
+    this.launchTimer = 0;
+    this.volleyTime = 0;
+    this.fastForward = false;
+    this.showFastForward = false;
+    this.balls = [];
+    this.ballsLaunchedThisVolley = 0;
+    // lock in whichever power-up (if any) was queued for this shot
+    this.volleyPower = this.queuedPower;
+    this.volleyRicochet = (this.queuedPower === "ricochet");
+    this.queuedPower = null;
+    // double-strength balls: consumes one of the banked charges per shot
+    this.volleyDouble = this.doubleCharges > 0;
+    if (this.volleyDouble) this.doubleCharges--;
+  }
+
+  spawnBall() {
+    const b = new Ball(this.launcherX, this.launcherY, this.aimDX, this.aimDY);
+    const isFirst = this.ballsLaunchedThisVolley === 0;
+    if (isFirst) {
+      if (this.volleyPower === "fireball") b.fireballCharge = true;
+      if (this.volleyPower === "split") b.splitCharge = true;
+      if (this.volleyPower === "bomb") b.bombCharge = true;
+    }
+    this.balls.push(b);
+    this.ballsLaunchedThisVolley++;
+    this.audio.ballLaunch(this.ballCount - this.launchQueueRemaining);
+  }
+
+  /* ---------------- Update ---------------- */
+  loop(t) {
+    let dt = (t - this.last) / 1000;
+    this.last = t;
+    if (dt > 0.05) dt = 0.05;
+    if (!this.tabHidden) this.update(dt);
+    this.render();
+    requestAnimationFrame((tt) => this.loop(tt));
+  }
+
+  update(dt) {
+    if (this.state === STATE.PAUSED) return;
+
+    this.particles.update(dt);
+    if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 12);
+    if (this.dangerFlash > 0) this.dangerFlash -= dt;
+
+    if (this.state === STATE.LAUNCHING) this.updateLaunching(dt);
+    else if (this.state === STATE.ROW_ADVANCE) this.updateRowAdvance(dt);
+
+    for (const bl of this.board.blocks) {
+      if (bl.hitFlash > 0) bl.hitFlash -= dt * 6;
+      if (bl.recoil > 0) bl.recoil -= dt * 8;
+      // slowly drain the health-level line toward the block's true remaining HP
+      const targetFill = bl.destroyed ? 0 : bl.hp / bl.maxHp;
+      bl.fillLevel += (targetFill - bl.fillLevel) * Math.min(1, dt * 4.5);
+      if (Math.abs(bl.fillLevel - targetFill) < 0.002) bl.fillLevel = targetFill;
+    }
+    if (this.landingMarkerT > 0) this.landingMarkerT -= dt;
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.combo = 0;
+    }
+    if (this.state === STATE.GAMEOVER) this.gameOverAnimT += dt;
+  }
+
+  updateLaunching(dt) {
+    this.volleyTime += dt;
+    if (!this.showFastForward && this.volleyTime * 1000 > CONFIG.FASTFORWARD_SHOW_AFTER_MS) {
+      this.showFastForward = true;
+    }
+    const speedMult = this.fastForward ? CONFIG.FASTFORWARD_MULT : 1;
+    const steps = this.fastForward ? 3 : 1;
+    const subDt = (dt * speedMult) / steps;
+
+    // launch queue
+    this.launchTimer -= dt * 1000 * speedMult;
+    if (this.launchQueueRemaining > 0 && this.launchTimer <= 0) {
+      this.spawnBall();
+      this.launchQueueRemaining--;
+      this.launchTimer = CONFIG.LAUNCH_INTERVAL_MIN + Math.random() * (CONFIG.LAUNCH_INTERVAL_MAX - CONFIG.LAUNCH_INTERVAL_MIN);
+    }
+
+    for (let s = 0; s < steps; s++) this.stepBalls(subDt);
+
+    const allReturned = this.launchQueueRemaining === 0 && this.balls.every(b => b.returned);
+    if (allReturned && this.balls.length > 0) {
+      this.state = STATE.ROW_ADVANCE;
+      this.rowAdvancePhase = "pause";
+      this.rowAdvanceT = 0;
+      this.launcherX = this.nextLauncherX;
+    }
+  }
+
+  stepBalls(dt) {
+    const wall = this.board.wallRect();
+    // Live, shared block list for this step -- mutated in place as blocks
+    // are destroyed so every ball (and every collision within a ball's
+    // path this step) sees an up-to-date board.
+    const blockRects = [];
+    const blockRefs = [];
+    for (const b of this.board.blocks) {
+      if (b.destroyed) continue;
+      blockRects.push(b.rect(this.board));
+      blockRefs.push(b);
+    }
+
+    for (const ball of this.balls) {
+      if (ball.returned) continue;
+      let remaining = ball.speed * dt;
+      let collisions = 0;
+      while (remaining > 1e-6 && collisions < CONFIG.MAX_COLLISIONS_PER_FRAME) {
+        const hit = findNearestCollision(ball.x, ball.y, ball.dx, ball.dy, remaining, wall, blockRects, CONFIG.BALL_RADIUS);
+        if (!hit) {
+          ball.x += ball.dx * remaining;
+          ball.y += ball.dy * remaining;
+          remaining = 0;
+          break;
+        }
+        ball.x += ball.dx * hit.t;
+        ball.y += ball.dy * hit.t;
+        remaining -= hit.t;
+        collisions++;
+
+        if (hit.rect) {
+          const idx = blockRects.indexOf(hit.rect);
+          const blk = blockRefs[idx];
+          const passThrough = ball.fireballCharge;
+          if (passThrough) {
+            // Fireball: no reflection -- burn straight through the first block.
+            ball.x += ball.dx * 0.6; ball.y += ball.dy * 0.6;
+            ball.fireballCharge = false;
+          } else {
+            const r = Physics.reflect(ball.dx, ball.dy, hit.nx, hit.ny);
+            ball.dx = r.x; ball.dy = r.y;
+            ball.x += ball.dx * 0.4; ball.y += ball.dy * 0.4;
+          }
+          const dmg = (this.volleyRicochet ? (1 + ball.wallBounces) : 1) * (this.volleyDouble ? 2 : 1);
+          this.onBlockHit(blk, ball.x, ball.y, dmg);
+          if (ball.bombCharge) {
+            this.explodeAt(blk, ball.x, ball.y);
+            ball.bombCharge = false;
+          }
+          if (ball.splitCharge) {
+            this._splitBall(ball);
+            ball.splitCharge = false;
+          }
+          if (blk.destroyed && idx >= 0) {
+            blockRects.splice(idx, 1);
+            blockRefs.splice(idx, 1);
+          }
+        } else {
+          const r = Physics.reflect(ball.dx, ball.dy, hit.nx, hit.ny);
+          ball.dx = r.x; ball.dy = r.y;
+          ball.x += ball.dx * 0.4; ball.y += ball.dy * 0.4;
+          if (hit.nx !== 0) {
+            ball.wallBounces++;
+            this.audio.wallBounce();
+          } else {
+            this.audio.ceilingBounce();
+          }
+          if (ball.splitCharge) {
+            this._splitBall(ball);
+            ball.splitCharge = false;
+          }
+        }
+      }
+      // token collection check along updated position
+      this.checkTokenCollision(ball);
+
+      // return check
+      if (!ball.returned && ball.dy > 0 && ball.y > this.board.y + this.board.h + CONFIG.BALL_RADIUS) {
+        ball.returned = true;
+        if (!ball.setLauncher) {
+          const clampedX = Math.max(this.board.x + 14, Math.min(this.board.x + this.board.w - 14, ball.x));
+          this.nextLauncherX = clampedX;
+          this.landingMarker = clampedX;
+          this.landingMarkerT = 1.2;
+          ball.setLauncher = true;
+          this._firstReturnSet = true;
+        }
+      }
+      ball.trailPts.push({ x: ball.x, y: ball.y });
+      if (ball.trailPts.length > 5) ball.trailPts.shift();
+    }
+  }
+
+  onBlockHit(blk, x, y, dmg) {
+    if (blk.destroyed) return;
+    dmg = dmg || 1;
+    blk.hp -= dmg;
+    blk.hitFlash = 1;
+    blk.recoil = 1;
+    this.score += 5 * dmg;
+    this.particles.hitBurst(x, y, this.blockColor(blk));
+    this.audio.blockHit(blk.maxHp);
+    if (this.save.screenShake) this.shakeAmt = Math.min(this.shakeAmt + 0.5, 3);
+    if (blk.hp <= 0) {
+      blk.destroyed = true;
+      this.blocksDestroyed++;
+      this.combo++;
+      this.comboTimer = 0.9;
+      const rect = blk.rect(this.board);
+      const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+      this.particles.explosion(cx, cy, this.blockColor(blk));
+      this.audio.blockDestroy(this.combo);
+      if (this.save.screenShake) this.shakeAmt = Math.min(this.shakeAmt + 1.4, 5);
+      const pts = 25 + blk.maxHp * 2;
+      this.score += pts;
+      this.particles.scorePopup(cx, cy, "+" + pts, PALETTE.paleYellow);
+      if (this.combo >= 3 && this.combo % 1 === 0) {
+        this.particles.scorePopup(cx, cy - 16, "CHAIN " + this.combo, PALETTE.hotRed);
+        this.audio.comboUp();
+      }
+      // exploding squares: destroying a bomb block splash-damages its
+      // orthogonal neighbors, which can chain into further bomb blocks.
+      if (blk.isBomb) this.explodeAt(blk, cx, cy);
+    }
+  }
+
+  // Splash-damages every block orthogonally adjacent to blk's footprint by 1.
+  // Used both by built-in exploding-square blocks and the Bomb power-up.
+  // `visited` guards against infinite chains between adjacent bomb blocks.
+  explodeAt(blk, x, y, visited) {
+    visited = visited || new Set();
+    const key = Math.round(blk.row) + "," + blk.col;
+    if (visited.has(key)) return;
+    visited.add(key);
+
+    const footprint = [];
+    for (let c = blk.col; c < blk.col + blk.width; c++) footprint.push([Math.round(blk.row), c]);
+    const neighbors = new Set();
+    for (const [r, c] of footprint) {
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= CONFIG.VISIBLE_ROWS || nc < 0 || nc >= CONFIG.COLS) continue;
+        if (footprint.some(f => f[0] === nr && f[1] === nc)) continue;
+        neighbors.add(nr + "," + nc);
+      }
+    }
+
+    this.particles.explosion(x, y, PALETTE.hotRed);
+    this.audio.blockDestroy(2);
+    if (this.save.screenShake) this.shakeAmt = Math.min(this.shakeAmt + 2, 6);
+
+    for (const k of neighbors) {
+      const [nr, nc] = k.split(",").map(Number);
+      const nb = this.board.blockAt(nr, nc);
+      if (nb && !nb.destroyed) {
+        const rect = nb.rect(this.board);
+        this.onBlockHit(nb, rect.x + rect.w / 2, rect.y + rect.h / 2, 1);
+        // onBlockHit already chains through isBomb neighbors on destroy,
+        // but guard a direct re-trigger too in case dmg>1 skipped it above.
+        if (nb.destroyed && nb.isBomb && !visited.has(Math.round(nb.row) + "," + nb.col)) {
+          this.explodeAt(nb, rect.x + rect.w / 2, rect.y + rect.h / 2, visited);
+        }
+      }
+    }
+  }
+
+  blockColor(blk) {
+    if (blk.isBomb) return PALETTE.hotRed;
+    const band = blk.strengthBand(this.turn);
+    if (band === "weak") return PALETTE.cyan;
+    if (band === "moderate") return PALETTE.goldYellow;
+    if (band === "strong") return PALETTE.orange;
+    return PALETTE.hotRed;
+  }
+
+  _splitBall(ball) {
+    const clone = new Ball(ball.x, ball.y, -ball.dx, ball.dy);
+    clone.wallBounces = ball.wallBounces;
+    this.balls.push(clone);
+    this.particles.starburst(ball.x, ball.y);
+  }
+
+  checkTokenCollision(ball) {
+    for (const tk of this.board.tokens) {
+      if (tk.collected) continue;
+      const c = tk.center(this.board);
+      const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
+      if (dist < CONFIG.BALL_RADIUS + 14) {
+        tk.collected = true;
+        this.ballCount += tk.value;
+        this.score += 15 * tk.value;
+        this.particles.starburst(c.x, c.y);
+        this.particles.scorePopup(c.x, c.y, "+" + tk.value + " BALL", PALETTE.brightGreen);
+        this.audio.bonusCollect();
+      }
+    }
+    for (const pk of this.board.powerTokens) {
+      if (pk.collected) continue;
+      const c = pk.center(this.board);
+      const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
+      if (dist < CONFIG.BALL_RADIUS + 14) {
+        pk.collected = true;
+        const info = POWER_INFO[pk.power];
+        this.score += 30;
+        this.particles.starburst(c.x, c.y);
+        this.particles.scorePopup(c.x, c.y, info.label, info.color);
+        this.audio.bonusCollect();
+        if (pk.power === "rewind") {
+          this.rewindCharges = Math.min(2, this.rewindCharges + 1);
+        } else if (pk.power === "double") {
+          // Double-strength balls: banks up to 3 charges, one consumed per shot.
+          this.doubleCharges = Math.min(3, this.doubleCharges + 3);
+        } else {
+          this.queuedPower = pk.power; // replaces any previously queued power
+        }
+      }
+    }
+  }
+
+  updateRowAdvance(dt) {
+    this.rowAdvanceT += dt * 1000;
+    if (this.rowAdvancePhase === "pause") {
+      if (this.rowAdvanceT >= CONFIG.ROW_ADVANCE_PAUSE_MS) {
+        this.rowAdvancePhase = "anim";
+        this.rowAdvanceT = 0;
+        // Freeze power-up: skip the descent entirely for this turn.
+        this._frozenThisTurn = (this.volleyPower === "freeze");
+        if (this._frozenThisTurn) {
+          this._dangerAfterShift = false;
+          this.particles.scorePopup(this.LOGICAL_W / 2, this.board.y + 40, "FROZEN", POWER_INFO.freeze.color);
+        } else {
+          this._dangerAfterShift = this.board.shiftDown();
+          this.audio.rowDescend();
+        }
+      }
+    } else if (this.rowAdvancePhase === "anim") {
+      if (this.rowAdvanceT >= CONFIG.ROW_ADVANCE_ANIM_MS) {
+        this.rowAdvancePhase = "spawn";
+        this.rowAdvanceT = 0;
+        if (this._dangerAfterShift) {
+          this.triggerGameOver();
+          return;
+        }
+        this.turn++;
+        if (!this._frozenThisTurn) {
+          const sinceToken = this.turn - this.board.lastTokenTurn;
+          const guaranteeToken = sinceToken >= 4;
+          const sincePower = this.turn - this.board.lastPowerTurn;
+          const guaranteePower = sincePower >= 6;
+          const spec = this.board.generateRow(this.turn, guaranteeToken, guaranteePower);
+          this.board.addRowAtTop(spec);
+          if (spec.tokenSpecs.length > 0) this.board.lastTokenTurn = this.turn;
+          if (spec.powerSpecs.length > 0) this.board.lastPowerTurn = this.turn;
+        }
+        this.volleyPower = null;
+        this.volleyRicochet = false;
+        this.volleyDouble = false;
+        // check imminent danger for warning flash
+        let closeDanger = false;
+        for (const b of this.board.aliveBlocks()) if (b.row >= CONFIG.VISIBLE_ROWS - 2) closeDanger = true;
+        if (closeDanger) { this.dangerFlash = 0.6; this.audio.dangerWarn(); }
+      }
+    } else if (this.rowAdvancePhase === "spawn") {
+      if (this.rowAdvanceT >= 120) {
+        this.state = STATE.AIMING;
+        this.balls = [];
+        this.previousTurnSnapshot = this._takeSnapshot();
+      }
+    }
+  }
+
+  triggerGameOver() {
+    this.state = STATE.GAMEOVER;
+    this.gameOverAnimT = 0;
+    this.audio.gameOver();
+    this.finalStats = {
+      score: this.score, turn: this.turn, best: Math.max(this.save.highScore, this.score),
+      destroyed: this.blocksDestroyed, seed: this.seed
+    };
+    this.persist();
+  }
+
+  /* ---------------- Trajectory preview ---------------- */
+  getPreviewPoints() {
+    const lenSetting = this.save.trajectoryLength;
+    let maxCollisions = CONFIG.MAX_PREVIEW_COLLISIONS;
+    if (lenSetting === "standard") maxCollisions = 6;
+    else if (lenSetting === "long") maxCollisions = 12;
+    const maxDist = CONFIG.CELL * CONFIG.PREVIEW_MAX_DIST_MULT;
+    return TrajectoryPredictor.predict(
+      this.launcherX, this.launcherY - CONFIG.BALL_RADIUS - 2, this.aimDX, this.aimDY,
+      this.board, CONFIG.BALL_RADIUS, maxCollisions, maxDist
+    );
+  }
+
+  /* ---------------- Render ---------------- */
+  render() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.clearRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+
+    let shakeX = 0, shakeY = 0;
+    if (this.shakeAmt > 0) {
+      shakeX = (Math.random() - 0.5) * this.shakeAmt;
+      shakeY = (Math.random() - 0.5) * this.shakeAmt;
+    }
+    ctx.translate(shakeX, shakeY);
+
+    this.drawBackground(ctx);
+    this.buttons = [];
+
+    if (this.state === STATE.TITLE) { this.drawTitle(ctx); }
+    else if (this.state === STATE.HOWTO) { this.drawHowTo(ctx); }
+    else {
+      this.drawBoardFrame(ctx);
+      this.drawBoard(ctx);
+      this.drawLaunchArea(ctx);
+      if (this.state === STATE.AIMING && this.aiming && !this.aimCancelled) this.drawTrajectory(ctx);
+      this.drawBalls(ctx);
+      this.particles.draw(ctx);
+      this.drawHUD(ctx);
+      if (this.state === STATE.PAUSED) this.drawPauseMenu(ctx);
+      if (this.state === STATE.GAMEOVER) this.drawGameOver(ctx);
+      this.drawScanlines(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  drawBackground(ctx) {
+    ctx.fillStyle = PALETTE.navyDeep;
+    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+    // overscan border
+    ctx.fillStyle = PALETTE.navy;
+    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeRect(2 + i, 2 + i, this.LOGICAL_W - 4 - i * 2, this.LOGICAL_H - 4 - i * 2);
+    }
+  }
+
+  drawScanlines(ctx) {
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = "#000000";
+    for (let y = 0; y < this.LOGICAL_H; y += 2) {
+      ctx.fillRect(0, y, this.LOGICAL_W, 1);
+    }
+    ctx.restore();
+    // vignette
+    const grad = ctx.createRadialGradient(
+      this.LOGICAL_W / 2, this.LOGICAL_H / 2, this.LOGICAL_H * 0.35,
+      this.LOGICAL_W / 2, this.LOGICAL_H / 2, this.LOGICAL_H * 0.75
+    );
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.35)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+  }
+
+  drawPixelText(ctx, text, x, y, size, color, align) {
+    ctx.font = "bold " + size + "px Helvetica, Arial, sans-serif";
+    ctx.textAlign = align || "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.fillText(text, Math.round(x), Math.round(y));
+  }
+
+  button(ctx, x, y, w, h, label, onClick, opts) {
+    opts = opts || {};
+    const large = this.save.largeUI;
+    ctx.fillStyle = opts.fill || PALETTE.deepBlue;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = opts.stroke || PALETTE.electricBlue;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    this.drawPixelText(ctx, label, x + w / 2, y + h / 2 + 1, opts.size || (large ? 18 : 15), opts.color || PALETTE.white, "center");
+    this.buttons.push({ x, y, w, h, onClick });
+  }
+
+  drawTitle(ctx) {
+    const cx = this.LOGICAL_W / 2;
+
+    this.drawPixelText(ctx, CONFIG.TITLE, cx, 110, 28, PALETTE.paleYellow, "center");
+    ctx.save();
+    ctx.shadowColor = PALETTE.cyan;
+    ctx.shadowBlur = 14;
+    this.drawPixelText(ctx, CONFIG.TITLE, cx, 110, 28, PALETTE.white, "center");
+    ctx.restore();
+
+    // small animated demo trajectory, kept out of the way of the button
+    const demoY = 210;
+    const t = performance.now() / 1000;
+    const bx = cx + Math.sin(t * 0.6) * 46;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([4, 5]);
+    ctx.strokeStyle = PALETTE.cyan;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, demoY + 60);
+    ctx.lineTo(bx, demoY);
+    ctx.lineTo(cx - (bx - cx), demoY - 50);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PALETTE.white;
+    ctx.beginPath(); ctx.arc(bx, demoY, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // one big, simple, unmissable START button dominates the screen
+    const bw = Math.min(300, this.LOGICAL_W - CONFIG.BORDER * 2 - 24);
+    const bh = 96;
+    const by = this.LOGICAL_H / 2 + 10;
+    ctx.save();
+    const pulse = 1 + Math.sin(performance.now() / 260) * 0.02;
+    ctx.translate(cx, by + bh / 2);
+    ctx.scale(pulse, pulse);
+    ctx.translate(-cx, -(by + bh / 2));
+    ctx.shadowColor = PALETTE.brightGreen;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = PALETTE.darkGreen;
+    ctx.fillRect(cx - bw / 2, by, bw, bh);
+    ctx.strokeStyle = PALETTE.brightGreen;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(cx - bw / 2 + 2, by + 2, bw - 4, bh - 4);
+    ctx.shadowBlur = 0;
+    this.drawPixelText(ctx, "START", cx, by + bh / 2 + 2, 40, PALETTE.white, "center");
+    ctx.restore();
+    this.buttons.push({ x: cx - bw / 2, y: by, w: bw, h: bh, onClick: () => this.startGame() });
+
+    this.drawPixelText(ctx, "HIGH SCORE " + this.save.highScore, cx, by + bh + 34, 13, PALETTE.goldYellow, "center");
+
+    // small, unobtrusive secondary link
+    const linkY = this.LOGICAL_H - 46;
+    this.drawPixelText(ctx, "HOW TO PLAY", cx, linkY, 13, PALETTE.gray, "center");
+    this.buttons.push({ x: cx - 70, y: linkY - 16, w: 140, h: 32, onClick: () => { this.state = STATE.HOWTO; } });
+  }
+
+  drawHowTo(ctx) {
+    const cx = this.LOGICAL_W / 2;
+    this.drawPixelText(ctx, "HOW TO PLAY", cx, 60, 22, PALETTE.paleYellow, "center");
+    const lines = [
+      "DRAG TO AIM, RELEASE TO FIRE.",
+      "DRAG DOWN TO THE BOTTOM EDGE TO",
+      "CANCEL A SHOT BEFORE RELEASING.",
+      "YOU START WITH 10 BALLS.",
+      "EACH HIT REMOVES ONE POINT.",
+      "CLEAR BLOCKS BEFORE THEY REACH",
+      "THE DANGER LINE AT THE BOTTOM.",
+      "COLLECT GREEN +1 TOKENS FOR",
+      "MORE BALLS.",
+      "",
+      "SQUARES WITH A FUSE EXPLODE ON",
+      "DESTRUCTION, DAMAGING NEIGHBORS.",
+      "SQUARE POWER-UP TOKENS GRANT",
+      "FIREBALL, SPLIT, RICOCHET, BOMB,",
+      "FREEZE OR REWIND FOR YOUR NEXT",
+      "SHOT OR TURN.",
+      "",
+      "THE STAR TOKEN GIVES DOUBLE-",
+      "STRENGTH BALLS FOR YOUR NEXT",
+      "THREE SHOTS.",
+      "",
+      "THE GUIDE PREDICTS THE FIRST BALL.",
+      "DESTROYED BLOCKS MAY CHANGE",
+      "LATER PATHS.",
+      "",
+      "ARROWS AIM \u2022 SPACE FIRES",
+      "P PAUSES \u2022 F FAST-FORWARDS \u2022 M MUTES"
+    ];
+    let y = 76;
+    for (const l of lines) {
+      this.drawPixelText(ctx, l, cx, y, 11, PALETTE.lightGray, "center");
+      y += 19;
+    }
+    this.button(ctx, cx - 90, this.LOGICAL_H - 54, 180, 40, "BACK", () => { this.state = STATE.TITLE; }, { size: 16 });
+  }
+
+  drawBoardFrame(ctx) {
+    const b = this.board;
+    ctx.fillStyle = PALETTE.navyDeep;
+    ctx.fillRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+    ctx.strokeStyle = PALETTE.deepBlue;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+    // playfield bg
+    ctx.fillStyle = "#0c1120";
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    // subtle grid (only across the actual brick rows, not the ceiling gap)
+    ctx.strokeStyle = "rgba(255,255,255,0.035)";
+    ctx.lineWidth = 1;
+    for (let c = 1; c < CONFIG.COLS; c++) {
+      ctx.beginPath(); ctx.moveTo(b.x + c * CONFIG.CELL, b.gridY); ctx.lineTo(b.x + c * CONFIG.CELL, b.y + b.h); ctx.stroke();
+    }
+    for (let r = 0; r < CONFIG.VISIBLE_ROWS; r++) {
+      ctx.beginPath(); ctx.moveTo(b.x, b.gridY + r * CONFIG.CELL); ctx.lineTo(b.x + b.w, b.gridY + r * CONFIG.CELL); ctx.stroke();
+    }
+
+    // ceiling headroom marker -- a soft dashed line showing where bricks start,
+    // so it reads clearly as open space for bank shots off the ceiling
+    ctx.save();
+    ctx.strokeStyle = "rgba(63,224,255,0.25)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(b.x, b.gridY); ctx.lineTo(b.x + b.w, b.gridY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // danger line
+    const dy = b.gridY + (CONFIG.VISIBLE_ROWS - 1) * CONFIG.CELL;
+    const flashOn = (Math.floor(performance.now() / 220) % 2 === 0) || this.dangerFlash > 0;
+    ctx.strokeStyle = flashOn ? PALETTE.hotRed : PALETTE.burgundy;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.moveTo(b.x, dy); ctx.lineTo(b.x + b.w, dy); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  drawBoard(ctx) {
+    for (const tk of this.board.tokens) {
+      if (tk.collected) continue;
+      const c = tk.center(this.board);
+      const pulse = 1 + Math.sin(performance.now() / 220 + tk.phase) * 0.12;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = tk.value >= 3 ? PALETTE.magenta : PALETTE.brightGreen;
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = PALETTE.white;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+      this.drawPixelText(ctx, "+" + tk.value, c.x, c.y, 13, PALETTE.navyDeep, "center");
+    }
+
+    for (const pk of this.board.powerTokens) {
+      if (pk.collected) continue;
+      const c = pk.center(this.board);
+      const info = POWER_INFO[pk.power];
+      const pulse = 1 + Math.sin(performance.now() / 180 + pk.phase) * 0.14;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(Math.PI / 4);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = info.color;
+      ctx.fillRect(-12, -12, 24, 24);
+      ctx.strokeStyle = PALETTE.white;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-12, -12, 24, 24);
+      ctx.restore();
+      this.drawPixelText(ctx, info.icon, c.x, c.y, 15, PALETTE.navyDeep, "center");
+    }
+
+    for (const bl of this.board.blocks) {
+      if (bl.destroyed) continue;
+      this.drawBlock(ctx, bl);
+    }
+  }
+
+  drawBlock(ctx, bl) {
+    const rect = bl.rect(this.board);
+    const band = bl.strengthBand(this.turn);
+    let fill = PALETTE.cyan, edge = PALETTE.white;
+    if (band === "moderate") { fill = PALETTE.electricBlue; edge = PALETTE.goldYellow; }
+    else if (band === "strong") { fill = PALETTE.orange; edge = PALETTE.paleYellow; }
+    else if (band === "extreme") {
+      const flick = Math.floor(performance.now() / 160) % 2 === 0;
+      fill = flick ? PALETTE.hotRed : PALETTE.magenta; edge = PALETTE.white;
+    }
+    const recoil = bl.recoil > 0 ? bl.recoil * 2 : 0;
+    const rx = rect.x + recoil * 0.4, ry = rect.y + recoil * 0.4;
+    const rw = rect.w - recoil * 0.8, rh = rect.h - recoil * 0.8;
+
+    if (bl.hitFlash > 0.4) {
+      ctx.fillStyle = PALETTE.white;
+    } else if (bl.isBomb) {
+      const flick = Math.floor(performance.now() / 140) % 2 === 0;
+      ctx.fillStyle = flick ? PALETTE.hotRed : PALETTE.burgundy;
+    } else {
+      ctx.fillStyle = fill;
+    }
+    ctx.fillRect(rx, ry, rw, rh);
+
+    if (bl.isBomb && bl.hitFlash <= 0.4) {
+      // exploding square: checkerboard pattern + fuse spark
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = PALETTE.navyDeep;
+      const cs = 6;
+      for (let yy = 0; yy < rh; yy += cs) {
+        for (let xx = 0; xx < rw; xx += cs) {
+          if (((Math.round(xx / cs) + Math.round(yy / cs)) % 2) === 0) {
+            ctx.fillRect(rx + xx, ry + yy, cs, cs);
+          }
+        }
+      }
+      ctx.restore();
+      const sparkT = performance.now() / 120;
+      ctx.fillStyle = PALETTE.goldYellow;
+      ctx.beginPath();
+      ctx.arc(rx + rw / 2, ry + 4, 2 + Math.abs(Math.sin(sparkT)) * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // health-level line: drains slowly downward as the block takes hits,
+    // like a fluid level, so remaining strength reads at a glance
+    const level = Math.max(0, Math.min(1, bl.fillLevel));
+    const drainedH = rh * (1 - level);
+    if (drainedH > 0.5) {
+      ctx.save();
+      ctx.fillStyle = "rgba(4,6,14,0.55)";
+      ctx.fillRect(rx, ry, rw, drainedH);
+      ctx.restore();
+    }
+    if (level < 0.999 && level > 0.001) {
+      const lineY = ry + drainedH;
+      ctx.save();
+      ctx.strokeStyle = PALETTE.white;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(rx + 1, lineY);
+      ctx.lineTo(rx + rw - 1, lineY);
+      ctx.stroke();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = PALETTE.cyan;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(rx + 1, lineY);
+      ctx.lineTo(rx + rw - 1, lineY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 1px highlight/shadow bevel
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, 0);
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.strokeRect(rx + 0.5, ry + rh - 0.5, rw - 1, 0);
+
+    ctx.strokeStyle = bl.isBomb ? PALETTE.goldYellow : edge;
+    ctx.lineWidth = (band === "extreme" || bl.isBomb) ? 3 : 2;
+    ctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+
+    const fontSize = Math.min(26, rect.w / (String(bl.hp).length * 0.7));
+    this.drawPixelText(ctx, String(bl.hp), rect.x + rect.w / 2, rect.y + rect.h / 2 + 1, fontSize, PALETTE.white, "center");
+  }
+
+  drawLaunchArea(ctx) {
+    const b = this.board;
+    const areaY = b.y + b.h;
+    ctx.fillStyle = "#0a0d18";
+    ctx.fillRect(b.x, areaY, b.w, CONFIG.LAUNCH_AREA_H);
+
+    if (this.landingMarkerT > 0 && this.landingMarker != null) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, this.landingMarkerT);
+      ctx.strokeStyle = PALETTE.cyan;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(this.landingMarker - 14, this.launcherY);
+      ctx.lineTo(this.landingMarker + 14, this.launcherY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (this.state === STATE.AIMING) {
+      if (this.aiming && this.aimCancelled) {
+        // cancel-zone feedback: dim the reticle red and label the strip
+        ctx.save();
+        ctx.globalAlpha = 0.16 + Math.abs(Math.sin(performance.now() / 220)) * 0.1;
+        ctx.fillStyle = PALETTE.hotRed;
+        const stripY = this.LOGICAL_H - CONFIG.CANCEL_ZONE_H;
+        ctx.fillRect(b.x, stripY, b.w, this.LOGICAL_H - stripY);
+        ctx.restore();
+        this.drawPixelText(ctx, "RELEASE TO CANCEL", b.x + b.w / 2, this.LOGICAL_H - 18, 12, PALETTE.hotRed, "center");
+        ctx.save();
+        ctx.strokeStyle = PALETTE.hotRed;
+        ctx.lineWidth = 3;
+        const r = 10;
+        ctx.beginPath();
+        ctx.moveTo(this.aimPointerX - r, this.aimPointerY - r);
+        ctx.lineTo(this.aimPointerX + r, this.aimPointerY + r);
+        ctx.moveTo(this.aimPointerX + r, this.aimPointerY - r);
+        ctx.lineTo(this.aimPointerX - r, this.aimPointerY + r);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // launcher pixel arrow / reticle
+      const cancelled = this.aiming && this.aimCancelled;
+      const pulse = 0.6 + Math.abs(Math.sin(performance.now() / 300)) * 0.4;
+      ctx.save();
+      ctx.globalAlpha = cancelled ? 0.35 : pulse;
+      ctx.fillStyle = cancelled ? PALETTE.hotRed : PALETTE.paleYellow;
+      ctx.beginPath();
+      ctx.moveTo(this.launcherX, this.launcherY - 22);
+      ctx.lineTo(this.launcherX - 9, this.launcherY - 6);
+      ctx.lineTo(this.launcherX + 9, this.launcherY - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = cancelled ? PALETTE.hotRed : PALETTE.white;
+      ctx.beginPath();
+      ctx.arc(this.launcherX, this.launcherY, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (this.balls.length === 0) {
+      ctx.fillStyle = PALETTE.white;
+      ctx.beginPath();
+      ctx.arc(this.launcherX, this.launcherY, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawTrajectory(ctx) {
+    const pts = this.getPreviewPoints();
+    if (pts.length < 2) return;
+    let segIndex = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const dotSpacing = 9;
+      const steps = Math.max(1, Math.floor(dist / dotSpacing));
+      const fadeFactor = Math.max(0.18, 1 - i * 0.07);
+      for (let s = 0; s <= steps; s++) {
+        const tt = s / steps;
+        const x = a.x + (b.x - a.x) * tt;
+        const y = a.y + (b.y - a.y) * tt;
+        const dim = (segIndex % 3 === 2);
+        segIndex++;
+        ctx.globalAlpha = fadeFactor * (dim ? 0.45 : 0.95);
+        ctx.fillStyle = i === 0 ? PALETTE.white : PALETTE.cyan;
+        const r = i === 0 ? 2.2 : 1.8;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (i > 0 && a.impact) {
+        ctx.globalAlpha = fadeFactor;
+        ctx.fillStyle = PALETTE.goldYellow;
+        ctx.fillRect(a.x - 3, a.y - 3, 6, 6);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawBalls(ctx) {
+    const doubled = this.volleyDouble;
+    for (const ball of this.balls) {
+      if (ball.returned) continue;
+      for (let i = 0; i < ball.trailPts.length; i++) {
+        const p = ball.trailPts[i];
+        ctx.globalAlpha = (i / ball.trailPts.length) * 0.35;
+        ctx.fillStyle = doubled ? PALETTE.goldYellow : PALETTE.cyan;
+        ctx.beginPath(); ctx.arc(p.x, p.y, CONFIG.BALL_RADIUS * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = doubled ? PALETTE.paleYellow : PALETTE.white;
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, CONFIG.BALL_RADIUS, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = doubled ? PALETTE.goldYellow : PALETTE.cyan;
+      ctx.lineWidth = doubled ? 2 : 1.5;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawHUD(ctx) {
+    const large = this.save.largeUI;
+    ctx.fillStyle = PALETTE.navyDeep;
+    ctx.fillRect(0, 0, this.LOGICAL_W, CONFIG.BORDER + CONFIG.HUD_H);
+    ctx.strokeStyle = PALETTE.deepBlue;
+    ctx.beginPath();
+    ctx.moveTo(0, CONFIG.BORDER + CONFIG.HUD_H);
+    ctx.lineTo(this.LOGICAL_W, CONFIG.BORDER + CONFIG.HUD_H);
+    ctx.stroke();
+
+    const midY = CONFIG.BORDER + CONFIG.HUD_H / 2;
+    this.drawPixelText(ctx, "SCORE", CONFIG.BORDER + 4, midY - 12, 10, PALETTE.gray, "left");
+    this.drawPixelText(ctx, String(this.score), CONFIG.BORDER + 4, midY + 8, large ? 22 : 18, PALETTE.paleYellow, "left");
+
+    this.drawPixelText(ctx, "TURN " + this.turn, this.LOGICAL_W / 2, midY - 12, 11, PALETTE.gray, "center");
+    this.drawPixelText(ctx, "\u00D7" + this.ballCount, this.LOGICAL_W / 2, midY + 10, large ? 22 : 18, PALETTE.brightGreen, "center");
+
+    // sound toggle button top-right
+    const btnSize = 34;
+    this.button(ctx, this.LOGICAL_W - CONFIG.BORDER - btnSize, CONFIG.BORDER, btnSize, btnSize,
+      this.save.soundOn ? "\u266A" : "X", () => this.toggleSound(),
+      { size: 16, fill: PALETTE.navy, stroke: PALETTE.gray });
+    this.button(ctx, this.LOGICAL_W - CONFIG.BORDER - btnSize * 2 - 6, CONFIG.BORDER, btnSize, btnSize,
+      "II", () => this.togglePause(),
+      { size: 14, fill: PALETTE.navy, stroke: PALETTE.gray });
+
+    if (this.state === STATE.LAUNCHING && this.showFastForward) {
+      const fx = this.LOGICAL_W - CONFIG.BORDER - 60;
+      const fy = this.LOGICAL_H - 56;
+      this.button(ctx, fx, fy, 60, 40, this.fastForward ? "\u25B6\u25B6 ON" : "\u25B6\u25B6",
+        () => this.toggleFastForward(), { size: 13, fill: this.fastForward ? PALETTE.darkGreen : PALETTE.deepBlue });
+    }
+
+    // double-strength charge badge, stacked above the queued power-up badge
+    const showDouble = (this.doubleCharges > 0 || this.volleyDouble) && (this.state === STATE.AIMING || this.state === STATE.LAUNCHING);
+    if (showDouble) {
+      const info = POWER_INFO.double;
+      const px = CONFIG.BORDER + 6, py = this.LOGICAL_H - 100;
+      const remaining = this.volleyDouble ? this.doubleCharges + 1 : this.doubleCharges;
+      ctx.save();
+      const pulse = 1 + Math.sin(performance.now() / 160) * 0.1;
+      ctx.translate(px + 18, py + 18);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = info.color;
+      ctx.fillRect(-18, -18, 36, 36);
+      ctx.strokeStyle = PALETTE.white;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-18, -18, 36, 36);
+      ctx.restore();
+      this.drawPixelText(ctx, info.icon, px + 18, py + 18, 18, PALETTE.navyDeep, "center");
+      this.drawPixelText(ctx, "DOUBLE x" + remaining, px + 42, py + 18, 11, info.color, "left");
+    }
+
+    // queued power-up badge, bottom-left of the launch area
+    const activePower = this.volleyPower || this.queuedPower;
+    if (activePower && (this.state === STATE.AIMING || this.state === STATE.LAUNCHING)) {
+      const info = POWER_INFO[activePower];
+      const px = CONFIG.BORDER + 6, py = this.LOGICAL_H - 60;
+      ctx.save();
+      const pulse = 1 + Math.sin(performance.now() / 200) * 0.08;
+      ctx.translate(px + 18, py + 18);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = info.color;
+      ctx.fillRect(-18, -18, 36, 36);
+      ctx.strokeStyle = PALETTE.white;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-18, -18, 36, 36);
+      ctx.restore();
+      this.drawPixelText(ctx, info.icon, px + 18, py + 18, 18, PALETTE.navyDeep, "center");
+      this.drawPixelText(ctx, info.label, px + 42, py + 18, 11, info.color, "left");
+    }
+
+    // rewind / undo button, available while aiming if a charge is banked
+    if (this.rewindCharges > 0 && this.state === STATE.AIMING) {
+      const rw = 96, rh = 34;
+      const rx = this.LOGICAL_W - CONFIG.BORDER - rw;
+      const ry = this.LOGICAL_H - 56;
+      this.button(ctx, rx, ry, rw, rh, POWER_INFO.rewind.icon + " UNDO (" + this.rewindCharges + ")",
+        () => this.useRewind(), { size: 12, fill: PALETTE.purple, stroke: PALETTE.white });
+    }
+  }
+
+  drawPauseMenu(ctx) {
+    ctx.fillStyle = "rgba(4,6,12,0.86)";
+    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+    const cx = this.LOGICAL_W / 2;
+    this.drawPixelText(ctx, "PAUSED", cx, 70, 24, PALETTE.paleYellow, "center");
+
+    let y = 116;
+    const bw = 240, bh = 42, gap = 10;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "RESUME", () => this.togglePause(), { fill: PALETTE.darkGreen, stroke: PALETTE.brightGreen });
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "RESTART", () => { this.state = STATE.AIMING; this.startGame(); });
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "SOUND: " + (this.save.soundOn ? "ON" : "OFF"), () => this.toggleSound());
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "SCREEN SHAKE: " + (this.save.screenShake ? "ON" : "OFF"), () => {
+      this.save.screenShake = !this.save.screenShake; SaveManager.save(this.save);
+    });
+    y += bh + gap;
+    const tl = this.save.trajectoryLength.toUpperCase();
+    this.button(ctx, cx - bw / 2, y, bw, bh, "TRAJECTORY: " + tl, () => {
+      const order = ["standard", "long", "max"];
+      const idx = (order.indexOf(this.save.trajectoryLength) + 1) % order.length;
+      this.save.trajectoryLength = order[idx];
+      SaveManager.save(this.save);
+    });
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "LARGE UI: " + (this.save.largeUI ? "ON" : "OFF"), () => {
+      this.save.largeUI = !this.save.largeUI; SaveManager.save(this.save);
+    });
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "HOW TO PLAY", () => { this.prevState = STATE.PAUSED; this.state = STATE.HOWTO; });
+    y += bh + gap;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "RETURN TO TITLE", () => { this.state = STATE.TITLE; });
+  }
+
+  drawGameOver(ctx) {
+    const t = Math.min(1, this.gameOverAnimT / 0.5);
+    ctx.fillStyle = "rgba(6,3,8,0.9)";
+    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
+    const cx = this.LOGICAL_W / 2;
+    ctx.save();
+    ctx.globalAlpha = t;
+    this.drawPixelText(ctx, "GAME OVER", cx, 110 - (1 - t) * 20, 28, PALETTE.hotRed, "center");
+    ctx.restore();
+    const s = this.finalStats || { score: this.score, turn: this.turn, best: this.save.highScore, destroyed: this.blocksDestroyed, seed: this.seed };
+    let y = 170;
+    this.drawPixelText(ctx, "FINAL SCORE  " + s.score, cx, y, 16, PALETTE.white, "center"); y += 26;
+    this.drawPixelText(ctx, "TURN REACHED  " + s.turn, cx, y, 14, PALETTE.lightGray, "center"); y += 24;
+    this.drawPixelText(ctx, "BEST SCORE  " + s.best, cx, y, 14, PALETTE.goldYellow, "center"); y += 24;
+    this.drawPixelText(ctx, "BLOCKS DESTROYED  " + s.destroyed, cx, y, 14, PALETTE.lightGray, "center"); y += 24;
+    this.drawPixelText(ctx, "SEED  " + s.seed, cx, y, 11, PALETTE.gray, "center"); y += 40;
+
+    const bw = 220, bh = 50;
+    this.button(ctx, cx - bw / 2, y, bw, bh, "PLAY AGAIN", () => this.startGame(), { fill: PALETTE.darkGreen, stroke: PALETTE.brightGreen, size: 18 });
+    y += bh + 12;
+    this.button(ctx, cx - 100, y, 200, 38, "REPLAY SEED", () => this.startGame(s.seed), { size: 13 });
+    y += 46;
+    this.button(ctx, cx - 90, y, 180, 38, "TITLE", () => { this.state = STATE.TITLE; }, { size: 14 });
+  }
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+window.addEventListener("load", () => {
+  const canvas = document.getElementById("game");
+  const game = new Game(canvas);
+  window.__ricochetGame = game; // debug hook
+});
+
+})();
+</script>
+</body>
+</html>
