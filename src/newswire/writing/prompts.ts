@@ -43,7 +43,16 @@ const GOOD_BAD_EXAMPLES = [
 export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number): string {
   const voiceRules: string[] = [];
   if (!focus.voice.allowJokes) voiceRules.push("No jokes, humor, or snark.");
-  if (!focus.voice.allowHashtagsInline) voiceRules.push("No hashtags.");
+  if (focus.voice.allowHashtagsInline) {
+    voiceRules.push(
+      "You may append 1-3 specific, relevant hashtags at the very end of a post when they would genuinely help discovery " +
+        "(e.g. a named topic, place, or entity directly in that post - #Politics, #MusicIndustry, #AnthropicLawsuit). Never use " +
+        "generic engagement hashtags (#news, #breaking, #trending), never hashtag-stuff, and never let a hashtag replace a word " +
+        "that should appear in the sentence itself - hashtags are metadata appended after the complete thought, not part of the prose."
+    );
+  } else {
+    voiceRules.push("No hashtags.");
+  }
   if (!focus.voice.allowEmoji) voiceRules.push("No emoji.");
   if (!focus.voice.allowRhetoricalQuestions) voiceRules.push("No rhetorical questions or engagement-bait phrasing.");
 

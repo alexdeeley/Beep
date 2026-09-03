@@ -73,7 +73,7 @@
 
   "voice": {
     "allowJokes": false,
-    "allowHashtagsInline": false,
+    "allowHashtagsInline": true,
     "allowEmoji": false,
     "allowRhetoricalQuestions": false
   }
