@@ -1,0 +1,80 @@
+{
+  "$schemaVersion": 1,
+
+  "priorityTopics": [
+    { "key": "politics", "label": "Politics", "weight": 1.0, "sourceTierTrack": "hard_news" },
+    { "key": "music_news", "label": "Music news", "weight": 0.8, "sourceTierTrack": "entertainment" },
+    { "key": "music_industry", "label": "Music industry", "weight": 0.8, "sourceTierTrack": "entertainment" },
+    { "key": "liberal_democracy", "label": "Liberal democracy", "weight": 0.9, "sourceTierTrack": "hard_news" },
+    { "key": "democratic_socialism", "label": "Democratic socialism", "weight": 0.9, "sourceTierTrack": "hard_news" },
+    { "key": "us_polling_data", "label": "US polling data", "weight": 0.8, "sourceTierTrack": "hard_news" },
+    { "key": "statistics_data_journalism", "label": "Interesting statistics / data journalism", "weight": 0.7, "sourceTierTrack": "hard_news" },
+    { "key": "games_industry", "label": "Games", "weight": 0.6, "sourceTierTrack": "entertainment" },
+    { "key": "celebrity_gossip", "label": "Celebrity gossip", "weight": 0.5, "sourceTierTrack": "entertainment" },
+    { "key": "movies_film_industry", "label": "Movies / film industry", "weight": 0.7, "sourceTierTrack": "entertainment" }
+  ],
+
+  "neutralityNote": "priorityTopics selects WHICH stories to cover, never HOW to editorialize them. The wire-service voice (src/newswire/writing/prompts.ts) applies identically across every topic, including politics - 'liberal_democracy' and 'democratic_socialism' are coverage areas, not an instruction to inject opinion or bias.",
+
+  "watch": [
+    // Manually-maintained list of specific artists/bands/people/companies
+    // you personally care about - there is no way to auto-detect "things
+    // I've ever mentioned", so this starts empty. Add entries like:
+    //   { "type": "artist", "name": "Radiohead" }
+    //   { "type": "person", "name": "..." }
+    //   { "type": "company", "name": "..." }
+    // See README.md's newswire section for a worked example.
+  ],
+
+  "exclude": [
+    // Topic keys or free-text phrases to actively suppress even if they'd
+    // otherwise score highly, e.g. { "key": "crypto_price_speculation" }
+  ],
+
+  "sourceTiers": {
+    "hard_news": [
+      "primary_official",
+      "court_filing",
+      "company_statement",
+      "wire_service",
+      "general_news",
+      "aggregator",
+      "blog_social"
+    ],
+    "entertainment": [
+      "company_statement",
+      "entertainment_trade",
+      "wire_service",
+      "general_news",
+      "aggregator",
+      "blog_social"
+    ]
+  },
+
+  "entertainmentTradePublishers": [
+    "Variety",
+    "Billboard",
+    "Pitchfork",
+    "The Hollywood Reporter",
+    "Deadline",
+    "IGN",
+    "Rolling Stone",
+    "Polygon",
+    "GamesIndustry.biz"
+  ],
+
+  "quietHours": {
+    "timezone": "America/Los_Angeles",
+    "slowStartHourLocal": 23,
+    "slowEndHourLocal": 6,
+    "minImportanceScoreDuringSlow": 0.6,
+    "minImportanceScoreDuringSilentThreshold": 0.85
+  },
+
+  "voice": {
+    "allowJokes": false,
+    "allowHashtagsInline": false,
+    "allowEmoji": false,
+    "allowRhetoricalQuestions": false
+  }
+}

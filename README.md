@@ -9,6 +9,13 @@ accessibility text) — with no daily human involvement.
 This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
 
+> **Note:** This account now runs a third, primary pipeline on top of the
+> daily/weekly ones described below — an hourly autonomous "newswire" that
+> researches and posts real current news. It replaced the daily pipeline's
+> *schedule* (the code below still works and is still runnable by hand, it
+> just no longer fires automatically). See **[§17, The hourly newswire
+> pipeline](#17-the-hourly-newswire-pipeline)** for how it works.
+
 ---
 
 ## 1. What this actually does, in plain English
@@ -413,13 +420,14 @@ src/
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
   weeklyCard/      # fully independent weekly "card draw" pipeline - own schedule, own state, own concurrency group (see below)
+  newswire/        # fully independent hourly wire-service pipeline - see §17 below
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
 
 templates/infographic/   # CSS design system + bundled fonts (no network dependency)
 tests/                   # vitest unit tests + the August 29 fixture
 runs/                    # generated output (gitignored, per-date)
-.github/workflows/       # daily.yml (the "On This Day" scheduled post) + weekly-card.yml (the weekly card draw)
+.github/workflows/       # daily.yml (workflow_dispatch only - see §17) + weekly-card.yml + news.yml + news-deep-research.yml
 ```
 
 ### The weekly "card draw" pipeline
@@ -506,3 +514,198 @@ text-length safety net used by the renderer.
   without a stale hard-coded UTC offset; this means the workflow runs
   twice most days (the second run is a fast no-op thanks to idempotency),
   which is a deliberate trade-off over risking a missed post.
+
+---
+
+## 17. The hourly newswire pipeline
+
+A third, independent pipeline lives in `src/newswire/` and is now the
+account's primary posting cadence: once an hour, it researches real
+current news across a personal list of topics, fact-checks its own copy
+against independently-verified sources, tracks how stories evolve across
+hours and days rather than posting disconnected headlines, and posts a
+short thread — or, just as often, posts nothing at all, because staying
+silent when there's nothing genuinely worth saying is a designed, healthy
+outcome, not a bug.
+
+It shares the Bluesky account with the daily/weekly pipelines above but
+nothing else: its own concurrency group (`on-this-day-newswire`), its own
+persistent state (a SQLite database in the R2 bucket, not `runs/<date>/`),
+and its own idempotency/dedup logic. A failure here can't corrupt or block
+the daily/weekly pipelines, and vice versa.
+
+### 17.1 The hourly cycle, stage by stage
+
+Each run (`npm run news:preview` or `news:publish`, or the `news.yml`
+schedule) does, in order:
+
+1. **Discover** (`discovery/`) — one broad web-search sweep across every
+   topic in `editorial-focus.json`, via OpenAI's Responses API with the
+   built-in web-search tool. Every candidate must come with the actual
+   source URLs the model's search returned.
+2. **Cluster** (`clustering/`) — collapses candidates that are really the
+   same underlying event covered by multiple outlets (syndication) into
+   one cluster, per topic.
+3. **Verify** (`verification/`) — for each cluster, an **independent**
+   re-search (a fresh web-search call that does not trust discovery's
+   claims or sources) breaks the story into individual factual claims,
+   labels each FACT / ANALYSIS / UNCONFIRMED / BACKGROUND / PREDICTION,
+   classifies every source into a tier (`primary_official`,
+   `court_filing`, `company_statement`, `entertainment_trade`,
+   `wire_service`, `general_news`, `aggregator`, `blog_social`), and
+   requires **at least 2 independent corroborating source domains** or
+   the cluster is dropped outright.
+4. **Story memory** (`storyMemory/`) — matches the verified cluster
+   against currently-open stories in the database. A genuine continuation
+   of an existing story (e.g. a regulatory response three hours after an
+   announcement) becomes a new *event* on that story, not a new,
+   disconnected story. A cluster that's just a restatement of something
+   already on record (the dedup test) produces **no material change** and
+   is silently dropped — this is what stops the pipeline from posting the
+   same fact twice in different words. Corrections (a later fact that
+   actually reverses or retracts an earlier one — not just adds detail)
+   are detected here too and linked to what they correct.
+5. **Rank** (`ranking/`) — a structural importance score: source
+   authority, how factually settled the claims are, how directly it
+   matches your stated topic weights, freshness, and whether it continues
+   an already-important story. **Deliberately not** "how many outlets
+   covered it" — that measures syndication reach, not significance.
+6. **Quiet-hours check** (`quietHours/`) — see §17.4. May end the run
+   right here with nothing posted, which is expected.
+7. **Connections** (`connections/`) — extracts named entities and
+   evidence-grounded relationships from the new facts (never an invented
+   link — every relationship is tied to the specific text that supports
+   it), and finds other open stories that share an entity, so the writer
+   can optionally reference a real connection between stories.
+8. **Write** (`writing/`) — composes the hour's post(s) in a stripped-down
+   wire-service voice (short declarative sentences, no editorializing, no
+   filler) against a hard list of banned AI-cliché phrases
+   (`writing/bannedPhrases.ts`). May legitimately decide nothing is worth
+   posting this hour.
+9. **Copy-edit** (`copyEdit/`) — a structural check against the banned
+   phrase list and your `voice` settings (jokes/hashtags/emoji/rhetorical
+   questions), with one revision pass if anything's flagged.
+10. **Fact-check** (`factCheck/`) — **mandatory, cannot be skipped.**
+    Extracts every factual claim from the *final* copy-edited text and
+    checks it against the independently-verified source facts only —
+    never outside knowledge. Every claim must come back `SUPPORTED` or
+    publishing is blocked outright. This is what catches a claim the
+    writer subtly embellished or distorted while composing prose.
+11. **Duplicate-check** (`duplicateCheck/`) — a content-hash exact-repost
+    guard (never literally re-post identical text). The real "is this
+    actually new" judgment already happened in step 4.
+12. **Publish** (`publishing/`) — splits the copy into a Bluesky-safe
+    thread (`threadSplitter.ts`: correct grapheme counting, sentence
+    boundaries only, never a mid-sentence cut) and posts it via the AT
+    Protocol. Each post in the thread is recorded to the database
+    immediately after it succeeds — a mid-thread failure leaves an
+    accurate record instead of retrying in a way that could double-post.
+
+### 17.2 Editing what it covers: `editorial-focus.json`
+
+The repo-root `editorial-focus.json` is yours to edit directly — it's not
+under `src/`, and it's re-read fresh at the start of every run.
+
+- **`priorityTopics`** — what gets searched for, with a `weight` (0-1,
+  higher = more influence on the importance score) and a
+  `sourceTierTrack` (`"hard_news"` or `"entertainment"`, which decides
+  which source-tier list applies during verification).
+- **`watch`** — specific people/bands/companies you personally care about.
+  This list starts **empty on purpose**: there's no way to automatically
+  detect "every band I've ever mentioned," so you maintain it by hand. A
+  match here gives a story a boost in the importance score. Worked
+  example — to make sure you never miss news about a band:
+  ```json
+  "watch": [
+    { "type": "band", "name": "Radiohead" },
+    { "type": "person", "name": "Thom Yorke" }
+  ]
+  ```
+- **`exclude`** — topic keys or free-text phrases to actively suppress
+  even if they'd otherwise score highly.
+- **`sourceTiers`** / **`entertainmentTradePublishers`** — the ordered
+  authority ranking used during verification, and named outlets (Variety,
+  Billboard, Pitchfork, etc.) recognized as the `entertainment_trade`
+  tier.
+- **`quietHours`** and **`voice`** — see §17.4 and §17.1 step 8.
+- **`neutralityNote`** — a fixed reminder (to the model, not to you) that
+  `priorityTopics` selects *what* to cover, never *how* to editorialize
+  it — the wire-service voice applies identically to every topic,
+  including politics.
+
+JSON doesn't support comments natively, but the loader
+(`src/newswire/editorialFocus.ts`) tolerates `//` line comments, so feel
+free to annotate your own copy.
+
+### 17.3 Per-stage models and cost control
+
+Every stage has its own model env var, independent of the daily
+pipeline's `RESEARCH_MODEL`/`VERIFICATION_MODEL` (which still exist and
+still mean what they always meant, unrelated to any of this):
+`NEWS_DISCOVERY_MODEL`, `NEWS_VERIFICATION_MODEL`, `NEWS_WRITER_MODEL`,
+`NEWS_COPYEDIT_MODEL`, `NEWS_FACTCHECK_MODEL`, `NEWS_DEEP_RESEARCH_MODEL`
+(see `.env.example`). This is deliberate: discovery and copy-editing run
+often and don't need your strongest model, while verification and the
+mandatory fact-check gate are exactly where you want the most capable one
+you're willing to pay for.
+
+### 17.4 Quiet hours: silence is the point, not a failure
+
+`editorial-focus.json`'s `quietHours` block defines a window (default
+23:00–06:00 in your configured timezone) where the bar for posting rises.
+Below `minImportanceScoreDuringSlow`, the hour stays silent. Above it but
+below `minImportanceScoreDuringSilentThreshold`, it still posts, but only
+what clears that bar. Above `minImportanceScoreDuringSilentThreshold` —
+genuinely major breaking news — it posts as if it were any other hour,
+because real breaking news shouldn't wait for morning. **If you check
+`news:status` and see several consecutive hours with no post, that is
+very likely the pipeline working correctly**, not a stuck or broken run —
+manufacturing a post to fill an hour is explicitly the wrong behavior
+here.
+
+### 17.5 The story database: R2-hosted SQLite, not `runs/<date>/`
+
+Unlike the daily/weekly pipelines' git-committed or filesystem-only
+state, the newswire pipeline's memory is a SQLite database
+(`better-sqlite3`) stored as an object in your existing R2 bucket
+(`NEWS_DB_R2_KEY`, default `newswire/story.db`). Every run downloads it
+fresh, works against the local copy, and — outside of `news:preview`,
+which never persists anything — uploads it back at the end, even on
+failure (so the audit trail survives a bad run). **The first run ever
+finds no object in R2 and starts from an empty database — this is normal,
+not an error**; you'll see a log line saying exactly that. Concurrent
+writes are prevented by the GitHub Actions `concurrency` group
+(`on-this-day-newswire`, shared with the deep-research workflow); an ETag
+precondition on upload is a second line of defense that fails loudly
+instead of silently overwriting another run's data if that lock is ever
+removed.
+
+Stories aren't deleted as they age — a story untouched for 30 days is
+archived (excluded from active matching) but stays in the database,
+queryable, forever.
+
+### 17.6 Commands
+
+```bash
+npm run news:preview                 # run everything for real, print the proposed thread, publish/persist NOTHING - safe to re-run
+npm run news:preview -- --force      # same, but bypass the quiet-hours silence check (to actually see output while testing at 3am)
+npm run news:publish                 # run everything and publish to Bluesky if the pipeline finds something worth posting
+npm run news:status                  # read-only summary: last run, open story count, recent posts, recent failures
+npm run news:deep-research           # manually trigger the once-daily broad-context research pass
+```
+
+`news:preview` and `news:publish` are two different commands, not one
+command with a `--dry-run` flag, because the distinction is safety-load-
+bearing here: `news:preview` is guaranteed to never touch the shared R2
+database or Bluesky account, so it's the one to run repeatedly while
+iterating on `editorial-focus.json` or prompts.
+
+### 17.7 Once-daily deep research
+
+Separately from the hourly cycle, `.github/workflows/news-deep-research.yml`
+runs once a day (~4:00am Pacific) and does one broader, unstructured
+web-search pass across all your topics — ongoing storylines, upcoming
+known events, background context — and stores it as a prose blob the
+hourly discovery stage optionally includes as extra context. It shares
+the identical `on-this-day-newswire` concurrency group as the hourly
+workflow so the two can never race each other's database read/write.

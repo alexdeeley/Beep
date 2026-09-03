@@ -1,0 +1,76 @@
+name: Hourly newswire
+
+# Hourly has no local wall-clock anchor to preserve (unlike "8:00am
+# Pacific"), so unlike daily.yml this needs only a single cron line - no
+# DST two-cron dance. The concurrency group below is load-bearing, not
+# just an overlap-prevention nicety: it's what keeps this workflow and
+# news-deep-research.yml from ever racing each other's read-modify-write
+# of the shared R2-hosted story database.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only: run the full pipeline for real but never publish or persist story database changes (same as news:preview)"
+        required: false
+        type: boolean
+        default: false
+      force_run:
+        description: "Bypass the quiet-hours silence check, for manual testing"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: on-this-day-newswire
+  cancel-in-progress: false
+
+jobs:
+  run-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run newswire cycle
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            CMD="news:preview"
+          else
+            CMD="news:publish"
+          fi
+          ARGS=""
+          if [ "${{ inputs.force_run }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Running: npm run $CMD -- $ARGS"
+          npm run $CMD -- $ARGS
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newswire-run-${{ github.run_id }}
+          path: runs/news/
+          retention-days: 14
+          if-no-files-found: ignore
