@@ -38,7 +38,7 @@ The guiding rule throughout: **no post is better than a wrong post.**
 
 ## 2. Install Node.js
 
-You need Node.js version 20 or newer.
+You need Node.js version 22 or newer (the newswire pipeline's SQLite dependency, `better-sqlite3`, requires it).
 
 - **Mac**: install [Homebrew](https://brew.sh), then run `brew install node`.
 - **Windows**: download the LTS installer from [nodejs.org](https://nodejs.org) and run it.
@@ -47,7 +47,7 @@ You need Node.js version 20 or newer.
 Check it worked:
 
 ```bash
-node --version   # should print v20.x.x or higher
+node --version   # should print v22.x.x or higher
 ```
 
 ---

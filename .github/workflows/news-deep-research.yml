@@ -36,7 +36,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # better-sqlite3's native binary requires Node >=22 (see package.json's engines field) -
+          # Node 20 caused a segfault (exit code 139) opening the downloaded SQLite database.
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies

@@ -65,7 +65,10 @@ jobs:
         if: steps.retirement.outputs.retired != 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # better-sqlite3's native binary requires Node >=22 (see package.json's engines field) -
+          # src/cli/index.ts statically imports the newswire module tree (including
+          # better-sqlite3) regardless of which command runs, so every workflow needs this bump.
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies

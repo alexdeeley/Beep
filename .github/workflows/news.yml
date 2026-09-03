@@ -40,30 +40,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # better-sqlite3's native binary requires Node >=22 (see package.json's engines field) -
+          # Node 20 caused a segfault (exit code 139) opening the downloaded SQLite database.
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
-
-      # TEMPORARY diagnostic step - remove once the R2 connectivity issue is root-caused.
-      # Prints only metadata (length, char classes) about the secret, never the value itself,
-      # and tests DNS resolution of the exact hostname our code constructs from it.
-      - name: Debug R2 DNS resolution
-        env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-        run: |
-          node -e "
-            const id = process.env.R2_ACCOUNT_ID || '';
-            console.log('R2_ACCOUNT_ID length:', id.length);
-            console.log('R2_ACCOUNT_ID is 32 lowercase hex chars:', /^[0-9a-f]{32}\$/.test(id));
-            console.log('R2_ACCOUNT_ID has leading/trailing whitespace:', id !== id.trim());
-            const dns = require('node:dns').promises;
-            const host = id + '.r2.cloudflarestorage.com';
-            dns.lookup(host)
-              .then(r => console.log('DNS lookup of', host, '=> RESOLVED:', JSON.stringify(r)))
-              .catch(e => console.log('DNS lookup of', host, '=> FAILED:', e.message));
-          "
 
       - name: Run newswire cycle
         env:

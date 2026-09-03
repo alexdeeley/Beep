@@ -5,7 +5,7 @@
   "description": "Autonomous daily 'On This Day' historical infographic generator and Bluesky publisher.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
