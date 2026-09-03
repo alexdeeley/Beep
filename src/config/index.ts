@@ -94,6 +94,30 @@ export interface AppConfig {
     maxQaRegenerationAttempts: number;
   };
 
+  /**
+   * Config for the independent hourly "newswire" pipeline (see
+   * src/newswire/). Deliberately its own namespaced block rather than
+   * reusing the top-level researchModel/verificationModel fields above -
+   * those belong to the (now unscheduled, but still-present) daily
+   * pipeline, and a shared field would silently couple the two.
+   */
+  news: {
+    discoveryModel: string;
+    verificationModel: string;
+    writerModel: string;
+    copyEditModel: string;
+    factCheckModel: string;
+    deepResearchModel: string;
+    maxStageRetries: number;
+    stageTimeoutMs: number;
+    /** Hard cap on posts in one hourly edition's thread. */
+    maxPostsPerEdition: number;
+    /** Object key the story SQLite database is stored/retrieved under in the existing R2/S3 bucket. */
+    dbR2Key: string;
+    /** Path (relative to process.cwd(), i.e. the repo root) to the user-editable editorial-focus.json. */
+    editorialFocusPath: string;
+  };
+
   storage: {
     provider: "r2" | "s3" | "local";
     bucket: string | undefined;
@@ -185,6 +209,20 @@ export function loadConfig(): AppConfig {
       anchorDate: envStr("WEEKLY_CARD_ANCHOR_DATE", "2026-08-30")!,
       maxGenerationAttempts: envInt("WEEKLY_CARD_MAX_GENERATION_ATTEMPTS", 3),
       maxQaRegenerationAttempts: envInt("WEEKLY_CARD_MAX_QA_REGENERATION_ATTEMPTS", 3),
+    },
+
+    news: {
+      discoveryModel: envStr("NEWS_DISCOVERY_MODEL", "gpt-4.1-mini")!,
+      verificationModel: envStr("NEWS_VERIFICATION_MODEL", "gpt-4.1")!,
+      writerModel: envStr("NEWS_WRITER_MODEL", "gpt-4.1")!,
+      copyEditModel: envStr("NEWS_COPYEDIT_MODEL", "gpt-4.1-mini")!,
+      factCheckModel: envStr("NEWS_FACTCHECK_MODEL", "gpt-4.1")!,
+      deepResearchModel: envStr("NEWS_DEEP_RESEARCH_MODEL", "gpt-4.1")!,
+      maxStageRetries: envInt("NEWS_MAX_STAGE_RETRIES", 2),
+      stageTimeoutMs: envInt("NEWS_STAGE_TIMEOUT_MS", 60_000),
+      maxPostsPerEdition: envInt("NEWS_MAX_POSTS_PER_EDITION", 3),
+      dbR2Key: envStr("NEWS_DB_R2_KEY", "newswire/story.db")!,
+      editorialFocusPath: envStr("EDITORIAL_FOCUS_PATH", "editorial-focus.json")!,
     },
 
     storage: {

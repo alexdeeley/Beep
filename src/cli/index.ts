@@ -22,6 +22,11 @@ import type { ResearchOutput } from "../research/researchAgent.js";
 import type { VerificationOutput } from "../verification/verifyAgent.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult } from "../render/renderInfographic.js";
+import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
+import { runDeepResearchCycle } from "../newswire/runDeepResearchCycle.js";
+import { getNewswireStatus } from "../newswire/status.js";
+import { downloadStoryDb } from "../newswire/db/sync.js";
+import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -190,6 +195,71 @@ program
       console.log(`Failed to publish: ${summary.publish.error ?? "unknown error"}`);
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("news:preview")
+  .description(
+    "Run the full hourly newswire pipeline for real (real web search, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
+  )
+  .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
+  .action(async (opts) => {
+    const summary = await runNewswireCycle(config, { dryRun: true, forceRun: Boolean(opts.force) });
+    console.log(`\n=== Newswire preview (run ${summary.hourlyRunId}) ===`);
+    console.log(`Quiet-hours outcome: ${summary.quietHoursOutcome}`);
+    console.log(`Publish status: ${summary.publishStatus}`);
+    if (summary.editionPreview && summary.editionPreview.length > 0) {
+      console.log(`\nProposed thread (${summary.editionPreview.length} post(s)):`);
+      summary.editionPreview.forEach((p, i) => console.log(`  [${i + 1}] ${p.text}`));
+    } else {
+      console.log("\nNo edition produced this run (silence, or blocked by fact-check/duplicate-check).");
+    }
+  });
+
+program
+  .command("news:publish")
+  .description("Run the full hourly newswire pipeline and publish to Bluesky if the pipeline finds something worth posting")
+  .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
+  .action(async (opts) => {
+    const summary = await runNewswireCycle(config, { dryRun: false, forceRun: Boolean(opts.force) });
+    console.log(`\n=== Newswire run ${summary.hourlyRunId} ===`);
+    console.log(`Quiet-hours outcome: ${summary.quietHoursOutcome}`);
+    console.log(`Publish status: ${summary.publishStatus}`);
+    console.log(`Posts published: ${summary.publishedPostCount}`);
+    if (summary.publishStatus === "failed") process.exitCode = 1;
+  });
+
+program
+  .command("news:status")
+  .description("Print a read-only status summary of the newswire pipeline's story database (last run, open stories, recent posts)")
+  .action(async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const tempDir = mkdtempSync(join(tmpdir(), "newswire-status-db-"));
+    const dbPath = join(tempDir, "story.db");
+    const logger = new RunLogger(join(tempDir, "logs"));
+    try {
+      await downloadStoryDb(config, logger, dbPath);
+      const db = openStoryDb(dbPath);
+      try {
+        const status = getNewswireStatus(db);
+        console.log(JSON.stringify(status, null, 2));
+      } finally {
+        closeStoryDb(db);
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+program
+  .command("news:deep-research")
+  .description("Manually trigger the once-daily deep-research cycle")
+  .option("--dry-run", "Run the research but don't persist story database changes back to R2", false)
+  .action(async (opts) => {
+    const result = await runDeepResearchCycle(config, { dryRun: Boolean(opts.dryRun) });
+    console.log(result.contextBlob ?? "(deep research failed - see logs)");
   });
 
 program

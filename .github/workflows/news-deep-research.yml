@@ -1,0 +1,65 @@
+name: Daily newswire deep research
+
+# Two cron triggers (~4:00am America/Los_Angeles across both PST and
+# PDT), same DST-safe pattern as daily.yml - this one does have a local
+# wall-clock anchor worth preserving (run once, early, before the day's
+# hourly cycles pick up its context). Shares the IDENTICAL concurrency
+# group as news.yml on purpose: both read-modify-write the same
+# R2-hosted story database, so they must never run concurrently.
+on:
+  schedule:
+    - cron: "0 12 * * *" # ~4:00am America/Los_Angeles during PST
+    - cron: "0 11 * * *" # ~4:00am America/Los_Angeles during PDT
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the research but don't persist story database changes back to R2"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: on-this-day-newswire
+  cancel-in-progress: false
+
+jobs:
+  deep-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run deep research cycle
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          echo "Running: npm run news:deep-research -- $ARGS"
+          npm run news:deep-research -- $ARGS
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newswire-deep-research-${{ github.run_id }}
+          path: runs/news-deep-research/
+          retention-days: 14
+          if-no-files-found: ignore
