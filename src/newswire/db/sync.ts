@@ -30,6 +30,12 @@ function buildClient(config: AppConfig): { client: S3Client; bucket: string } | 
     region: config.storage.region,
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
+    // R2 requires path-style addressing (https://<endpoint>/<bucket>/<key>) rather than the
+    // AWS SDK v3 default of virtual-hosted-style (https://<bucket>.<endpoint>/<key>) - the
+    // latter depends on wildcard DNS/TLS SNI coverage that isn't reliably resolvable from every
+    // network (confirmed failing from GitHub Actions runners with a correct, verified account ID
+    // and credentials, while resolving fine from other networks) - see Cloudflare's R2 S3 API docs.
+    forcePathStyle: true,
   });
   return { client, bucket };
 }

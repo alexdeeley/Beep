@@ -56,6 +56,11 @@ export async function uploadImage(
     region: config.storage.region,
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
+    // R2 requires path-style addressing rather than the AWS SDK v3 default of virtual-hosted-style
+    // - see the identical, more detailed comment in src/newswire/db/sync.ts, where this was
+    // actually observed failing (this pipeline's own upload failures are non-fatal, so the same
+    // underlying DNS issue could have been silently skipping archival uploads without being noticed).
+    forcePathStyle: true,
   });
 
   const key = `on-this-day/${date}/${basename(filePath)}`;
