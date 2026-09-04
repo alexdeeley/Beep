@@ -77,13 +77,6 @@
     "path": "MaisieEatsEverything.html"
   },
   {
-    "id": "ballz-game",
-    "name": "Ballz Game",
-    "description": "A physics ball-breaker — aim, launch, and smash bricks.",
-    "category": "Games",
-    "path": "BallzGame.html"
-  },
-  {
     "id": "peggle-minimal-forge",
     "name": "Peggle Minimal Forge",
     "description": "Drop balls to bounce and ricochet through a peg board.",
