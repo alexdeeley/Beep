@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Unicorn Cat Bubble Pop — made by Maisie</title>
+<style>
+  body {
+    margin: 0;
+    background: #05163a;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-family: sans-serif;
+    text-align: center;
+  }
+  .hidden { display: none; }
+  button {
+    margin-top: 20px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: none;
+    background: #ff8ad9;
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  }
+  h1 {
+    font-size: 40px;
+    color: #ffe6f7;
+    text-shadow: 0 0 8px #ff7edc;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="game"></canvas>
+<div class="overlay" id="startScreen">
+  <div>
+    <h1>Unicorn Cat Bubble Pop</h1>
+    <p>Made by Maisie 🩷</p>
+    <button onclick="startGame()">Play</button>
+  </div>
+</div>
+<div class="overlay hidden" id="gameOver">
+  <div>
+    <h1 id="finalScore">Score: 0</h1>
+    <button onclick="startGame()">Replay</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let W, H;
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+let bubbles = [];
+let particles = [];
+let score = 0;
+let timeLeft = 120000;
+let running = false;
+let lastTime = 0;
+let kitty = { x: W/2, y: H-120, r: 40 };
+function startGame(){
+  bubbles = [];
+  particles = [];
+  score = 0;
+  timeLeft = 120000;
+  running = true;
+  lastTime = performance.now();
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("gameOver").classList.add("hidden");
+  loop(lastTime);
+}
+
+function endGame(){
+  running = false;
+  document.getElementById("finalScore").textContent = "Score: " + score;
+  document.getElementById("gameOver").classList.remove("hidden");
+}
+
+function makeBubble(){
+  return {
+    x: Math.random()*W,
+    y: -20,
+    r: 20 + Math.random()*15,
+    v: 0.2 + Math.random()*0.3,
+  };
+}
+
+function drawKitty(){
+  const {x,y,r} = kitty;
+  ctx.save();
+  ctx.fillStyle = "#ffb6d9";
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(x-r/3,y-r/4,r/6,0,Math.PI*2);
+  ctx.arc(x+r/3,y-r/4,r/6,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle="#000";
+  ctx.beginPath();
+  ctx.arc(x-r/3,y-r/4,r/12,0,Math.PI*2);
+  ctx.arc(x+r/3,y-r/4,r/12,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle="#ffe27a";
+  ctx.beginPath();
+  ctx.moveTo(x,y-r);
+  ctx.lineTo(x+10,y-r-40);
+  ctx.lineTo(x-10,y-r-40);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBuckets(){
+  ctx.fillStyle = "#ffd6f5";
+  for(let i=0;i<5;i++){
+    const bx = (i+1)*W/6;
+    ctx.fillRect(bx-15,H-60,30,40);
+    ctx.fillStyle="#ff9ad9";
+    ctx.fillRect(bx-15,H-60,30,10);
+    ctx.fillStyle = "#ffd6f5";
+  }
+}
+
+function update(dt){
+  timeLeft -= dt;
+  if(timeLeft<=0){
+    endGame();
+  }
+  if(Math.random()<0.02) bubbles.push(makeBubble());
+  for(let b of bubbles){
+    b.y += b.v*dt;
+  }
+  bubbles = bubbles.filter(b=>b.y<H+50);
+  for(let b of bubbles){
+    let dx = b.x - kitty.x;
+    let dy = b.y - (kitty.y-50);
+    if(dx*dx+dy*dy<(b.r+10)*(b.r+10)){
+      score++;
+      particles.push({x:b.x,y:b.y,r:b.r,t:500});
+      bubbles.splice(bubbles.indexOf(b),1);
+    }
+  }
+  for(let p of particles){
+    p.t -= dt;
+  }
+  particles = particles.filter(p=>p.t>0);
+}
+
+function draw(){
+  ctx.fillStyle="#05163a";
+  ctx.fillRect(0,0,W,H);
+  drawBuckets();
+  for(let b of bubbles){
+    ctx.strokeStyle="#ff8ad9";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.stroke();
+  }
+  for(let p of particles){
+    ctx.strokeStyle="#fff";
+    ctx.globalAlpha = p.t/500;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r+p.t/20,0,Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  drawKitty();
+  ctx.fillStyle="#fff";
+  ctx.font="20px sans-serif";
+  ctx.fillText("Score: "+score,52,30);
+  ctx.fillText("Time: "+Math.ceil(timeLeft/1000),52,60);
+}
+
+function loop(t){
+  if(!running) return;
+  const dt = t-lastTime;
+  lastTime=t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("mousemove", e=>{ kitty.x = e.clientX; });
+window.addEventListener("touchmove", e=>{ kitty.x = e.touches[0].clientX; });
+</script>
+</body>
+</html>

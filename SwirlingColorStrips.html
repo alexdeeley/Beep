@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Swirling Color Strips</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    touch-action: none; /* important for mobile drawing */
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  /* Hidden helper hint for keyboard users (screen readers can still access) */
+  .sr {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div class="sr" aria-live="polite">
+  Draw with one finger or mouse. Two-finger tap (or press C) to clear. Press S to save a PNG.
+</div>
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false }); // opaque for performance
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function resize() {
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    // Fill background on resize
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+
+  // Stroke storage
+  const strokes = new Map(); // pointerId -> Stroke
+  const finishedStrokes = []; // keep recent finished strokes to animate their swirl
+
+  // Parameters (tweakable)
+  const MAX_POINTS = 600;
+  const LINE_BASE_WIDTH = 22;        // base thickness in device pixels
+  const LINE_SPEED_WIDTH = 16;       // amount width grows when moving slow
+  const SWIRL_AMPLITUDE = 16;        // magnitude of side-to-side swirl
+  const SWIRL_FREQ = 0.018;          // spatial frequency (per pixel)
+  const ECHO_COUNT = 4;              // number of replicated strips per swipe
+  const ECHO_SPACING = 0.8;          // phase spacing between echoes
+  const ECHO_ALPHA = 0.35;           // opacity per echo
+  const GLOW = true;                 // add additive glow
+  const FADE_ALPHA = 0.045;          // trail fade per frame (higher = fades faster)
+  const COLOR_SHIFT_SPEED = 0.045;   // how fast hue drifts over time
+  const SAT = 92;                    // saturation
+  const LIT = 58;                    // lightness
+
+  // Utility
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function clamp(v, a, b){return Math.max(a, Math.min(b, v));}
+
+  class Stroke {
+    constructor(x, y, hue) {
+      this.points = [{x, y, t: performance.now()}];
+      this.hue0 = hue;
+      this.age = 0;
+      this.dead = false;
+    }
+    addPoint(x, y) {
+      const t = performance.now();
+      const last = this.points[this.points.length - 1];
+      if (!last) { this.points.push({x, y, t}); return; }
+      const dx = x - last.x;
+      const dy = y - last.y;
+      const dist2 = dx*dx + dy*dy;
+      // Only add if moved enough to be meaningful
+      if (dist2 > 1.5*1.5) {
+        this.points.push({x, y, t});
+        if (this.points.length > MAX_POINTS) {
+          this.points.shift();
+        }
+      }
+    }
+    finish() {
+      this.finishedAt = performance.now();
+    }
+  }
+
+  // Pointer handling
+  function getPos(e) {
+    if (e.touches && e.touches.length) {
+      const t = e.touches[0];
+      return { x: t.clientX * dpr, y: t.clientY * dpr };
+    }
+    return { x: e.clientX * dpr, y: e.clientY * dpr };
+  }
+
+  function onPointerDown(e) {
+    if (e.pointerType === 'touch' && e.isPrimary === false) return; // track per id below
+    const hue = Math.random()*360;
+    strokes.set(e.pointerId, new Stroke(e.clientX * dpr, e.clientY * dpr, hue));
+  }
+
+  function onPointerMove(e) {
+    const s = strokes.get(e.pointerId);
+    if (!s) return;
+    s.addPoint(e.clientX * dpr, e.clientY * dpr);
+  }
+
+  function onPointerUp(e) {
+    const s = strokes.get(e.pointerId);
+    if (!s) return;
+    s.finish();
+    finishedStrokes.push(s);
+    if (finishedStrokes.length > 24) finishedStrokes.shift();
+    strokes.delete(e.pointerId);
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointercancel', onPointerUp);
+  canvas.addEventListener('pointerout', onPointerUp);
+  canvas.addEventListener('pointerleave', onPointerUp);
+
+  // Two-finger tap to clear for touch
+  let lastTouchCount = 0;
+  let lastTouchTime = 0;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      const now = performance.now();
+      if (now - lastTouchTime < 450) {
+        clearCanvas();
+      }
+      lastTouchTime = now;
+    }
+    lastTouchCount = e.touches.length;
+  }, { passive: true });
+
+  function clearCanvas() {
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+  }
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'c' || e.key === 'C') clearCanvas();
+    if (e.key === 's' || e.key === 'S') savePNG();
+  });
+
+  function savePNG() {
+    const link = document.createElement('a');
+    link.download = 'swirls.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  function drawStroke(s, tNow) {
+    if (s.points.length < 2) return;
+
+    const pts = s.points;
+    // Precompute segment distances and running length for nice spacing
+    let totalLen = 0;
+    const segLen = new Array(pts.length).fill(0);
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i-1].x;
+      const dy = pts[i].y - pts[i-1].y;
+      const d = Math.hypot(dx, dy);
+      segLen[i] = d;
+      totalLen += d;
+    }
+
+    // Draw echoes (replicated strips)
+    for (let k = 0; k < ECHO_COUNT; k++) {
+      const phase = (k * ECHO_SPACING) + (tNow * 0.0015); // time-based drift
+      const hue = (s.hue0 + (k*30) + tNow * COLOR_SHIFT_SPEED) % 360;
+      const alpha = ECHO_ALPHA * (1 - k / (ECHO_COUNT + 1));
+
+      // Construct offset path (left and right sides) for a filled strip
+      const left = [];
+      const right = [];
+
+      let runLen = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const p0 = pts[i-1];
+        const p1 = pts[i];
+        const dx = p1.x - p0.x;
+        const dy = p1.y - p0.y;
+        const d = Math.max(0.0001, segLen[i]);
+        runLen += d;
+
+        // Direction unit
+        const ux = dx / d;
+        const uy = dy / d;
+        // Normal
+        const nx = -uy;
+        const ny = ux;
+
+        // Speed (pixels/ms) to modulate width: slower -> wider
+        const dt = Math.max(16, (p1.t - p0.t));
+        const speed = d / dt; // px per ms
+        const speedNorm = clamp(speed / 1.2, 0, 1); // rough normalization
+        const width = LINE_BASE_WIDTH + (1 - speedNorm) * LINE_SPEED_WIDTH;
+
+        // Swirl offset based on cumulative length + phase
+        const swirl = Math.sin((runLen * SWIRL_FREQ) + phase) * SWIRL_AMPLITUDE;
+
+        const ox = nx * (width + swirl);
+        const oy = ny * (width + swirl);
+
+        // Push left/right edge points
+        left.push({ x: p1.x + ox, y: p1.y + oy });
+        right.push({ x: p1.x - ox, y: p1.y - oy });
+      }
+
+      // Build gradient along stroke from start to end for extra depth
+      const start = pts[0];
+      const end = pts[pts.length-1];
+      const grad = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
+      grad.addColorStop(0, `hsla(${hue}, ${SAT}%, ${LIT+6}%, ${alpha})`);
+      grad.addColorStop(0.5, `hsla(${(hue+40)%360}, ${SAT}%, ${LIT}%, ${alpha})`);
+      grad.addColorStop(1, `hsla(${(hue+80)%360}, ${SAT}%, ${LIT-6}%, ${alpha})`);
+
+      ctx.beginPath();
+      // Left side
+      for (let i = 0; i < left.length; i++) {
+        const p = left[i];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      // Right side reversed
+      for (let i = right.length-1; i >= 0; i--) {
+        const p = right[i];
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+
+      if (GLOW) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = grad;
+        ctx.shadowColor = `hsla(${hue}, ${SAT}%, ${Math.max(40, LIT)}%, ${alpha*0.8})`;
+        ctx.shadowBlur = 24 * dpr;
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+    }
+  }
+
+  // Main loop
+  function tick(tNow) {
+    // Fade the entire canvas slightly for trails
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${FADE_ALPHA})`;
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    // Draw active strokes
+    strokes.forEach(s => drawStroke(s, tNow));
+
+    // Draw finished strokes for a while to keep them alive/animated
+    for (let i = finishedStrokes.length - 1; i >= 0; i--) {
+      const s = finishedStrokes[i];
+      drawStroke(s, tNow);
+      // Age out old strokes so the canvas doesn't fill forever
+      if (tNow - s.finishedAt > 9000) {
+        finishedStrokes.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
