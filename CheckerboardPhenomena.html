@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Checkerboard Phenomena — High‑Contrast Art Toy</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --muted:#999;
+    --accent:#fff;
+    --panel-bg:rgba(0,0,0,0.7);
+  }
+  html,body{
+    margin:0; padding:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  }
+  #wrap{position:fixed; inset:0; overflow:hidden;}
+  canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  #ui{
+    position: fixed; left: calc(52px + env(safe-area-inset-left)); top: 12px; z-index: 10;
+    background: var(--panel-bg); backdrop-filter: blur(6px);
+    padding: 12px 14px; border: 1px solid #222; border-radius: 10px;
+    user-select: none; max-width: min(calc(92vw - 40px), 480px);
+  }
+  #ui h1{
+    font-size: 16px; margin: 0 0 8px 0; letter-spacing: .02em; font-weight: 700;
+  }
+  #ui .row{display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap;}
+  #ui label{font-size: 13px; color: var(--muted); min-width: 90px;}
+  #ui select, #ui input[type="range"], #ui button, #ui input[type="checkbox"]{
+    font-size: 14px; background:#111; color:var(--fg); border:1px solid #333; border-radius:8px;
+    padding: 8px 10px; outline:none;
+  }
+  #ui input[type="range"]{ width: 220px; height: 24px; padding: 0; }
+  #ui .small{font-size:12px; color:var(--muted); line-height:1.35; margin-top:6px;}
+  #footer{
+    position: fixed; right: 12px; bottom: 12px; z-index: 10;
+    background: var(--panel-bg); border:1px solid #222; border-radius: 10px;
+    padding: 8px 10px; font-size: 12px; color: var(--muted);
+  }
+  .chip{
+    display:inline-block; border:1px solid #333; padding:6px 10px; border-radius:999px; font-size:12px; margin-right:6px; cursor:pointer;
+  }
+  .chip:hover{ border-color:#555; }
+  #toast{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:#111; color:#fff;
+    border:1px solid #333; padding:10px 14px; border-radius:999px; font-size:13px; opacity:0; transition:.25s opacity ease;
+    z-index: 100;
+  }
+  #toast.show{opacity:1;}
+  /* Accessibility: focus outlines */
+  button:focus, select:focus, input:focus { outline: 2px solid #888; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="ui" role="region" aria-label="Controls">
+    <h1>Checkerboard Phenomena</h1>
+    <div class="row">
+      <label for="mode">Phenomenon</label>
+      <select id="mode" aria-label="Phenomenon">
+        <option value="checker">Classic Checkerboard</option>
+        <option value="wave">Sine Wave Warp</option>
+        <option value="swirl">Vortex Swirl</option>
+        <option value="spiral">Log-Polar Spiral</option>
+        <option value="inversion">Circular Inversion Lens</option>
+        <option value="cafewall">Café Wall Illusion</option>
+        <option value="moire">Moiré Checker Overlay</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="cell">Cell Size</label>
+      <input id="cell" type="range" min="6" max="160" step="2" value="48" />
+      <span id="cellVal" aria-live="polite">48 px</span>
+    </div>
+    <div class="row">
+      <label for="intensity">Intensity</label>
+      <input id="intensity" type="range" min="0" max="100" step="1" value="35" />
+      <span id="intensityVal" aria-live="polite">35%</span>
+    </div>
+    <div class="row">
+      <label for="animate">Animate</label>
+      <input id="animate" type="checkbox" />
+      <button id="randomize" title="Randomize parameters (R)">Randomize</button>
+      <button id="save" title="Save PNG (S)">Save PNG</button>
+      <button id="hide" title="Hide UI (H)">Hide UI</button>
+    </div>
+    <div class="small">
+      Tips: drag to move the focal point (for swirl/inversion/spiral), use your mouse wheel / pinch to zoom cell size,
+      press <b>H</b> to hide UI, <b>S</b> to save, <b>R</b> to randomize. High‑contrast black‑on‑white by default.
+    </div>
+  </div>
+
+  <div id="footer">
+    © Checkerboard Art Toy — Pure black/white. No libraries. Have fun.
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', {alpha:false, willReadFrequently:true});
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  const modeEl = document.getElementById('mode');
+  const cellEl = document.getElementById('cell');
+  const intensityEl = document.getElementById('intensity');
+  const animateEl = document.getElementById('animate');
+  const cellVal = document.getElementById('cellVal');
+  const intensityVal = document.getElementById('intensityVal');
+  const randomizeBtn = document.getElementById('randomize');
+  const saveBtn = document.getElementById('save');
+  const hideBtn = document.getElementById('hide');
+  const toast = document.getElementById('toast');
+
+  let W = 0, H = 0;
+  let centerX = 0, centerY = 0;
+  let time = 0;
+  let anim = false;
+  let lastT = performance.now();
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 1200);
+  }
+
+  function resize(){
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h){
+      canvas.width = w; canvas.height = h;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      W = w; H = h;
+      centerX = W/2; centerY = H/2;
+    }
+  }
+
+  function updateLabels(){
+    cellVal.textContent = cellEl.value + ' px';
+    intensityVal.textContent = intensityEl.value + '%';
+  }
+
+  // ---- Rendering helpers ----
+  function render(){
+    const mode = modeEl.value;
+    const cell = parseFloat(cellEl.value);
+    const intensity = parseFloat(intensityEl.value) / 100; // 0..1
+
+    if (mode === 'cafewall'){
+      renderCafeWall(cell, intensity);
+      return;
+    }
+    if (mode === 'moire'){
+      renderMoire(cell, intensity);
+      return;
+    }
+
+    // For pixel-based warps, use ImageData
+    const img = ctx.createImageData(W, H);
+    const data = img.data;
+    const TWO_PI = Math.PI * 2.0;
+
+    // Precompute parameters
+    const amp = (cell * 1.2) * intensity; // amplitude for wave distort
+    const freq = 1.0 / (Math.max(cell, 1) * 1.2);
+    const k = (intensity * 2.3); // generic factor used by some modes
+    const swirlPow = 1.0 + intensity * 0.75; // power for r^p
+    const spiralK = (intensity * 1.2 + 0.1) * 0.08;
+
+    // Optional subtle animation
+    const tt = anim ? (time * 0.0015) : 0;
+
+    // Core per-pixel loop
+    let p = 0;
+    for (let y=0; y<H; y++){
+      const dy = y - centerY;
+      for (let x=0; x<W; x++){
+        const dx = x - centerX;
+
+        // default mapping
+        let X = x, Y = y;
+
+        if (mode === 'checker'){
+          // no warp
+        } else if (mode === 'wave'){
+          const nx = x * freq, ny = y * freq;
+          X = x + amp * Math.sin(TWO_PI * (ny + tt));
+          Y = y + amp * Math.sin(TWO_PI * (nx + tt*0.9));
+        } else if (mode === 'swirl'){
+          const r = Math.hypot(dx, dy);
+          const a = Math.atan2(dy, dx);
+          const twist = (k * 0.0025) * Math.pow(r, 0.85 * swirlPow);
+          const a2 = a + twist;
+          X = centerX + r * Math.cos(a2);
+          Y = centerY + r * Math.sin(a2);
+        } else if (mode === 'spiral'){
+          const r = Math.hypot(dx, dy) + 1e-4;
+          let a = Math.atan2(dy, dx);
+          a += spiralK * Math.log(r) + tt * 0.5;
+          X = centerX + r * Math.cos(a);
+          Y = centerY + r * Math.sin(a);
+        } else if (mode === 'inversion'){
+          const R = Math.max(80, Math.min(W,H) * (0.18 + intensity * 0.25));
+          const r2 = dx*dx + dy*dy;
+          const eps = 1.0;
+          if (r2 < R*R){
+            const f = (R*R) / (r2 + eps);
+            X = centerX + dx * f;
+            Y = centerY + dy * f;
+          } else {
+            X = x; Y = y;
+          }
+        }
+
+        // Checker test in mapped space
+        const u = Math.floor(X / cell);
+        const v = Math.floor(Y / cell);
+        const sum = (u + v) & 1;
+        const col = (sum === 0) ? 255 : 0;
+
+        data[p++] = col;   // R
+        data[p++] = col;   // G
+        data[p++] = col;   // B
+        data[p++] = 255;   // A
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // Café Wall illusion renderer (draws shapes — faster & clean)
+  function renderCafeWall(cell, intensity){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    const tileW = Math.max(12, cell);
+    const tileH = Math.max(12, Math.floor(cell * 0.75));
+    const mortar = Math.max(2, Math.floor(tileH * 0.18));
+    const offset = Math.floor(tileW * (0.25 + 0.35 * intensity)); // row offset creates tilt illusion
+
+    let y = 0;
+    let row = 0;
+    while (y < H + tileH){
+      // Mortar line
+      ctx.fillStyle = '#777'; // grey mortar
+      ctx.fillRect(0, y, W, mortar);
+
+      const yy = y + mortar;
+      const off = (row % 2) ? offset : 0;
+      // Draw alternating tiles
+      for (let x = -tileW*2; x < W + tileW*2; x += tileW){
+        const isWhite = (((x / tileW) | 0) % 2) === 0;
+        ctx.fillStyle = isWhite ? '#fff' : '#000';
+        ctx.fillRect(x + off, yy, tileW, tileH);
+      }
+
+      y += tileH + mortar;
+      row++;
+    }
+  }
+
+  // Moiré: overlay two checkerboards with slight rotation/offset
+  function renderMoire(cell, intensity){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // Draw first checker pattern to offscreen
+    const off = new OffscreenCanvas(W, H);
+    const octx = off.getContext('2d', {alpha:false});
+    drawSimpleChecker(octx, W, H, cell);
+
+    // Draw base layer
+    ctx.drawImage(off, 0, 0);
+
+    // Second layer rotated slightly with transparency; rotation based on intensity
+    const angle = (0.5 + intensity * 2.0) * Math.PI / 180; // 0.5°..2.5°
+    ctx.save();
+    ctx.globalAlpha = 0.25 + 0.25 * intensity; // 0.25..0.5
+    ctx.translate(W/2, H/2);
+    ctx.rotate(angle);
+    ctx.translate(-W/2, -H/2);
+    ctx.drawImage(off, 0, 0);
+    ctx.restore();
+  }
+
+  function drawSimpleChecker(targetCtx, w, h, cell){
+    const cols = Math.ceil(w / cell);
+    const rows = Math.ceil(h / cell);
+    for (let j=0; j<rows; j++){
+      for (let i=0; i<cols; i++){
+        const isWhite = ((i + j) & 1) === 0;
+        targetCtx.fillStyle = isWhite ? '#fff' : '#000';
+        targetCtx.fillRect(i*cell, j*cell, cell, cell);
+      }
+    }
+  }
+
+  function loop(t){
+    const dt = t - lastT; lastT = t;
+    if (anim){
+      time += dt;
+      // Subtle auto-drift for focal modes
+      const mode = modeEl.value;
+      if (mode === 'swirl' || mode === 'spiral' || mode === 'inversion'){
+        const rad = Math.min(W, H) * 0.08;
+        const w = 0.0012;
+        centerX = W/2 + Math.cos(time * w) * rad;
+        centerY = H/2 + Math.sin(time * w) * rad;
+      }
+      render();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  // ---- Interaction ----
+  let dragging = false;
+  let dragStart = {x:0, y:0};
+  canvas.addEventListener('pointerdown', (e)=>{
+    dragging = true;
+    dragStart.x = e.clientX * dpr;
+    dragStart.y = e.clientY * dpr;
+  });
+  window.addEventListener('pointermove', (e)=>{
+    if (!dragging) return;
+    const x = e.clientX * dpr;
+    const y = e.clientY * dpr;
+    const dx = x - dragStart.x;
+    const dy = y - dragStart.y;
+    centerX += dx; centerY += dy;
+    dragStart.x = x; dragStart.y = y;
+    if (!anim) render();
+  });
+  window.addEventListener('pointerup', ()=> dragging = false);
+  window.addEventListener('pointercancel', ()=> dragging = false);
+
+  window.addEventListener('wheel', (e)=>{
+    const delta = Math.sign(e.deltaY);
+    const val = parseInt(cellEl.value, 10);
+    const next = Math.min(160, Math.max(6, val + delta * 4));
+    if (next !== val){ cellEl.value = String(next); updateLabels(); render(); }
+    e.preventDefault();
+  }, {passive:false});
+
+  modeEl.addEventListener('change', ()=>{ render(); });
+  cellEl.addEventListener('input', ()=>{ updateLabels(); if(!anim) render(); });
+  intensityEl.addEventListener('input', ()=>{ updateLabels(); if(!anim) render(); });
+  animateEl.addEventListener('change', ()=>{
+    anim = animateEl.checked;
+    if (anim){ lastT = performance.now(); requestAnimationFrame(loop); }
+  });
+  randomizeBtn.addEventListener('click', ()=>{
+    const modes = Array.from(modeEl.options).map(o=>o.value);
+    const pick = modes[(Math.random()*modes.length)|0];
+    modeEl.value = pick;
+    cellEl.value = String(6 + ((Math.random()*1e9)|0) % (160-6));
+    intensityEl.value = String(((Math.random()*100)|0));
+    updateLabels();
+    render();
+    showToast('Randomized ✓');
+  });
+  saveBtn.addEventListener('click', ()=>{
+    // Temporarily hide UI for a clean export: already a separate panel.
+    const link = document.createElement('a');
+    link.download = ('checkerboard_' + modeEl.value + '_' + Date.now() + '.png');
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Saved PNG');
+  });
+  hideBtn.addEventListener('click', ()=>{
+    const ui = document.getElementById('ui');
+    const foot = document.getElementById('footer');
+    const hidden = ui.style.display === 'none';
+    ui.style.display = hidden ? '' : 'none';
+    foot.style.display = hidden ? '' : 'none';
+  });
+
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === 'h' || e.key === 'H'){ hideBtn.click(); }
+    if (e.key === 's' || e.key === 'S'){ saveBtn.click(); }
+    if (e.key === 'r' || e.key === 'R'){ randomizeBtn.click(); }
+  });
+
+  // Init
+  resize();
+  updateLabels();
+  render();
+  window.addEventListener('resize', ()=>{ resize(); render(); });
+})();
+</script>
+</body>
+</html>

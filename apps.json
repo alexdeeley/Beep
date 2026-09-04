@@ -166,5 +166,110 @@
     "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
     "category": "Games",
     "path": "ChunkyShapeShooter.html"
+  },
+  {
+    "id": "merzbow-machine",
+    "name": "Merzbow Machine",
+    "description": "A harsh noise wall synthesizer — six modules, three step sequencers, and chaos/glitch controls.",
+    "category": "Music Tools",
+    "path": "MerzbowMachine.html"
+  },
+  {
+    "id": "checkerboard-dissolve",
+    "name": "Checkerboard Dissolve",
+    "description": "Swipe to warp and dissolve a stretchy, pliable checkerboard into fizzling pixels.",
+    "category": "Art",
+    "path": "CheckerboardDissolve.html"
+  },
+  {
+    "id": "checkerboard-phenomena",
+    "name": "Checkerboard Phenomena",
+    "description": "Seven checkerboard illusions — swirl, spiral, café wall, moiré, and more — with live controls.",
+    "category": "Art",
+    "path": "CheckerboardPhenomena.html"
+  },
+  {
+    "id": "artsy-v3",
+    "name": "Artsy v3",
+    "description": "A seeded generative painter — type a seed to get a unique abstract piece, save it as a PNG.",
+    "category": "Art",
+    "path": "ArtsyV3.html"
+  },
+  {
+    "id": "checker-morphs",
+    "name": "Checker Morphs",
+    "description": "A checkerboard-filled shape that slowly morphs between circles, polygons, and rhombi.",
+    "category": "Art",
+    "path": "CheckerMorphs.html"
+  },
+  {
+    "id": "art-toy-clay-cube",
+    "name": "Art Toy — Clay Cube",
+    "description": "Spin and fling a voxel clay cube — it sheds wet clay blobs that pile up and dry on the ground.",
+    "category": "Art",
+    "path": "ArtToyClayCube.html"
+  },
+  {
+    "id": "checkerburst",
+    "name": "Checkerburst",
+    "description": "A soft, checkerboard-filled blob you can grab and drag — it bursts into scattering pixels.",
+    "category": "Art",
+    "path": "Checkerburst.html"
+  },
+  {
+    "id": "infinite-checker-vortex",
+    "name": "Infinite Checkerboard Vortex",
+    "description": "A shader-driven checkerboard that spirals into infinite zoom — drag to rotate, pinch to scale.",
+    "category": "Art",
+    "path": "InfiniteCheckerVortex.html"
+  },
+  {
+    "id": "chord-morpher",
+    "name": "Chord Morph",
+    "description": "Tap to morph between randomized maj7 and min7 chords, played as pure sine tones.",
+    "category": "Music Tools",
+    "path": "ChordMorpher.html"
+  },
+  {
+    "id": "snake-circle-enemy",
+    "name": "Snake! Big Circle Enemy",
+    "description": "Classic snake with a twist — a slow-regenerating circle enemy that dies if it crashes into you.",
+    "category": "Games",
+    "path": "SnakeCircleEnemy.html"
+  },
+  {
+    "id": "spiral-fan-spinner",
+    "name": "Spiral Fan Spinner",
+    "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
+    "category": "Art",
+    "path": "SpiralFanSpinner.html"
+  },
+  {
+    "id": "liquid-checkerboard",
+    "name": "Liquid Checkerboard",
+    "description": "A pixel checkerboard that swirls and blows out into big pixelated swaths as you swipe.",
+    "category": "Art",
+    "path": "LiquidCheckerboard.html"
+  },
+  {
+    "id": "triangle-kaleidoscope",
+    "name": "Triangle Kaleidoscope",
+    "description": "Drag to morph a triangle into a swirling kaleidoscope, then settle into a diamond.",
+    "category": "Art",
+    "path": "TriangleKaleidoscope.html"
+  },
+  {
+    "id": "gooey-blobs",
+    "name": "Gooey Blobs & Lines",
+    "description": "A flowing RGB isoline field — drag to drop gooey metaball blobs into the current.",
+    "category": "Art",
+    "path": "GooeyBlobs.html"
+  },
+  {
+    "id": "material-cube",
+    "name": "Material Cube",
+    "description": "A tumbling 3D cube that cycles through chrome, wood, ice, and other procedural materials.",
+    "category": "Art",
+    "path": "MaterialCube.html"
   }
 ]
