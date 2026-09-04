@@ -1,170 +1,170 @@
 [
   {
-    "id": "symphonic-noise",
-    "name": "Symphonic Noise",
-    "description": "A generative wall of orchestral-style sound for study or art. Slow-shifting chords, layered voices, never loops.",
-    "category": "Music Tools",
-    "path": "symphonic-noise/index.html"
-  },
-  {
-    "id": "drum-machine",
-    "name": "Drum Machine",
-    "description": "A 16-step drum sequencer with five synthesized voices and a drive/fold/crush distortion chain.",
-    "category": "Music Tools",
-    "path": "DrumMachine.html"
-  },
-  {
-    "id": "dss1",
-    "name": "DSS1",
-    "description": "A full digital sound studio in one page — step-sequenced drums, a filter-swept bass synth, an ambient pad, a Euclidean rhythm generator, and more, with built-in reverb/delay.",
-    "category": "Music Tools",
-    "path": "DSS1.html"
-  },
-  {
     "id": "bitcrusher-worklet-demo",
     "name": "BitCrusher Worklet Demo",
-    "description": "A bit-depth and sample-rate-reduction bitcrusher built as a real AudioWorklet, demoed live on a sine tone.",
+    "description": "A real-time bitcrusher built as an AudioWorklet.",
     "category": "Music Tools",
     "path": "BitCrusherWorkletDemo.html"
   },
   {
     "id": "hnw9",
     "name": "HNW9",
-    "description": "A nine-pad harsh noise wall instrument — drag each black-and-white pad to sculpt noise thickness, filter, drive, oscillators, bitcrush, feedback, and motion.",
+    "description": "A nine-pad noise wall instrument you sculpt by dragging.",
     "category": "Music Tools",
     "path": "HNW9.html"
   },
   {
     "id": "factorial-melody-generator",
     "name": "Factorial Melody Generator",
-    "description": "Turns the digits of n! into an evolving melody — tap to play/pause, swipe to change n, double-tap to switch modes.",
+    "description": "Turns factorials into an evolving melody.",
     "category": "Music Tools",
     "path": "FactorialMelodyGenerator.html"
   },
   {
     "id": "sound-of-functions",
     "name": "The Sound of Functions",
-    "description": "Generates random mathematical functions, draws each as an animated glowing graph, and turns it into sound.",
+    "description": "Random math functions, drawn as glowing graphs and turned into sound.",
     "category": "Art",
     "path": "SoundOfFunctions.html"
   },
   {
     "id": "oscillate-scroll-bars",
     "name": "Oscillate — Scroll Bars",
-    "description": "Turns your microphone input into a scrolling neon bar-graph waveform that streams by and slowly fades.",
+    "description": "Turns your mic input into a scrolling neon waveform.",
     "category": "Art",
     "path": "OscillateScrollBars.html"
   },
   {
-    "id": "checkerboard-swirl",
-    "name": "Checkerboard Swirl",
-    "description": "A 16×16 checkerboard that bursts into color and swirls when you tap, swipe, or press — then gently settles back to crisp black and white.",
-    "category": "Art",
-    "path": "CheckerboardSwirl.html"
-  },
-  {
     "id": "heavy-spin-morph",
     "name": "Heavy Spin Morph",
-    "description": "A wireframe icosphere you can spin and fling, slowly morphing between cube, sphere, and octahedron. Double-tap to jump shapes.",
+    "description": "A wireframe shape you spin and morph between forms.",
     "category": "Art",
     "path": "HeavySpinMorph.html"
   },
   {
     "id": "maisie-magic-draw",
     "name": "Maisie's Magic Draw",
-    "description": "A sparkly finger-painting app — glowing ink trails, draggable emoji stickers, a magic wand burst, and a save/share button.",
+    "description": "A sparkly finger-painting app with glowing trails and stickers.",
     "category": "Art",
     "path": "MaisieMagicDraw.html"
   },
   {
     "id": "smooth-wave-field",
     "name": "Smooth Wave Field",
-    "description": "A no-UI generative wave field — tap and drag to ripple through shifting triangle, circle, square, or pixel grids. Two-finger tap changes the renderer, pinch to rescale.",
+    "description": "A no-UI wave field you ripple with taps and drags.",
     "category": "Art",
     "path": "SmoothWaveField.html"
   },
   {
     "id": "one-thumb-racer",
     "name": "One-Thumb Racer",
-    "description": "Drive with just your thumb. Drag anywhere in the pad to steer, long-press for nitro.",
+    "description": "Drive and steer with just your thumb.",
     "category": "Games",
     "path": "OneThumbRacer.html"
   },
   {
-    "id": "tilt-pipe-quest",
-    "name": "Tilt Pipe Quest",
-    "description": "Tilt your device to guide balls through neon pipes into the goal zone. Five handcrafted levels, touch-joystick fallback included.",
-    "category": "Games",
-    "path": "TiltPipeQuest.html"
-  },
-  {
-    "id": "threes-minimal",
-    "name": "Threes Minimal",
-    "description": "A minimalist sliding-tile merge puzzle — combine matching tiles and chase a new high score.",
-    "category": "Games",
-    "path": "ThreesMinimal.html"
-  },
-  {
     "id": "maisie-eats-everything",
     "name": "Maisie Eats Everything 2",
-    "description": "Grow a hungry rainbow unicorn by eating everything smaller than you across ten whimsical levels.",
+    "description": "Grow a rainbow unicorn by eating everything smaller than you.",
     "category": "Games",
     "path": "MaisieEatsEverything2.html"
   },
   {
-    "id": "ballz-game",
-    "name": "Ballz Game",
-    "description": "A physics ball-breaker: aim with the slider, launch a volley of balls at descending numbered bricks, and grab the gold dot to add another ball.",
+    "id": "maisie-eats-everything-original",
+    "name": "Maisie Eats Everything",
+    "description": "The original unicorn-eating game across ten sparkly levels.",
     "category": "Games",
-    "path": "BallzGame.html"
+    "path": "MaisieEatsEverything.html"
   },
   {
     "id": "peggle-minimal-forge",
     "name": "Peggle Minimal Forge",
-    "description": "A minimal Peggle-style peg board — drop balls to bounce, spark, and ricochet through a grid of pegs.",
+    "description": "Drop balls to bounce and ricochet through a peg board.",
     "category": "Games",
     "path": "PeggleMinimalForge.html"
   },
   {
     "id": "star-bucket",
     "name": "Star Bucket",
-    "description": "Catch falling stars for points and dodge the squares in a fast arcade bucket-catcher.",
+    "description": "Catch falling stars and dodge squares in this arcade catcher.",
     "category": "Games",
     "path": "StarBucket.html"
   },
   {
     "id": "ricochet-8bit",
     "name": "Ricochet 8-Bit",
-    "description": "A pixel-art Peggle/Breakout hybrid — launch a volley of balls to ricochet off descending blocks, chain combos, and grab power-ups like fireball, split, and rewind.",
+    "description": "A pixel-art Peggle/Breakout hybrid with power-ups.",
     "category": "Games",
     "path": "Ricochet8Bit.html"
   },
   {
     "id": "ricochet-8bit-sequence11",
     "name": "Ricochet 8-Bit: Sequence 11",
-    "description": "An expanded build of Ricochet 8-Bit with giant balls, homing shots, laser-blaster blocks, multi-cell L/T/giant shapes, and a one-time second-chance save.",
+    "description": "An expanded Ricochet 8-Bit with giant balls and homing shots.",
     "category": "Games",
     "path": "Sequence11.html"
   },
   {
-    "id": "spinner-drop",
-    "name": "Spinner Drop",
-    "description": "Tap to drop balls through spinning obstacles into a moving bucket — 10 shots per round, physics-driven bounces.",
-    "category": "Games",
-    "path": "SpinnerDrop.html"
-  },
-  {
     "id": "maisies-kitty-cat-adventure",
     "name": "Maisie's Kitty Cat Adventure",
-    "description": "Drag a hungry kitty around a neon city, gobbling treats and growing from Tiny to WORLD size.",
+    "description": "Grow a hungry kitty from Tiny to WORLD size.",
     "category": "Games",
     "path": "MaisiesKittyCatAdventure.html"
   },
   {
     "id": "orbit-rush",
     "name": "Orbit Rush",
-    "description": "A one-tap reflex dodger — switch between two orbiting lanes to weave through spinning arcs and grab bonus pickups as the pace ramps up.",
+    "description": "A one-tap dodger — switch lanes to dodge spinning arcs.",
     "category": "Games",
     "path": "OrbitRush.html"
+  },
+  {
+    "id": "maisie-emoji-guess",
+    "name": "Maisie's Magical Emoji Guess!",
+    "description": "A guess-the-emoji quiz with hints and three modes.",
+    "category": "Games",
+    "path": "MaisieEmojiGuess.html"
+  },
+  {
+    "id": "emoji-scramble",
+    "name": "Emoji Scramble",
+    "description": "Guess the emoji through glitchy scrambled effects.",
+    "category": "Games",
+    "path": "EmojiScramble.html"
+  },
+  {
+    "id": "neon-blade-xenowave",
+    "name": "Neon Blade: Xenowave",
+    "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
+    "category": "Games",
+    "path": "NeonBladeXenowave.html"
+  },
+  {
+    "id": "swirling-color-strips",
+    "name": "Swirling Color Strips",
+    "description": "Draw glowing, swirling ribbons of color that drift and fade.",
+    "category": "Art",
+    "path": "SwirlingColorStrips.html"
+  },
+  {
+    "id": "unicorn-cat-bubble-pop",
+    "name": "Unicorn Cat Bubble Pop",
+    "description": "Slide a kitty side to side to pop falling bubbles before time runs out.",
+    "category": "Games",
+    "path": "UnicornCatBubblePop.html"
+  },
+  {
+    "id": "checkerboard-giant-swirls",
+    "name": "Checkerboard Giant Swirls",
+    "description": "A bold checkerboard that ripples into giant sweeping swirls where you touch.",
+    "category": "Art",
+    "path": "CheckerboardGiantSwirls.html"
+  },
+  {
+    "id": "chunky-shape-shooter",
+    "name": "Chunky Shape Shooter",
+    "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
+    "category": "Games",
+    "path": "ChunkyShapeShooter.html"
   }
 ]

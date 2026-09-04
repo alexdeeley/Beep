@@ -199,8 +199,13 @@ volumeSlider.addEventListener("input", () => {
   }
 });
 
+// Sidelined from the gallery: unregister any service worker left over from
+// when this was its own installable app, so it stops intercepting requests
+// in this scope for anyone who still has it registered.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const reg of regs) reg.unregister();
+    }).catch(() => {});
   });
 }

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Checkerboard Giant Swirls (No Text)</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#000; }
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Beep" title="Back to Beep">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // Hi-DPI
+  const DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+  let W, H, cols, rows, cell;
+
+  // Swirl "ripple" parameters tuned for GIANT sweeping circles
+  const ripples = [];
+  const MAX_RIPPLES = 10;
+  const PROP_SPEED = 0.35;   // slower propagation for large circles
+  const FREQ = 0.012;        // lower frequency = bigger rings
+  const DECAY = 0.0009;      // slower decay so swirls linger
+  const AMP_RADIAL = 18;     // radial contribution
+  const AMP_TANG = 38;       // tangential (swirl) contribution (bigger for sweeping arcs)
+  const TANG_EXP_FALLOFF = 0.0009; // extra falloff with distance for stability
+
+  function resize(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    W = Math.floor(w * DPR);
+    H = Math.floor(h * DPR);
+    canvas.width = W;
+    canvas.height = H;
+    // Slightly bigger cells for bold op-art at phone/desktop scale
+    const target = Math.min(W, H);
+    cell = Math.max(24, Math.floor(target / 20));
+    if (cell % 2 === 1) cell += 1;
+    cols = Math.ceil(W / cell) + 2;
+    rows = Math.ceil(H / cell) + 2;
+  }
+  resize();
+  window.addEventListener('resize', resize, {passive:true});
+
+  const now = () => performance.now();
+
+  function addRipple(px, py){
+    ripples.push({ x: px * DPR, y: py * DPR, t0: now() });
+    if (ripples.length > MAX_RIPPLES) ripples.shift();
+  }
+
+  // Input
+  let pressed = false;
+  const THROTTLE_MS = 55;
+  function pointerPoint(e){
+    if (e.touches && e.touches.length){
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  }
+  function down(e){ pressed = true; const p = pointerPoint(e); addRipple(p.x, p.y); }
+  function move(e){
+    if (!pressed) return;
+    const p = pointerPoint(e);
+    const t = now();
+    if (!move.last || t - move.last > THROTTLE_MS){
+      addRipple(p.x, p.y);
+      move.last = t;
+    }
+  }
+  function up(){ pressed = false; }
+
+  canvas.addEventListener('pointerdown', down);
+  canvas.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  canvas.addEventListener('touchstart', down, {passive:true});
+  canvas.addEventListener('touchmove', move, {passive:true});
+  window.addEventListener('touchend', up);
+
+  // Render
+  function draw(){
+    const t = now();
+    ctx.clearRect(0,0,W,H);
+
+    for (let j = -1; j < rows; j++){
+      for (let i = -1; i < cols; i++){
+        const x0 = i * cell;
+        const y0 = j * cell;
+        let cx = x0 + cell * 0.5;
+        let cy = y0 + cell * 0.5;
+
+        let dx = 0, dy = 0;
+
+        for (let k = 0; k < ripples.length; k++){
+          const r = ripples[k];
+          const dt = t - r.t0;
+          if (dt < 0) continue;
+
+          const decay = Math.exp(-DECAY * dt);
+          if (decay < 0.02) continue;
+
+          const rx = cx - r.x;
+          const ry = cy - r.y;
+          const dist = Math.hypot(rx, ry) + 1e-6;
+
+          // Wave phase travels outward
+          const phase = dist * FREQ - (dt * PROP_SPEED * FREQ);
+
+          // Unit radial and tangential vectors
+          const ux = rx / dist, uy = ry / dist;      // radial outwards
+          const tx = -uy, ty = ux;                   // 90° tangential (counter-clockwise)
+
+          // Radial "water ring"
+          const dispR = Math.sin(phase) * AMP_RADIAL * decay;
+
+          // Tangential swirl, using cos phase for quarter-phase offset
+          // Add extra falloff with distance so very far cells don't over-rotate
+          const tangFall = Math.exp(-TANG_EXP_FALLOFF * dist);
+          const dispT = Math.cos(phase) * AMP_TANG * decay * tangFall;
+
+          dx += ux * dispR + tx * dispT;
+          dy += uy * dispR + ty * dispT;
+        }
+
+        const x = x0 + dx;
+        const y = y0 + dy;
+        const isBlack = ((i + j) & 1) === 0;
+        ctx.fillStyle = isBlack ? "#000" : "#fff";
+        ctx.fillRect(x, y, cell + 1, cell + 1);
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // Keyboard fallback to spawn a big centered swirl
+  window.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter'){
+      addRipple(window.innerWidth/2, window.innerHeight/2);
+    }
+  });
+})();
+</script>
+</body>
+</html>
