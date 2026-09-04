@@ -138,5 +138,33 @@
     "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
     "category": "Games",
     "path": "NeonBladeXenowave.html"
+  },
+  {
+    "id": "swirling-color-strips",
+    "name": "Swirling Color Strips",
+    "description": "Draw glowing, swirling ribbons of color that drift and fade.",
+    "category": "Art",
+    "path": "SwirlingColorStrips.html"
+  },
+  {
+    "id": "unicorn-cat-bubble-pop",
+    "name": "Unicorn Cat Bubble Pop",
+    "description": "Slide a kitty side to side to pop falling bubbles before time runs out.",
+    "category": "Games",
+    "path": "UnicornCatBubblePop.html"
+  },
+  {
+    "id": "checkerboard-giant-swirls",
+    "name": "Checkerboard Giant Swirls",
+    "description": "A bold checkerboard that ripples into giant sweeping swirls where you touch.",
+    "category": "Art",
+    "path": "CheckerboardGiantSwirls.html"
+  },
+  {
+    "id": "chunky-shape-shooter",
+    "name": "Chunky Shape Shooter",
+    "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
+    "category": "Games",
+    "path": "ChunkyShapeShooter.html"
   }
 ]
