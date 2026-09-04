@@ -112,6 +112,13 @@
     "path": "MaisieEatsEverything2.html"
   },
   {
+    "id": "maisie-eats-everything-original",
+    "name": "Maisie Eats Everything",
+    "description": "The original growing/eating game — steer a unicorn through ten sparkly levels, gobbling everything smaller than you.",
+    "category": "Games",
+    "path": "MaisieEatsEverything.html"
+  },
+  {
     "id": "ballz-game",
     "name": "Ballz Game",
     "description": "A physics ball-breaker: aim with the slider, launch a volley of balls at descending numbered bricks, and grab the gold dot to add another ball.",
@@ -166,5 +173,12 @@
     "description": "A one-tap reflex dodger — switch between two orbiting lanes to weave through spinning arcs and grab bonus pickups as the pace ramps up.",
     "category": "Games",
     "path": "OrbitRush.html"
+  },
+  {
+    "id": "maisie-emoji-guess",
+    "name": "Maisie's Magical Emoji Guess!",
+    "description": "A guess-the-emoji quiz — watch a mystery emoji peek out from behind a shifting cover, use hints, and pick the right answer across three modes and 15 rounds.",
+    "category": "Games",
+    "path": "MaisieEmojiGuess.html"
   }
 ]
