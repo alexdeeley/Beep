@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Spiral Fan — Satisfying Spinner</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+  }
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--bg);
+    color:var(--fg);
+    overflow:hidden;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  }
+  #ui{
+    position:fixed; left:0; right:0; bottom:0; 
+    display:flex; gap:.75rem; align-items:center;
+    padding: .6rem env(safe-area-inset-right) calc(.6rem + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    backdrop-filter: blur(6px);
+    background:rgba(0,0,0,.35);
+    user-select:none;
+  }
+  #ui label{font-size:.85rem; opacity:.85; white-space:nowrap;}
+  #ui input[type="range"]{flex:1;}
+  #hint{
+    position:fixed; inset:auto 0 60px 0;
+    text-align:center; font-size:.9rem; opacity:.7;
+    pointer-events:none;
+  }
+  canvas{display:block; width:100vw; height:100vh;}
+  button{
+    background:#111; color:#fff; border:1px solid #333; 
+    padding:.5rem .75rem; border-radius:.5rem; cursor:pointer;
+  }
+  button:active{transform:translateY(1px);}
+  .pill{font-size:.8rem; opacity:.8;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div id="ui" role="toolbar" aria-label="Controls">
+  <button id="toggle">Auto‑spin: off</button>
+  <label>Pleats <input id="pleats" type="range" min="12" max="120" value="48"></label>
+  <label>Color shift <input id="hue" type="range" min="0" max="360" value="280"></label>
+  <label>Contrast <input id="contrast" type="range" min="0" max="100" value="55"></label>
+  <span class="pill">drag / flick to spin • tap to brake</span>
+</div>
+<div id="hint">Drag to spin • Flick for inertia • Haptics+rustle sound on</div>
+
+<script>
+(async function(){
+  // Canvas + DPR
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  function fit(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(innerWidth * dpr);
+    canvas.height = Math.floor(innerHeight * dpr);
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  addEventListener('resize', fit, {passive:true});
+  fit();
+
+  // Controls
+  const pleatsEl = document.getElementById('pleats');
+  const hueEl = document.getElementById('hue');
+  const conEl = document.getElementById('contrast');
+  const toggleBtn = document.getElementById('toggle');
+
+  let PLEATS = +pleatsEl.value;
+  let baseHue = +hueEl.value;
+  let contrast = +conEl.value / 100;
+  pleatsEl.oninput = () => PLEATS = +pleatsEl.value;
+  hueEl.oninput = () => baseHue = +hueEl.value;
+  conEl.oninput = () => contrast = +conEl.value/100;
+
+  let auto = false;
+  toggleBtn.onclick = ()=>{
+    auto=!auto;
+    toggleBtn.textContent = 'Auto‑spin: ' + (auto?'on':'off');
+  };
+
+  // Motion state
+  let angle = 0;
+  let vel = 0;                 // angular velocity (radians per second)
+  let last = performance.now();
+  let wobble = 0;
+
+  // Input handling (pointer)
+  let dragging = false;
+  let lastX = 0, lastY = 0;
+  const $ = (e)=> canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : {left:0, top:0, width:innerWidth, height:innerHeight};
+  function setVelFromDrag(dx, dy){
+    // convert linear drag to angular impulse
+    const rect = $(0);
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const px = lastX - cx;
+    const py = lastY - cy;
+    const torque = (px*dy - py*dx) * 0.0005; // cross product scaled
+    vel += torque;
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    if (Math.abs(vel) > 1) vel *= .4; // small brake when grabbing
+    canvas.setPointerCapture(e.pointerId);
+    vibe(8);
+  });
+  canvas.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    setVelFromDrag(dx, dy);
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  canvas.addEventListener('pointerup', e=>{ dragging=false; vibe(6); });
+  canvas.addEventListener('click', e=>{ // tap to brake
+    if(!dragging){ vel *= .4; vibe(4); }
+  }, {passive:true});
+
+  // Audio: rustle using filtered noise bursts
+  let ac, noiseBuf;
+  async function audioInit(){
+    if(ac) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    // white noise buffer
+    const len = ac.sampleRate * 0.4;
+    noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i] = (Math.random()*2-1);
+  }
+  function rustle(volume=0.15, rate=1500){
+    if(!ac || ac.state === 'suspended') return;
+    const src = ac.createBufferSource();
+    src.buffer = noiseBuf;
+    const biquad = ac.createBiquadFilter();
+    biquad.type='bandpass';
+    biquad.frequency.value = rate; // varies with spin speed
+    biquad.Q.value = 0.6;
+
+    const gain = ac.createGain();
+    // fast attack, medium decay
+    const now = ac.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(volume, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+
+    src.connect(biquad).connect(gain).connect(ac.destination);
+    src.start();
+    src.stop(now + 0.15);
+  }
+  addEventListener('pointerdown', audioInit, {once:true}); // lazy init on first touch
+
+  // Haptics
+  function vibe(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+  // Drawing
+  function draw(t){
+    const dt = Math.min(0.05, (t - last)/1000); // clamp dt
+    last = t;
+    if (auto) vel += 0.6 * dt;               // gentle acceleration
+    angle += vel * dt;
+    // friction
+    vel *= (dragging ? 0.992 : 0.985);
+
+    const {width:w, height:h} = canvas;
+    const cx = w/2, cy = h/2;
+    const R = Math.min(w, h) * 0.42;
+    const r = R * 0.12; // inner radius (hub)
+
+    // wobble opens/closes pleats with spin
+    wobble += (Math.abs(vel)*0.06 + 0.6 - wobble) * 0.08;
+
+    ctx.clearRect(0,0,w,h);
+    // vignette background
+    const g = ctx.createRadialGradient(cx, cy, r*0.2, cx, cy, Math.max(w,h)*0.6);
+    g.addColorStop(0, '#000');
+    g.addColorStop(1, '#000');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    const N = PLEATS;
+    const step = Math.PI*2 / N;
+    const open = 0.35 + 0.3*Math.sin(t*0.002 + angle*0.5); // subtle breathing
+
+    for(let i=0;i<N;i++){
+      const a0 = angle + i*step;
+      const a1 = a0 + step;
+      // Alternating depth factor to fake accordion folds
+      const shade = ((i%2) ? 1-contrast*.9 : 1);
+
+      // radial modulation for ripple
+      const mod = 1 + open*0.3*Math.sin(a0*2 + t*0.004);
+      const R1 = R * mod;
+      const mid = (a0+a1)/2;
+
+      // Colors: smoothly rotate hue + per-pleat offset
+      const hue = (baseHue + i* (180/N) + (angle*180/Math.PI)*0.2) % 360;
+      const sat = 65 + 35*contrast;
+      const light = 55*shade;
+      ctx.fillStyle = `hsl(${hue} ${sat}% ${light}%)`;
+      ctx.beginPath();
+      // inner arc point
+      ctx.moveTo(cx + r*Math.cos(a0), cy + r*Math.sin(a0));
+      ctx.lineTo(cx + R1*Math.cos(mid), cy + R1*Math.sin(mid));
+      ctx.lineTo(cx + r*Math.cos(a1), cy + r*Math.sin(a1));
+      ctx.closePath();
+      ctx.fill();
+
+      // edge highlight to emphasize pleats
+      ctx.strokeStyle = `hsla(${hue} 80% ${Math.min(90, 75+25*contrast)}% / ${0.15 + 0.25*contrast})`;
+      ctx.lineWidth = Math.max(1, Math.min(4, R*0.006));
+      ctx.beginPath();
+      ctx.moveTo(cx + r*Math.cos(a0), cy + r*Math.sin(a0));
+      ctx.lineTo(cx + R1*Math.cos(mid), cy + R1*Math.sin(mid));
+      ctx.lineTo(cx + r*Math.cos(a1), cy + r*Math.sin(a1));
+      ctx.stroke();
+    }
+
+    // hub
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*0.85, 0, Math.PI*2);
+    ctx.fill();
+
+    // rustle timing tied to speed
+    if (ac && Math.abs(vel) > 0.6){
+      const now = t/1000;
+      // schedule bursts every few pleats passed
+      if (!draw._next || now >= draw._next){
+        const rate = 800 + Math.min(2000, Math.abs(vel)*900);
+        const vol = Math.min(.28, 0.08 + Math.abs(vel)*0.06);
+        rustle(vol, rate);
+        draw._next = now + Math.max(0.02, 0.12 - Math.min(0.09, Math.abs(vel)*0.05));
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

@@ -208,5 +208,40 @@
     "description": "Spin and fling a voxel clay cube — it sheds wet clay blobs that pile up and dry on the ground.",
     "category": "Art",
     "path": "ArtToyClayCube.html"
+  },
+  {
+    "id": "checkerburst",
+    "name": "Checkerburst",
+    "description": "A soft, checkerboard-filled blob you can grab and drag — it bursts into scattering pixels.",
+    "category": "Art",
+    "path": "Checkerburst.html"
+  },
+  {
+    "id": "infinite-checker-vortex",
+    "name": "Infinite Checkerboard Vortex",
+    "description": "A shader-driven checkerboard that spirals into infinite zoom — drag to rotate, pinch to scale.",
+    "category": "Art",
+    "path": "InfiniteCheckerVortex.html"
+  },
+  {
+    "id": "chord-morpher",
+    "name": "Chord Morph",
+    "description": "Tap to morph between randomized maj7 and min7 chords, played as pure sine tones.",
+    "category": "Music Tools",
+    "path": "ChordMorpher.html"
+  },
+  {
+    "id": "snake-circle-enemy",
+    "name": "Snake! Big Circle Enemy",
+    "description": "Classic snake with a twist — a slow-regenerating circle enemy that dies if it crashes into you.",
+    "category": "Games",
+    "path": "SnakeCircleEnemy.html"
+  },
+  {
+    "id": "spiral-fan-spinner",
+    "name": "Spiral Fan Spinner",
+    "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
+    "category": "Art",
+    "path": "SpiralFanSpinner.html"
   }
 ]
