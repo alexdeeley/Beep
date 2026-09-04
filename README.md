@@ -747,27 +747,50 @@ different posting paths:
   label `NEW SINGLE ALERT:` (e.g. *"NEW SINGLE ALERT: Bon Iver released a
   new single, 'Speyside,' today."*). This is enforced in the writer's
   system prompt (`writing/prompts.ts`), not bolted on afterward.
-- **Albums, EPs, and compilations** are held back from the normal hourly
-  flow entirely (`db/musicItemsRepo.ts`'s `getUnpostedIndividualItems`
-  excludes them) and instead accumulate, unposted, in the database all
-  week. Once a week - the first cycle on a Friday, local time (in
-  `editorial-focus.json`'s `quietHours.timezone`), at or after
-  `NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL` (default 8am) - `postWeeklyRoundup.ts`
-  compiles everything accumulated since the last roundup into one thread
-  headlined `WEEKLY NEW RELEASES`, one line per album, and marks them all
-  posted. This step is independent of, and runs before, the normal hourly
-  per-item flow, so it isn't affected by that hour's quiet-hours outcome
-  and always gets a chance to run on a Friday.
+- **Albums, EPs, and compilations from your watchlist** are held back from
+  the normal hourly flow entirely (`db/musicItemsRepo.ts`'s
+  `getUnpostedIndividualItems` excludes them) and instead accumulate,
+  unposted, in the database all week.
+
+**`WEEKLY NEW RELEASES` is industry-wide, not limited to
+`watched-artists.txt`.** Once a week - the first cycle on a Friday, local
+time (in `editorial-focus.json`'s `quietHours.timezone`), at or after
+`NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL` (default 8am) - `postWeeklyRoundup.ts`
+does two things before it posts:
+
+1. Runs its own independent web-search sweep
+   (`discovery/discoverIndustryReleases.ts` +
+   `verification/verifyIndustryReleases.ts`) for major album/EP/
+   compilation releases across the **whole music industry** - a
+   New-Music-Friday-style roundup, not scoped to any personal watchlist.
+   These go through the same independent 2-corroborating-source
+   verification as everything else and are stored in their own
+   `industry_release_items` table (no `watched_artist_id` - these artists
+   don't need to be tracked between cycles).
+2. Merges that with whatever watchlist albums/EPs/compilations
+   accumulated this week, de-duplicating by artist+headline so an artist
+   that's both on your watchlist and independently surfaced by the
+   industry sweep is only listed once (the watchlist-tracked version
+   wins).
+
+The combined list becomes one thread headlined `WEEKLY NEW RELEASES`, one
+line per release, and every item across both sources is marked posted.
+This step is independent of, and runs before, the normal hourly per-item
+flow, so it isn't affected by that hour's quiet-hours outcome and always
+gets a chance to run on a Friday.
 
 Because the roundup is built directly from facts the verification stage
 already independently confirmed (not fresh model prose), it skips
 copy-edit/fact-check/duplicate-check entirely - there's no new writer
-output to check. If no albums have accumulated by Friday morning, nothing
-posts and no roundup is recorded, so a later hour the same Friday can
-still catch anything discovered since (see `db/weeklyRoundupRepo.ts` for
-the once-per-Friday idempotency guard). `npm run news:status` reports
-`albumsQueuedForRoundup` (how many are waiting) and `lastRoundup` (the
-date and item count of the most recent one actually posted).
+output to check. If nothing turns up (watchlist or industry-wide) by
+Friday morning, nothing posts and no roundup is recorded, so a later hour
+the same Friday re-runs the industry sweep and can still catch anything
+found since (see `db/weeklyRoundupRepo.ts` for the once-per-Friday
+idempotency guard). `npm run news:status` reports `albumsQueuedForRoundup`
+(watchlist albums waiting), `industryReleasesQueuedForRoundup`
+(industry-wide releases already discovered and waiting), and
+`lastRoundup` (the date and combined item count of the most recent one
+actually posted).
 
 ### 18.8 VIP artists: `priorityArtists`
 

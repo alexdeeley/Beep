@@ -21,6 +21,12 @@ import {
   getRecentlyPostedMusicItems,
   hasSimilarItem,
 } from "../../src/newswire/db/musicItemsRepo.js";
+import {
+  insertIndustryReleaseItem,
+  getUnpostedIndustryReleaseItems,
+  markIndustryReleaseItemPosted,
+  hasSimilarIndustryItem,
+} from "../../src/newswire/db/industryReleaseItemsRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -57,7 +63,15 @@ describe("newswire SQLite DB layer", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all()
       .map((r) => (r as { name: string }).name);
-    for (const t of ["schema_migrations", "hourly_runs", "run_candidates", "bluesky_posts", "watched_artists", "music_items"]) {
+    for (const t of [
+      "schema_migrations",
+      "hourly_runs",
+      "run_candidates",
+      "bluesky_posts",
+      "watched_artists",
+      "music_items",
+      "industry_release_items",
+    ]) {
       expect(tables).toContain(t);
     }
   });
@@ -325,6 +339,79 @@ describe("newswire SQLite DB layer", () => {
 
       const albums = getUnpostedAlbumItems(db).map((r) => r.id);
       expect(albums).toEqual([album.id]);
+    });
+  });
+
+  describe("industry_release_items", () => {
+    it("round-trips an industry-wide release item, independent of any watched_artist_id", () => {
+      const run = startHourlyRun(db, false);
+      const item = insertIndustryReleaseItem(db, {
+        artistName: "Some Non-Watchlist Band",
+        releaseFormat: "album",
+        headline: "Some Non-Watchlist Band release Loud Colors",
+        summary: "Some Non-Watchlist Band released a new album titled Loud Colors.",
+        factLabel: "FACT",
+        eventTime: "2026-09-04T00:00:00.000Z",
+        eventTimeConfidence: "exact",
+        articlePublishedAt: "2026-09-04T12:00:00.000Z",
+        primarySourceUrl: "https://pitchfork.com/b",
+        sourceDomains: ["pitchfork.com", "billboard.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+      expect(item.artist_name).toBe("Some Non-Watchlist Band");
+      expect(JSON.parse(item.facts_json)).toEqual(SAMPLE_FACTS);
+
+      const unposted = getUnpostedIndustryReleaseItems(db);
+      expect(unposted).toHaveLength(1);
+      expect(unposted[0]!.id).toBe(item.id);
+
+      markIndustryReleaseItemPosted(db, item.id, run.id);
+      expect(getUnpostedIndustryReleaseItems(db)).toHaveLength(0);
+    });
+
+    it("is idempotent on (artist_name, primary_source_url) via INSERT OR IGNORE", () => {
+      const run = startHourlyRun(db, false);
+      const input = {
+        artistName: "Dup Band",
+        releaseFormat: "ep" as const,
+        headline: "Dup Band drop new EP",
+        summary: "S",
+        factLabel: "FACT" as const,
+        eventTime: null,
+        eventTimeConfidence: "unknown" as const,
+        articlePublishedAt: null,
+        primarySourceUrl: "https://example.com/dup-ep",
+        sourceDomains: ["example.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      };
+      const first = insertIndustryReleaseItem(db, input);
+      const second = insertIndustryReleaseItem(db, { ...input, headline: "Different headline, same source URL" });
+      expect(first.id).toBe(second.id);
+      expect(getUnpostedIndustryReleaseItems(db)).toHaveLength(1);
+    });
+
+    it("hasSimilarIndustryItem detects an effectively identical headline for the same artist name", () => {
+      const run = startHourlyRun(db, false);
+      insertIndustryReleaseItem(db, {
+        artistName: "Loud Colors",
+        releaseFormat: "album",
+        headline: "Loud Colors Announce New Album!",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://a.com/1",
+        sourceDomains: ["a.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+
+      expect(hasSimilarIndustryItem(db, "Loud Colors", "loud colors announce new album")).toBe(true);
+      expect(hasSimilarIndustryItem(db, "Loud Colors", "Loud Colors cancels tour dates")).toBe(false);
+      expect(hasSimilarIndustryItem(db, "A Totally Different Band", "loud colors announce new album")).toBe(false);
     });
   });
 });

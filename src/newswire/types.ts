@@ -45,6 +45,34 @@ export interface VerifiedMusicItem {
   meetsSourceBar: boolean;
 }
 
+/** release_format values eligible for the Friday WEEKLY NEW RELEASES roundup (never a single). */
+export type RoundupReleaseFormat = "album" | "ep" | "compilation";
+
+/**
+ * One major-release candidate from discoverIndustryReleases - the industry-wide sweep that finds
+ * notable album/EP/compilation releases across the whole music industry (not just watched-artists.txt)
+ * for the Friday WEEKLY NEW RELEASES roundup. Deliberately not tied to a watchedArtistId, unlike
+ * MusicNewsCandidate.
+ */
+export interface IndustryReleaseCandidate {
+  artistName: string;
+  releaseFormat: RoundupReleaseFormat;
+  headline: string;
+  summary: string;
+  eventTimeIso: string | null;
+  eventTimeConfidence: "exact" | "approximate" | "unknown";
+  sources: ReportedSource[];
+}
+
+/** Output of verifyIndustryReleases: an industry-wide release candidate that survived independent re-research with the 2-source rule applied. */
+export interface VerifiedIndustryRelease {
+  artistName: string;
+  releaseFormat: RoundupReleaseFormat;
+  headline: string;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}
+
 /** One post in the edition - text has already been checked against the Bluesky grapheme limit by the time this exists. */
 export interface DraftPost {
   text: string;

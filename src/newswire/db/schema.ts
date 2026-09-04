@@ -237,4 +237,34 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // WEEKLY NEW RELEASES was originally built from watchlist albums only (music_items, via
+    // watched_artist_id). The roundup is now industry-wide - it also independently discovers major
+    // album/EP/compilation releases across the whole music industry, not just watched-artists.txt - so
+    // this table exists alongside music_items rather than reusing it, since these items have no
+    // watched_artist_id to key off (music_items.watched_artist_id is NOT NULL, and SQLite can't drop a
+    // NOT NULL constraint via ALTER TABLE, so a new table is the additive-safe option here).
+    id: "0004_industry_release_items",
+    sql: `
+      CREATE TABLE IF NOT EXISTS industry_release_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        artist_name TEXT NOT NULL,
+        release_format TEXT NOT NULL CHECK (release_format IN ('album', 'ep', 'compilation')),
+        headline TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        fact_label TEXT NOT NULL DEFAULT 'FACT' CHECK (fact_label IN ('FACT', 'ANALYSIS', 'UNCONFIRMED', 'BACKGROUND', 'PREDICTION')),
+        event_time TEXT,
+        event_time_confidence TEXT NOT NULL DEFAULT 'unknown' CHECK (event_time_confidence IN ('exact', 'approximate', 'unknown')),
+        article_published_at TEXT,
+        primary_source_url TEXT NOT NULL,
+        source_domains_json TEXT NOT NULL,
+        facts_json TEXT NOT NULL,
+        discovered_in_run_id INTEGER NOT NULL,
+        posted_in_run_id INTEGER,
+        created_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_industry_release_items_dedup ON industry_release_items(artist_name, primary_source_url);
+      CREATE INDEX IF NOT EXISTS idx_industry_release_items_unposted ON industry_release_items(posted_in_run_id);
+    `,
+  },
 ];

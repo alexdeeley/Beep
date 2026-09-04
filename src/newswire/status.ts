@@ -3,6 +3,7 @@ import { getRecentPosts } from "./db/postsRepo.js";
 import { getLastHourlyRun, getRecentHourlyRuns } from "./db/researchRunsRepo.js";
 import { getWatchedArtistCount } from "./db/watchedArtistsRepo.js";
 import { getRecentlyPostedMusicItems, getUnpostedIndividualItems, getUnpostedAlbumItems } from "./db/musicItemsRepo.js";
+import { getUnpostedIndustryReleaseItems } from "./db/industryReleaseItemsRepo.js";
 import { getLastRoundupRun } from "./db/weeklyRoundupRepo.js";
 
 export interface NewswireStatus {
@@ -16,8 +17,10 @@ export interface NewswireStatus {
   } | null;
   watchedArtistCount: number;
   unpostedItemCount: number;
-  /** Album/EP/compilation releases accumulated and waiting for the next Friday WEEKLY NEW RELEASES roundup. */
+  /** Watchlist album/EP/compilation releases accumulated and waiting for the next Friday WEEKLY NEW RELEASES roundup. */
   albumsQueuedForRoundup: number;
+  /** Industry-wide (non-watchlist) major releases discovered so far and waiting for the next roundup - only populated after a Friday sweep has run. */
+  industryReleasesQueuedForRoundup: number;
   lastRoundup: { date: string; itemCount: number } | null;
   recentItems: { artistName: string; headline: string; itemType: string }[];
   latestPosts: { text: string; createdAt: string; uri: string | null }[];
@@ -32,6 +35,7 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
   const watchedArtistCount = getWatchedArtistCount(db);
   const unposted = getUnpostedIndividualItems(db);
   const queuedAlbums = getUnpostedAlbumItems(db);
+  const queuedIndustryReleases = getUnpostedIndustryReleaseItems(db);
   const recentItems = getRecentlyPostedMusicItems(db, 5);
   const lastRoundup = getLastRoundupRun(db);
 
@@ -49,6 +53,7 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
     watchedArtistCount,
     unpostedItemCount: unposted.length,
     albumsQueuedForRoundup: queuedAlbums.length,
+    industryReleasesQueuedForRoundup: queuedIndustryReleases.length,
     lastRoundup: lastRoundup ? { date: lastRoundup.roundup_date, itemCount: lastRoundup.item_count } : null,
     recentItems: recentItems.map((r) => ({ artistName: r.artist_name, headline: r.headline, itemType: r.item_type })),
     latestPosts: recentPosts.map((p) => ({ text: p.text, createdAt: p.created_at, uri: p.uri })),

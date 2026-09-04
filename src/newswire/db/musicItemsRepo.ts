@@ -23,7 +23,7 @@ export interface MusicItemRow {
 /** release_format values that are batched into the weekly Friday roundup rather than posted individually. */
 const BATCHED_RELEASE_FORMATS: ReleaseFormat[] = ["album", "ep", "compilation"];
 
-function normalizeHeadline(headline: string): string {
+export function normalizeHeadline(headline: string): string {
   return headline
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, "")
