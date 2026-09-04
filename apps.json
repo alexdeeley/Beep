@@ -166,5 +166,12 @@
     "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
     "category": "Games",
     "path": "ChunkyShapeShooter.html"
+  },
+  {
+    "id": "merzbow-machine",
+    "name": "Merzbow Machine",
+    "description": "A harsh noise wall synthesizer — six modules, three step sequencers, and chaos/glitch controls.",
+    "category": "Music Tools",
+    "path": "MerzbowMachine.html"
   }
 ]
