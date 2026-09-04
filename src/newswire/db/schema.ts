@@ -169,49 +169,52 @@ export const migrations: Migration[] = [
     `,
   },
   {
-    // V3: the pipeline pivoted from general web-search news discovery to a
-    // music release-announcement wire driven by a user-maintained artist
-    // watchlist (watched-artists.txt) checked against the Spotify Web API.
-    // The tables above (stories/story_events/sources/entities/...) are no
-    // longer written by the current pipeline but are left in place rather
-    // than dropped - migrations here are additive-only, and the DB is the
-    // durable audit trail, not disposable state.
-    id: "0002_music_release_wire",
+    // V3.1: the pipeline pivoted from general web-search news discovery to a
+    // music news/release-announcement wire driven by a user-maintained
+    // artist watchlist (watched-artists.txt). Detection is independent
+    // web-search discovery + a separate independent re-verification pass
+    // (2-corroborating-source rule) per artist-batch rotation - never a
+    // third-party music API (an earlier version of this migration briefly
+    // targeted the Spotify Web API, but that was abandoned before any real
+    // deployment after Spotify locked down Development Mode access in Feb
+    // 2026 - safe to redefine this migration in place rather than layer a
+    // new one, since it was never actually applied to the live database).
+    // The V1 tables above (stories/story_events/sources/entities/...) are
+    // no longer written by the current pipeline but are left in place
+    // rather than dropped - migrations here are additive-only, and the DB
+    // is the durable audit trail, not disposable state.
+    id: "0002_music_news_wire",
     sql: `
       CREATE TABLE IF NOT EXISTS watched_artists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        spotify_artist_id TEXT,
-        resolution_status TEXT NOT NULL DEFAULT 'pending' CHECK (resolution_status IN ('pending', 'resolved', 'unresolved')),
-        resolve_attempts INTEGER NOT NULL DEFAULT 0,
-        genres_json TEXT,
-        popularity INTEGER,
         last_checked_at TEXT,
-        last_seen_release_id TEXT,
-        last_seen_release_date TEXT,
         created_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_watched_artists_resolution_status ON watched_artists(resolution_status, resolve_attempts, id);
       CREATE INDEX IF NOT EXISTS idx_watched_artists_last_checked ON watched_artists(last_checked_at);
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_watched_artists_spotify_id ON watched_artists(spotify_artist_id) WHERE spotify_artist_id IS NOT NULL;
 
-      CREATE TABLE IF NOT EXISTS releases (
+      CREATE TABLE IF NOT EXISTS music_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         watched_artist_id INTEGER NOT NULL REFERENCES watched_artists(id),
-        spotify_release_id TEXT NOT NULL UNIQUE,
-        release_type TEXT NOT NULL CHECK (release_type IN ('album', 'single', 'compilation')),
-        title TEXT NOT NULL,
-        release_date TEXT NOT NULL,
-        release_date_precision TEXT NOT NULL,
-        total_tracks INTEGER NOT NULL,
-        spotify_url TEXT NOT NULL,
-        image_url TEXT,
+        item_type TEXT NOT NULL CHECK (item_type IN ('release', 'news')),
+        headline TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        fact_label TEXT NOT NULL DEFAULT 'FACT' CHECK (fact_label IN ('FACT', 'ANALYSIS', 'UNCONFIRMED', 'BACKGROUND', 'PREDICTION')),
+        event_time TEXT,
+        event_time_confidence TEXT NOT NULL DEFAULT 'unknown' CHECK (event_time_confidence IN ('exact', 'approximate', 'unknown')),
+        article_published_at TEXT,
+        primary_source_url TEXT NOT NULL,
+        source_domains_json TEXT NOT NULL,
+        -- Full VerifiedFact[] from the verification stage (claim/factLabel/sources per individual claim), so the writer
+        -- and fact-check stages see every distinct verified claim, not just a single synthesized summary sentence -
+        -- needed for items pulled from the backlog (not just this cycle's freshly-verified ones).
+        facts_json TEXT NOT NULL,
         discovered_in_run_id INTEGER NOT NULL,
         posted_in_run_id INTEGER,
         created_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_releases_artist ON releases(watched_artist_id);
-      CREATE INDEX IF NOT EXISTS idx_releases_unposted ON releases(posted_in_run_id, discovered_in_run_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_music_items_dedup ON music_items(watched_artist_id, primary_source_url);
+      CREATE INDEX IF NOT EXISTS idx_music_items_unposted ON music_items(posted_in_run_id, discovered_in_run_id);
     `,
   },
 ];

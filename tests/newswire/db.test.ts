@@ -7,17 +7,26 @@ import { openStoryDb, closeStoryDb } from "../../src/newswire/db/connection.js";
 import { runMigrations } from "../../src/newswire/db/migrate.js";
 import {
   importArtistNames,
-  getPendingArtists,
-  markArtistResolved,
-  recordFailedResolveAttempt,
-  MAX_RESOLVE_ATTEMPTS,
-  getArtistsDueForReleaseCheck,
-  markArtistChecked,
-  getArtistResolutionCounts,
+  getArtistsDueForCheck,
+  markArtistsChecked,
+  getArtistByName,
+  getWatchedArtistCount,
 } from "../../src/newswire/db/watchedArtistsRepo.js";
-import { insertRelease, getUnpostedReleases, markReleasePosted, getRecentlyPostedReleases } from "../../src/newswire/db/releasesRepo.js";
-import { startHourlyRun, finishHourlyRun, getHourlyRun } from "../../src/newswire/db/researchRunsRepo.js";
+import { insertMusicItem, getUnpostedMusicItems, markMusicItemPosted, getRecentlyPostedMusicItems, hasSimilarItem } from "../../src/newswire/db/musicItemsRepo.js";
+import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
+import type { VerifiedFact } from "../../src/newswire/types.js";
+
+const SAMPLE_FACTS: VerifiedFact[] = [
+  {
+    claim: "Alvvays released a new album titled Blue Rev II.",
+    factLabel: "FACT",
+    eventTimeIso: "2026-09-01T00:00:00.000Z",
+    eventTimeConfidence: "exact",
+    articlePublishedAtIso: "2026-09-01T12:00:00.000Z",
+    sources: [{ url: "https://pitchfork.com/a", title: "Alvvays announce new album", domain: "pitchfork.com", sourceTier: "entertainment_trade", isPrimary: true }],
+  },
+];
 
 describe("newswire SQLite DB layer", () => {
   let dir: string;
@@ -40,7 +49,7 @@ describe("newswire SQLite DB layer", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all()
       .map((r) => (r as { name: string }).name);
-    for (const t of ["schema_migrations", "hourly_runs", "bluesky_posts", "watched_artists", "releases"]) {
+    for (const t of ["schema_migrations", "hourly_runs", "run_candidates", "bluesky_posts", "watched_artists", "music_items"]) {
       expect(tables).toContain(t);
     }
   });
@@ -53,25 +62,30 @@ describe("newswire SQLite DB layer", () => {
 
   it("enforces foreign key constraints (PRAGMA foreign_keys=ON actually took effect)", () => {
     expect(() =>
-      insertRelease(db, {
+      insertMusicItem(db, {
         watchedArtistId: 999999, // no such watched_artists row
-        spotifyReleaseId: "r1",
-        releaseType: "single",
-        title: "T",
-        releaseDate: "2026-01-01",
-        releaseDatePrecision: "day",
-        totalTracks: 1,
-        spotifyUrl: "https://open.spotify.com/album/r1",
-        imageUrl: null,
+        itemType: "release",
+        headline: "H",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://example.com/a",
+        sourceDomains: ["example.com"],
+        facts: SAMPLE_FACTS,
         discoveredInRunId: 1,
       })
     ).toThrow();
   });
 
-  it("round-trips hourly_runs", () => {
+  it("round-trips hourly_runs and run_candidates", () => {
     const run = startHourlyRun(db, true);
     expect(run.status).toBe("running");
     expect(run.dry_run).toBe(1);
+
+    insertRunCandidate(db, { runId: run.id, stage: "discovery", candidateSummary: "x", decision: "accepted", reason: null, storyId: null });
+
     finishHourlyRun(db, run.id, { status: "success", publish_status: "dry_run" });
     const finished = getHourlyRun(db, run.id);
     expect(finished?.status).toBe("success");
@@ -101,159 +115,143 @@ describe("newswire SQLite DB layer", () => {
       expect(first).toBe(2); // "Radiohead" only inserted once even though listed twice
       const second = importArtistNames(db, ["Radiohead", "Beck"]);
       expect(second).toBe(1); // only "Beck" is new
+      expect(getWatchedArtistCount(db)).toBe(3);
     });
 
-    it("returns pending artists never-tried-first, then fewest-attempts-first", () => {
-      importArtistNames(db, ["A", "B", "C"]);
-      const [a] = getPendingArtists(db, 1);
-      recordFailedResolveAttempt(db, a!.id); // A now has 1 attempt
-      const pending = getPendingArtists(db, 10).map((r) => r.name);
-      // B and C (0 attempts) should come before A (1 attempt)
-      expect(pending.indexOf("B")).toBeLessThan(pending.indexOf("A"));
-      expect(pending.indexOf("C")).toBeLessThan(pending.indexOf("A"));
-    });
-
-    it("marks an artist unresolved after MAX_RESOLVE_ATTEMPTS failed attempts, pending before that", () => {
-      importArtistNames(db, ["Ghost Band"]);
-      const [artist] = getPendingArtists(db, 1);
-      for (let i = 0; i < MAX_RESOLVE_ATTEMPTS - 1; i++) recordFailedResolveAttempt(db, artist!.id);
-      let counts = getArtistResolutionCounts(db);
-      expect(counts.pending).toBe(1);
-      expect(counts.unresolved).toBe(0);
-
-      recordFailedResolveAttempt(db, artist!.id); // final attempt hits the cap
-      counts = getArtistResolutionCounts(db);
-      expect(counts.pending).toBe(0);
-      expect(counts.unresolved).toBe(1);
-    });
-
-    it("marks an artist resolved with Spotify metadata", () => {
+    it("finds an artist by exact name", () => {
       importArtistNames(db, ["Wilco"]);
-      const [artist] = getPendingArtists(db, 1);
-      markArtistResolved(db, artist!.id, { spotifyArtistId: "spotify123", genres: ["alt-country"], popularity: 55 });
-      const counts = getArtistResolutionCounts(db);
-      expect(counts.resolved).toBe(1);
-      const due = getArtistsDueForReleaseCheck(db, 10);
-      expect(due).toHaveLength(1);
-      expect(due[0]!.spotify_artist_id).toBe("spotify123");
-      expect(due[0]!.genres_json).toBe(JSON.stringify(["alt-country"]));
+      expect(getArtistByName(db, "Wilco")?.name).toBe("Wilco");
+      expect(getArtistByName(db, "wilco")).toBeUndefined(); // case-sensitive exact match
     });
 
-    it("orders release-check rotation never-checked-first, then oldest-checked-first", () => {
+    it("orders the rotation batch never-checked-first, then oldest-checked-first", () => {
       importArtistNames(db, ["X", "Y"]);
-      const pending = getPendingArtists(db, 2);
-      for (const p of pending) markArtistResolved(db, p.id, { spotifyArtistId: `sp-${p.name}`, genres: [], popularity: 0 });
-
-      const [x, y] = getArtistsDueForReleaseCheck(db, 2);
-      // Both never checked - order between them doesn't matter, but marking one checked should push it behind the other.
-      markArtistChecked(db, x!.id, { lastSeenReleaseId: null, lastSeenReleaseDate: null });
-      const due = getArtistsDueForReleaseCheck(db, 2);
+      const [x, y] = getArtistsDueForCheck(db, 2);
+      // Both never checked - marking one checked should push it behind the other.
+      markArtistsChecked(db, [x!.id]);
+      const due = getArtistsDueForCheck(db, 2);
       expect(due[0]!.id).toBe(y!.id); // never-checked Y comes before now-checked X
       expect(due[1]!.id).toBe(x!.id);
     });
   });
 
-  describe("releases", () => {
-    function makeResolvedArtist(name: string): number {
+  describe("music_items", () => {
+    function makeArtist(name: string): number {
       importArtistNames(db, [name]);
-      const [artist] = getPendingArtists(db, 1);
-      markArtistResolved(db, artist!.id, { spotifyArtistId: `sp-${name}`, genres: [], popularity: 50 });
-      return artist!.id;
+      return getArtistByName(db, name)!.id;
     }
 
-    it("round-trips a release and finds it as unposted", () => {
+    it("round-trips a music item and finds it as unposted", () => {
       const run = startHourlyRun(db, false);
-      const artistId = makeResolvedArtist("Alvvays");
-      const release = insertRelease(db, {
+      const artistId = makeArtist("Alvvays");
+      const item = insertMusicItem(db, {
         watchedArtistId: artistId,
-        spotifyReleaseId: "album1",
-        releaseType: "album",
-        title: "Blue Rev",
-        releaseDate: "2026-09-01",
-        releaseDatePrecision: "day",
-        totalTracks: 12,
-        spotifyUrl: "https://open.spotify.com/album/album1",
-        imageUrl: null,
+        itemType: "release",
+        headline: "Alvvays release Blue Rev II",
+        summary: "Alvvays released a new album titled Blue Rev II.",
+        factLabel: "FACT",
+        eventTime: "2026-09-01T00:00:00.000Z",
+        eventTimeConfidence: "exact",
+        articlePublishedAt: "2026-09-01T12:00:00.000Z",
+        primarySourceUrl: "https://pitchfork.com/a",
+        sourceDomains: ["pitchfork.com", "billboard.com"],
+        facts: SAMPLE_FACTS,
         discoveredInRunId: run.id,
       });
-      expect(release.title).toBe("Blue Rev");
+      expect(item.headline).toBe("Alvvays release Blue Rev II");
+      expect(JSON.parse(item.facts_json)).toEqual(SAMPLE_FACTS);
 
-      const unposted = getUnpostedReleases(db);
+      const unposted = getUnpostedMusicItems(db);
       expect(unposted).toHaveLength(1);
       expect(unposted[0]!.artist_name).toBe("Alvvays");
-      expect(unposted[0]!.artist_popularity).toBe(50);
 
-      markReleasePosted(db, release.id, run.id);
-      expect(getUnpostedReleases(db)).toHaveLength(0);
-      expect(getRecentlyPostedReleases(db, 5).map((r) => r.id)).toContain(release.id);
+      markMusicItemPosted(db, item.id, run.id);
+      expect(getUnpostedMusicItems(db)).toHaveLength(0);
+      expect(getRecentlyPostedMusicItems(db, 5).map((r) => r.id)).toContain(item.id);
     });
 
-    it("is idempotent on spotify_release_id (INSERT OR IGNORE)", () => {
+    it("is idempotent on (watched_artist_id, primary_source_url) via INSERT OR IGNORE", () => {
       const run = startHourlyRun(db, false);
-      const artistId = makeResolvedArtist("Beck");
-      const first = insertRelease(db, {
+      const artistId = makeArtist("Beck");
+      const input = {
         watchedArtistId: artistId,
-        spotifyReleaseId: "dup1",
-        releaseType: "single",
-        title: "Single A",
-        releaseDate: "2026-09-01",
-        releaseDatePrecision: "day",
-        totalTracks: 1,
-        spotifyUrl: "https://open.spotify.com/album/dup1",
-        imageUrl: null,
+        itemType: "release" as const,
+        headline: "Beck news",
+        summary: "S",
+        factLabel: "FACT" as const,
+        eventTime: null,
+        eventTimeConfidence: "unknown" as const,
+        articlePublishedAt: null,
+        primarySourceUrl: "https://example.com/dup",
+        sourceDomains: ["example.com"],
+        facts: SAMPLE_FACTS,
         discoveredInRunId: run.id,
-      });
-      const second = insertRelease(db, {
-        watchedArtistId: artistId,
-        spotifyReleaseId: "dup1",
-        releaseType: "single",
-        title: "Single A (should be ignored)",
-        releaseDate: "2026-09-01",
-        releaseDatePrecision: "day",
-        totalTracks: 1,
-        spotifyUrl: "https://open.spotify.com/album/dup1",
-        imageUrl: null,
-        discoveredInRunId: run.id,
-      });
+      };
+      const first = insertMusicItem(db, input);
+      const second = insertMusicItem(db, { ...input, headline: "Different headline, same source URL" });
       expect(first.id).toBe(second.id);
-      expect(getUnpostedReleases(db)).toHaveLength(1);
+      expect(getUnpostedMusicItems(db)).toHaveLength(1);
     });
 
-    it("orders unposted releases FIFO by discovered run, not by popularity", () => {
+    it("orders unposted items FIFO by discovered run", () => {
       const runOld = startHourlyRun(db, false);
       const runNew = startHourlyRun(db, false);
-      const smallArtist = makeResolvedArtist("Small Band");
-      const bigArtist = makeResolvedArtist("Big Star");
-      db.prepare("UPDATE watched_artists SET popularity = 90 WHERE id = ?").run(bigArtist);
+      const artistId = makeArtist("Some Band");
 
-      insertRelease(db, {
-        watchedArtistId: smallArtist,
-        spotifyReleaseId: "old-release",
-        releaseType: "single",
-        title: "Old",
-        releaseDate: "2026-08-01",
-        releaseDatePrecision: "day",
-        totalTracks: 1,
-        spotifyUrl: "https://open.spotify.com/album/old-release",
-        imageUrl: null,
+      insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "news",
+        headline: "Old news",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://example.com/old",
+        sourceDomains: ["example.com"],
+        facts: SAMPLE_FACTS,
         discoveredInRunId: runOld.id,
       });
-      insertRelease(db, {
-        watchedArtistId: bigArtist,
-        spotifyReleaseId: "new-release",
-        releaseType: "single",
-        title: "New",
-        releaseDate: "2026-09-01",
-        releaseDatePrecision: "day",
-        totalTracks: 1,
-        spotifyUrl: "https://open.spotify.com/album/new-release",
-        imageUrl: null,
+      insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "news",
+        headline: "New news",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://example.com/new",
+        sourceDomains: ["example.com"],
+        facts: SAMPLE_FACTS,
         discoveredInRunId: runNew.id,
       });
 
-      const unposted = getUnpostedReleases(db);
-      expect(unposted[0]!.title).toBe("Old"); // discovered first, even though the popular artist's release is newer
-      expect(unposted[1]!.title).toBe("New");
+      const unposted = getUnpostedMusicItems(db);
+      expect(unposted[0]!.headline).toBe("Old news");
+      expect(unposted[1]!.headline).toBe("New news");
+    });
+
+    it("hasSimilarItem detects an effectively identical headline for the same artist", () => {
+      const run = startHourlyRun(db, false);
+      const artistId = makeArtist("Wilco");
+      insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "release",
+        headline: "Wilco Announce New Album!",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://a.com/1",
+        sourceDomains: ["a.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+
+      expect(hasSimilarItem(db, artistId, "wilco announce new album")).toBe(true); // case/punctuation-insensitive match
+      expect(hasSimilarItem(db, artistId, "Wilco cancels tour dates")).toBe(false);
     });
   });
 });

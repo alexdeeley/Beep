@@ -5,7 +5,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { openStoryDb, closeStoryDb } from "../../src/newswire/db/connection.js";
 import { parseArtistListFile, importArtistList } from "../../src/newswire/artists/importArtistList.js";
-import { getArtistResolutionCounts } from "../../src/newswire/db/watchedArtistsRepo.js";
+import { getWatchedArtistCount } from "../../src/newswire/db/watchedArtistsRepo.js";
 
 describe("parseArtistListFile", () => {
   let dir: string;
@@ -44,11 +44,11 @@ describe("importArtistList", () => {
     const path = join(dir, "artists.txt");
     writeFileSync(path, "Radiohead\nWilco\n");
     expect(importArtistList(db, path)).toBe(2);
-    expect(getArtistResolutionCounts(db).pending).toBe(2);
+    expect(getWatchedArtistCount(db)).toBe(2);
 
     // Rerunning against the same (or an appended) file never re-inserts existing names.
     writeFileSync(path, "Radiohead\nWilco\nBeck\n");
     expect(importArtistList(db, path)).toBe(1);
-    expect(getArtistResolutionCounts(db).pending).toBe(3);
+    expect(getWatchedArtistCount(db)).toBe(3);
   });
 });

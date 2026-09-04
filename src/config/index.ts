@@ -96,14 +96,19 @@ export interface AppConfig {
 
   /**
    * Config for the independent hourly "newswire" pipeline (see
-   * src/newswire/) - as of V3, a music release-announcement wire driven
-   * by a user-maintained artist watchlist and the Spotify Web API, not
-   * general web-search news discovery. Deliberately its own namespaced
-   * block rather than reusing the top-level researchModel/verificationModel
-   * fields above - those belong to the (now unscheduled, but still-present)
-   * daily pipeline, and a shared field would silently couple the two.
+   * src/newswire/) - as of V3.1, a music news/release-announcement wire:
+   * each cycle rotates through a batch of a user-maintained artist
+   * watchlist, discovers candidates via OpenAI web search, and
+   * independently re-verifies each one (2-corroborating-source rule)
+   * before it's eligible to post. Deliberately its own namespaced block
+   * rather than reusing the top-level researchModel/verificationModel
+   * fields above - those belong to the (now unscheduled, but
+   * still-present) daily pipeline, and a shared field would silently
+   * couple the two.
    */
   news: {
+    discoveryModel: string;
+    verificationModel: string;
     writerModel: string;
     copyEditModel: string;
     factCheckModel: string;
@@ -117,17 +122,8 @@ export interface AppConfig {
     editorialFocusPath: string;
     /** Path (relative to process.cwd()) to the user-maintained watched-artists.txt (one artist name per line). */
     artistListPath: string;
-    /** How many pending (never-resolved) watched artists to attempt Spotify search resolution for per cycle. */
-    artistResolveBatchSize: number;
-    /** How many already-resolved watched artists to check for new releases per cycle (rotation, oldest-checked-first). */
-    releaseCheckBatchSize: number;
-    /** Ignore a "new" release from Spotify if its release_date is older than this many days - guards against a catalog backfill/re-index being mistaken for fresh news. */
-    releaseLookbackDays: number;
-  };
-
-  spotify: {
-    clientId: string | undefined;
-    clientSecret: string | undefined;
+    /** How many watchlist artists to check (rotation, oldest-checked-first) per cycle. With a large watchlist, full coverage takes many cycles - that's expected. */
+    artistBatchSize: number;
   };
 
   storage: {
@@ -224,6 +220,8 @@ export function loadConfig(): AppConfig {
     },
 
     news: {
+      discoveryModel: envStr("NEWS_DISCOVERY_MODEL", "gpt-4.1-mini")!,
+      verificationModel: envStr("NEWS_VERIFICATION_MODEL", "gpt-4.1")!,
       writerModel: envStr("NEWS_WRITER_MODEL", "gpt-4.1")!,
       copyEditModel: envStr("NEWS_COPYEDIT_MODEL", "gpt-4.1-mini")!,
       factCheckModel: envStr("NEWS_FACTCHECK_MODEL", "gpt-4.1")!,
@@ -233,14 +231,7 @@ export function loadConfig(): AppConfig {
       dbR2Key: envStr("NEWS_DB_R2_KEY", "newswire/story.db")!,
       editorialFocusPath: envStr("EDITORIAL_FOCUS_PATH", "editorial-focus.json")!,
       artistListPath: envStr("NEWS_ARTIST_LIST_PATH", "watched-artists.txt")!,
-      artistResolveBatchSize: envInt("NEWS_ARTIST_RESOLVE_BATCH_SIZE", 300),
-      releaseCheckBatchSize: envInt("NEWS_RELEASE_CHECK_BATCH_SIZE", 500),
-      releaseLookbackDays: envInt("NEWS_RELEASE_LOOKBACK_DAYS", 14),
-    },
-
-    spotify: {
-      clientId: envStr("SPOTIFY_CLIENT_ID"),
-      clientSecret: envStr("SPOTIFY_CLIENT_SECRET"),
+      artistBatchSize: envInt("NEWS_ARTIST_BATCH_SIZE", 40),
     },
 
     storage: {

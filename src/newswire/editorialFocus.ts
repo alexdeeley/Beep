@@ -20,6 +20,10 @@ const voiceSchema = z.object({
 export const editorialFocusSchema = z.object({
   $schemaVersion: z.number().int(),
   neutralityNote: z.string().min(1),
+  /** Ordered (most to least authoritative) list of source tiers the verification stage classifies every source into. */
+  sourceTiers: z.array(z.string().min(1)).min(1),
+  /** Named music-trade publishers (Pitchfork, Billboard, ...) recognized as the "entertainment_trade" tier during verification. */
+  entertainmentTradePublishers: z.array(z.string()).default([]),
   quietHours: quietHoursSchema,
   voice: voiceSchema,
 });

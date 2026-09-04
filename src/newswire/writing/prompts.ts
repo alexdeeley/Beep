@@ -1,46 +1,13 @@
 import type { EditorialFocus } from "../editorialFocus.js";
-import type { FactLabel } from "../types.js";
-import type { ReleaseType } from "../db/releasesRepo.js";
+import type { MusicItemType, VerifiedFact } from "../types.js";
 
-export interface MusicFact {
-  factLabel: FactLabel;
-  claim: string;
-}
-
-/** One release, with its facts synthesized deterministically from the Spotify API response - never model-generated, so the fact-check gate has a ground truth to check the writer's prose against. */
+/** One music item, grounded in the facts the verification stage independently confirmed - never invented by the writer. */
 export interface WritingItem {
-  releaseId: number;
+  musicItemId: number;
   artistName: string;
-  releaseType: ReleaseType;
-  title: string;
-  releaseDate: string;
-  totalTracks: number;
-  genres: string[];
-  spotifyUrl: string;
-  facts: MusicFact[];
-}
-
-export function buildReleaseFacts(item: {
-  artistName: string;
-  releaseType: ReleaseType;
-  title: string;
-  releaseDate: string;
-  totalTracks: number;
-  genres: string[];
-  spotifyUrl: string;
-}): MusicFact[] {
-  const facts: MusicFact[] = [
-    {
-      factLabel: "FACT",
-      claim: `${item.artistName} released a new ${item.releaseType} titled "${item.title}" on ${item.releaseDate}.`,
-    },
-    { factLabel: "FACT", claim: `"${item.title}" has ${item.totalTracks} track${item.totalTracks === 1 ? "" : "s"}.` },
-  ];
-  if (item.genres.length > 0) {
-    facts.push({ factLabel: "FACT", claim: `Spotify associates ${item.artistName} with these genres: ${item.genres.join(", ")}.` });
-  }
-  facts.push({ factLabel: "FACT", claim: `The release is available on Spotify at ${item.spotifyUrl}.` });
-  return facts;
+  itemType: MusicItemType;
+  headline: string;
+  facts: VerifiedFact[];
 }
 
 export const WRITING_JSON_SCHEMA = {
@@ -67,11 +34,13 @@ export const WRITING_JSON_SCHEMA = {
 const GOOD_BAD_EXAMPLES = [
   'BAD (breathless hype): "Get ready to have your mind blown - the legendary indie icons have finally dropped their most anticipated ' +
     'album yet, and it\'s absolutely essential listening!"',
-  'GOOD (wire style): "Alvvays released their new album \\"Blue Rev II\\" today, 9 tracks."',
+  'GOOD (wire style): "Alvvays released their new album \\"Blue Rev II\\" today, their first since 2022."',
   'BAD (invented editorial claim not in the facts): "This marks a bold new direction for the band."',
-  'GOOD (states only what\'s given): "Fontaines D.C. released the single \\"Favourite\\" today - their first new material since 2024."',
+  'GOOD (states only what\'s given): "Fontaines D.C. announced a new single, \\"Favourite,\\" out September 12 - their first new material since 2024."',
   "BAD (padding a one-line announcement into filler): \"In an exciting development for fans everywhere, the wait is finally over as...\"",
-  'GOOD: "Bon Iver released a new single, \\"Speyside,\\" today."',
+  'GOOD: "Bon Iver will headline three West Coast dates in October, according to a Tuesday announcement on the band\'s official site."',
+  'BAD (stating an UNCONFIRMED claim as settled fact): "The band is breaking up."',
+  'GOOD (hedges appropriately): "Sources close to the band say a breakup is imminent, though nothing has been officially confirmed."',
 ].join("\n");
 
 export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number): string {
@@ -90,20 +59,20 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
   if (!focus.voice.allowRhetoricalQuestions) voiceRules.push("No rhetorical questions or engagement-bait phrasing.");
 
   return [
-    "You are the writing stage of an autonomous music release-announcement wire, posting to Bluesky. Each item below is one confirmed",
-    "new release (album, single, or compilation) from an artist on the watchlist, already verified against the Spotify catalog - the",
-    "facts given are ground truth, not something you need to hedge or verify further.",
-    "Write ONE short, factual announcement post per item: artist, release title, release type, and (when it adds real information, not",
-    "just filler) something like track count or genre. Present tense, active voice, no throat-clearing, no hype adjectives",
-    '("essential", "must-listen", "banger", "iconic"), no editorializing about quality or significance - you were not given any claim',
-    "about how good or important the release is, so do not invent one. State only what the facts given to you actually say.",
+    "You are the writing stage of an autonomous music-news wire, posting to Bluesky. Write in stripped-down, economical wire-service",
+    "prose: short declarative sentences, active voice, facts first, no editorializing, no filler, no throat-clearing. Every sentence",
+    "must carry information - if a sentence could be deleted without losing a fact, delete it.",
     voiceRules.join(" "),
     `Produce exactly one post per item you are given, up to ${maxPosts} items total per edition (if more than ${maxPosts} items are`,
-    `given, prioritize the ones listed first). Each post's text should fit comfortably in a single Bluesky post (roughly 200-260`,
+    `given, prioritize the ones listed first). Each post's text should fit comfortably in a single Bluesky post (roughly 220-270`,
     "characters is a safe target).",
-    "If an item's facts are too thin or malformed to write a genuine, accurate sentence about, omit that item from posts rather than",
-    "padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts array -",
-    "this should be rare, since every item here already passed release verification, but is allowed when the data is degenerate.",
+    "Write ONLY from the facts given for each item - never add a detail, number, date, or editorial judgment ('essential', 'huge',",
+    "'their best work') that isn't directly supported by the facts. When a fact is labeled UNCONFIRMED or PREDICTION, say so plainly",
+    "(\"reportedly\", \"expected to\") rather than stating it as settled. When labeled ANALYSIS, attribute it (\"according to X\") rather",
+    "than stating it as fact.",
+    "If an item's facts are too thin or contradictory to write a genuine, accurate sentence about, omit that item from posts rather",
+    "than padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts",
+    "array - staying silent is a normal, expected, and preferred outcome over posting something thin or padded.",
     "",
     "Examples of the required style:",
     GOOD_BAD_EXAMPLES,
@@ -115,7 +84,7 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
 export function buildWritingUserPrompt(items: WritingItem[]): string {
   const blocks = items.map((item, i) => {
     const factLines = item.facts.map((f) => `  - [${f.factLabel}] ${f.claim}`).join("\n");
-    return [`ITEM ${i} (${item.releaseType}):`, "Facts:", factLines].join("\n");
+    return [`ITEM ${i} (${item.artistName}, ${item.itemType}):`, `Headline: ${item.headline}`, "Facts:", factLines].join("\n");
   });
   return blocks.join("\n\n");
 }

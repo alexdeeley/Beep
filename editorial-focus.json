@@ -1,7 +1,32 @@
 {
-  "$schemaVersion": 2,
+  "$schemaVersion": 3,
 
-  "neutralityNote": "V3: this pipeline no longer selects topics by keyword - it announces new releases for the artists in watched-artists.txt (repo root), detected authoritatively via the Spotify Web API. This file now only controls posting cadence (quietHours) and voice/style (voice). Edit watched-artists.txt directly to add or remove artists.",
+  "neutralityNote": "V3.1: this pipeline announces genuine new releases/music news for the artists in watched-artists.txt (repo root), found via independent web-search discovery + a separate independent re-verification pass (2-corroborating-source rule) - never posted from a single unverified source or model memory. This file controls source-tier authority ranking, posting cadence (quietHours), and voice/style (voice). Edit watched-artists.txt directly to add or remove artists.",
+
+  "sourceTiers": [
+    "primary_official",
+    "company_statement",
+    "entertainment_trade",
+    "wire_service",
+    "general_news",
+    "aggregator",
+    "blog_social"
+  ],
+
+  "entertainmentTradePublishers": [
+    "Pitchfork",
+    "Billboard",
+    "Rolling Stone",
+    "Variety",
+    "NME",
+    "Stereogum",
+    "The Fader",
+    "Consequence",
+    "Spin",
+    "Brooklyn Vegan",
+    "DIY Magazine",
+    "Uproxx"
+  ],
 
   "quietHours": {
     "timezone": "America/Los_Angeles",

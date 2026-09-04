@@ -199,7 +199,7 @@ program
 program
   .command("news:preview")
   .description(
-    "Run the full hourly music release-announcement pipeline for real (real Spotify API calls, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
+    "Run the full hourly music news pipeline for real (real web search, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
   )
   .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
   .action(async (opts) => {
@@ -217,7 +217,7 @@ program
 
 program
   .command("news:publish")
-  .description("Run the full hourly music release-announcement pipeline and publish to Bluesky if there's a new release worth posting")
+  .description("Run the full hourly music news pipeline and publish to Bluesky if there's something verified worth posting")
   .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
   .action(async (opts) => {
     const summary = await runNewswireCycle(config, { dryRun: false, forceRun: Boolean(opts.force) });
@@ -230,7 +230,7 @@ program
 
 program
   .command("news:status")
-  .description("Print a read-only status summary of the newswire pipeline's story database (last run, artist resolution progress, recent releases posted)")
+  .description("Print a read-only status summary of the newswire pipeline's story database (last run, watched-artist count, recent items posted)")
   .action(async () => {
     const { mkdtempSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");

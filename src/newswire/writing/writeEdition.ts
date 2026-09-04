@@ -57,8 +57,8 @@ export async function writeEdition(ctx: NewsRunContext, items: WritingItem[]): P
   }
 
   const posts = result.posts.slice(0, ctx.config.news.maxPostsPerEdition).map((p) => {
-    const releaseIds = p.sourceItemIndexes.filter((i) => i >= 0 && i < items.length).map((i) => items[i]!.releaseId);
-    return { text: p.text, sourceReleaseIds: releaseIds };
+    const itemIds = p.sourceItemIndexes.filter((i) => i >= 0 && i < items.length).map((i) => items[i]!.musicItemId);
+    return { text: p.text, sourceItemIds: itemIds };
   });
 
   ctx.logger.info("writing", `Drafted ${posts.length} post(s) for this edition`);

@@ -63,3 +63,36 @@ export function getLastHourlyRun(db: Database.Database): HourlyRunRow | undefine
 export function getRecentHourlyRuns(db: Database.Database, limit: number): HourlyRunRow[] {
   return db.prepare("SELECT * FROM hourly_runs ORDER BY started_at DESC LIMIT ?").all(limit) as HourlyRunRow[];
 }
+
+export interface RunCandidateRow {
+  id: number;
+  run_id: number;
+  stage: string;
+  candidate_summary: string;
+  decision: "accepted" | "rejected";
+  reason: string | null;
+  story_id: number | null;
+  created_at: string;
+}
+
+/** Per-stage accept/reject audit trail (discovery/verification), keyed loosely to `storyId` for the pre-V3 general pipeline - null for the current music pipeline, which has no equivalent concept. */
+export function insertRunCandidate(
+  db: Database.Database,
+  input: {
+    runId: number;
+    stage: string;
+    candidateSummary: string;
+    decision: "accepted" | "rejected";
+    reason: string | null;
+    storyId: number | null;
+  }
+): RunCandidateRow {
+  const now = new Date().toISOString();
+  const result = db
+    .prepare(
+      `INSERT INTO run_candidates (run_id, stage, candidate_summary, decision, reason, story_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(input.runId, input.stage, input.candidateSummary, input.decision, input.reason, input.storyId, now);
+  return db.prepare("SELECT * FROM run_candidates WHERE id = ?").get(Number(result.lastInsertRowid)) as RunCandidateRow;
+}

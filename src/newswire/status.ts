@@ -1,8 +1,8 @@
 import type Database from "better-sqlite3";
 import { getRecentPosts } from "./db/postsRepo.js";
 import { getLastHourlyRun, getRecentHourlyRuns } from "./db/researchRunsRepo.js";
-import { getArtistResolutionCounts } from "./db/watchedArtistsRepo.js";
-import { getRecentlyPostedReleases, getUnpostedReleases } from "./db/releasesRepo.js";
+import { getWatchedArtistCount } from "./db/watchedArtistsRepo.js";
+import { getRecentlyPostedMusicItems, getUnpostedMusicItems } from "./db/musicItemsRepo.js";
 
 export interface NewswireStatus {
   lastRun: {
@@ -13,9 +13,9 @@ export interface NewswireStatus {
     quietHoursOutcome: string | null;
     publishStatus: string | null;
   } | null;
-  artistResolution: { pending: number; resolved: number; unresolved: number };
-  unpostedReleaseCount: number;
-  recentReleases: { artistName: string; title: string; releaseDate: string; releaseType: string }[];
+  watchedArtistCount: number;
+  unpostedItemCount: number;
+  recentItems: { artistName: string; headline: string; itemType: string }[];
   latestPosts: { text: string; createdAt: string; uri: string | null }[];
   recentFailures: { id: number; startedAt: string; errorMessage: string | null }[];
 }
@@ -25,9 +25,9 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
   const lastRun = getLastHourlyRun(db);
   const recentPosts = getRecentPosts(db, 5);
   const recentRuns = getRecentHourlyRuns(db, 20);
-  const artistResolution = getArtistResolutionCounts(db);
-  const unposted = getUnpostedReleases(db);
-  const recentReleases = getRecentlyPostedReleases(db, 5);
+  const watchedArtistCount = getWatchedArtistCount(db);
+  const unposted = getUnpostedMusicItems(db);
+  const recentItems = getRecentlyPostedMusicItems(db, 5);
 
   return {
     lastRun: lastRun
@@ -40,14 +40,9 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
           publishStatus: lastRun.publish_status,
         }
       : null,
-    artistResolution,
-    unpostedReleaseCount: unposted.length,
-    recentReleases: recentReleases.map((r) => ({
-      artistName: r.artist_name,
-      title: r.title,
-      releaseDate: r.release_date,
-      releaseType: r.release_type,
-    })),
+    watchedArtistCount,
+    unpostedItemCount: unposted.length,
+    recentItems: recentItems.map((r) => ({ artistName: r.artist_name, headline: r.headline, itemType: r.item_type })),
     latestPosts: recentPosts.map((p) => ({ text: p.text, createdAt: p.created_at, uri: p.uri })),
     recentFailures: recentRuns
       .filter((r) => r.status === "failed")

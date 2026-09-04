@@ -25,9 +25,11 @@ describe("loadEditorialFocus", () => {
     writeFileSync(
       path,
       `{
-        "$schemaVersion": 2,
+        "$schemaVersion": 3,
         // a comment
         "neutralityNote": "note",
+        "sourceTiers": ["primary_official", "general_news"],
+        "entertainmentTradePublishers": [],
         "quietHours": { "timezone": "UTC", "slowStartHourLocal": 23, "slowEndHourLocal": 6, "minImportanceScoreDuringSlow": 0.6, "minImportanceScoreDuringSilentThreshold": 0.85 },
         "voice": { "allowJokes": false, "allowHashtagsInline": false, "allowEmoji": false, "allowRhetoricalQuestions": false }
       }`

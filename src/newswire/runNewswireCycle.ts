@@ -8,21 +8,21 @@ import { loadEditorialFocus } from "./editorialFocus.js";
 import { downloadStoryDb, uploadStoryDb } from "./db/sync.js";
 import { openStoryDb, closeStoryDb } from "./db/connection.js";
 import { startHourlyRun, finishHourlyRun } from "./db/researchRunsRepo.js";
-import { getUnpostedReleases } from "./db/releasesRepo.js";
-import { getAccessToken } from "./spotify/client.js";
+import { getUnpostedMusicItems, insertMusicItem } from "./db/musicItemsRepo.js";
 import { importArtistList } from "./artists/importArtistList.js";
-import { resolvePendingArtists } from "./artists/resolveArtists.js";
-import { checkForNewReleases } from "./releases/checkForReleases.js";
-import { rankReleases, type RankedRelease } from "./releases/rankReleases.js";
+import { getArtistsDueForCheck, markArtistsChecked } from "./db/watchedArtistsRepo.js";
+import { discoverArtistNews } from "./discovery/discoverArtistNews.js";
+import { verifyArtistNews } from "./verification/verifyArtistNews.js";
+import { rankMusicItems, type RankedMusicItem } from "./ranking/rankMusicItems.js";
 import { resolveQuietHoursOutcome } from "./quietHours/quietHoursPolicy.js";
 import { writeEdition } from "./writing/writeEdition.js";
-import { buildReleaseFacts, type WritingItem } from "./writing/prompts.js";
+import type { WritingItem } from "./writing/prompts.js";
 import { copyEditEdition } from "./copyEdit/copyEditEdition.js";
 import { factCheckEdition } from "./factCheck/factCheckEdition.js";
 import { duplicateCheckEdition } from "./duplicateCheck/duplicateCheckEdition.js";
-import { publishReleases } from "./publishing/publishReleases.js";
+import { publishMusicItems } from "./publishing/publishMusicItems.js";
 import type { NewsRunContext } from "./runContext.js";
-import type { DraftEdition } from "./types.js";
+import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
 export interface NewswireCycleOptions {
   /** True for `news:preview` - runs every stage for real but never publishes and never persists DB changes back to R2. */
@@ -39,7 +39,7 @@ export interface NewswireCycleSummary {
   editionPreview: { text: string }[] | null;
 }
 
-/** Cap on how many unposted releases get carried into writing, regardless of maxPostsPerEdition - this just bounds cost; the writer/quiet-hours filter decide the final cut. */
+/** Cap on how many unposted items get carried into writing, regardless of maxPostsPerEdition - this just bounds cost; the writer/quiet-hours filter decide the final cut. */
 const MAX_ELIGIBLE_ITEMS = 12;
 
 function silentResult(hourlyRunId: number, quietHoursOutcome: string, candidatesFound: number, candidatesRejected: number, db: ReturnType<typeof openStoryDb>): NewswireCycleSummary {
@@ -59,28 +59,42 @@ function silentResult(hourlyRunId: number, quietHoursOutcome: string, candidates
   };
 }
 
-function toWritingItem(ranked: RankedRelease): WritingItem {
-  const r = ranked.release;
-  const genres: string[] = r.artist_genres_json ? (JSON.parse(r.artist_genres_json) as string[]) : [];
-  const base = {
-    artistName: r.artist_name,
-    releaseType: r.release_type,
-    title: r.title,
-    releaseDate: r.release_date,
-    totalTracks: r.total_tracks,
-    genres,
-    spotifyUrl: r.spotify_url,
-  };
-  return { releaseId: r.id, ...base, facts: buildReleaseFacts(base) };
+/** Persists a verified candidate as a music_items row, using the first fact's timing/label and every distinct source across all facts. */
+function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): number | null {
+  const primaryFact = verified.facts.find((f) => f.sources.some((s) => s.isPrimary)) ?? verified.facts[0];
+  if (!primaryFact) return null;
+  const primarySource = primaryFact.sources.find((s) => s.isPrimary) ?? primaryFact.sources[0];
+  if (!primarySource) return null;
+
+  const domains = new Set<string>();
+  for (const fact of verified.facts) for (const s of fact.sources) domains.add(s.domain.toLowerCase());
+
+  const row = insertMusicItem(ctx.db, {
+    watchedArtistId: verified.watchedArtistId,
+    itemType: verified.itemType,
+    headline: verified.headline,
+    summary: verified.facts.map((f) => f.claim).join(" "),
+    factLabel: primaryFact.factLabel,
+    eventTime: primaryFact.eventTimeIso,
+    eventTimeConfidence: primaryFact.eventTimeConfidence,
+    articlePublishedAt: primaryFact.articlePublishedAtIso,
+    primarySourceUrl: primarySource.url,
+    sourceDomains: [...domains],
+    facts: verified.facts,
+    discoveredInRunId: ctx.hourlyRunId,
+  });
+  return row.id;
 }
 
 /**
- * The hourly master orchestrator (V3 - music release-announcement wire):
- *   download DB from R2 -> import/update artist watchlist -> resolve
- *   pending artists against Spotify -> check a rotation batch of resolved
- *   artists for new releases -> rank/cap the unposted backlog -> quiet-
- *   hours check -> write -> copy-edit -> fact-check (mandatory gate) ->
- *   duplicate-check -> publish (each release as its own post) -> upload DB.
+ * The hourly master orchestrator (V3.1 - music news/release-announcement
+ * wire): download DB from R2 -> import/update artist watchlist -> pick a
+ * rotation batch of artists due for checking -> discover candidates via
+ * web search -> independently re-verify each one (2-corroborating-source
+ * rule, mandatory) -> persist verified items -> rank/cap the unposted
+ * backlog -> quiet-hours check -> write -> copy-edit -> fact-check
+ * (mandatory gate) -> duplicate-check -> publish (each item as its own
+ * post) -> upload DB.
  *
  * The DB is always closed and (outside dry-run) uploaded back to R2 in a
  * finally block, even on failure - the audit trail must survive a failed
@@ -92,10 +106,6 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
   const openai = makeOpenAIClient(config);
   if (!openai) throw new MissingApiKeyError("newswire-cycle");
-
-  // Fetched before touching the DB so a missing/invalid Spotify credential fails fast, without
-  // downloading/uploading anything - this pipeline's core release-detection depends on it entirely.
-  const spotifyToken = await getAccessToken(config);
 
   const editorialFocus = loadEditorialFocus(config.news.editorialFocusPath);
 
@@ -112,7 +122,6 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       logger,
       db,
       openai,
-      spotifyToken,
       editorialFocus,
       hourlyRunId: hourlyRun.id,
       dryRun: options.dryRun,
@@ -124,11 +133,15 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     const imported = importArtistList(db, config.news.artistListPath);
     if (imported > 0) logger.info("artist-import", `Imported ${imported} new artist name(s) from the watchlist`);
 
-    await resolvePendingArtists(ctx);
-    const releaseCheck = await checkForNewReleases(ctx);
+    const batch = getArtistsDueForCheck(db, config.news.artistBatchSize);
+    const candidates = await discoverArtistNews(ctx, batch);
+    const verified = await verifyArtistNews(ctx, candidates);
+    const candidatesRejected = candidates.length - verified.length;
+    for (const item of verified) persistVerifiedItem(ctx, item);
+    markArtistsChecked(db, batch.map((a) => a.id));
 
-    const unposted = getUnpostedReleases(db);
-    const eligiblePool = rankReleases(unposted, MAX_ELIGIBLE_ITEMS);
+    const unposted = getUnpostedMusicItems(db);
+    const eligiblePool = rankMusicItems(unposted, MAX_ELIGIBLE_ITEMS);
     const topScore = eligiblePool.reduce<number | null>((max, r) => (max === null || r.importanceScore > max ? r.importanceScore : max), null);
     const quietDecision = resolveQuietHoursOutcome(editorialFocus, now, topScore);
     const effectiveOutcome = options.forceRun ? "normal" : quietDecision.outcome;
@@ -141,15 +154,15 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
     if (effectiveOutcome === "silent" || eligiblePool.length === 0) {
       logger.info("orchestrator", "Staying silent this hour - nothing to post, which is expected and healthy most hours");
-      return silentResult(hourlyRun.id, quietDecision.outcome, releaseCheck.newReleasesFound, 0, db);
+      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
     }
 
     const filtered = eligiblePool.filter((r) => r.importanceScore >= minScore).slice(0, config.news.maxPostsPerEdition);
     if (filtered.length === 0) {
-      return silentResult(hourlyRun.id, quietDecision.outcome, releaseCheck.newReleasesFound, eligiblePool.length, db);
+      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
     }
 
-    const writingItems: WritingItem[] = filtered.map(toWritingItem);
+    const writingItems: WritingItem[] = filtered.map((r) => toWritingItem(r));
 
     let edition: DraftEdition = await writeEdition(ctx, writingItems);
     const copyEdited = await copyEditEdition(ctx, edition);
@@ -163,8 +176,8 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       finishHourlyRun(db, hourlyRun.id, {
         status: "failed",
         quiet_hours_outcome: quietDecision.outcome,
-        candidates_found: releaseCheck.newReleasesFound,
-        candidates_rejected: eligiblePool.length - filtered.length,
+        candidates_found: candidates.length,
+        candidates_rejected: candidatesRejected,
         final_edition_json: JSON.stringify(edition),
         publish_status: "failed",
         error_message: "fact-check gate: not all material claims SUPPORTED",
@@ -184,8 +197,8 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       finishHourlyRun(db, hourlyRun.id, {
         status: "success",
         quiet_hours_outcome: quietDecision.outcome,
-        candidates_found: releaseCheck.newReleasesFound,
-        candidates_rejected: eligiblePool.length - filtered.length,
+        candidates_found: candidates.length,
+        candidates_rejected: candidatesRejected,
         final_edition_json: JSON.stringify(edition),
         publish_status: "skipped",
         error_message: dupeCheck.reason,
@@ -199,7 +212,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       };
     }
 
-    const publishResult = await publishReleases(ctx, edition);
+    const publishResult = await publishMusicItems(ctx, edition);
     const publishStatus: NewswireCycleSummary["publishStatus"] = options.dryRun
       ? "dry_run"
       : publishResult.posts.length > 0
@@ -209,8 +222,8 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     finishHourlyRun(db, hourlyRun.id, {
       status: "success",
       quiet_hours_outcome: quietDecision.outcome,
-      candidates_found: releaseCheck.newReleasesFound,
-      candidates_rejected: eligiblePool.length - filtered.length,
+      candidates_found: candidates.length,
+      candidates_rejected: candidatesRejected,
       final_edition_json: JSON.stringify(edition),
       publish_status: publishStatus,
     });
@@ -236,4 +249,15 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     }
     rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function toWritingItem(ranked: RankedMusicItem): WritingItem {
+  const item = ranked.item;
+  return {
+    musicItemId: item.id,
+    artistName: item.artist_name,
+    itemType: item.item_type,
+    headline: item.headline,
+    facts: JSON.parse(item.facts_json),
+  };
 }

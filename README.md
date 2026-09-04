@@ -10,13 +10,13 @@ This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
 
 > **Note:** This account now runs a third, primary pipeline on top of the
-> daily/weekly ones described below — an hourly autonomous music
-> release-announcement wire that checks a personal artist watchlist
-> against the Spotify catalog and posts when there's something genuinely
-> new. It replaced the daily pipeline's *schedule* (the code below still
-> works and is still runnable by hand, it just no longer fires
-> automatically). See **[§18, The hourly music release
-> wire](#18-the-hourly-music-release-wire)** for how it works.
+> daily/weekly ones described below — an hourly autonomous music news
+> wire that checks a personal artist watchlist via web search, requires
+> independent 2-source verification, and posts when something genuinely
+> new clears that bar. It replaced the daily pipeline's *schedule* (the
+> code below still works and is still runnable by hand, it just no longer
+> fires automatically). See **[§18, The hourly music news
+> wire](#18-the-hourly-music-news-wire)** for how it works.
 
 ---
 
@@ -422,7 +422,7 @@ src/
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
   weeklyCard/      # fully independent weekly "card draw" pipeline - own schedule, own state, own concurrency group (see below)
-  newswire/        # fully independent hourly music release-announcement pipeline - see §18 below
+  newswire/        # fully independent hourly music news wire - see §18 below
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
 
@@ -548,21 +548,30 @@ and whatever gets added later), published together as a static site via
 
 ---
 
-## 18. The hourly music release wire
+## 18. The hourly music news wire
 
 A third, independent pipeline lives in `src/newswire/` and is now the
-account's primary posting cadence: once an hour, it checks a personal
-artist watchlist against the real Spotify catalog and posts a short,
-factual announcement when one of them has released something new — or,
-most hours, posts nothing at all, because most artists don't release
-music most hours, and that silence is correct, not a bug.
+account's primary posting cadence: once an hour, it rotates through a
+batch of a personal artist watchlist, searches the web for genuine new
+releases or notable music news, independently re-verifies each candidate
+before trusting it, and posts a short, factual item when something clears
+that bar — or, most hours, posts nothing at all, because most artists in
+a large watchlist don't have real news most hours, and that silence is
+correct, not a bug.
 
-The release itself is never something a model guesses at: whether an
-artist has a new album/single/compilation is decided authoritatively by
-the Spotify Web API (`src/newswire/spotify/client.ts`), not by web search
-or model memory. The model's only job is turning a confirmed release into
-a short, accurate announcement post - and even that final copy still goes
-through a mandatory fact-check gate before anything is published.
+**Nothing is ever posted on a single unverified source.** Discovery finds
+candidates via one web-search sweep across the batch; a completely
+separate verification pass then re-researches each candidate from scratch
+— it does not trust discovery's claims or sources — and requires **at
+least 2 independent corroborating source domains** before a candidate is
+eligible to post at all. That verified copy then still goes through a
+mandatory final fact-check gate before anything is published. (An earlier
+version of this pipeline briefly used the Spotify Web API instead of web
+search for this — Spotify locked down Developer Mode access in February
+2026 in a way that broke that approach before it ever went live, so this
+now uses the same discover → independently-verify architecture the
+account's general-news pipeline used, just scoped to an artist batch
+instead of a topic list.)
 
 It shares the Bluesky account with the daily/weekly pipelines above but
 nothing else: its own concurrency group (`on-this-day-newswire`), its own
@@ -579,56 +588,56 @@ schedule) does, in order:
    `watched-artists.txt` and adds any names not already tracked. Cheap
    and idempotent, so editing the file takes effect on the very next run
    with no separate import step.
-2. **Resolve pending artists** (`artists/resolveArtists.ts`) — for
-   watchlist names not yet matched to a Spotify artist ID, searches the
-   Spotify catalog for an **exact** (case-insensitive) name match. A
-   watchlist can be thousands of names long, so this runs a bounded batch
-   per cycle (`NEWS_ARTIST_RESOLVE_BATCH_SIZE`) rather than all at once -
-   the full list resolves gradually over the first day or two. Only an
-   exact name match counts as resolved; a name Spotify has never heard of
-   is retried a few times, then marked `unresolved` rather than guessed
-   at with a fuzzy match (misattributing a release to the wrong artist of
-   the same name would be a real correctness bug, not an acceptable
-   approximation).
-3. **Check for new releases** (`releases/checkForReleases.ts`) — a
-   rotation batch of already-resolved artists (oldest-checked-first,
-   `NEWS_RELEASE_CHECK_BATCH_SIZE` per cycle) gets its latest Spotify
-   albums/singles/compilations fetched and compared against what was seen
-   last time. An artist's very first check ever only seeds a baseline
-   (their existing catalog is never treated as "news"); only a release
-   that appears on a **later** check counts as new. Only day-precision
-   release dates count (Spotify only tags a genuinely fresh release that
-   precisely), and anything older than `NEWS_RELEASE_LOOKBACK_DAYS`
-   is ignored as a safety net against catalog backfills.
-4. **Rank** (`releases/rankReleases.ts`) — the candidate pool is every
-   detected release not yet posted, in FIFO order (oldest-discovered
-   first) - deliberately **not** popularity-ordered, so a smaller
-   artist's release from three days ago is never starved indefinitely
-   behind a stream of newer releases from bigger names. Popularity only
-   feeds the quiet-hours score below, never the post order.
-5. **Quiet-hours check** (`quietHours/`) — see §18.4. May end the run
+2. **Pick a rotation batch** (`db/watchedArtistsRepo.ts`) — the
+   oldest-checked-first (never-checked-first) `NEWS_ARTIST_BATCH_SIZE`
+   artists. A watchlist can be thousands of names long, so a full
+   rotation naturally takes many cycles - each hour just needs to check
+   *some* of the list, not all of it.
+3. **Discover** (`discovery/discoverArtistNews.ts`) — one web-search
+   sweep across the whole batch via OpenAI's Responses API with the
+   built-in web-search tool, asking for at most one genuinely new item
+   (a release, or concrete news like a tour date or lineup change) per
+   artist in roughly the last few days. Candidates with no reported
+   source, an artist name that isn't an exact match in the batch, or an
+   effectively-identical headline to something already on record for
+   that artist are rejected here.
+4. **Verify** (`verification/verifyArtistNews.ts`) — for each surviving
+   candidate, an **independent** re-search (a fresh web-search call that
+   does not trust discovery's claims or sources) breaks it into
+   individual factual claims, labels each FACT / ANALYSIS / UNCONFIRMED /
+   BACKGROUND / PREDICTION, classifies every source into a tier, and
+   requires **at least 2 independent corroborating source domains** or
+   the candidate is dropped outright.
+5. **Rank** (`ranking/rankMusicItems.ts`) — the candidate pool is every
+   verified item not yet posted (this cycle's and any earlier cycle's
+   backlog), in FIFO order (oldest-discovered first) - deliberately
+   **not** importance-ordered, so an item from three days ago is never
+   starved indefinitely behind a stream of newer items. A structural
+   confidence score (release vs. news, fact label, corroboration count)
+   only feeds the quiet-hours check below, never the post order.
+6. **Quiet-hours check** (`quietHours/`) — see §18.4. May end the run
    right here with nothing posted, which is expected most hours.
-6. **Write** (`writing/`) — composes one short, factual announcement post
-   per release (artist, title, release type, and real supporting detail
-   like track count or genre) against a hard list of banned AI-cliché and
-   hype phrases (`writing/bannedPhrases.ts`). No claim about quality or
-   significance is ever invented - only what the Spotify data actually
-   says.
-7. **Copy-edit** (`copyEdit/`) — a structural check against the banned
+7. **Write** (`writing/`) — composes one short, factual post per item
+   from the verified facts only, against a hard list of banned AI-cliché
+   and hype phrases (`writing/bannedPhrases.ts`). No claim about quality,
+   significance, or any detail not present in the verified facts is ever
+   invented; an UNCONFIRMED or PREDICTION fact must be hedged in the
+   prose ("reportedly", "expected to"), never stated as settled.
+8. **Copy-edit** (`copyEdit/`) — a structural check against the banned
    phrase list and your `voice` settings (jokes/hashtags/emoji/rhetorical
    questions), with one revision pass if anything's flagged.
-8. **Fact-check** (`factCheck/`) — **mandatory, cannot be skipped.**
+9. **Fact-check** (`factCheck/`) — **mandatory, cannot be skipped.**
    Extracts every factual claim from the *final* copy-edited text and
-   checks it against the release facts derived directly from the Spotify
-   API response - never outside knowledge. Every claim must come back
-   `SUPPORTED` or publishing is blocked outright. This is what catches a
-   claim the writer invented or embellished while composing prose (an
-   invented "first album in years," a wrong track count, and so on).
-9. **Duplicate-check** (`duplicateCheck/`) — a content-hash exact-repost
-   guard (never literally re-post identical text).
-10. **Publish** (`publishing/publishReleases.ts`) — each release is
+   checks it against the independently-verified facts only - never
+   outside knowledge. Every claim must come back `SUPPORTED` or
+   publishing is blocked outright. This is what catches a claim the
+   writer invented or embellished while composing prose.
+10. **Duplicate-check** (`duplicateCheck/`) — a content-hash exact-repost
+    guard (never literally re-post identical text). The real "is this
+    genuinely new" judgment already happened in steps 3-4.
+11. **Publish** (`publishing/publishMusicItems.ts`) — each item is
     posted as its **own independent post** (never threaded together with
-    an unrelated artist's announcement), split at grapheme-safe sentence
+    an unrelated artist's news), split at grapheme-safe sentence
     boundaries if it runs long. Each post is recorded to the database
     immediately after it succeeds - a mid-edition failure leaves an
     accurate record, and whatever didn't post stays queued for next hour.
@@ -637,58 +646,62 @@ schedule) does, in order:
 
 The repo-root `watched-artists.txt` is yours to edit directly - one
 artist name per line, blank lines and `#`-prefixed comments ignored,
-re-read at the start of every run. Add a name and it's picked up (and its
-Spotify ID resolved) automatically within the next cycle or two; delete a
-line and that artist just stops being checked (its history in the
-database is kept, not deleted). Matching against Spotify is exact-name
-only (see §18.1 step 2) - if an artist doesn't show up in announcements,
-check `news:status` for its resolution state, and check the spelling
-matches Spotify's own listing exactly if it's stuck `unresolved`.
+re-read at the start of every run. Add a name and it's picked up
+automatically within the next cycle or two, once its turn in the rotation
+comes up; delete a line and that artist just stops being checked (its
+history in the database is kept, not deleted).
 
-`editorial-focus.json` still exists but now only controls **posting
-cadence and voice**, not topic selection:
+`editorial-focus.json` controls source-tier authority ranking, posting
+cadence, and voice/style:
 
-- **`quietHours`** and **`voice`** — see §18.4 and §18.1 step 6.
-- **`neutralityNote`** — documents what the file is for now, since its
-  old topic-selection fields (`priorityTopics`, `watch`, `exclude`,
-  `sourceTiers`) are gone as of this pipeline's V3 pivot to a pure
-  release-announcement model.
+- **`sourceTiers`** — the ordered authority ranking (most to least
+  authoritative) the verification stage classifies every source into:
+  `primary_official` (the artist's own posts/site), `company_statement`
+  (a label statement), `entertainment_trade`, `wire_service`,
+  `general_news`, `aggregator`, `blog_social`.
+- **`entertainmentTradePublishers`** — named music-trade outlets
+  (Pitchfork, Billboard, Rolling Stone, etc.) recognized as the
+  `entertainment_trade` tier - add your own trusted outlets here.
+- **`quietHours`** and **`voice`** — see §18.4 and §18.1 step 7.
+- **`neutralityNote`** — a fixed reminder (to the model, not to you) of
+  what this file controls, and that it no longer selects topics -
+  `watched-artists.txt` is the sole determinant of who gets covered.
 
 JSON doesn't support comments natively, but the loader
 (`src/newswire/editorialFocus.ts`) tolerates `//` line comments, so feel
 free to annotate your own copy.
 
-### 18.3 Spotify credentials and cost control
+### 18.3 Per-stage models and cost control
 
-Release detection needs a free Spotify Developer app (Client Credentials
-flow only - no user login, read-only public catalog access):
-`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` from
-[developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
-Every writing/copy-edit/fact-check stage still has its own model env var
-(`NEWS_WRITER_MODEL`, `NEWS_COPYEDIT_MODEL`, `NEWS_FACTCHECK_MODEL`, see
-`.env.example`), independent of the daily pipeline's own model settings.
+Every stage has its own model env var, independent of the daily
+pipeline's `RESEARCH_MODEL`/`VERIFICATION_MODEL`: `NEWS_DISCOVERY_MODEL`,
+`NEWS_VERIFICATION_MODEL`, `NEWS_WRITER_MODEL`, `NEWS_COPYEDIT_MODEL`,
+`NEWS_FACTCHECK_MODEL` (see `.env.example`) - a cheaper model for
+high-volume discovery/copy-edit, a stronger one for verification/writing/
+fact-check. `NEWS_ARTIST_BATCH_SIZE` (default 40) controls how many
+artists one discovery web-search call covers per cycle - large enough to
+make real rotation progress through a big watchlist, small enough that a
+single search call can meaningfully cover every name in it.
 
 ### 18.4 Quiet hours: silence is the point, not a failure
 
 `editorial-focus.json`'s `quietHours` block defines a window (default
 23:00–06:00 in your configured timezone) where the bar for posting rises.
-A release's "importance" here is just its artist's Spotify popularity
-score (0-1, normalized). Below `minImportanceScoreDuringSlow`, the hour
-stays silent. Above it but below `minImportanceScoreDuringSilentThreshold`,
-it still posts, but only releases that clear that bar. Above
-`minImportanceScoreDuringSilentThreshold` - a genuinely major artist -
-it posts as if it were any other hour. **If you check `news:status` and
-see several consecutive hours with no post, that is very likely the
-pipeline working correctly** (most artists on a watchlist of thousands
-don't release something every hour), not a stuck or broken run -
-manufacturing a post to fill an hour is explicitly the wrong behavior
-here.
+Below `minImportanceScoreDuringSlow`, the hour stays silent. Above it but
+below `minImportanceScoreDuringSilentThreshold`, it still posts, but only
+items that clear that bar. Above `minImportanceScoreDuringSilentThreshold`
+- a release backed by unusually strong corroboration - it posts as if it
+were any other hour. **If you check `news:status` and see several
+consecutive hours with no post, that is very likely the pipeline working
+correctly** (most artists on a large watchlist don't have news most
+hours), not a stuck or broken run - manufacturing a post to fill an hour
+is explicitly the wrong behavior here.
 
 ### 18.5 The story database: R2-hosted SQLite, not `runs/<date>/`
 
 Unlike the daily/weekly pipelines' git-committed or filesystem-only
-state, this pipeline's memory - the watchlist's resolution state and
-every release ever seen - is a SQLite database (`better-sqlite3`) stored
+state, this pipeline's memory - the watchlist's rotation state and every
+verified item ever seen - is a SQLite database (`better-sqlite3`) stored
 as an object in your existing R2 bucket (`NEWS_DB_R2_KEY`, default
 `newswire/story.db`). Every run downloads it fresh, works against the
 local copy, and - outside of `news:preview`, which never persists
@@ -706,8 +719,8 @@ removed.
 ```bash
 npm run news:preview                 # run everything for real, print the proposed post(s), publish/persist NOTHING - safe to re-run
 npm run news:preview -- --force      # same, but bypass the quiet-hours silence check (to actually see output while testing at 3am)
-npm run news:publish                 # run everything and publish to Bluesky if there's a new release worth posting
-npm run news:status                  # read-only summary: last run, artist resolution progress, recent releases posted, recent failures
+npm run news:publish                 # run everything and publish to Bluesky if there's something verified worth posting
+npm run news:status                  # read-only summary: last run, watched-artist count, unposted backlog, recent items posted, recent failures
 ```
 
 `news:preview` and `news:publish` are two different commands, not one

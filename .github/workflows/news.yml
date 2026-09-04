@@ -1,12 +1,14 @@
 name: Hourly newswire
 
-# V3: an autonomous music release-announcement wire - checks the artist
-# watchlist (watched-artists.txt) against the Spotify Web API and posts
-# when there's a genuinely new release. Hourly has no local wall-clock
-# anchor to preserve (unlike "8:00am Pacific"), so unlike daily.yml this
-# needs only a single cron line - no DST two-cron dance. The concurrency
-# group below is load-bearing, not just an overlap-prevention nicety: it's
-# what keeps concurrent runs of this workflow from racing each other's
+# V3.1: an autonomous music news/release-announcement wire - each cycle
+# rotates through a batch of the artist watchlist (watched-artists.txt),
+# discovers candidates via OpenAI web search, and independently
+# re-verifies each one (2-corroborating-source rule) before it's eligible
+# to post. Hourly has no local wall-clock anchor to preserve (unlike
+# "8:00am Pacific"), so unlike daily.yml this needs only a single cron
+# line - no DST two-cron dance. The concurrency group below is
+# load-bearing, not just an overlap-prevention nicety: it's what keeps
+# concurrent runs of this workflow from racing each other's
 # read-modify-write of the shared R2-hosted story database.
 on:
   schedule:
@@ -59,8 +61,6 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             CMD="news:preview"

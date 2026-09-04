@@ -4,8 +4,10 @@ import type { EditorialFocus } from "../../src/newswire/editorialFocus.js";
 
 function makeFocus(overrides: Partial<EditorialFocus["quietHours"]> = {}): EditorialFocus {
   return {
-    $schemaVersion: 2,
+    $schemaVersion: 3,
     neutralityNote: "",
+    sourceTiers: ["primary_official", "general_news"],
+    entertainmentTradePublishers: [],
     quietHours: {
       timezone: "America/Los_Angeles",
       slowStartHourLocal: 23,
