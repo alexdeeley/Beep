@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Beep</title>
 <meta name="description" content="A small gallery of self-contained apps — music tools, games, art." />
-<meta name="theme-color" content="#0a0a12" />
+<meta name="theme-color" content="#000000" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -19,128 +19,68 @@
   html, body {
     margin: 0;
     min-height: 100%;
-    background: radial-gradient(ellipse at 50% 0%, #171426 0%, #0a0a12 55%, #050508 100%);
-    color: #e8e6f0;
+    background: #000;
+    color: #f2f2f5;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   main {
-    max-width: 1100px;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 56px 24px 80px;
+    padding: 72px 28px 120px;
   }
-  header { text-align: center; margin-bottom: 32px; }
+  header { margin-bottom: 44px; }
   h1 {
     font-weight: 300;
-    letter-spacing: 0.1em;
-    font-size: 2.8rem;
-    margin: 0 0 10px;
+    letter-spacing: 0.14em;
+    font-size: 1rem;
+    text-transform: lowercase;
+    color: #6b6b78;
+    margin: 0 0 6px;
   }
   header p {
-    color: #9c98b4;
-    font-size: 1.15rem;
+    color: #46464f;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     margin: 0;
   }
-  nav#catNav {
+  #appList {
     display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin: 0 0 56px;
+    flex-direction: column;
   }
-  nav#catNav a {
-    color: #d6d1f5;
-    text-decoration: none;
-    background: #171433;
-    border: 1px solid #332f5c;
-    padding: 10px 22px;
-    border-radius: 999px;
-    font-size: 1.05rem;
-    letter-spacing: 0.03em;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  nav#catNav a:hover, nav#catNav a:active {
-    border-color: #6a62b0;
-    background: #221d47;
-  }
-  section {
-    margin-bottom: 40px;
-    padding-bottom: 40px;
-    border-bottom: 1px solid #1c1938;
-    scroll-margin-top: 24px;
-  }
-  section:last-child {
-    border-bottom: 0;
-  }
-  section h2 {
-    font-weight: 500;
-    font-size: 1.7rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #c3bcf0;
-    padding-bottom: 14px;
-    margin: 0 0 24px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
-  }
-  a.card {
+  a.app-item {
     display: block;
     text-decoration: none;
-    color: inherit;
-    background: #12101f;
-    border: 1px solid #2a2650;
-    border-radius: 14px;
-    overflow: hidden;
-    transition: border-color 0.2s, transform 0.15s;
+    color: #f2f2f5;
+    padding: 16px 0;
+    border-bottom: 1px solid #141416;
+    transition: color 0.15s, transform 0.15s, padding-left 0.15s;
   }
-  a.card:hover {
-    border-color: #6a62b0;
-    transform: translateY(-2px);
+  a.app-item:last-child { border-bottom: 0; }
+  a.app-item:hover, a.app-item:active {
+    color: #fff;
+    padding-left: 14px;
   }
-  .preview {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    overflow: hidden;
-    background: #000;
-    border-bottom: 1px solid #2a2650;
-  }
-  .preview iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 1280px;
-    height: 800px;
-    border: 0;
-    transform-origin: 0 0;
-    pointer-events: none;
-  }
-  .preview .placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #4a4670;
-    font-size: 0.8rem;
-    letter-spacing: 0.05em;
-  }
-  .card-body { padding: 16px 18px 20px; }
-  .card-body h3 {
-    margin: 0 0 8px;
-    font-weight: 500;
-    font-size: 1.25rem;
-  }
-  .card-body p {
+  a.app-item h2 {
     margin: 0;
-    color: #a9a4c4;
-    font-size: 1rem;
-    line-height: 1.4;
+    font-weight: 300;
+    font-size: clamp(1.7rem, 6.5vw, 2.5rem);
+    text-transform: lowercase;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
   }
+  a.app-item p {
+    margin: 5px 0 0;
+    color: #5c5c68;
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    line-height: 1.5;
+    transition: color 0.15s;
+  }
+  a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
   .empty {
-    color: #6f6b8a;
+    color: #46464f;
     font-size: 0.85rem;
   }
 </style>
@@ -148,139 +88,50 @@
 <body>
 <main>
   <header>
-    <h1>BEEP</h1>
-    <p>Small self-contained apps. Click one to open it.</p>
+    <h1>beep</h1>
+    <p>tap a name to open it</p>
   </header>
-  <nav id="catNav"></nav>
-  <div id="sections"></div>
+  <div id="appList"></div>
 </main>
 
 <script>
-// Preferred section order; any category not listed here is appended
-// alphabetically afterward, so new categories "just work" with no code
-// changes — only an apps.json entry is needed.
-const CATEGORY_ORDER = ["Games", "Music Tools", "Art"];
-
 async function main() {
   const res = await fetch("./apps.json");
   const apps = await res.json();
 
-  const byCategory = new Map();
-  for (const app of apps) {
-    const list = byCategory.get(app.category) || [];
-    list.push(app);
-    byCategory.set(app.category, list);
-  }
+  const listEl = document.getElementById("appList");
 
-  const categories = [...byCategory.keys()].sort((a, b) => {
-    const ai = CATEGORY_ORDER.indexOf(a);
-    const bi = CATEGORY_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
-
-  const sectionsEl = document.getElementById("sections");
-  const navEl = document.getElementById("catNav");
-
-  if (categories.length === 0) {
-    sectionsEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
+  if (apps.length === 0) {
+    listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
     return;
   }
 
-  const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const sorted = [...apps].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+  );
 
-  for (const category of categories) {
-    const navLink = document.createElement("a");
-    navLink.href = "#" + slugify(category);
-    navLink.textContent = category;
-    navEl.appendChild(navLink);
-
-    const section = document.createElement("section");
-    section.id = slugify(category);
-    const heading = document.createElement("h2");
-    heading.textContent = category;
-    section.appendChild(heading);
-
-    const grid = document.createElement("div");
-    grid.className = "grid";
-
-    for (const app of byCategory.get(category)) {
-      grid.appendChild(buildCard(app));
-    }
-
-    section.appendChild(grid);
-    sectionsEl.appendChild(section);
+  for (const app of sorted) {
+    listEl.appendChild(buildItem(app));
   }
-
-  observeLazyPreviews();
 }
 
-function buildCard(app) {
-  const card = document.createElement("a");
-  card.className = "card";
-  card.href = app.path;
+function buildItem(app) {
+  const item = document.createElement("a");
+  item.className = "app-item";
+  item.href = app.path;
   // Same-window navigation (no target="_blank") so tapping an app stays
   // inside the installed standalone PWA instead of kicking out to a new
   // browser tab, which would show Safari/Chrome chrome again.
 
-  const preview = document.createElement("div");
-  preview.className = "preview";
-  preview.dataset.src = app.path;
-
-  const placeholder = document.createElement("div");
-  placeholder.className = "placeholder";
-  placeholder.textContent = app.name;
-  preview.appendChild(placeholder);
-
-  const body = document.createElement("div");
-  body.className = "card-body";
-  const title = document.createElement("h3");
+  const title = document.createElement("h2");
   title.textContent = app.name;
+
   const desc = document.createElement("p");
   desc.textContent = app.description;
-  body.appendChild(title);
-  body.appendChild(desc);
 
-  card.appendChild(preview);
-  card.appendChild(body);
-  return card;
-}
-
-// Only load an app's iframe (and whatever JS/audio it boots up) once its
-// preview card is actually about to scroll into view.
-function observeLazyPreviews() {
-  const previews = document.querySelectorAll(".preview[data-src]");
-
-  const loadPreview = (el) => {
-    const iframe = document.createElement("iframe");
-    iframe.src = el.dataset.src;
-    iframe.loading = "lazy";
-    iframe.tabIndex = -1;
-    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
-    iframe.setAttribute("aria-hidden", "true");
-    el.innerHTML = "";
-    el.appendChild(iframe);
-
-    const rescale = () => {
-      const scale = el.clientWidth / 1280;
-      iframe.style.transform = `scale(${scale})`;
-    };
-    rescale();
-    new ResizeObserver(rescale).observe(el);
-  };
-
-  const io = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        loadPreview(entry.target);
-        io.unobserve(entry.target);
-      }
-    }
-  }, { rootMargin: "200px" });
-
-  previews.forEach((el) => io.observe(el));
+  item.appendChild(title);
+  item.appendChild(desc);
+  return item;
 }
 
 main();
