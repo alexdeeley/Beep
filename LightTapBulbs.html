@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Light Tap • Bulbs</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#fff;touch-action:manipulation}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', {alpha:false});
+  function fit(){
+    const dpr = Math.max(1, window.devicePixelRatio||1);
+    canvas.width = Math.floor(innerWidth*dpr);
+    canvas.height = Math.floor(innerHeight*dpr);
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+  }
+  fit();
+  addEventListener('resize', fit, {passive:true});
+
+  // Game state
+  let running = true;
+  let angle = -Math.PI/2; // start at top
+  let speed = 1.85;
+  let jitter = 0;
+  let last = performance.now();
+  let score = 0;
+  let streak = 0;
+  let lives = 3;
+  let best = Number(localStorage.getItem('lt_best_bulbs')||0);
+
+  const gateCenter = -Math.PI/2;
+  let gateWidth = 18*Math.PI/180;
+
+  // Bulb ring
+  const N = 64;
+  let bulbs = new Float32Array(N); // brightness 0..1 (with afterglow)
+  const afterglow = 0.88; // decay per frame
+
+  // Audio / haptics (still no on-screen text or toggles)
+  const AC = (window.AudioContext||window.webkitAudioContext);
+  let actx = null;
+  function ensureAudio(){ if(!actx) actx = new AC(); }
+  function tone(f=660, dur=0.07, type='sine', gain=0.04){
+    ensureAudio();
+    const t = actx.currentTime;
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type=type; o.frequency.value=f;
+    g.gain.value=gain;
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t+dur);
+  }
+  function vibr(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+  function norm(a){ a%=2*Math.PI; if(a<-Math.PI) a+=2*Math.PI; if(a>Math.PI) a-=2*Math.PI; return a; }
+  function diff(a,b){ return norm(a-b); }
+
+  // Input: tap/space/enter anywhere
+  let lastTouch = {x:0,y:0};
+  function setLastTouch(e){
+    if(e.touches && e.touches[0]){
+      lastTouch.x = e.touches[0].clientX * (window.devicePixelRatio||1);
+      lastTouch.y = e.touches[0].clientY * (window.devicePixelRatio||1);
+    } else {
+      lastTouch.x = e.clientX * (window.devicePixelRatio||1);
+      lastTouch.y = e.clientY * (window.devicePixelRatio||1);
+    }
+  }
+  function onTap(){
+    if(!running) return;
+    const d = Math.abs(diff(norm(angle), gateCenter));
+    if(d <= gateWidth*0.25){
+      streak++; score += 100;
+      tone(880,0.09,'square',0.05); vibr(30);
+      flashRing = 1;
+      gateWidth = Math.max(gateWidth*0.992, 8*Math.PI/180);
+      speed += 0.03;
+    } else if(d <= gateWidth*0.55){
+      streak++; score += 60;
+      tone(720,0.07,'triangle',0.045); vibr(22);
+      speed += 0.02;
+    } else if(d <= gateWidth*0.95){
+      streak++; score += 30;
+      tone(560,0.05,'sine',0.04); vibr(14);
+    } else {
+      streak = 0; lives--;
+      tone(190,0.13,'sawtooth',0.06); vibr(60);
+      speed = Math.max(1.6, speed-0.02);
+      gateWidth = Math.min(gateWidth*1.015, 30*Math.PI/180);
+      if(lives<=0){ gameOver(); }
+    }
+    if(score>best){ best=score; localStorage.setItem('lt_best_bulbs', best); }
+    rippleQueue.push({t:performance.now(), x:lastTouch.x, y:lastTouch.y});
+  }
+
+  addEventListener('touchstart', (e)=>{ e.preventDefault(); setLastTouch(e); onTap(); }, {passive:false});
+  addEventListener('mousedown', (e)=>{ setLastTouch(e); onTap(); }, {passive:true});
+  addEventListener('keydown', (e)=>{ if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); onTap(); }}, {passive:false});
+  ['touchstart','mousedown','keydown'].forEach(ev=>{
+    addEventListener(ev, ()=>{ if(actx && actx.state==='suspended') actx.resume(); }, {once:true, passive:true});
+  });
+
+  // Reset with 2-finger tap or double-click
+  addEventListener('dblclick', reset, {passive:true});
+  addEventListener('touchstart', (e)=>{
+    if(e.touches && e.touches.length>=2){ reset(); }
+  }, {passive:true});
+
+  function reset(){
+    running = true;
+    angle = -Math.PI/2;
+    speed = 1.85;
+    jitter = 0;
+    score = 0;
+    streak = 0;
+    lives = 3;
+    gateWidth = 18*Math.PI/180;
+    bulbs = new Float32Array(N);
+    last = performance.now();
+    requestAnimationFrame(step);
+  }
+
+  let flashRing = 0;
+  const rippleQueue = [];
+
+  function step(t){
+    const dt = Math.min(0.05, (t-last)/1000); last=t;
+    jitter += (Math.random()-0.5)*0.06; jitter*=0.94;
+    angle += (speed + jitter)*dt;
+
+    // Bulb logic: light current bulb and a trailing gradient
+    for(let i=0;i<N;i++) bulbs[i]*=afterglow;
+    const idx = Math.floor(((angle%(2*Math.PI))+2*Math.PI)%(2*Math.PI) / (2*Math.PI) * N) % N;
+    const trail = 4; // number of bulbs for trailing glow
+    for(let k=-trail; k<=trail; k++){
+      const j = (idx + k + N) % N;
+      const fall = 1 - Math.abs(k)/(trail+1);
+      bulbs[j] = Math.max(bulbs[j], fall);
+    }
+
+    draw();
+    if(running) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  function draw(){
+    const W = canvas.width, H = canvas.height;
+    const cx = W/2, cy = H/2;
+    const R = Math.min(W,H)*0.40;
+    const rInner = R*0.74;
+    const ringR = (R+rInner)/2;
+
+    // bg
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+    // track (thin, under bulbs)
+    ctx.lineCap='round';
+    ctx.lineWidth = Math.max(4, R*0.03);
+    ctx.strokeStyle = '#101010';
+    ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI*2); ctx.stroke();
+
+    // draw 64 bulbs
+    const bulbR = Math.max(3, R*0.03);
+    for(let i=0;i<N;i++){
+      const a = (i/N)*Math.PI*2;
+      const bx = cx + Math.cos(a)*ringR;
+      const by = cy + Math.sin(a)*ringR;
+      const b = Math.min(1, bulbs[i]);
+      // base bulb (off)
+      ctx.beginPath();
+      ctx.fillStyle = '#1e1e1e';
+      ctx.arc(bx, by, bulbR, 0, Math.PI*2);
+      ctx.fill();
+      // lit overlay
+      if(b>0.01){
+        // bright core
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(255,255,255,'+(0.25 + 0.75*b)+')';
+        ctx.arc(bx, by, bulbR*0.95, 0, Math.PI*2);
+        ctx.fill();
+        // glow ring
+        const g = ctx.createRadialGradient(bx,by,0, bx,by, bulbR*2.2);
+        g.addColorStop(0, 'rgba(255,255,255,'+(0.30*b)+')');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(bx, by, bulbR*2.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    // gate arc (target) at top
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(4, R*0.025);
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, gateCenter-gateWidth/2, gateCenter+gateWidth/2);
+    ctx.stroke();
+
+    // optional moving pointer (thin needle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle)*ringR, cy + Math.sin(angle)*ringR);
+    ctx.stroke();
+
+    // inner/outer rims
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineWidth = Math.max(8, R*0.08);
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, rInner, 0, Math.PI*2); ctx.stroke();
+
+    // lives (bottom-left): three small dots (no text)
+    const dotR = Math.max(4, R*0.045);
+    const baseX = cx - R*0.95, baseY = cy + R*0.95;
+    for(let i=0;i<3;i++){
+      ctx.beginPath();
+      ctx.arc(baseX + i*(dotR*2.4), baseY, dotR, 0, Math.PI*2);
+      ctx.fillStyle = (i<lives)? '#fff' : '#222';
+      ctx.fill();
+    }
+    // streak ticks (top-right)
+    const ticks = Math.min(10, streak%11);
+    const trX = cx + R*0.95, trY = cy - R*0.95;
+    const tlen = Math.max(6, R*0.05);
+    for(let i=0;i<ticks;i++){
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(trX - i*(tlen*0.7), trY - tlen*0.6);
+      ctx.lineTo(trX - i*(tlen*0.7), trY + tlen*0.6);
+      ctx.stroke();
+    }
+
+    // perfect flash
+    if(flashRing>0){
+      const a = flashRing;
+      ctx.strokeStyle = 'rgba(255,255,255,'+a+')';
+      ctx.lineWidth = Math.max(12, R*0.09);
+      ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI*2); ctx.stroke();
+      flashRing *= 0.86;
+      if(flashRing<0.02) flashRing=0;
+    }
+
+    // tap ripple(s)
+    const now = performance.now();
+    for(let i= rippleQueue.length-1; i>=0; i--){
+      const r = rippleQueue[i];
+      const tt = (now - r.t)/500; // 0..1
+      if(tt>=1){ rippleQueue.splice(i,1); continue; }
+      const rr = tt*R*0.6;
+      const alpha = 1 - tt;
+      ctx.strokeStyle = 'rgba(255,255,255,'+alpha+')';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rr, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  }
+
+  function gameOver(){
+    running = false;
+    // simple fade vignette (no text)
+    const W = canvas.width, H = canvas.height;
+    const img = ctx.getImageData(0,0,W,H);
+    let t0 = performance.now();
+    function fade(){
+      const p = Math.min(1, (performance.now()-t0)/600);
+      ctx.putImageData(img,0,0);
+      const grd = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.hypot(W,H)/2);
+      grd.addColorStop(0, 'rgba(0,0,0,'+(0.4*p)+')');
+      grd.addColorStop(1, 'rgba(0,0,0,'+(0.9*p)+')');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0,0,W,H);
+      if(p<1) requestAnimationFrame(fade);
+    }
+    requestAnimationFrame(fade);
+  }
+})();
+</script>
+</body>
+</html>

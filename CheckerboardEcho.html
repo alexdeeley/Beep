@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Checkerboard Echo</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    touch-action: none; /* Prevent scrolling while interacting */
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    /* Ensures sharp rendering on iOS */
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const TWO_PI = Math.PI * 2;
+  const MAX_DURATION = 40; // seconds
+  const BASE_DURATION = 6; // seconds baseline
+  const DURATION_PER_PX = 0.015; // seconds per pixel of swipe length (capped by MAX_DURATION)
+  const LAYER_COUNT = 7; // number of echo layers per swipe
+  const LAYER_GAP = 1/90; // seconds between layer offsets (creates the "echo")
+  const MAX_ECHOS = 24; // keep recent echoes only to bound work
+  const SPRING_FACTOR = 0.65; // how strong initial stretch is
+  const SKEW_FACTOR = 0.0025; // how much skew based on angular change
+  const FADE_OUT = 0.85; // alpha falloff per layer
+  const TILE_BASE = 50; // base tile size in CSS pixels before DPR scaling
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)); // clamp DPR for perf
+
+  let W = 0, H = 0;
+  let patternCanvas, patternCtx;
+
+  function resize() {
+    dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const cssW = Math.floor(window.innerWidth);
+    const cssH = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    W = canvas.width;
+    H = canvas.height;
+    buildPattern();
+  }
+
+  function buildPattern() {
+    // Build a high-res checkerboard pattern on an offscreen canvas
+    patternCanvas = document.createElement('canvas');
+    patternCtx = patternCanvas.getContext('2d');
+
+    const tile = Math.max(24, Math.floor(TILE_BASE * dpr)); // ensure visibility
+    const size = tile * 2;
+    patternCanvas.width = size;
+    patternCanvas.height = size;
+
+    // Black base
+    patternCtx.fillStyle = '#000';
+    patternCtx.fillRect(0, 0, size, size);
+
+    // White squares
+    patternCtx.fillStyle = '#fff';
+    patternCtx.fillRect(0, 0, tile, tile);
+    patternCtx.fillRect(tile, tile, tile, tile);
+  }
+
+  // Helper: draw the base checkerboard filling the screen
+  function drawBase() {
+    const pattern = ctx.createPattern(patternCanvas, 'repeat');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  // Easing functions
+  function easeOutQuint(t) {
+    t = Math.min(1, Math.max(0, t));
+    return 1 - Math.pow(1 - t, 5);
+  }
+  function easeOutExpo(t) {
+    t = Math.min(1, Math.max(0, t));
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  }
+
+  // Echo object factory
+  function makeEcho(startTime, duration, dx, dy, stretch, skew) {
+    return {
+      startTime,
+      duration,
+      dx,
+      dy,
+      stretch, // 0..1 strength (affects scaling)
+      skew,
+      layers: LAYER_COUNT
+    };
+  }
+
+  const echoes = [];
+
+  // Manage swipe capture
+  let fingerDown = false;
+  let path = [];
+  let lastPoint = null;
+  let lastAngle = null;
+  let swipeStartTime = 0;
+
+  function getPointFromTouch(e) {
+    const t = e.touches[0] || e.changedTouches[0];
+    return { x: (t.clientX) * dpr, y: (t.clientY) * dpr, time: performance.now()/1000 };
+  }
+
+  function onDown(e) {
+    e.preventDefault();
+    fingerDown = true;
+    path = [];
+    lastPoint = getPointFromTouch(e);
+    path.push(lastPoint);
+    lastAngle = null;
+    swipeStartTime = performance.now()/1000;
+  }
+
+  function onMove(e) {
+    if (!fingerDown) return;
+    e.preventDefault();
+    const p = getPointFromTouch(e);
+    const dx = p.x - lastPoint.x;
+    const dy = p.y - lastPoint.y;
+    if (dx*dx + dy*dy < 4) return; // ignore tiny jitter
+    path.push(p);
+
+    // While dragging, render a temporary "rubber" echo that follows finger
+    const now = performance.now()/1000;
+    const dragDX = p.x - path[0].x;
+    const dragDY = p.y - path[0].y;
+    // Spawn a short-lived echo as a preview (overlapping is fine)
+    const dur = Math.min(1.0 + Math.hypot(dragDX, dragDY) * 0.004, 3.5);
+    echoes.push(makeEcho(now, dur, dragDX, dragDY, Math.min(1, Math.hypot(dragDX, dragDY) / (200*dpr)), 0));
+    clampEchoes();
+    lastPoint = p;
+  }
+
+  function onUp(e) {
+    if (!fingerDown) return;
+    e.preventDefault();
+    fingerDown = false;
+    const now = performance.now()/1000;
+    const totalDX = path.length ? (path[path.length-1].x - path[0].x) : 0;
+    const totalDY = path.length ? (path[path.length-1].y - path[0].y) : 0;
+    const dist = Math.hypot(totalDX, totalDY);
+    const swipeDuration = Math.max(0.05, now - swipeStartTime);
+
+    // Estimate angle change for skew
+    let totalSkew = 0;
+    for (let i=1; i<path.length; i++) {
+      const a1 = Math.atan2(path[i].y - path[i-1].y, path[i].x - path[i-1].x);
+      if (i>1) {
+        let delta = a1 - lastAngle;
+        // wrap to [-PI, PI]
+        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+        totalSkew += delta;
+      }
+      lastAngle = a1;
+    }
+    const skew = totalSkew * SKEW_FACTOR;
+
+    // Duration scales with distance, capped by MAX_DURATION
+    const duration = Math.min(MAX_DURATION, BASE_DURATION + dist * DURATION_PER_PX);
+    const stretch = Math.min(1, SPRING_FACTOR * (dist / (220 * dpr)));
+
+    // Main long echo
+    echoes.push(makeEcho(now, duration, totalDX, totalDY, stretch, skew));
+
+    // Additional path-sampled mini-echoes for a richer trail
+    const samples = Math.min(10, Math.floor(path.length / 3));
+    for (let i=0; i<samples; i++) {
+      const idx = Math.floor((i+1) * path.length / (samples+1));
+      const p = path[idx];
+      const dx = p.x - path[0].x;
+      const dy = p.y - path[0].y;
+      const d = Math.hypot(dx, dy);
+      const dur2 = Math.min(MAX_DURATION * 0.5, 2 + d * 0.01);
+      const stretch2 = Math.min(0.8, (d / (300 * dpr)));
+      echoes.push(makeEcho(now + i * 0.03, dur2, dx, dy, stretch2, skew*0.5));
+    }
+
+    clampEchoes();
+  }
+
+  function clampEchoes() {
+    // Keep only the most recent echoes to bound performance
+    while (echoes.length > MAX_ECHOS) echoes.shift();
+  }
+
+  // Main draw loop
+  function draw(tms) {
+    const now = performance.now()/1000;
+
+    // Base
+    drawBase();
+
+    // Draw echoes
+    if (echoes.length) {
+      // Precompute an image of the base checkerboard once per frame
+      // We use drawImage from the current canvas content (which is the base)
+      // To avoid self-feedback, snapshot the base into an offscreen image
+      const snap = ctx.getImageData(0, 0, W, H);
+      // We'll reuse this image for all echo layers
+      // To speed up transforms, draw into a temp canvas
+      const tmp = document.createElement('canvas');
+      tmp.width = W;
+      tmp.height = H;
+      const tctx = tmp.getContext('2d');
+      tctx.putImageData(snap, 0, 0);
+
+      for (let e=0; e<echoes.length; e++) {
+        const E = echoes[e];
+        const localNow = now - E.startTime;
+
+        if (localNow < 0) continue; // not started
+        const life = localNow / E.duration;
+        if (life >= 1) { echoes.splice(e, 1); e--; continue; }
+
+        // Layered echoes (like ripples / trailing copies)
+        for (let i=0; i<E.layers; i++) {
+          const layerDelay = i * LAYER_GAP;
+          const layerLife = (localNow - layerDelay) / E.duration;
+          if (layerLife <= 0 || layerLife >= 1) continue;
+
+          const p = 1 - easeOutQuint(layerLife); // 1..0
+          const pScale = easeOutExpo(1 - layerLife); // strong early then slow
+
+          // Transform parameters
+          const tx = E.dx * p;
+          const ty = E.dy * p;
+
+          const sx = 1 + E.stretch * 0.35 * pScale;
+          const sy = 1 + E.stretch * 0.35 * pScale;
+
+          // Skew via transform matrix (a, b, c, d, e, f)
+          // We'll map skew across x with small y shear
+          const skewX = E.skew * pScale;
+          const a = sx;
+          const b = skewX;
+          const c = -skewX;
+          const d = sy;
+          const eOff = tx;
+          const fOff = ty;
+
+          const alpha = Math.max(0.02, Math.pow(FADE_OUT, i+1) * (1 - layerLife));
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.setTransform(a, b, c, d, eOff, fOff);
+          ctx.drawImage(tmp, 0, 0);
+          ctx.restore();
+        }
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  // Event listeners
+  canvas.addEventListener('touchstart', onDown, {passive:false});
+  canvas.addEventListener('touchmove', onMove, {passive:false});
+  canvas.addEventListener('touchend', onUp, {passive:false});
+  canvas.addEventListener('touchcancel', onUp, {passive:false});
+
+  // Two-finger tap to clear echoes
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      echoes.length = 0;
+    }
+  }, {passive:false});
+
+  // Handle resize / orientation changes
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 50));
+
+  // Kickoff
+  resize();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Aurora Dance</title>
+<style>
+html,body{margin:0;padding:0;background:#000;overflow:hidden;touch-action:none;font-family:ui-monospace,Menlo,monospace;}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
+#audio-btn{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:#000;color:#fff;font-size:18px;letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;z-index:10;
+}
+#audio-btn.hidden{display:none;}
+#audio-btn span{border:3px solid #fff;padding:18px 28px;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="audio-btn"><span>Enable Audio</span></div>
+<canvas id="c"></canvas>
+
+<script>
+/*
+AURORA DANCE — Spotify Rhythm Edition
+Hypnotic, rhythmic aurora that *reacts to the music you’re playing*.
+
+Important limitation:
+Browsers (especially iOS Safari) cannot directly “read Spotify audio”.
+This uses the microphone as the input — so play Spotify out loud (speaker),
+or route it into the mic (headphones + mic near speaker), then tap Enable Audio.
+*/
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d",{willReadFrequently:true});
+const audioBtn = document.getElementById("audio-btn");
+
+// ---------- RENDER / GRID ----------
+let W,H,renderW,renderH,DPR;
+const downscale = 3;          // 2 = sharper, 4 = chunkier
+const pixelSize = 3;          // smaller = denser texture
+let cols=0, rows=0;
+let pixels=[];
+
+function rebuild(){
+  DPR = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+
+  renderW = Math.max(120, Math.floor(W / downscale));
+  renderH = Math.max(120, Math.floor(H / downscale));
+
+  canvas.width = renderW;
+  canvas.height = renderH;
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+
+  cols = Math.ceil(renderW / pixelSize);
+  rows = Math.ceil(renderH / pixelSize);
+
+  pixels = new Array(cols*rows);
+  let k=0;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      pixels[k++] = {
+        x,y,
+        hue: 110 + Math.random()*70,
+        vx:0, vy:0,
+        energy: Math.random()*0.2,
+        seed: Math.random()*9999
+      };
+    }
+  }
+}
+addEventListener("resize", rebuild);
+rebuild();
+
+// ---------- AUDIO ----------
+let audioCtx, analyser, dataArray, timeData;
+let audioReady=false;
+
+// Smoothed band energies
+let eAll=0, eBass=0, eMid=0, eHigh=0;
+
+// Beat / tempo tracking
+let lastOnsetT = 0;
+let onsetEnv = 0;
+let onsetGate = 0;
+let beatFlash = 0;
+let bpm = 110;                    // default until detected
+let beatPhase = 0;                // 0..1
+let bpmLocked = false;            // toggled by two-finger tap
+
+// Rolling history for auto-tempo
+const onsetTimes = [];            // seconds
+const MAX_ONSETS = 24;
+
+async function enableAudio(){
+  if(audioReady) return;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = 0.65;
+
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+  timeData  = new Uint8Array(analyser.fftSize);
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: true
+    }
+  });
+  const src = audioCtx.createMediaStreamSource(stream);
+  src.connect(analyser);
+
+  audioReady = true;
+  audioBtn.classList.add("hidden");
+}
+
+audioBtn.addEventListener("pointerdown", enableAudio);
+
+// Two-finger tap toggles BPM lock (no UI, but changes feel)
+let activePointers = new Map();
+addEventListener("pointerdown", (e)=>{ activePointers.set(e.pointerId, {x:e.clientX,y:e.clientY,t:performance.now()}); }, {passive:true});
+addEventListener("pointerup", (e)=>{
+  const down = activePointers.get(e.pointerId);
+  activePointers.delete(e.pointerId);
+  // detect quick 2-finger tap
+  if(down && performance.now()-down.t < 220){
+    if(activePointers.size===1){ /* do nothing */ }
+  }
+}, {passive:true});
+addEventListener("pointercancel",(e)=>activePointers.delete(e.pointerId), {passive:true});
+
+function toggleBpmLock(){
+  bpmLocked = !bpmLocked;
+}
+let twoFingerArmed = false;
+addEventListener("pointerdown", ()=>{
+  if(activePointers.size===2){
+    twoFingerArmed = true;
+    setTimeout(()=>{ twoFingerArmed=false; }, 260);
+  }
+}, {passive:true});
+addEventListener("pointerup", ()=>{
+  if(twoFingerArmed && activePointers.size===0){
+    toggleBpmLock();
+    twoFingerArmed=false;
+  }
+}, {passive:true});
+
+function analyzeAudio(){
+  if(!audioReady) return;
+
+  analyser.getByteFrequencyData(dataArray);
+  analyser.getByteTimeDomainData(timeData);
+
+  const n = dataArray.length;
+
+  // Band splits (roughly)
+  const iBass = Math.floor(n*0.12);
+  const iMid  = Math.floor(n*0.45);
+
+  let bass=0, mid=0, high=0, total=0;
+  for(let i=0;i<n;i++){
+    const v = dataArray[i]/255;
+    total += v;
+    if(i<iBass) bass += v;
+    else if(i<iMid) mid += v;
+    else high += v;
+  }
+
+  // Smooth energies
+  const tAll = total/n;
+  const tBass = bass/Math.max(1,iBass);
+  const tMid  = mid/Math.max(1,(iMid-iBass));
+  const tHigh = high/Math.max(1,(n-iMid));
+
+  eAll  = eAll*0.88  + tAll*0.12;
+  eBass = eBass*0.86 + tBass*0.14;
+  eMid  = eMid*0.86  + tMid*0.14;
+  eHigh = eHigh*0.86 + tHigh*0.14;
+
+  // --- Onset detection (energy delta) ---
+  // Simple spectral flux proxy: compare current total to a slow envelope.
+  onsetEnv = onsetEnv*0.93 + tAll*0.07;
+  const flux = Math.max(0, tAll - onsetEnv);
+
+  // Adaptive threshold: depends on overall loudness
+  const thresh = 0.015 + eAll*0.08;
+  onsetGate = onsetGate*0.90 + flux*0.10;
+
+  const nowS = audioCtx.currentTime;
+  const minGap = 0.18; // prevents double-triggers
+
+  if(onsetGate > thresh && (nowS - lastOnsetT) > minGap){
+    lastOnsetT = nowS;
+    beatFlash = 1.0;
+
+    // record onset times for tempo estimate
+    onsetTimes.push(nowS);
+    while(onsetTimes.length > MAX_ONSETS) onsetTimes.shift();
+
+    if(!bpmLocked){
+      // estimate BPM from median inter-onset interval
+      if(onsetTimes.length >= 6){
+        const intervals = [];
+        for(let i=1;i<onsetTimes.length;i++){
+          const dt = onsetTimes[i]-onsetTimes[i-1];
+          if(dt>0.18 && dt<1.2) intervals.push(dt);
+        }
+        if(intervals.length >= 4){
+          intervals.sort((a,b)=>a-b);
+          const med = intervals[Math.floor(intervals.length/2)];
+          let est = 60/med;
+
+          // pull toward musically common ranges by octave folding
+          while(est < 70) est *= 2;
+          while(est > 170) est /= 2;
+
+          // smooth BPM
+          bpm = bpm*0.88 + est*0.12;
+        }
+      }
+    }
+  }
+
+  beatFlash *= 0.92;
+}
+
+// ---------- NOISE ----------
+function n2(x,y,t){
+  return Math.sin(x*0.09 + t)*Math.cos(y*0.08 - t*0.7)
+       + Math.sin(x*0.05 - t*0.4)*Math.sin(y*0.06 + t*0.3);
+}
+function fbm(x,y,t){
+  return n2(x*2,y*2,t)*0.55 + n2(x*4,y*4,t*1.3)*0.27 + n2(x*8,y*8,t*1.9)*0.13;
+}
+
+// ---------- INTERACTION (optional "dance") ----------
+let last = null;
+canvas.addEventListener("pointerdown",(e)=>{ last={x:e.clientX,y:e.clientY}; }, {passive:true});
+canvas.addEventListener("pointermove",(e)=>{
+  if(!last) return;
+  const vx = e.clientX-last.x;
+  const vy = e.clientY-last.y;
+
+  const sx = (e.clientX/W)*renderW;
+  const sy = (e.clientY/H)*renderH;
+  const gx = Math.floor(sx/pixelSize);
+  const gy = Math.floor(sy/pixelSize);
+
+  const vel = Math.hypot(vx,vy);
+  const r = Math.floor(18 + vel*0.35);
+
+  for(let y=Math.max(0,gy-r); y<Math.min(rows,gy+r); y++){
+    for(let x=Math.max(0,gx-r); x<Math.min(cols,gx+r); x++){
+      const d = Math.hypot(x-gx,y-gy);
+      if(d<r){
+        const p = pixels[y*cols + x];
+        const f = (1 - d/r);
+        const g = f*f * Math.min(1, vel/30);
+        p.vx += vx * g * 0.010;
+        p.vy += vy * g * 0.010;
+        p.energy = Math.min(1.2, p.energy + g*0.8);
+      }
+    }
+  }
+
+  last={x:e.clientX,y:e.clientY};
+},{passive:true});
+canvas.addEventListener("pointerup",()=>{ last=null; }, {passive:true});
+canvas.addEventListener("pointercancel",()=>{ last=null; }, {passive:true});
+
+// ---------- LOOP ----------
+let t=0;
+function loop(){
+  t += 0.016;
+
+  analyzeAudio();
+
+  // Beat phase driven by BPM
+  const bps = bpm/60;
+  beatPhase = (beatPhase + bps*0.016) % 1;
+
+  // Global rhythmic modulators
+  // pulse: soft "breathing" + sharp hit on onsets
+  const breath = 0.5 - 0.5*Math.cos(2*Math.PI*beatPhase);
+  const kick = Math.pow(Math.max(0, beatFlash), 0.6);
+  const pulse = Math.min(1, breath*0.6 + kick*0.9);
+
+  // Background fade: stronger on beat = more strobey trails
+  const fade = 0.10 + pulse*0.10 + eHigh*0.05;
+  ctx.fillStyle = `rgba(0,0,0,${fade})`;
+  ctx.fillRect(0,0,renderW,renderH);
+
+  // Audio-reactive warp strengths
+  const bassWarp = eBass * 5.0;
+  const midWarp  = eMid  * 3.0;
+  const highShimmer = eHigh * 4.5;
+
+  // "Rhythm grid" field (makes it feel percussive/hypnotic)
+  const gridFreq = 0.06 + bassWarp*0.01;
+  const stripeA = Math.sin((t*2.2 + beatPhase*6.283) * (0.6 + bassWarp*0.10));
+  const stripeB = Math.cos((t*1.7 - beatPhase*6.283) * (0.7 + midWarp*0.08));
+  const stripeMix = (stripeA*0.6 + stripeB*0.4);
+
+  for(let i=0;i<pixels.length;i++){
+    const p = pixels[i];
+    const wx = p.x*pixelSize;
+    const wy = p.y*pixelSize;
+
+    // A flowing aurora sheet that "locks" to beat
+    const sheet = Math.sin(wx*gridFreq + t*1.25 + stripeMix*1.2)
+               * Math.cos(wy*gridFreq*0.75 - t*0.95);
+
+    const flow = fbm(wx,wy,t*0.7);
+    const rhythm = 0.5 + 0.5*Math.sin((wx*0.04 + wy*0.02) + beatPhase*6.283);
+
+    // Velocity field: mostly vertical + waviness
+    const vxField = (flow + sheet)*0.35 + bassWarp*Math.sin(wx*0.09 + t);
+    const vyField = (flow - sheet)*0.55 + midWarp*Math.cos(wy*0.08 - t*0.9);
+
+    // Add a per-beat "push" upward (aurora lift)
+    p.vx += vxField*0.11 + (kick*0.65)*Math.sin(wy*0.05 + p.seed);
+    p.vy += vyField*0.11 - (kick*0.95)*(0.8 + rhythm*0.6);
+
+    // Damping
+    p.vx *= 0.86;
+    p.vy *= 0.86;
+
+    // Energy: more on bass hits + finger interactions
+    const hit = kick*(0.6 + eBass*0.9);
+    p.energy = Math.max(0, p.energy*0.92 + hit*0.08);
+
+    // Position jitter via velocity (draw-time displacement)
+    const dx = wx + p.vx*2.2;
+    const dy = wy + p.vy*2.2;
+
+    // Color: aurora greens/teals shift with mids/highs, pulse with beat
+    const hueBase = 120 + 35*Math.sin(t*0.25 + wx*0.01) + 25*(flow);
+    const hue = (hueBase + midWarp*22 + highShimmer*18 + kick*35) % 360;
+
+    const sat = 55 + midWarp*18 + p.energy*22;
+    const light = 20 + (0.55 + 0.45*sheet)*55 + pulse*18 + highShimmer*10;
+    const alpha = Math.min(1, 0.10 + (0.55 + 0.45*rhythm)*0.35 + p.energy*0.55);
+
+    // Chunky glow: outer + core
+    const px = Math.floor(dx/pixelSize)*pixelSize;
+    const py = Math.floor(dy/pixelSize)*pixelSize;
+
+    // soft aura
+    ctx.fillStyle = `hsla(${hue},${sat}%,${Math.min(95,light+12)}%,${alpha*0.22})`;
+    ctx.fillRect(px-pixelSize, py-pixelSize, pixelSize*3, pixelSize*3);
+
+    // bright core
+    ctx.fillStyle = `hsla(${hue},${Math.min(100,sat+18)}%,${Math.min(95,light+6)}%,${alpha})`;
+    ctx.fillRect(px, py, pixelSize, pixelSize);
+  }
+
+  // Beat scanline "snap" (subtle, only when strong)
+  if(kick > 0.35){
+    const y = ((beatPhase*beatPhase)*renderH) | 0;
+    ctx.fillStyle = `rgba(255,255,255,${0.04 + eHigh*0.10})`;
+    ctx.fillRect(0, y, renderW, 1);
+  }
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

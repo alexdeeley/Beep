@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Echo Warp</title>
+<style>
+  :root { color-scheme: dark; }
+  html,body{height:100%;margin:0;background:#000;}
+  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+  .btn{
+    width:120px;height:120px;border-radius:50%;border:none;outline:none;
+    background:#fff;box-shadow:0 0 24px #fff;cursor:pointer;
+  }
+  .row{display:flex;gap:18px;align-items:center;justify-content:center;width:min(560px,92vw);}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width: min(520px,90vw); height: 6px; background:#111; border-radius:4px; outline:none;
+    box-shadow: 0 0 0 1px #333 inset, 0 0 16px #0ff33;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:28px;height:28px;border-radius:50%;background:#fff;border:none;
+    box-shadow:0 0 18px #fff;
+  }
+  /* tiny icon dots for sliders (no text) */
+  .dot{width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 8px #fff;}
+  .dot.blue{filter:drop-shadow(0 0 8px #48f)}
+  .dot.green{filter:drop-shadow(0 0 8px #4f8)}
+  .dot.purple{filter:drop-shadow(0 0 8px #c4f)}
+  /* focus ring for accessibility while staying minimal */
+  .btn:focus-visible, input[type=range]:focus-visible{outline:2px solid #fff;outline-offset:4px}
+  /* visually hidden labels for a11y */
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div class="wrap">
+  <button id="start" class="btn" aria-pressed="false"><span class="sr">Start audio</span></button>
+
+  <div class="row" aria-label="Echo length">
+    <span class="dot blue" aria-hidden="true" title="Echo Length"></span>
+    <input id="len" type="range" min="0" max="60" step="0.01" value="0.30">
+  </div>
+
+  <div class="row" aria-label="Echo feedback">
+    <span class="dot green" aria-hidden="true" title="Feedback"></span>
+    <input id="fb" type="range" min="0" max="0.95" step="0.001" value="0.40">
+  </div>
+
+  <div class="row" aria-label="Warp amount">
+    <span class="dot purple" aria-hidden="true" title="Warp"></span>
+    <input id="warp" type="range" min="0" max="1" step="0.001" value="0.30">
+  </div>
+</div>
+
+<script>
+(function(){
+  const btn   = document.getElementById('start');
+  const len   = document.getElementById('len');
+  const fb    = document.getElementById('fb');
+  const warp  = document.getElementById('warp');
+
+  let ctx, mic, delay, fbGain, outGain, dryGain, filter, shaper;
+  let lfo1, lfo1Depth, lfo2, lfo2Depth;
+
+  function makeDistortionCurve(amount=10){
+    const n = 44100, curve = new Float32Array(n);
+    const k = typeof amount === 'number' ? amount : 0;
+    const deg = Math.PI/180;
+    for (let i=0;i<n;i++){
+      const x = i*2/n - 1;
+      curve[i] = (3+k)*x*20*deg / (Math.PI + k*Math.abs(x));
+    }
+    return curve;
+  }
+
+  function mapWarpToLFO(val){
+    // val 0..1 -> { rate1 (wow): 0.05..0.7 Hz, depth1: 0..0.025s }
+    // and flutter oscillator rate2: 3..10 Hz, depth2: 0..0.003s
+    const rate1 = 0.05 + val*0.65;
+    const depth1 = val*0.025;
+    const rate2 = 3    + val*7;
+    const depth2 = val*0.003;
+    return {rate1, depth1, rate2, depth2};
+  }
+
+  async function init(){
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mic = ctx.createMediaStreamSource(stream);
+
+    delay = ctx.createDelay(60.0);     // allow up to 60 seconds
+    fbGain = ctx.createGain();
+    outGain = ctx.createGain();
+    dryGain = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    shaper = ctx.createWaveShaper();
+
+    // Initial values
+    delay.delayTime.value = parseFloat(len.value);
+    fbGain.gain.value = parseFloat(fb.value);
+    outGain.gain.value = 1.0;
+    dryGain.gain.value = 0.35;           // a bit of live (dry) signal
+    filter.type = 'lowpass';
+    filter.frequency.value = 16000;
+    filter.Q.value = 0.4;
+    shaper.curve = makeDistortionCurve(6);
+
+    // Feedback loop: delay -> fbGain -> delay
+    delay.connect(fbGain);
+    fbGain.connect(delay);
+
+    // Modulation (warp): two LFOs for wow & flutter modulating delayTime
+    lfo1 = ctx.createOscillator();
+    lfo1Depth = ctx.createGain();
+    lfo2 = ctx.createOscillator();
+    lfo2Depth = ctx.createGain();
+
+    const {rate1, depth1, rate2, depth2} = mapWarpToLFO(parseFloat(warp.value));
+    lfo1.frequency.value = rate1;
+    lfo1Depth.gain.value = depth1; // seconds
+    lfo2.frequency.value = rate2;
+    lfo2Depth.gain.value = depth2; // seconds
+
+    lfo1.connect(lfo1Depth).connect(delay.delayTime);
+    lfo2.connect(lfo2Depth).connect(delay.delayTime);
+    lfo1.start();
+    lfo2.start();
+
+    // Routing:
+    // mic -> dry -> out
+    // mic -> delay -> filter -> shaper -> out
+    mic.connect(dryGain);
+    dryGain.connect(outGain);
+
+    mic.connect(delay);
+    delay.connect(filter);
+    filter.connect(shaper);
+    shaper.connect(outGain);
+
+    outGain.connect(ctx.destination);
+
+    // Dynamic filter movement tied to warp for extra "tape" vibe
+    const filterLFO = ctx.createOscillator();
+    const filterDepth = ctx.createGain();
+    filterLFO.frequency.value = 0.02 + parseFloat(warp.value) * 0.3; // super slow wobble
+    filterDepth.gain.value = 4000 * parseFloat(warp.value); // up to 4kHz sweep
+    filterLFO.connect(filterDepth);
+    const freqParam = filter.frequency;
+    // Offset base frequency
+    const base = 12000;
+    const adder = ctx.createGain();
+    adder.gain.value = 1.0;
+    filterDepth.connect(adder);
+    // Use ConstantSource to set base frequency
+    const baseSrc = new ConstantSourceNode(ctx, {offset: base});
+    baseSrc.connect(freqParam);
+    filterDepth.connect(freqParam);
+    baseSrc.start();
+    filterLFO.start();
+
+    // Store to stop later if needed
+    window.__echoNodes = {filterLFO, baseSrc};
+  }
+
+  btn.addEventListener('click', async () => {
+    await init();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+      btn.setAttribute('aria-pressed','true');
+    } else {
+      await ctx.suspend();
+      btn.setAttribute('aria-pressed','false');
+    }
+  });
+
+  // Bind sliders
+  len.addEventListener('input', () => {
+    if (!delay) return;
+    let v = parseFloat(len.value);
+    if (v < 0) v = 0;
+    if (v > 60) v = 60;
+    delay.delayTime.value = v;
+  });
+
+  fb.addEventListener('input', () => {
+    if (!fbGain) return;
+    let v = parseFloat(fb.value);
+    v = Math.max(0, Math.min(0.95, v)); // safety clamp
+    fbGain.gain.value = v;
+  });
+
+  warp.addEventListener('input', () => {
+    if (!lfo1 || !lfo2 || !filter) return;
+    const v = parseFloat(warp.value);
+    const {rate1, depth1, rate2, depth2} = mapWarpToLFO(v);
+    lfo1.frequency.setTargetAtTime(rate1, ctx.currentTime, 0.05);
+    lfo1Depth.gain.setTargetAtTime(depth1, ctx.currentTime, 0.05);
+    lfo2.frequency.setTargetAtTime(rate2, ctx.currentTime, 0.05);
+    lfo2Depth.gain.setTargetAtTime(depth2, ctx.currentTime, 0.05);
+    // also update filter wobble speed/depth
+    if (window.__echoNodes){
+      window.__echoNodes.filterLFO.frequency.setTargetAtTime(0.02 + v*0.3, ctx.currentTime, 0.2);
+      window.__echoNodes.baseSrc.offset.setTargetAtTime(12000 - v*4000, ctx.currentTime, 0.2);
+    }
+    // reshape saturation
+    if (shaper) shaper.curve = makeDistortionCurve(6 + v*20);
+  });
+})();
+</script>
+</body>
+</html>

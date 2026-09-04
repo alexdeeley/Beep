@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>UNICORN TILT MAZE // CURVY 5 LEVELS</title>
+<style>
+  :root{
+    --bg:#05030a;
+    --panel:rgba(255,255,255,.08);
+    --panel2:rgba(255,255,255,.14);
+    --txt:#ffffff;
+    --muted:rgba(255,255,255,.72);
+    --pink:#ff33cc;
+    --cyan:#2de2ff;
+    --purple:#9b5cff;
+    --mint:#2bffb6;
+    --gold:#ffd86a;
+    --glowP: 0 0 10px rgba(255,51,204,.7), 0 0 28px rgba(255,51,204,.35);
+    --glowC: 0 0 10px rgba(45,226,255,.7), 0 0 28px rgba(45,226,255,.35);
+    --glowG: 0 0 10px rgba(255,216,106,.7), 0 0 28px rgba(255,216,106,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--bg);overflow:hidden;}
+  body{touch-action:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  canvas{display:block;width:100vw;height:100vh;}
+
+  /* HUD */
+  #hud{
+    position:fixed;left:12px;right:12px;top:12px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    pointer-events:none;
+  }
+  .pill{
+    pointer-events:auto;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:999px;
+    border:1px solid var(--panel2);
+    background:linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,.22));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color:var(--txt);
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  .pill b{font-weight:1000;letter-spacing:.12em;font-size:12px;}
+  .pill span{font-size:12px;letter-spacing:.08em;color:var(--muted);}
+  .btn{
+    pointer-events:auto;
+    border:1px solid var(--panel2);
+    background:rgba(255,255,255,.06);
+    color:var(--txt);
+    padding:10px 12px;border-radius:999px;
+    font-weight:1000;letter-spacing:.12em;font-size:11px;
+  }
+  .btn:active{transform:scale(.98);}
+
+  /* Bottom */
+  #bottom{
+    position:fixed;left:12px;right:12px;bottom:12px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+    pointer-events:none;
+  }
+  #hint{
+    pointer-events:auto;
+    max-width:min(600px, 70vw);
+    padding:10px 12px;border-radius:18px;
+    border:1px solid var(--panel2);
+    background:linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,.22));
+    color:var(--muted);
+    font-size:12px;line-height:1.25;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  #hint b{color:var(--txt);letter-spacing:.08em}
+
+  #stickWrap{
+    pointer-events:auto;
+    width:134px;height:134px;border-radius:26px;
+    border:1px solid var(--panel2);
+    background:rgba(255,255,255,.04);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  #stickRing{
+    width:98px;height:98px;border-radius:50%;
+    border:1px dashed rgba(255,255,255,.25);
+  }
+  #stickKnob{
+    position:absolute;width:48px;height:48px;border-radius:50%;
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.30);
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+    transform: translate(0px,0px);
+  }
+
+  /* Overlay */
+  #overlay{
+    position:fixed;inset:0;z-index:10;
+    display:flex;align-items:center;justify-content:center;
+    padding:22px;
+    background:
+      radial-gradient(ellipse at 35% 22%, rgba(155,92,255,.20), transparent 60%),
+      radial-gradient(ellipse at 70% 60%, rgba(255,51,204,.16), transparent 62%),
+      radial-gradient(ellipse at 52% 80%, rgba(45,226,255,.14), transparent 65%),
+      rgba(0,0,0,.86);
+    color:var(--txt);
+  }
+  #panel{
+    width:min(700px, 100%);
+    border-radius:28px;
+    border:1px solid rgba(255,255,255,.18);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    box-shadow: 0 40px 120px rgba(0,0,0,.70);
+    padding:22px 20px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  #title{font-weight:1000;letter-spacing:.14em;font-size:16px;margin-bottom:10px;}
+  #sub{color:rgba(255,255,255,.80);font-size:13px;line-height:1.35;margin-bottom:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .cta{
+    border:none;
+    background:linear-gradient(90deg, rgba(255,51,204,.95), rgba(45,226,255,.95));
+    color:#071018;
+    padding:12px 14px;border-radius:999px;
+    font-weight:1000;letter-spacing:.12em;font-size:12px;
+  }
+  .cta2{
+    border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.08);
+    color:var(--txt);
+    padding:12px 14px;border-radius:999px;
+    font-weight:1000;letter-spacing:.12em;font-size:12px;
+  }
+  .fine{margin-top:14px;color:rgba(255,255,255,.58);font-size:11px;line-height:1.32;}
+
+  /* Toast */
+  #toast{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    z-index:9;display:none;
+    padding:16px 18px;border-radius:24px;
+    border:1px solid rgba(255,255,255,.18);
+    background:linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.28));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 40px 120px rgba(0,0,0,.70);
+    text-align:center;min-width:min(460px, 92vw);
+    color:var(--txt);
+  }
+  #toast .big{font-weight:1000;letter-spacing:.14em;font-size:13px;text-shadow: var(--glowP);}
+  #toast .small{margin-top:8px;color:rgba(255,255,255,.78);font-weight:800;letter-spacing:.08em;font-size:11px;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div id="overlay" role="dialog" aria-modal="true">
+  <div id="panel">
+    <div id="title">UNICORN TILT MAZE // CURVY 5 LEVELS</div>
+    <div id="sub">
+      Roll the <b style="color:var(--gold);text-shadow:var(--glowG)">UNICORN ORB</b> through curvy rainbow paths to the
+      <b style="color:var(--pink);text-shadow:var(--glowP)">PINK STABLE</b>.
+      Grab all the <b style="color:var(--gold);text-shadow:var(--glowG)">stars</b> if you want MAX sparkle.
+      <br><br>
+      iPhone Safari needs a permission tap for tilt.
+    </div>
+    <div class="row">
+      <button class="cta" id="btnEnable">ENABLE TILT</button>
+      <button class="cta2" id="btnNoTilt">PLAY WITH TOUCH PAD</button>
+      <button class="cta2" id="btnCal">CALIBRATE</button>
+    </div>
+    <div class="fine">
+      Kid-friendly: extra-wide curves + anti-stuck magic ✨
+    </div>
+  </div>
+</div>
+
+<div id="toast">
+  <div class="big" id="toastBig">LEVEL COMPLETE ✨</div>
+  <div class="small" id="toastSmall">tap NEXT</div>
+  <div class="row" style="justify-content:center;margin-top:12px;">
+    <button class="cta" id="btnNext">NEXT</button>
+    <button class="cta2" id="btnReplay">REPLAY</button>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="pill" aria-live="polite">
+    <b id="lvlLabel">LEVEL 1/5</b>
+    <span id="scoreLabel">STARS: 0/0</span>
+  </div>
+  <div class="pill">
+    <button class="btn" id="btnReset" title="Restart level">RESET</button>
+    <button class="btn" id="btnCal2" title="Calibrate tilt baseline">CAL</button>
+  </div>
+</div>
+
+<div id="bottom">
+  <div id="hint">
+    <b>HOW:</b> tilt to roll • reach the <b style="color:var(--pink)">pink stable</b> • collect stars • touch pad works too
+  </div>
+  <div id="stickWrap" title="Touch pad (drag)">
+    <div id="stickRing"></div>
+    <div id="stickKnob"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== Canvas =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, window.innerWidth);
+    H = Math.max(1, window.innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ===== UI =====
+  const overlay = document.getElementById('overlay');
+  const btnEnable = document.getElementById('btnEnable');
+  const btnNoTilt = document.getElementById('btnNoTilt');
+  const btnCal = document.getElementById('btnCal');
+  const btnReset = document.getElementById('btnReset');
+  const btnCal2 = document.getElementById('btnCal2');
+
+  const toast = document.getElementById('toast');
+  const toastBig = document.getElementById('toastBig');
+  const toastSmall = document.getElementById('toastSmall');
+  const btnNext = document.getElementById('btnNext');
+  const btnReplay = document.getElementById('btnReplay');
+
+  const lvlLabel = document.getElementById('lvlLabel');
+  const scoreLabel = document.getElementById('scoreLabel');
+
+  const stickWrap = document.getElementById('stickWrap');
+  const stickKnob = document.getElementById('stickKnob');
+
+  // ===== Helpers =====
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const TAU=Math.PI*2;
+
+  function dist(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+
+  function closestPointOnSegment(px,py, ax,ay, bx,by){
+    const abx = bx-ax, aby = by-ay;
+    const apx = px-ax, apy = py-ay;
+    const denom = abx*abx + aby*aby || 1;
+    let t = (apx*abx + apy*aby) / denom;
+    t = clamp(t, 0, 1);
+    return { x: ax + abx*t, y: ay + aby*t };
+  }
+
+  // ===== Input: Tilt + Touch pad =====
+  let hasTilt=false;
+  let tilt={beta:0,gamma:0};
+  let base={beta:0,gamma:0};
+
+  let joy={x:0,y:0,active:false}; // -1..1
+  let usingTouchPad=false;
+
+  function setKnob(){
+    const range=36;
+    stickKnob.style.transform = `translate(${joy.x*range}px, ${joy.y*range}px)`;
+  }
+  setKnob();
+
+  function handleTilt(e){
+    if (typeof e.beta === 'number') tilt.beta = e.beta;
+    if (typeof e.gamma === 'number') tilt.gamma = e.gamma;
+  }
+
+  function calibrate(){
+    base.beta = tilt.beta || 0;
+    base.gamma = tilt.gamma || 0;
+  }
+
+  function getGravity(){
+    const gLR = clamp(((tilt.gamma||0)-base.gamma)/45, -1, 1);
+    const gFB = clamp(((tilt.beta||0)-base.beta)/45,  -1, 1);
+    if (!hasTilt || usingTouchPad) return {x:joy.x, y:joy.y};
+    return {x:gLR, y:gFB};
+  }
+
+  async function enableMotion(){
+    try{
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res === 'granted'){
+          window.addEventListener('deviceorientation', handleTilt, true);
+          hasTilt=true;
+          calibrate();
+          start();
+          overlay.style.display='none';
+        } else {
+          alert('Tilt permission denied. Use the touch pad!');
+          hasTilt=false;
+          usingTouchPad=true;
+          start();
+          overlay.style.display='none';
+        }
+      } else {
+        window.addEventListener('deviceorientation', handleTilt, true);
+        hasTilt=true;
+        calibrate();
+        start();
+        overlay.style.display='none';
+      }
+    } catch(err){
+      console.error(err);
+      alert('Tilt permission error. Use the touch pad!');
+      hasTilt=false;
+      usingTouchPad=true;
+      start();
+      overlay.style.display='none';
+    }
+  }
+
+  // Touch pad
+  let stickRect=null;
+  function refreshStickRect(){ stickRect = stickWrap.getBoundingClientRect(); }
+  window.addEventListener('resize', refreshStickRect, {passive:true});
+  refreshStickRect();
+
+  function setJoyFromClient(cx,cy){
+    if (!stickRect) refreshStickRect();
+    const mx = stickRect.left + stickRect.width/2;
+    const my = stickRect.top  + stickRect.height/2;
+    let dx = (cx - mx) / (stickRect.width/2);
+    let dy = (cy - my) / (stickRect.height/2);
+    const m = Math.hypot(dx,dy) || 1;
+    if (m > 1){ dx/=m; dy/=m; }
+    joy.x = clamp(dx, -1, 1);
+    joy.y = clamp(dy, -1, 1);
+    setKnob();
+  }
+
+  function padDown(e){
+    usingTouchPad=true;
+    joy.active=true;
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    setJoyFromClient(p.clientX, p.clientY);
+    e.preventDefault?.();
+  }
+  function padMove(e){
+    if (!joy.active) return;
+    const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    setJoyFromClient(p.clientX, p.clientY);
+    e.preventDefault?.();
+  }
+  function padUp(){
+    joy.active=false;
+    joy.x=joy.y=0;
+    setKnob();
+  }
+
+  stickWrap.addEventListener('pointerdown', padDown);
+  window.addEventListener('pointermove', padMove, {passive:false});
+  window.addEventListener('pointerup', padUp, {passive:true});
+  stickWrap.addEventListener('touchstart', padDown, {passive:false});
+  window.addEventListener('touchmove', padMove, {passive:false});
+  window.addEventListener('touchend', padUp, {passive:true});
+
+  window.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+  window.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+
+  // ===== Physics =====
+  const PHYS = {
+    gravity: 1150,      // px/s^2 at full tilt
+    drag: 0.012,
+    restitution: 0.22,
+    wallFriction: 0.045,
+    iterations: 4,
+    maxSpeed: 1350,
+    stuckSpeed: 14,     // px/s
+    stuckTime: 0.24,    // seconds
+    unstickImpulse: 210 // px/s
+  };
+
+  const ball = {x:0,y:0,vx:0,vy:0,r:16};
+  let ballTrail = [];  // sparkle trail particles
+  let confetti = [];
+
+  // Walls = thick segments: {ax,ay,bx,by,thick}
+  let walls = [];
+  // Stars: {x,y,r,collected}
+  let stars = [];
+  // Goal
+  let goal = {x:0,y:0,r:42};
+  let goalPulse = 0;
+
+  // ===== Curvy builders =====
+  function arcPoints(cx,cy, R, a0, a1, steps){
+    const pts = [];
+    for(let i=0;i<=steps;i++){
+      const t = i/steps;
+      const a = a0 + (a1-a0)*t;
+      pts.push({x: cx + Math.cos(a)*R, y: cy + Math.sin(a)*R});
+    }
+    return pts;
+  }
+
+  function polylineToSegments(points){
+    const segs = [];
+    for(let i=0;i<points.length-1;i++){
+      segs.push([points[i], points[i+1]]);
+    }
+    return segs;
+  }
+
+  function L(x,y){ return {x,y}; }
+
+  // Level format:
+  // { name, start, goal, stars:[...], curves:[ [p1,p2,p3...], [arc spec], ... ] }
+  // Curves can be:
+  // - {poly:[points...]} where points are normalized (0..1)
+  // - {arc:{c:{x,y}, r, a0, a1, steps}}
+  const LEVELS = [
+    {
+      name:"RAINBOW LOOP-DE-LOOP",
+      start:L(0.14,0.18),
+      goal:L(0.86,0.86),
+      stars:[L(0.22,0.36), L(0.50,0.55), L(0.74,0.72)],
+      curves:[
+        // gentle S curve corridor edges (we draw walls, leaving open paths)
+        {arc:{c:L(0.26,0.30), r:0.18, a0:Math.PI*1.08, a1:Math.PI*1.88, steps:18}},
+        {arc:{c:L(0.46,0.44), r:0.24, a0:Math.PI*1.05, a1:Math.PI*1.95, steps:20}},
+        {arc:{c:L(0.70,0.66), r:0.22, a0:Math.PI*1.02, a1:Math.PI*1.92, steps:18}},
+        {poly:[L(0.30,0.22), L(0.54,0.22), L(0.82,0.34)]},
+        {poly:[L(0.18,0.54), L(0.40,0.66), L(0.64,0.80), L(0.84,0.90)]}
+      ]
+    },
+    {
+      name:"COTTON CANDY CRESCENT",
+      start:L(0.16,0.84),
+      goal:L(0.84,0.14),
+      stars:[L(0.26,0.72), L(0.52,0.46), L(0.72,0.30), L(0.36,0.26)],
+      curves:[
+        {arc:{c:L(0.50,0.52), r:0.34, a0:Math.PI*0.95, a1:Math.PI*2.05, steps:26}},
+        {arc:{c:L(0.54,0.40), r:0.22, a0:Math.PI*0.90, a1:Math.PI*2.10, steps:22}},
+        {poly:[L(0.18,0.86), L(0.28,0.70), L(0.38,0.58), L(0.50,0.50)]},
+        {poly:[L(0.50,0.50), L(0.64,0.40), L(0.76,0.30), L(0.86,0.20)]}
+      ]
+    },
+    {
+      name:"MOONBEAM SWIRL",
+      start:L(0.12,0.16),
+      goal:L(0.90,0.16),
+      stars:[L(0.20,0.82), L(0.50,0.50), L(0.80,0.82), L(0.50,0.26)],
+      curves:[
+        // big swirl rings (walls)
+        {arc:{c:L(0.50,0.50), r:0.33, a0:Math.PI*0.15, a1:Math.PI*2.10, steps:34}},
+        {arc:{c:L(0.50,0.50), r:0.22, a0:Math.PI*0.25, a1:Math.PI*2.00, steps:30}},
+        {arc:{c:L(0.50,0.50), r:0.12, a0:Math.PI*0.40, a1:Math.PI*1.90, steps:22}},
+        // a "bridge" so there's a choice
+        {poly:[L(0.18,0.64), L(0.36,0.58), L(0.64,0.58), L(0.82,0.64)]},
+      ]
+    },
+    {
+      name:"GLITTER RIVER BENDS",
+      start:L(0.86,0.84),
+      goal:L(0.14,0.14),
+      stars:[L(0.76,0.72), L(0.64,0.58), L(0.50,0.44), L(0.36,0.30)],
+      curves:[
+        {poly:[L(0.88,0.86), L(0.76,0.78), L(0.64,0.70), L(0.54,0.62), L(0.44,0.54), L(0.34,0.46), L(0.26,0.36), L(0.18,0.26), L(0.12,0.16)]},
+        // second bank
+        {poly:[L(0.80,0.90), L(0.70,0.84), L(0.60,0.76), L(0.50,0.68), L(0.40,0.60), L(0.30,0.50), L(0.22,0.40), L(0.16,0.30), L(0.12,0.22)]},
+        // some gentle blockers
+        {arc:{c:L(0.62,0.42), r:0.14, a0:Math.PI*0.90, a1:Math.PI*1.90, steps:18}},
+        {arc:{c:L(0.34,0.62), r:0.12, a0:Math.PI*0.10, a1:Math.PI*1.10, steps:16}},
+      ]
+    },
+    {
+      name:"THE UNICORN PARADE SPIRAL",
+      start:L(0.14,0.50),
+      goal:L(0.86,0.50),
+      stars:[L(0.24,0.22), L(0.24,0.78), L(0.50,0.20), L(0.50,0.80), L(0.78,0.22), L(0.78,0.78)],
+      curves:[
+        // parade spiral walls (two close spirals)
+        {arc:{c:L(0.50,0.50), r:0.38, a0:Math.PI*0.70, a1:Math.PI*2.95, steps:44}},
+        {arc:{c:L(0.50,0.50), r:0.28, a0:Math.PI*0.80, a1:Math.PI*3.05, steps:42}},
+        {arc:{c:L(0.50,0.50), r:0.18, a0:Math.PI*0.90, a1:Math.PI*3.10, steps:38}},
+        // a final slide into stable
+        {poly:[L(0.68,0.52), L(0.76,0.50), L(0.86,0.50)]},
+      ]
+    }
+  ];
+
+  let levelIndex = 0;
+  let starsCollected = 0;
+  let stuckTimer = 0;
+
+  function addBorder(thick){
+    const pad = 14;
+    const left = pad, top = pad, right = W-pad, bottom = H-pad;
+    walls.push({ax:left, ay:top, bx:right, by:top, thick});
+    walls.push({ax:right, ay:top, bx:right, by:bottom, thick});
+    walls.push({ax:right, ay:bottom, bx:left, by:bottom, thick});
+    walls.push({ax:left, ay:bottom, bx:left, by:top, thick});
+  }
+
+  function loadLevel(i){
+    levelIndex = clamp(i, 0, LEVELS.length-1);
+    const Lvl = LEVELS[levelIndex];
+
+    walls = [];
+    stars = [];
+    confetti = [];
+    ballTrail = [];
+    starsCollected = 0;
+    stuckTimer = 0;
+    goalPulse = 0;
+
+    const pad = 18;
+    const usableW = W - pad*2;
+    const usableH = H - pad*2;
+    function pxX(nx){ return pad + nx * usableW; }
+    function pxY(ny){ return pad + ny * usableH; }
+
+    // Friendly sizing (wide paths)
+    const thick = clamp(Math.min(W,H)*0.018, 10, 15);
+
+    // border
+    addBorder(thick);
+
+    // Build curvy walls
+    for (const c of Lvl.curves){
+      let pts = null;
+      if (c.poly){
+        pts = c.poly.map(p => ({x:pxX(p.x), y:pxY(p.y)}));
+      } else if (c.arc){
+        const cc = c.arc.c;
+        const cx = pxX(cc.x), cy = pxY(cc.y);
+        const R = c.arc.r * Math.min(usableW, usableH);
+        pts = arcPoints(cx, cy, R, c.arc.a0, c.arc.a1, c.arc.steps);
+      }
+      if (!pts || pts.length<2) continue;
+      const segs = polylineToSegments(pts);
+      for (const s of segs){
+        walls.push({ax:s[0].x, ay:s[0].y, bx:s[1].x, by:s[1].y, thick});
+      }
+    }
+
+    // Stars
+    const sr = clamp(Math.min(W,H)*0.015, 8, 13);
+    for (const s of Lvl.stars){
+      stars.push({x:pxX(s.x), y:pxY(s.y), r:sr, collected:false});
+    }
+
+    // Goal
+    goal.x = pxX(Lvl.goal.x);
+    goal.y = pxY(Lvl.goal.y);
+    goal.r = clamp(Math.min(W,H)*0.060, 34, 58);
+
+    // Ball
+    ball.r = clamp(Math.min(W,H)*0.018, 12, 16);
+    ball.x = pxX(Lvl.start.x);
+    ball.y = pxY(Lvl.start.y);
+    ball.vx = 0; ball.vy = 0;
+
+    // HUD
+    lvlLabel.textContent = `LEVEL ${levelIndex+1}/5`;
+    scoreLabel.textContent = `STARS: 0/${stars.length}`;
+    toast.style.display = 'none';
+  }
+
+  // ===== Collision =====
+  function collideBallWall(){
+    for (const w of walls){
+      const cp = closestPointOnSegment(ball.x, ball.y, w.ax,w.ay, w.bx,w.by);
+      const dx = ball.x - cp.x;
+      const dy = ball.y - cp.y;
+      const d = Math.hypot(dx,dy) || 0.0001;
+      const minD = ball.r + w.thick;
+      if (d >= minD) continue;
+
+      const nx = dx / d;
+      const ny = dy / d;
+      const pen = (minD - d);
+
+      ball.x += nx * pen;
+      ball.y += ny * pen;
+
+      const vn = ball.vx*nx + ball.vy*ny;
+      if (vn < 0){
+        ball.vx -= (1 + PHYS.restitution) * vn * nx;
+        ball.vy -= (1 + PHYS.restitution) * vn * ny;
+      }
+
+      const tx = -ny, ty = nx;
+      const vt = ball.vx*tx + ball.vy*ty;
+      ball.vx -= vt * PHYS.wallFriction * tx;
+      ball.vy -= vt * PHYS.wallFriction * ty;
+    }
+  }
+
+  // ===== Stars + Goal =====
+  function sparkle(x,y,count,mode){
+    const palette = (mode === 'pink')
+      ? ['rgba(255,51,204,0.95)','rgba(45,226,255,0.95)','rgba(155,92,255,0.95)','rgba(255,216,106,0.95)']
+      : ['rgba(255,216,106,0.95)','rgba(255,255,255,0.90)','rgba(45,226,255,0.95)','rgba(155,92,255,0.95)'];
+    for (let i=0;i<count;i++){
+      const a = Math.random()*TAU;
+      const sp = 120 + Math.random()*620;
+      confetti.push({
+        x, y,
+        vx: Math.cos(a)*sp,
+        vy: Math.sin(a)*sp,
+        life: 0.7 + Math.random()*0.9,
+        age: 0,
+        r: 1.5 + Math.random()*3.5,
+        col: palette[i % palette.length],
+        spin: (Math.random()-0.5)*8
+      });
+    }
+  }
+
+  function stepCollect(){
+    for (const s of stars){
+      if (s.collected) continue;
+      if (dist(ball.x,ball.y, s.x,s.y) < (ball.r + s.r)*0.95){
+        s.collected = true;
+        starsCollected++;
+        scoreLabel.textContent = `STARS: ${starsCollected}/${stars.length}`;
+        sparkle(s.x,s.y, 18, 'gold');
+        try{ navigator.vibrate?.(12); }catch(e){}
+      }
+    }
+  }
+
+  function inGoal(){
+    return dist(ball.x,ball.y, goal.x,goal.y) < (goal.r - ball.r*0.15);
+  }
+
+  function win(){
+    sparkle(goal.x, goal.y, 70, 'pink');
+    toastBig.textContent = (levelIndex < 4) ? 'LEVEL COMPLETE ✨' : 'YOU DID IT, UNICORN HERO! 🦄✨';
+    toastSmall.textContent = (levelIndex < 4) ? 'tap NEXT' : 'tap REPLAY to parade again';
+    toast.style.display='block';
+    try{ navigator.vibrate?.([18,22,18]); }catch(e){}
+  }
+
+  // ===== Trail =====
+  function addTrail(dt){
+    // sprinkle behind ball
+    if (Math.random() < 0.65){
+      ballTrail.push({
+        x: ball.x + (Math.random()-0.5)*ball.r*0.4,
+        y: ball.y + (Math.random()-0.5)*ball.r*0.4,
+        vx: (Math.random()-0.5)*22,
+        vy: (Math.random()-0.5)*22,
+        life: 0.55 + Math.random()*0.35,
+        age: 0,
+        r: 1.2 + Math.random()*2.6,
+        col: (Math.random()<0.5) ? 'rgba(255,216,106,0.85)' : 'rgba(255,255,255,0.70)'
+      });
+    }
+    for (let i=ballTrail.length-1; i>=0; i--){
+      const p = ballTrail[i];
+      p.age += dt;
+      if (p.age >= p.life){ ballTrail.splice(i,1); continue; }
+      p.vx *= 0.985; p.vy *= 0.985;
+      p.x += p.vx; p.y += p.vy;
+    }
+  }
+
+  // ===== Rendering =====
+  function drawBackground(){
+    ctx.fillStyle = '#05030a';
+    ctx.fillRect(0,0,W,H);
+
+    const g1 = ctx.createRadialGradient(W*0.30,H*0.20, 10, W*0.30,H*0.20, Math.max(W,H)*0.95);
+    g1.addColorStop(0, 'rgba(155,92,255,0.22)');
+    g1.addColorStop(0.45, 'rgba(45,226,255,0.12)');
+    g1.addColorStop(0.75, 'rgba(255,51,204,0.09)');
+    g1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.globalAlpha = 0.22;
+    for (let i=0;i<100;i++){
+      const x = (i*177.3)%W;
+      const y = (i*311.9)%H;
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x, y, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function neonLine(ax,ay,bx,by, width, core, glow){
+    ctx.save();
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = glow;
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 22;
+    ctx.lineWidth = width*1.10;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = core;
+    ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawWalls(){
+    for (const w of walls){
+      const width = Math.max(8, w.thick*2);
+      neonLine(w.ax,w.ay,w.bx,w.by, width, 'rgba(45,226,255,0.92)', 'rgba(45,226,255,0.52)');
+    }
+  }
+
+  function drawGoal(dt){
+    goalPulse += dt;
+    const pulse = 0.08 + 0.06*Math.sin(goalPulse*2.0);
+    const R = goal.r*(1+pulse);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    ctx.arc(goal.x,goal.y,R,0,TAU);
+    ctx.fillStyle = 'rgba(255,51,204,0.10)';
+    ctx.fill();
+
+    ctx.shadowColor = 'rgba(255,51,204,0.70)';
+    ctx.shadowBlur = 30;
+    ctx.lineWidth = Math.max(10, goal.r*0.22);
+    ctx.strokeStyle = 'rgba(255,51,204,0.95)';
+    ctx.beginPath();
+    ctx.arc(goal.x,goal.y,R,0,TAU);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = 'rgba(255,255,255,0.90)';
+    ctx.font = `1000 ${Math.max(14, goal.r*0.42)}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🏠', goal.x, goal.y);
+    ctx.restore();
+  }
+
+  function drawStars(){
+    for (const s of stars){
+      if (s.collected) continue;
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.shadowColor='rgba(255,216,106,0.70)';
+      ctx.shadowBlur=18;
+      ctx.fillStyle='rgba(255,216,106,0.90)';
+      const spikes = 5;
+      const outer = s.r;
+      const inner = s.r*0.48;
+      let rot = -Math.PI/2;
+      ctx.beginPath();
+      for (let i=0;i<spikes;i++){
+        ctx.lineTo(s.x + Math.cos(rot)*outer, s.y + Math.sin(rot)*outer);
+        rot += Math.PI/spikes;
+        ctx.lineTo(s.x + Math.cos(rot)*inner, s.y + Math.sin(rot)*inner);
+        rot += Math.PI/spikes;
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawTrail(){
+    for (const p of ballTrail){
+      const t = 1 - (p.age/p.life);
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha = 0.85*t;
+      ctx.fillStyle = p.col;
+      ctx.shadowColor = p.col;
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawBall(){
+    // unicorn orb (horn gently bobs)
+    const bob = 0.08*Math.sin(performance.now()*0.008);
+    ctx.save();
+
+    // orb glow
+    ctx.globalCompositeOperation='lighter';
+    ctx.shadowColor='rgba(255,216,106,0.60)';
+    ctx.shadowBlur=22;
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,TAU);
+    ctx.fillStyle='rgba(255,216,106,0.95)';
+    ctx.fill();
+
+    // inner sheen
+    ctx.shadowBlur=0;
+    ctx.globalCompositeOperation='source-over';
+    const grad = ctx.createRadialGradient(ball.x-ball.r*0.35, ball.y-ball.r*0.35, 1, ball.x, ball.y, ball.r);
+    grad.addColorStop(0,'rgba(255,255,255,0.72)');
+    grad.addColorStop(0.35,'rgba(255,234,190,0.34)');
+    grad.addColorStop(1,'rgba(255,216,106,0.00)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,TAU);
+    ctx.fill();
+
+    // horn
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    const a = Math.atan2(ball.vy, ball.vx);
+    ctx.rotate(a*0.10);
+    ctx.beginPath();
+    ctx.moveTo(0, -ball.r*(1.05+bob));
+    ctx.lineTo(-ball.r*0.34, -ball.r*0.18);
+    ctx.lineTo(ball.r*0.34, -ball.r*0.18);
+    ctx.closePath();
+    ctx.fillStyle='rgba(155,92,255,0.95)';
+    ctx.shadowColor='rgba(155,92,255,0.70)';
+    ctx.shadowBlur=16;
+    ctx.fill();
+    ctx.restore();
+
+    // tiny eyes
+    ctx.fillStyle='rgba(5,3,10,0.70)';
+    ctx.beginPath(); ctx.arc(ball.x-ball.r*0.28, ball.y+ball.r*0.12, ball.r*0.10, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(ball.x+ball.r*0.28, ball.y+ball.r*0.12, ball.r*0.10, 0, TAU); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawConfetti(dt){
+    if (!confetti.length) return;
+    for (let i=confetti.length-1; i>=0; i--){
+      const p = confetti[i];
+      p.age += dt;
+      if (p.age >= p.life){ confetti.splice(i,1); continue; }
+      p.vy += 520*dt;
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+      p.x += p.vx*dt;
+      p.y += p.vy*dt;
+
+      const t = 1 - (p.age/p.life);
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha = 0.9*t;
+      ctx.fillStyle = p.col;
+      ctx.shadowColor = p.col;
+      ctx.shadowBlur = 14;
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.spin*p.age);
+      ctx.fillRect(-p.r, -p.r, p.r*2.2, p.r*2.2);
+      ctx.restore();
+    }
+  }
+
+  function drawLevelName(){
+    const name = LEVELS[levelIndex].name;
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = '#fff';
+    ctx.font = '1000 18px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial';
+    ctx.fillText(name, 16, 72);
+    ctx.restore();
+  }
+
+  function render(dt){
+    drawBackground();
+    drawLevelName();
+    drawGoal(dt);
+    drawStars();
+    drawWalls();
+    drawTrail();
+    drawBall();
+    drawConfetti(dt);
+  }
+
+  // ===== Game Loop =====
+  let running=false;
+  let won=false;
+  let winLatch=0;
+  let last=performance.now();
+  let acc=0;
+  const fixed=1/60;
+
+  function step(dt){
+    const g = getGravity();
+    const gMag = Math.hypot(g.x,g.y);
+
+    // integrate
+    ball.vx += g.x * PHYS.gravity * dt;
+    ball.vy += g.y * PHYS.gravity * dt;
+
+    ball.vx *= (1 - PHYS.drag);
+    ball.vy *= (1 - PHYS.drag);
+
+    const sp = Math.hypot(ball.vx, ball.vy);
+    if (sp > PHYS.maxSpeed){
+      const s = PHYS.maxSpeed / sp;
+      ball.vx *= s; ball.vy *= s;
+    }
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // collisions
+    for (let i=0;i<PHYS.iterations;i++){
+      collideBallWall();
+    }
+
+    // anti-stuck magic ✨
+    const sp2 = Math.hypot(ball.vx, ball.vy);
+    if (sp2 < PHYS.stuckSpeed && gMag > 0.18){
+      stuckTimer += dt;
+      if (stuckTimer > PHYS.stuckTime){
+        // nudge in gravity direction + tiny perpendicular jitter
+        const nx = g.x / (gMag || 1);
+        const ny = g.y / (gMag || 1);
+        const jx = -ny * (Math.random()-0.5) * 0.35;
+        const jy =  nx * (Math.random()-0.5) * 0.35;
+        ball.vx += (nx + jx) * PHYS.unstickImpulse;
+        ball.vy += (ny + jy) * PHYS.unstickImpulse;
+        stuckTimer = 0;
+        sparkle(ball.x, ball.y, 10, 'gold');
+      }
+    } else {
+      stuckTimer = 0;
+    }
+
+    // stars + trail
+    stepCollect();
+    addTrail(dt);
+
+    // win
+    if (!won && inGoal()){
+      winLatch += dt;
+      if (winLatch > 0.20){
+        won=true;
+        win();
+      }
+    } else {
+      winLatch = 0;
+    }
+  }
+
+  function loop(now){
+    const dtReal = Math.min(0.05, (now-last)/1000);
+    last = now;
+
+    if (running && !won){
+      acc += dtReal;
+      while(acc >= fixed){
+        step(fixed);
+        acc -= fixed;
+      }
+    } else {
+      addTrail(dtReal);
+    }
+
+    render(dtReal);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ===== Controls =====
+  function start(){
+    if (!running) running = true;
+    won=false; winLatch=0;
+    loadLevel(levelIndex);
+  }
+  function reset(){
+    won=false; winLatch=0;
+    loadLevel(levelIndex);
+  }
+  function next(){
+    won=false; winLatch=0;
+    if (levelIndex < LEVELS.length-1) loadLevel(levelIndex+1);
+    else loadLevel(0);
+  }
+
+  btnEnable.addEventListener('click', enableMotion);
+  btnNoTilt.addEventListener('click', () => {
+    hasTilt=false;
+    usingTouchPad=true;
+    start();
+    overlay.style.display='none';
+  });
+  btnCal.addEventListener('click', calibrate);
+
+  btnReset.addEventListener('click', reset);
+  btnCal2.addEventListener('click', calibrate);
+
+  btnNext.addEventListener('click', () => {
+    toast.style.display='none';
+    won=false;
+    next();
+  });
+  btnReplay.addEventListener('click', () => {
+    toast.style.display='none';
+    won=false;
+    reset();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key==='r' || e.key==='R') reset();
+    if (e.key==='n' || e.key==='N') { toast.style.display='none'; won=false; next(); }
+    if (e.key==='c' || e.key==='C') calibrate();
+  });
+
+  // Start: calibration baseline
+  calibrate();
+
+})();
+</script>
+</body>
+</html>

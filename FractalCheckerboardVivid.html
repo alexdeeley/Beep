@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Fractal Checkerboard Vivid</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+  }
+  body {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(0,180,255,0.14), transparent 30%),
+      radial-gradient(circle at 80% 30%, rgba(255,0,180,0.14), transparent 35%),
+      radial-gradient(circle at 50% 80%, rgba(120,0,255,0.12), transparent 35%),
+      #000;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+let W = 0, H = 0, DPR = 1;
+let now = 0;
+
+const WAVES = [
+  { speed: 210, freq: 2.1, decay: 0.22, spatAtt: 0.0028, weight: 1.00 },
+  { speed: 197, freq: 3.7, decay: 0.26, spatAtt: 0.0022, weight: 0.68 },
+  { speed: 230, freq: 1.3, decay: 0.18, spatAtt: 0.0015, weight: 0.84 },
+  { speed: 185, freq: 5.1, decay: 0.35, spatAtt: 0.0040, weight: 0.48 },
+  { speed: 160, freq: 6.4, decay: 0.42, spatAtt: 0.0048, weight: 0.35 }
+];
+const RIPPLE_LIFE = 13;
+const ripples = [];
+
+const ROOT_N = 8;
+const MAX_DEPTH = 7;
+const MERGE_POWER = 1.85;
+const MIN_DRAW_SIZE = 2.5;
+let roots = [];
+
+function addRipple(x, y) {
+  ripples.push({ ox: x, oy: y, t0: now });
+}
+
+function evalWave(cx, cy) {
+  let sum = 0;
+  for (let i = 0; i < ripples.length; i++) {
+    const r = ripples[i];
+    const age = now - r.t0;
+    const dx = cx - r.ox;
+    const dy = cy - r.oy;
+    const dist = Math.hypot(dx, dy);
+
+    for (let j = 0; j < WAVES.length; j++) {
+      const w = WAVES[j];
+      if (age * w.speed < dist) continue;
+      const amp =
+        w.weight *
+        Math.exp(-w.decay * age) *
+        Math.exp(-dist * w.spatAtt);
+      const phaseWarp = Math.sin(dist * 0.018 + age * 1.1 + j * 0.7) * 0.4;
+      sum += amp * Math.sin(2 * Math.PI * (w.freq * age - dist / (w.speed / w.freq)) + phaseWarp);
+    }
+  }
+  return sum;
+}
+
+function makeCell(x, y, w, base, depth) {
+  return { x, y, w, base, depth, children: null };
+}
+
+function buildTree(cell) {
+  if (cell.depth >= MAX_DEPTH || cell.w <= MIN_DRAW_SIZE) return;
+  const hw = cell.w / 2;
+  cell.children = [
+    makeCell(cell.x,      cell.y,      hw, cell.base,     cell.depth + 1),
+    makeCell(cell.x + hw, cell.y,      hw, 1 - cell.base, cell.depth + 1),
+    makeCell(cell.x,      cell.y + hw, hw, 1 - cell.base, cell.depth + 1),
+    makeCell(cell.x + hw, cell.y + hw, hw, cell.base,     cell.depth + 1),
+  ];
+  for (let i = 0; i < cell.children.length; i++) buildTree(cell.children[i]);
+}
+
+function initCells() {
+  const size = Math.max(W, H);
+  const cs = size / ROOT_N;
+  const ox = (W - size) / 2;
+  const oy = (H - size) / 2;
+  roots = [];
+
+  for (let r = 0; r < ROOT_N; r++) {
+    for (let c = 0; c < ROOT_N; c++) {
+      const cell = makeCell(ox + c * cs, oy + r * cs, cs, (r + c) % 2, 0);
+      buildTree(cell);
+      roots.push(cell);
+    }
+  }
+}
+
+function drawLeaf(cell, wave, norm) {
+  const pulse = 0.5 + 0.5 * Math.sin(now * 1.35 + cell.x * 0.01 + cell.y * 0.01);
+  const hueBase = (220 + wave * 90 + norm * 140 + pulse * 30) % 360;
+  const brightHue = (hueBase + 40 + norm * 60) % 360;
+  const flipped = wave < 0;
+  const color = flipped ? 1 - cell.base : cell.base;
+
+  if (color === 1) {
+    const sat = 88 + norm * 12;
+    const light = 54 + norm * 20;
+    ctx.fillStyle = `hsl(${brightHue} ${sat}% ${light}%)`;
+  } else {
+    const sat = 55 + norm * 35;
+    const light = 4 + norm * 18;
+    ctx.fillStyle = `hsl(${(hueBase + 220) % 360} ${sat}% ${light}%)`;
+  }
+
+  ctx.fillRect(cell.x, cell.y, cell.w, cell.w);
+
+  const edge = Math.min(1, 0.12 + norm * 0.55);
+  ctx.lineWidth = Math.max(1, cell.w * 0.04);
+  ctx.strokeStyle = `hsla(${(brightHue + 30) % 360}, 100%, ${55 + norm * 20}%, ${edge})`;
+  ctx.strokeRect(cell.x, cell.y, cell.w, cell.w);
+
+  if (cell.w > 8) {
+    const inset = cell.w * 0.14;
+    const alpha = 0.08 + norm * 0.25;
+    const g = ctx.createLinearGradient(cell.x, cell.y, cell.x + cell.w, cell.y + cell.w);
+    g.addColorStop(0, `hsla(${brightHue}, 100%, 80%, ${alpha})`);
+    g.addColorStop(0.5, `hsla(${(brightHue + 80) % 360}, 100%, 55%, ${alpha * 0.6})`);
+    g.addColorStop(1, `hsla(${(brightHue + 180) % 360}, 100%, 35%, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(cell.x + inset, cell.y + inset, cell.w - inset * 2, cell.w - inset * 2);
+  }
+}
+
+function drawNode(cell) {
+  const cx = cell.x + cell.w / 2;
+  const cy = cell.y + cell.w / 2;
+  const wave = evalWave(cx, cy);
+  const norm = Math.min(Math.abs(wave) / 2.1, 1);
+  const mag = Math.pow(norm, MERGE_POWER);
+  const remaining = MAX_DEPTH - cell.depth;
+  const levelsCollapsed = Math.round(mag * remaining);
+
+  if (levelsCollapsed >= remaining || !cell.children) {
+    drawLeaf(cell, wave, norm);
+  } else {
+    for (let i = 0; i < cell.children.length; i++) drawNode(cell.children[i]);
+  }
+}
+
+function drawBackground() {
+  const bg = ctx.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.7);
+  bg.addColorStop(0, 'rgb(8, 10, 22)');
+  bg.addColorStop(0.45, 'rgb(3, 4, 10)');
+  bg.addColorStop(1, 'rgb(0, 0, 0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const t = now * 0.35;
+  for (let i = 0; i < 3; i++) {
+    const x = W * (0.2 + i * 0.28) + Math.sin(t + i * 1.7) * W * 0.08;
+    const y = H * (0.35 + Math.cos(t * 0.8 + i) * 0.12);
+    const r = Math.max(W, H) * (0.24 + i * 0.02);
+    const hue = (210 + i * 65 + now * 15) % 360;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.12)`);
+    g.addColorStop(0.45, `hsla(${(hue + 40) % 360}, 100%, 45%, 0.06)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawRipplesOverlay() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < ripples.length; i++) {
+    const r = ripples[i];
+    const age = now - r.t0;
+    const life = 1 - age / RIPPLE_LIFE;
+    if (life <= 0) continue;
+
+    for (let k = 0; k < 3; k++) {
+      const radius = age * (130 + k * 75);
+      const alpha = life * (0.05 - k * 0.012);
+      if (alpha <= 0) continue;
+      ctx.beginPath();
+      ctx.arc(r.ox, r.oy, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 2 + k * 1.5;
+      ctx.strokeStyle = `hsla(${(210 + age * 50 + k * 55) % 360}, 100%, 65%, ${alpha})`;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawScanGlow() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  const lines = 90;
+  for (let i = 0; i < lines; i++) {
+    const y = (i / lines) * H;
+    const alpha = 0.015 + 0.01 * Math.sin(now * 2.0 + i * 0.6);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(0, y, W, 1);
+  }
+  ctx.restore();
+}
+
+function loop(ts) {
+  now = ts / 1000;
+
+  while (ripples.length && now - ripples[0].t0 > RIPPLE_LIFE) {
+    ripples.shift();
+  }
+
+  drawBackground();
+  for (let i = 0; i < roots.length; i++) drawNode(roots[i]);
+  drawRipplesOverlay();
+  drawScanGlow();
+
+  requestAnimationFrame(loop);
+}
+
+let isDown = false;
+let lastP = null;
+const MIN_DIST = 14;
+
+function getPos(e) {
+  if (e.touches && e.touches[0]) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function tryRipple(p) {
+  if (!lastP || Math.hypot(p.x - lastP.x, p.y - lastP.y) >= MIN_DIST) {
+    addRipple(p.x, p.y);
+    lastP = p;
+  }
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  isDown = true;
+  lastP = null;
+  tryRipple(getPos(e));
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (isDown) tryRipple(getPos(e));
+});
+window.addEventListener('mouseup', () => {
+  isDown = false;
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  lastP = null;
+  tryRipple(getPos(e));
+}, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  tryRipple(getPos(e));
+}, { passive: false });
+canvas.addEventListener('touchend', () => {
+  lastP = null;
+}, { passive: true });
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  initCells();
+}
+
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Maisie's Air Hockey</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  background:#1a0025;
+  overflow:hidden;
+  font-family:'Fredoka One',cursive;
+  height:100vh;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  display:block;
+  touch-action:none;
+  cursor:none;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+
+let W,H,CX,CY;
+let goalW,goalH,goalLeft;
+
+/* GAME STATE */
+const paddles={
+ top:{x:0,y:0,vx:0,vy:0,r:0,color:'#00bfff',emoji:'🌈'},
+ bottom:{x:0,y:0,vx:0,vy:0,r:0,color:'#ff1493',emoji:'🦄'}
+};
+
+const ball={x:0,y:0,vx:0,vy:0,r:0};
+
+function resize(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  W=canvas.width;
+  H=canvas.height;
+  CX=W/2;
+  CY=H/2;
+
+  goalW=W*0.35;
+  goalLeft=(W-goalW)/2;
+  goalH=H*0.018;
+
+  initPositions();
+}
+window.addEventListener('resize',resize);
+resize();
+
+/* AUDIO */
+const AudioContext=window.AudioContext||window.webkitAudioContext;
+let audioCtx;
+function getAudio(){ if(!audioCtx)audioCtx=new AudioContext(); return audioCtx; }
+function beep(f){ try{const ac=getAudio();const o=ac.createOscillator();const g=ac.createGain();o.connect(g);g.connect(ac.destination);o.frequency.value=f;g.gain.value=.2;o.start();g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.15);o.stop(ac.currentTime+.15);}catch(e){} }
+
+function resetBall(dir=0){
+ ball.r=Math.max(W*0.03,12);
+ ball.x=CX;
+ ball.y=CY;
+ const speed=H*0.01;
+ const angle=(Math.random()*60-30)*Math.PI/180;
+ const d=dir===0?(Math.random()<.5?1:-1):dir;
+ ball.vy=Math.cos(angle)*speed*d;
+ ball.vx=Math.sin(angle)*speed;
+}
+
+function initPositions(){
+ const pr=W*0.08;
+ paddles.top.r=paddles.bottom.r=pr;
+ paddles.top.x=CX;
+ paddles.top.y=H*.15;
+ paddles.bottom.x=CX;
+ paddles.bottom.y=H*.85;
+ resetBall();
+}
+
+/* INPUT */
+let touches={};
+let mouse={x:-999,y:-999};
+
+canvas.addEventListener('mousemove',e=>{
+ const r=canvas.getBoundingClientRect();
+ mouse.x=(e.clientX-r.left)*(W/r.width);
+ mouse.y=(e.clientY-r.top)*(H/r.height);
+});
+
+canvas.addEventListener('touchstart',updateTouches,{passive:false});
+canvas.addEventListener('touchmove',updateTouches,{passive:false});
+canvas.addEventListener('touchend',updateTouches,{passive:false});
+
+function updateTouches(e){
+ e.preventDefault();
+ touches={};
+ const r=canvas.getBoundingClientRect();
+ for(const t of e.touches){
+  const x=(t.clientX-r.left)*(W/r.width);
+  const y=(t.clientY-r.top)*(H/r.height);
+  if(y<CY) touches.top={x,y};
+  else touches.bottom={x,y};
+ }
+}
+
+/* MOVEMENT */
+function move(p,tx,ty,side){
+ const speed=W*.06;
+ const dx=tx-p.x,dy=ty-p.y;
+ const dist=Math.hypot(dx,dy);
+ if(dist>1){
+  p.vx=dx/dist*speed;
+  p.vy=dy/dist*speed;
+  p.x+=p.vx;
+  p.y+=p.vy;
+ }
+ if(side==='top'){
+  p.y=Math.max(p.r,Math.min(CY-p.r*.5,p.y));
+ }else{
+  p.y=Math.max(CY+p.r*.5,Math.min(H-p.r,p.y));
+ }
+ p.x=Math.max(p.r,Math.min(W-p.r,p.x));
+}
+
+function collide(p){
+ const dx=ball.x-p.x,dy=ball.y-p.y;
+ const dist=Math.hypot(dx,dy);
+ if(dist<p.r+ball.r){
+  const nx=dx/dist,ny=dy/dist;
+  const overlap=(p.r+ball.r)-dist+1;
+  ball.x+=nx*overlap;
+  ball.y+=ny*overlap;
+  const dot=ball.vx*nx+ball.vy*ny;
+  ball.vx-=2*dot*nx;
+  ball.vy-=2*dot*ny;
+  ball.vx+=p.vx*.4;
+  ball.vy+=p.vy*.4;
+  beep(500+Math.random()*200);
+ }
+}
+
+/* DRAW */
+function emoji(e,x,y,s){
+ ctx.font=s+"px serif";
+ ctx.textAlign='center';
+ ctx.textBaseline='middle';
+ ctx.fillText(e,x,y);
+}
+
+function rink(){
+ const g=ctx.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,'#0d1a3a');
+ g.addColorStop(.5,'#1a0a2e');
+ g.addColorStop(1,'#0d1a3a');
+ ctx.fillStyle=g;
+ ctx.fillRect(0,0,W,H);
+
+ ctx.strokeStyle='rgba(255,255,255,.2)';
+ ctx.lineWidth=W*.008;
+ ctx.beginPath();
+ ctx.moveTo(0,CY);
+ ctx.lineTo(W,CY);
+ ctx.stroke();
+
+ ctx.beginPath();
+ ctx.arc(CX,CY,W*.15,0,Math.PI*2);
+ ctx.stroke();
+
+ ctx.strokeStyle='#00bfff';
+ ctx.strokeRect(goalLeft,0,goalW,goalH);
+
+ ctx.strokeStyle='#ff1493';
+ ctx.strokeRect(goalLeft,H-goalH,goalW,goalH);
+}
+
+function drawPaddle(p){
+ const grad=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*1.5);
+ grad.addColorStop(0,p.color+'aa');
+ grad.addColorStop(1,'transparent');
+ ctx.fillStyle=grad;
+ ctx.beginPath();ctx.arc(p.x,p.y,p.r*1.5,0,Math.PI*2);ctx.fill();
+
+ ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+ ctx.fillStyle=p.color;ctx.fill();
+ ctx.strokeStyle='#fff';ctx.stroke();
+ emoji(p.emoji,p.x,p.y,p.r*1.1);
+}
+
+function drawBall(){
+ ctx.beginPath();
+ ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+ ctx.fillStyle='#fff';
+ ctx.fill();
+ emoji('⚡',ball.x,ball.y,ball.r*1.2);
+}
+
+/* LOOP */
+function loop(){
+ if(touches.top) move(paddles.top,touches.top.x,touches.top.y,'top');
+ else if(mouse.y<CY) move(paddles.top,mouse.x,mouse.y,'top');
+
+ if(touches.bottom) move(paddles.bottom,touches.bottom.x,touches.bottom.y,'bottom');
+ else if(mouse.y>=CY) move(paddles.bottom,mouse.x,mouse.y,'bottom');
+
+ ball.x+=ball.vx;
+ ball.y+=ball.vy;
+
+ if(ball.x-ball.r<0||ball.x+ball.r>W){ball.vx*=-1;beep(300);}
+ if(ball.y-ball.r<0){resetBall(1);beep(900);}
+ if(ball.y+ball.r>H){resetBall(-1);beep(700);}
+
+ collide(paddles.top);
+ collide(paddles.bottom);
+
+ rink();
+ drawBall();
+ drawPaddle(paddles.top);
+ drawPaddle(paddles.bottom);
+
+ requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

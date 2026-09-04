@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Wave Grid</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #000; color: #fff; overflow: hidden;
+      touch-action: none; user-select: none;
+      font-family: -apple-system, system-ui, Arial, sans-serif;
+      font-weight: 800;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #hud {
+      position: fixed; left: 16px; top: 14px;
+      font-size: 18px; line-height: 1.2;
+      text-shadow: 0 2px 0 #000;
+      pointer-events: none;
+    }
+    #hint {
+      position: fixed; left: 16px; bottom: 14px;
+      font-size: 14px; opacity: 0.85;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <canvas id="c"></canvas>
+  <div id="hud"></div>
+  <div id="hint">Tap/click to spawn a wave. Each tap grows the grid by +1.</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const hud = document.getElementById('hud');
+
+  // ---------- Grid state ----------
+  let N = 10;                 // starts 10x10
+  let cells = new Uint8Array(N*N);      // 0 = black, 1 = white
+  let flips = new Uint8Array(N*N);      // number of flips during current wave (0..10)
+  let active = false;
+
+  // wavefront sets (store indices)
+  let frontier = new Set();
+  let nextFrontier = new Set();
+
+  // timing
+  const STEP_MS = 35;         // speed of the wave
+  let lastStep = 0;
+
+  // drawing
+  let dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  let cellSize = 1;
+  let offsetX = 0, offsetY = 0;
+
+  function resizeCanvas() {
+    dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    computeLayout();
+    draw();
+  }
+
+  function computeLayout() {
+    const w = canvas.width, h = canvas.height;
+    const size = Math.min(w, h);
+    cellSize = Math.floor(size / N);
+    cellSize = Math.max(6 * dpr, cellSize); // keep chunky & visible
+    const gridPx = cellSize * N;
+    offsetX = Math.floor((w - gridPx) / 2);
+    offsetY = Math.floor((h - gridPx) / 2);
+  }
+
+  function idx(x, y) { return y * N + x; }
+  function inBounds(x, y) { return x >= 0 && y >= 0 && x < N && y < N; }
+
+  function growGrid() {
+    const oldN = N;
+    const oldCells = cells;
+
+    N = oldN + 1;
+
+    const newCells = new Uint8Array(N*N);
+    // Copy old into top-left so growth is "one more row/col"
+    for (let y = 0; y < oldN; y++) {
+      newCells.set(oldCells.subarray(y*oldN, y*oldN + oldN), y*N);
+    }
+    cells = newCells;
+
+    flips = new Uint8Array(N*N);  // reset flips for next wave
+    frontier.clear();
+    nextFrontier.clear();
+    active = false;
+
+    computeLayout();
+  }
+
+  // ---------- Wave logic ----------
+  function startWaveAtCell(x, y) {
+    flips.fill(0);
+    frontier.clear();
+    nextFrontier.clear();
+    active = true;
+
+    const i = idx(x, y);
+    frontier.add(i);
+    lastStep = performance.now();
+  }
+
+  function stepWave() {
+    if (!active) return;
+
+    // If nothing to process, stop.
+    if (frontier.size === 0) { active = false; return; }
+
+    // Process current wavefront
+    for (const i of frontier) {
+      if (flips[i] >= 10) continue;
+
+      // flip cell
+      cells[i] ^= 1;
+      flips[i]++;
+
+      const x = i % N;
+      const y = (i / N) | 0;
+
+      // schedule neighbors for next tick
+      // Chain reaction creates natural back-and-forth toggling
+      const nbs = [
+        [x-1, y], [x+1, y],
+        [x, y-1], [x, y+1],
+      ];
+      for (const [nx, ny] of nbs) {
+        if (!inBounds(nx, ny)) continue;
+        const ni = idx(nx, ny);
+        if (flips[ni] < 10) nextFrontier.add(ni);
+      }
+
+      // also allow this cell to be hit again via the chain
+      if (flips[i] < 10) nextFrontier.add(i);
+    }
+
+    // Rotate frontiers
+    frontier = nextFrontier;
+    nextFrontier = new Set();
+    if (frontier.size === 0) active = false;
+  }
+
+  // ---------- Input ----------
+  function eventToCell(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+
+    const xPx = (clientX - rect.left) * dpr;
+    const yPx = (clientY - rect.top) * dpr;
+
+    const gx = Math.floor((xPx - offsetX) / cellSize);
+    const gy = Math.floor((yPx - offsetY) / cellSize);
+
+    if (!inBounds(gx, gy)) return null;
+    return { gx, gy };
+  }
+
+  function onTap(e) {
+    e.preventDefault();
+
+    // Each touch grows the grid by +1
+    const cell = eventToCell(e);
+    // If you tapped outside the grid, still grow (feels responsive),
+    // and start the wave from the closest clamped cell.
+    if (!cell) {
+      growGrid();
+      const x = Math.max(0, Math.min(N-1, Math.floor(N/2)));
+      const y = Math.max(0, Math.min(N-1, Math.floor(N/2)));
+      startWaveAtCell(x, y);
+      draw();
+      return;
+    }
+
+    // Start the wave first on the current grid...
+    startWaveAtCell(cell.gx, cell.gy);
+
+    // ...then grow the grid by 1 (adds a new "layer") and re-start
+    // the wave at the same coordinate (clamped if needed).
+    growGrid();
+    const x = Math.max(0, Math.min(N-1, cell.gx));
+    const y = Math.max(0, Math.min(N-1, cell.gy));
+    startWaveAtCell(x, y);
+
+    draw();
+  }
+
+  // ---------- Draw ----------
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+
+    // background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    // grid
+    const gridPx = cellSize * N;
+
+    // outer border
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(offsetX - 4*dpr, offsetY - 4*dpr, gridPx + 8*dpr, 4*dpr);
+    ctx.fillRect(offsetX - 4*dpr, offsetY + gridPx, gridPx + 8*dpr, 4*dpr);
+    ctx.fillRect(offsetX - 4*dpr, offsetY - 4*dpr, 4*dpr, gridPx + 8*dpr);
+    ctx.fillRect(offsetX + gridPx, offsetY - 4*dpr, 4*dpr, gridPx + 8*dpr);
+
+    // cells
+    for (let y = 0; y < N; y++) {
+      const rowOff = y * N;
+      const py = offsetY + y * cellSize;
+      for (let x = 0; x < N; x++) {
+        const i = rowOff + x;
+        if (cells[i]) {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(offsetX + x * cellSize, py, cellSize, cellSize);
+        }
+      }
+    }
+
+    // grid lines (subtle but high contrast)
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#fff';
+    for (let i = 1; i < N; i++) {
+      const x = offsetX + i * cellSize;
+      const y = offsetY + i * cellSize;
+      ctx.fillRect(x, offsetY, 1*dpr, gridPx);
+      ctx.fillRect(offsetX, y, gridPx, 1*dpr);
+    }
+    ctx.globalAlpha = 1;
+
+    // HUD
+    const activeCount = active ? frontier.size : 0;
+    hud.textContent = `GRID: ${N}×${N}  •  WAVE: ${active ? 'ON' : 'OFF'}  •  FRONT: ${activeCount}`;
+  }
+
+  // ---------- Main loop ----------
+  function loop(t) {
+    if (active && (t - lastStep) >= STEP_MS) {
+      // possibly advance multiple steps if the tab stuttered
+      while (active && (t - lastStep) >= STEP_MS) {
+        stepWave();
+        lastStep += STEP_MS;
+      }
+      draw();
+    } else if (!active) {
+      // draw occasionally to keep HUD correct on resize
+      // (no-op most frames)
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Setup ----------
+  window.addEventListener('resize', resizeCanvas, { passive: true });
+  canvas.addEventListener('pointerdown', onTap, { passive: false });
+  canvas.addEventListener('touchstart', onTap, { passive: false });
+
+  resizeCanvas();
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

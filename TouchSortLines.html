@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Touch Sort Lines</title>
+<style>
+html, body {
+    margin:0;
+    padding:0;
+    background:#000;
+    overflow:hidden;
+    touch-action:none;
+}
+canvas {
+    display:block;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let lines = [];
+resize();
+
+window.addEventListener('resize', resize);
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    draw();
+}
+
+let holding = false;
+let holdStart = 0;
+let addInterval = null;
+let isSorting = false;
+
+// ----- TOUCH INPUT -----
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (isSorting) return;
+    holding = true;
+    holdStart = Date.now();
+    addLines();
+    addInterval = setInterval(addLines, 120);
+});
+
+canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    holding = false;
+    clearInterval(addInterval);
+    startSort();
+});
+
+// ----- GENERATE LINES -----
+function addLines() {
+    for (let i = 0; i < 100; i++) {
+        lines.push(Math.random());
+    }
+    draw();
+}
+
+// ----- DRAW -----
+function draw(active=-1) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const w = canvas.width / Math.max(lines.length,1);
+
+    for (let i = 0; i < lines.length; i++) {
+        const h = lines[i] * canvas.height;
+        const x = i * w;
+        const y = canvas.height - h;
+
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, canvas.height);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    }
+}
+
+// ----- SORT (HEAPSORT) -----
+async function swap(i,j) {
+    [lines[i], lines[j]] = [lines[j], lines[i]];
+    draw(j);
+    await new Promise(r=>setTimeout(r,1));
+}
+
+async function heapify(n,i) {
+    let largest=i;
+    let l=2*i+1, r=2*i+2;
+
+    if (l<n && lines[l]>lines[largest]) largest=l;
+    if (r<n && lines[r]>lines[largest]) largest=r;
+
+    if (largest!==i) {
+        await swap(i,largest);
+        await heapify(n,largest);
+    }
+}
+
+async function startSort() {
+    if (!lines.length) return;
+    isSorting=true;
+
+    let n = lines.length;
+    for (let i=Math.floor(n/2)-1;i>=0;i--) {
+        await heapify(n,i);
+    }
+    for (let i=n-1;i>0;i--) {
+        await swap(0,i);
+        await heapify(i,0);
+    }
+
+    playZip();
+    isSorting=false;
+}
+
+// ----- FINAL ZIP SOUND -----
+function playZip() {
+    const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctxAudio.createOscillator();
+    const gain = ctxAudio.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(1200, ctxAudio.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctxAudio.currentTime + 0.25);
+    gain.gain.value = 0.08;
+
+    osc.connect(gain).connect(ctxAudio.destination);
+    osc.start();
+    osc.stop(ctxAudio.currentTime + 0.25);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ballz Game</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%}
+    body{
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Fullscreen stage */
+    #stage{
+      position:fixed;
+      inset:0;
+      display:flex;
+      flex-direction:column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    canvas{
+      flex:1;
+      width:100%;
+      height:100%;
+      display:block;
+      background:#0f0f1e;
+      touch-action:none;
+    }
+
+    /* HUD overlay */
+    #hud{
+      position:absolute;
+      top: calc(env(safe-area-inset-top) + 10px);
+      left: 10px;
+      right: 10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:12px 14px;
+      border-radius:14px;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 2px solid rgba(255,255,255,.12);
+      pointer-events:none;
+    }
+    .hud-item{
+      color:#fff;
+      font-size:20px;
+      font-weight:800;
+      letter-spacing:.5px;
+      text-shadow:0 2px 10px rgba(0,0,0,.45);
+      white-space:nowrap;
+    }
+    .hud-item span{ color:#ffd700; font-size:24px; }
+
+    /* Controls overlay */
+    #controls{
+      position:absolute;
+      left: 14px;
+      right: 14px;
+      bottom: calc(env(safe-area-inset-bottom) + 14px);
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:14px;
+      pointer-events:none;
+    }
+
+    /* Aim slider panel */
+    #aimPanel{
+      flex: 1;
+      background: rgba(0,0,0,.35);
+      border: 2px solid rgba(255,255,255,.12);
+      border-radius: 16px;
+      padding: 14px 14px 16px 14px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events:auto;
+    }
+    #aimLabel{
+      color: rgba(255,255,255,.92);
+      font-weight:800;
+      font-size:14px;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      text-align:center;
+      margin-bottom: 10px;
+      user-select:none;
+    }
+    #aimSlider{
+      width:100%;
+      height:22px;
+      -webkit-appearance:none;
+      appearance:none;
+      background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+      outline:none;
+      border-radius: 12px;
+      cursor:pointer;
+    }
+    #aimSlider::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      appearance:none;
+      width:44px;height:44px;
+      border-radius:50%;
+      background:#ffff00;
+      border:3px solid #fff;
+      box-shadow:0 0 22px rgba(255,255,0,.85);
+    }
+    #aimSlider::-moz-range-thumb{
+      width:44px;height:44px;
+      border-radius:50%;
+      background:#ffff00;
+      border:3px solid #fff;
+      box-shadow:0 0 22px rgba(255,255,0,.85);
+    }
+
+    /* Fire button */
+    #fireBtn{
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.85);
+      background: radial-gradient(circle at 30% 30%, #ffff66, #ffcc00 45%, #ff8c00 70%, #ff4d00 100%);
+      box-shadow:
+        0 10px 30px rgba(0,0,0,.35),
+        0 0 24px rgba(255, 204, 0, .55);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:auto;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    #fireBtn:active{
+      transform: scale(.97);
+      filter: brightness(1.05);
+    }
+    /* Simple icon */
+    #fireIcon{
+      width: 0; height: 0;
+      border-left: 14px solid rgba(0,0,0,.65);
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      margin-left: 4px;
+      filter: drop-shadow(0 2px 0 rgba(255,255,255,.35));
+    }
+
+    /* Game over overlay */
+    #gameOver{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.82);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 24px;
+      z-index: 5;
+    }
+    #gameOver.show{display:flex}
+    #gameOverCard{
+      width:min(560px, 100%);
+      background: rgba(15,15,30,.92);
+      border: 2px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      padding: 28px 24px;
+      text-align:center;
+      box-shadow: 0 24px 70px rgba(0,0,0,.55);
+    }
+    #gameOverCard h2{
+      color:#fff;
+      font-size:42px;
+      margin-bottom: 14px;
+    }
+    #gameOverCard p{
+      color: rgba(255,255,255,.75);
+      font-size: 22px;
+      margin-bottom: 22px;
+    }
+    #restartBtn{
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color:#fff;
+      border:none;
+      padding: 14px 32px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 14px;
+      cursor:pointer;
+    }
+    #restartBtn:active{ transform: scale(.99); }
+
+    /* Reduce accidental selection */
+    button{all:unset}
+  </style>
+</head>
+
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="stage">
+    <canvas id="gameCanvas" width="400" height="600" aria-label="Ballz Game"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">SCORE <span id="score">0</span></div>
+      <div class="hud-item">BALLS <span id="balls">1</span></div>
+    </div>
+
+    <div id="controls">
+      <div id="aimPanel">
+        <div id="aimLabel">AIM</div>
+        <!-- Allow aiming LOWER: 0..240 -->
+        <input type="range" id="aimSlider" min="0" max="240" value="120" />
+      </div>
+
+      <div id="fireBtn" role="button" aria-label="Fire">
+        <div id="fireIcon"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOver">
+    <div id="gameOverCard">
+      <h2>Game Over!</h2>
+      <p>Final Score: <span id="finalScore" style="color:#ffd700;font-weight:900">0</span></p>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  const scoreEl = document.getElementById('score');
+  const ballsEl = document.getElementById('balls');
+  const finalScoreEl = document.getElementById('finalScore');
+  const gameOverEl = document.getElementById('gameOver');
+  document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+  // Fit canvas to screen while keeping game coordinates stable via scale
+  let W = 400, H = 600;
+  function resize(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    // game world is based on current CSS size
+    W = Math.max(320, Math.floor(rect.width));
+    H = Math.max(480, Math.floor(rect.height));
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  // initial layout needs a tick to apply flex sizing
+  requestAnimationFrame(() => { resize(); });
+  window.addEventListener('resize', resize);
+
+  // Game state
+  let score = 0;
+  let ballCount = 1;
+
+  // Aim:
+  // Slider 0..240 maps to angle range [-45° .. +195°]
+  // We'll clamp firing so it doesn't go too far downward (but user requested "aim lower")
+  // Allow: up-right through straight down-right-ish to up-left-ish
+  let sliderAngle = -Math.PI/2;
+
+  // Ball properties
+  const ballRadius = 6;
+  const ballSpeed = 8;
+  let balls = [];
+  let shootingBalls = false;
+  let ballsToShoot = 0;
+  let shootTimer = 0;
+  let launchX = 200;
+  let launchY = 570;
+
+  // Bricks
+  let bricks = [];
+  const brickWidth = 50;
+  const brickHeight = 50;
+  const brickGap = 5;
+  let cols = 7;
+
+  // Add-ball dots (one per row)
+  let addDots = []; // {x,y,r}
+
+  class Ball{
+    constructor(x,y,vx,vy){
+      this.x=x; this.y=y;
+      this.vx=vx; this.vy=vy;
+      this.radius=ballRadius;
+      this.returned=false;
+    }
+    update(){
+      this.x += this.vx;
+      this.y += this.vy;
+
+      if (this.x - this.radius < 0 || this.x + this.radius > W){
+        this.vx = -this.vx;
+        this.x = Math.max(this.radius, Math.min(W - this.radius, this.x));
+      }
+      if (this.y - this.radius < 0){
+        this.vy = Math.abs(this.vy);
+      }
+      // Bottom return line
+      if (this.y + this.radius > H - 20 && !this.returned){
+        this.returned = true;
+        if (!shootingBalls) launchX = this.x;
+        return true;
+      }
+      return false;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#00ff88';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  class Brick{
+    constructor(x,y,health){
+      this.x=x; this.y=y;
+      this.width=brickWidth;
+      this.height=brickHeight;
+      this.health=health;
+      this.maxHealth=health;
+    }
+    hit(){
+      this.health--;
+      return this.health <= 0;
+    }
+    draw(){
+      const hue = Math.max(0, 120 - (this.health/this.maxHealth)*120);
+      ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      ctx.strokeStyle = `hsl(${hue}, 80%, 40%)`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.health, this.x + this.width/2, this.y + this.height/2);
+    }
+  }
+
+  function recalcLayout(){
+    // Center launcher relative to current W/H
+    launchY = H - 30;
+    if (!shootingBalls){
+      launchX = Math.min(W - 20, Math.max(20, launchX));
+    }
+
+    cols = Math.max(5, Math.floor(W / (brickWidth + brickGap)));
+  }
+
+  function calculateTrajectory(startX, startY, angle){
+    const pts = [];
+    let vx = Math.cos(angle) * ballSpeed;
+    let vy = Math.sin(angle) * ballSpeed;
+
+    let x = startX, y = startY;
+    for (let i=0;i<120;i++){
+      x += vx; y += vy;
+
+      if (x - ballRadius < 0 || x + ballRadius > W){
+        vx = -vx;
+        x = Math.max(ballRadius, Math.min(W - ballRadius, x));
+      }
+      if (y - ballRadius < 0){
+        vy = Math.abs(vy);
+      }
+
+      let hit = false;
+      for (const b of bricks){
+        if (x > b.x && x < b.x + b.width &&
+            y > b.y && y < b.y + b.height){
+          hit = true; break;
+        }
+      }
+
+      pts.push({x,y,isBounce:hit});
+      if (hit) break;
+
+      // If you aim down, trajectory could hit bottom quickly
+      if (y > H - 20) break;
+    }
+    return pts;
+  }
+
+  function drawTrajectory(){
+    if (shootingBalls) return;
+
+    const t = calculateTrajectory(launchX, launchY, sliderAngle);
+
+    for (let i=0;i<t.length-1;i++){
+      const p=t[i], n=t[i+1];
+      const prog = i / Math.min(t.length, 50);
+      const lw = Math.max(2, 10 - prog*8);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(n.x,n.y);
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = lw;
+      ctx.shadowBlur = 20 - prog*12;
+      ctx.shadowColor = '#ffff00';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce || n.isBounce) break;
+    }
+
+    for (let i=0;i<Math.min(t.length, 30); i+=2){
+      const p = t[i];
+      const prog = i/30;
+      const r = 7 - prog*3;
+
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,r,0,Math.PI*2);
+      ctx.fillStyle = '#ffff00';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ffff00';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce) break;
+    }
+  }
+
+  function cellCenterX(col){
+    return col*(brickWidth+brickGap) + brickGap + brickWidth/2;
+  }
+  function rowCenterY(){
+    return brickGap + brickHeight/2;
+  }
+
+  function spawnRow(){
+    const stepDown = brickHeight + brickGap;
+
+    // Downshift existing rows
+    for (const b of bricks) b.y += stepDown;
+    for (const d of addDots) d.y += stepDown;
+    addDots = addDots.filter(d => d.y < H + 40);
+
+    // Game over if any brick reaches bottom safe line
+    bricks = bricks.filter(b => {
+      if (b.y + b.height >= H - 50){
+        gameOver();
+        return false;
+      }
+      return true;
+    });
+
+    // Create new row at top
+    const numBricks = Math.floor(Math.random()*3)+2;
+    const used = new Set();
+    for (let i=0;i<numBricks;i++){
+      let col;
+      do { col = Math.floor(Math.random()*cols); } while (used.has(col));
+      used.add(col);
+
+      const x = col*(brickWidth+brickGap) + brickGap;
+      const y = brickGap;
+      const health = score + Math.floor(Math.random()*5) + 1;
+      bricks.push(new Brick(x,y,health));
+    }
+
+    // One add-dot per row, preferably between bricks (open column)
+    const openCols = [];
+    for (let c=0;c<cols;c++) if (!used.has(c)) openCols.push(c);
+    const dotCol = openCols.length ? openCols[Math.floor(Math.random()*openCols.length)] : Math.floor(Math.random()*cols);
+
+    addDots.push({ x: cellCenterX(dotCol), y: rowCenterY(), r: 7 });
+  }
+
+  function checkCollisions(){
+    for (const ball of balls){
+      // bricks
+      for (let i=bricks.length-1;i>=0;i--){
+        const b = bricks[i];
+        if (ball.x + ball.radius > b.x &&
+            ball.x - ball.radius < b.x + b.width &&
+            ball.y + ball.radius > b.y &&
+            ball.y - ball.radius < b.y + b.height){
+
+          const overlapLeft = (ball.x + ball.radius) - b.x;
+          const overlapRight = (b.x + b.width) - (ball.x - ball.radius);
+          const overlapTop = (ball.y + ball.radius) - b.y;
+          const overlapBottom = (b.y + b.height) - (ball.y - ball.radius);
+
+          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+          if (minOverlap === overlapLeft || minOverlap === overlapRight) ball.vx = -ball.vx;
+          else ball.vy = -ball.vy;
+
+          if (b.hit()){
+            bricks.splice(i,1);
+            score++;
+            scoreEl.textContent = score;
+          }
+        }
+      }
+
+      // add dots
+      for (let i=addDots.length-1;i>=0;i--){
+        const d = addDots[i];
+        if (Math.hypot(ball.x - d.x, ball.y - d.y) < ball.radius + d.r){
+          addDots.splice(i,1);
+          ballCount++;
+          ballsEl.textContent = ballCount;
+        }
+      }
+    }
+  }
+
+  function shootTick(){
+    if (ballsToShoot > 0){
+      shootTimer++;
+      if (shootTimer >= 3){
+        const vx = Math.cos(sliderAngle)*ballSpeed;
+        const vy = Math.sin(sliderAngle)*ballSpeed;
+        balls.push(new Ball(launchX, launchY, vx, vy));
+        ballsToShoot--;
+        shootTimer = 0;
+      }
+    } else if (balls.length === 0){
+      shootingBalls = false;
+      spawnRow();
+    }
+  }
+
+  function update(){
+    recalcLayout();
+
+    for (let i=balls.length-1;i>=0;i--){
+      if (balls[i].update()){
+        balls.splice(i,1);
+      }
+    }
+
+    checkCollisions();
+    if (shootingBalls) shootTick();
+  }
+
+  function drawAddDots(){
+    for (const d of addDots){
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fillStyle = '#ffd700';
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#ffd700';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = '#0f0f1e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(d.x - 4, d.y);
+      ctx.lineTo(d.x + 4, d.y);
+      ctx.moveTo(d.x, d.y - 4);
+      ctx.lineTo(d.x, d.y + 4);
+      ctx.stroke();
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    drawTrajectory();
+
+    for (const b of bricks) b.draw();
+    drawAddDots();
+    for (const ball of balls) ball.draw();
+
+    // launcher dot + aim beam
+    if (!shootingBalls){
+      ctx.beginPath();
+      ctx.arc(launchX, launchY, ballRadius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.fill();
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const len = 62;
+      ctx.beginPath();
+      ctx.moveTo(launchX, launchY);
+      ctx.lineTo(launchX + Math.cos(sliderAngle)*len, launchY + Math.sin(sliderAngle)*len);
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 10;
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = '#ffff00';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  function loop(){
+    if (!gameOverEl.classList.contains('show')){
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function gameOver(){
+    finalScoreEl.textContent = score;
+    gameOverEl.classList.add('show');
+  }
+
+  function fire(){
+    if (shootingBalls || gameOverEl.classList.contains('show')) return;
+
+    // Prevent firing *too* far downward (still allows aiming lower than before).
+    // Allow angles up to about +60° (down-right) and down-left symmetric.
+    const maxDown = Math.PI/3; // 60°
+    const minUpLeft = -Math.PI - maxDown; // -240°
+    // Normalize to [-pi, pi] for clamp logic:
+    let a = sliderAngle;
+    while (a > Math.PI) a -= Math.PI*2;
+    while (a < -Math.PI) a += Math.PI*2;
+
+    // If player aims extremely downward (towards straight down), clamp a bit
+    if (a > maxDown) a = maxDown;
+    if (a < -Math.PI - maxDown) a = -Math.PI - maxDown;
+
+    sliderAngle = a;
+
+    shootingBalls = true;
+    ballsToShoot = ballCount;
+    shootTimer = 0;
+  }
+
+  // Fire button
+  const fireBtn = document.getElementById('fireBtn');
+  fireBtn.addEventListener('click', fire);
+  fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(); }, { passive:false });
+
+  // Slider aim:
+  const slider = document.getElementById('aimSlider');
+  function setAim(deg){
+    // Map 0..240 => -45°..+195°
+    const rad = (-Math.PI/4) + (deg/240) * (Math.PI * (240/180)); // equivalent span 240°
+    // That expression is messy; do direct:
+    // start = -45° ; end = 195°  => span 240°
+  }
+  function setAim2(deg){
+    const start = -Math.PI/4;          // -45°
+    const end   = (195 * Math.PI/180); // 195°
+    sliderAngle = start + (deg/240) * (end - start);
+  }
+  slider.addEventListener('input', (e) => setAim2(parseFloat(e.target.value)));
+
+  // Start at 120 (roughly straight-ish up)
+  setAim2(parseFloat(slider.value));
+
+  // Start row + loop
+  // Need initial W/H after layout settles:
+  setTimeout(() => {
+    resize();
+    recalcLayout();
+    spawnRow();
+    loop();
+  }, 0);
+})();
+</script>
+</body>
+</html>

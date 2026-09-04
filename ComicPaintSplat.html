@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Comic Paint Splat</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; touch-action: none; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; }
+  canvas { display: block; filter: contrast(180%) brightness(110%); cursor: crosshair; }
+  #intro{
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #000; color: #fff; font-size: 20px; font-weight: 800; letter-spacing: 4px;
+    cursor: pointer; z-index: 10; text-transform: uppercase;
+  }
+  #intro.hidden{ display:none; }
+  #intro span{ border:4px solid #fff; padding:20px 40px; box-shadow: 8px 8px 0px #00f0ff; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="intro"><span>TAP TO SPLAT</span></div>
+<canvas id="c"></canvas>
+
+<script>
+/*
+COMIC PAINT SPLAT
+- DPR-correct rendering (sharper on iPhone)
+- Pointer Events (touch + mouse unified)
+- Safe particle removal (no splice-in-forEach bugs)
+*/
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+let W=0, H=0, DPR=1;
+let particles = [];
+let touchActive = false;
+
+let lastTouch = { x: 0, y: 0 };
+let velocity = { x: 0, y: 0 };
+
+function resize(){
+  DPR = Math.min(3, window.devicePixelRatio || 1);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize, {passive:true});
+resize();
+
+function init(){
+  particles = [];
+  for(let i=0;i<80;i++){
+    particles.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      vx: 0, vy: 0,
+      r: 10 + Math.random()*25,
+      hue: Math.random() > 0.5 ? 330 : 180,
+      life: undefined
+    });
+  }
+}
+init();
+
+// --- HALFTONE SPLAT ---
+function drawHalftoneSplat(x, y, radius, color, intensity=1){
+  const dotSpacing = 12;
+  const r = Math.max(10, radius);
+  const step = Math.max(6, dotSpacing - intensity*3);
+
+  ctx.fillStyle = color;
+  for(let ix = x - r; ix < x + r; ix += step){
+    for(let iy = y - r; iy < y + r; iy += step){
+      const dx = ix - x, dy = iy - y;
+      const dist = Math.hypot(dx, dy);
+      if(dist < r){
+        const dotSize = (1 - dist / r) * 8 * intensity;
+        if(dotSize <= 0.25) continue;
+        ctx.beginPath();
+        ctx.arc(ix, iy, dotSize, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// --- INPUT (POINTER EVENTS) ---
+function getPoint(e){
+  return { x: e.clientX, y: e.clientY };
+}
+
+function handleStart(e){
+  document.getElementById("intro").classList.add("hidden");
+  touchActive = true;
+  const p = getPoint(e);
+  lastTouch.x = p.x; lastTouch.y = p.y;
+  velocity.x = 0; velocity.y = 0;
+}
+
+function handleMove(e){
+  if(!touchActive) return;
+  e.preventDefault();
+
+  const p = getPoint(e);
+  const x = p.x, y = p.y;
+
+  velocity.x = x - lastTouch.x;
+  velocity.y = y - lastTouch.y;
+  const speed = Math.hypot(velocity.x, velocity.y);
+
+  if(speed > 5){
+    const intensity = Math.min(speed / 50, 1);
+    const radius = 80 + speed * 1.5;
+
+    const colors = ['#ff00ff', '#00ffff', '#ffff00', '#ff0099'];
+    const color = colors[(Math.random()*colors.length)|0];
+
+    drawHalftoneSplat(x, y, radius, color, intensity);
+
+    if(speed > 30){
+      for(let i=0;i<5;i++){
+        particles.push({
+          x, y,
+          vx: velocity.x*0.3 + (Math.random()-0.5)*10,
+          vy: velocity.y*0.3 + (Math.random()-0.5)*10,
+          r: 8 + Math.random()*15,
+          hue: Math.random()*360,
+          life: 1
+        });
+      }
+    }
+  }
+
+  lastTouch.x = x;
+  lastTouch.y = y;
+}
+
+function handleEnd(){
+  if(!touchActive) return;
+  touchActive = false;
+
+  const speed = Math.hypot(velocity.x, velocity.y);
+  if(speed > 20){
+    drawHalftoneSplat(lastTouch.x, lastTouch.y, 150 + speed*2, "#fff", 1.2);
+  }
+}
+
+canvas.addEventListener("pointerdown", (e)=>{ canvas.setPointerCapture?.(e.pointerId); handleStart(e); }, {passive:false});
+canvas.addEventListener("pointermove", handleMove, {passive:false});
+canvas.addEventListener("pointerup", handleEnd, {passive:true});
+canvas.addEventListener("pointercancel", handleEnd, {passive:true});
+canvas.addEventListener("pointerleave", handleEnd, {passive:true});
+
+// Prevent page bounce/scroll
+document.addEventListener("gesturestart", (e)=>e.preventDefault(), {passive:false});
+
+// --- LOOP ---
+function draw(){
+  // slow fade
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.fillRect(0,0,W,H);
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+
+    // physics
+    p.vy += 0.2;
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.x += p.vx; p.y += p.vy;
+
+    // fade-out life
+    let alpha = 1;
+    if(p.life !== undefined){
+      p.life -= 0.02;
+      if(p.life <= 0){
+        particles.splice(i,1);
+        continue;
+      }
+      alpha = p.life;
+    }
+
+    // wrap
+    if(p.x < -30) p.x = W + 30;
+    if(p.x > W + 30) p.x = -30;
+    if(p.y > H + 30) p.y = -30;
+
+    const size = p.r;
+
+    // shadow
+    ctx.globalAlpha = alpha * 0.8;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(p.x + 6, p.y + 6, size + 2, 0, Math.PI*2);
+    ctx.fill();
+
+    // glob
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `hsl(${p.hue}, 100%, 50%)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size, 0, Math.PI*2);
+    ctx.fill();
+
+    // highlight
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath();
+    ctx.arc(p.x - size*0.3, p.y - size*0.3, size*0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Bouncy Machine — Single Spinner</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; color:#fff; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  #c { display:block; width:100vw; height:100vh; touch-action:none; cursor:crosshair; }
+  .ui { position:fixed; top:12px; left:12px; display:flex; gap:8px; align-items:center; z-index:10; }
+  button {
+    background:#111; color:#fff; border:2px solid #fff; border-radius:12px;
+    padding:10px 14px; font-size:16px; font-weight:700; letter-spacing:.3px;
+  }
+  button:active{ transform:translateY(1px); }
+  .hint{ background:#111a; border:1px solid #fff3; border-radius:10px; padding:6px 10px; font-size:12px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div class="ui">
+    <button id="randomizeBtn" aria-label="Randomize Shape">🎲 Randomize Shape</button>
+    <div class="hint">Tap anywhere to drop balls. Each tap spawns 1, then 2, then 3…</div>
+  </div>
+  <canvas id="c"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let DPR = Math.max(1, Math.min(2, (window.devicePixelRatio||1)));
+  let W=0, H=0;
+
+  function resize(){
+    DPR = Math.max(1, Math.min(2, (window.devicePixelRatio||1)));
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W*DPR);
+    canvas.height = Math.floor(H*DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
+
+  // World constants
+  const gravity = 1800;
+  const airFriction = 0.0006;
+  const wallRest = 0.86;
+  const maxBalls = 160;
+
+  // State
+  const balls = [];
+  let spinner = null; // single polygon spinner
+  let pressCount = 0; // 1,2,3... balls per press
+
+  // PRNG
+  const rng = {
+    seed: Math.floor(Math.random()*2**31),
+    next(){ let x=this.seed|=0; x^=x<<13; x^=x>>>17; x^=x<<5; return (this.seed=x)>>>0; },
+    norm(){ return this.next()/0xFFFFFFFF; },
+    range(a,b){ return a + (b-a)*this.norm(); },
+    pick(arr){ return arr[(this.next()%arr.length)|0]; }
+  };
+
+  // Backdrop
+  function drawBackdrop(){
+    ctx.fillStyle='#000';
+    ctx.fillRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha=0.07;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=1;
+    const step=48;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=step){ ctx.moveTo(x,0); ctx.lineTo(x,H); }
+    for(let y=0;y<=H;y+=step){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Balls
+  function addBall(x){
+    if(balls.length>maxBalls) balls.shift();
+    const r = rng.range(11,18);
+    balls.push({
+      x: Math.min(Math.max(x, r+4), W-r-4),
+      y: -r-12,
+      vx: rng.range(-90, 90),
+      vy: rng.range(0, 160),
+      r, rest: 0.94 + rng.range(0,0.12),
+      age: 0, alive: true
+    });
+  }
+
+  function onPointer(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX!==undefined? e.clientX : e.touches[0].clientX) - rect.left;
+    pressCount += 1;
+    const n = pressCount; // 1,2,3,...
+    // Spread spawn slightly around touch X for variety
+    for(let i=0;i<n;i++){
+      const jitter = (i - (n-1)/2) * 6; // slight lateral spread
+      addBall(x + jitter);
+    }
+  }
+  canvas.addEventListener('pointerdown', onPointer);
+  canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); onPointer(e); }, { passive:false });
+
+  // Geometry helpers
+  function rotatePoint(x,y,cx,cy,a){
+    const s=Math.sin(a), c=Math.cos(a); const dx=x-cx, dy=y-cy;
+    return [cx + c*dx - s*dy, cy + s*dx + c*dy];
+  }
+  function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi,v)); }
+
+  // Spinner builder: random polygon up to 24 sides; may choose special rhombus/square
+  function buildSpinner(){
+    const cx = W*0.5, cy = H*0.55;
+    const radius = Math.max(90, Math.min(W,H)*0.22);
+    const sides = (rng.next()%22)+3; // 3..24
+    let pts = [];
+    let isRhombus = false;
+    let isSquare = false;
+
+    if (sides === 4) {
+      // 50/50 square vs rhombus
+      if (rng.norm() < 0.5) {
+        isSquare = true;
+      } else {
+        isRhombus = true;
+      }
+    }
+
+    if (isSquare) {
+      const a = radius;
+      pts = [[-a,-a],[a,-a],[a,a],[-a,a]];
+      const rot = rng.range(0, Math.PI/4); // small random tilt
+      pts = pts.map(([x,y]) => rotatePoint(x,y,0,0,rot));
+      pts = pts.map(([x,y]) => [x+cx,y+cy]);
+    } else if (isRhombus) {
+      // Rhombus with random acute angle
+      const d1 = radius*1.6;
+      const d2 = radius*0.9;
+      const p0 = [0,-d2/2], p1 = [d1/2,0], p2=[0,d2/2], p3=[-d1/2,0];
+      let base = [p0,p1,p2,p3];
+      const rot = rng.range(-Math.PI/6, Math.PI/6);
+      base = base.map(([x,y]) => rotatePoint(x,y,0,0,rot)).map(([x,y])=>[x+cx,y+cy]);
+      pts = base;
+    } else {
+      // Regular-ish polygon, but allow small radius jitter for fun
+      const baseRot = rng.range(0, Math.PI);
+      for(let i=0;i<sides;i++){
+        const ang = baseRot + i*(Math.PI*2/sides);
+        const rJit = radius * (0.9 + rng.range(0, 0.2));
+        pts.push([cx + Math.cos(ang)*rJit, cy + Math.sin(ang)*rJit]);
+      }
+    }
+
+    // edges -> thick, bouncy segments
+    const segs = [];
+    const t = 14;
+    const e = 1.08; // super bouncy
+    for(let i=0;i<pts.length;i++){
+      const a = pts[i];
+      const b = pts[(i+1)%pts.length];
+      segs.push({
+        ax0:a[0], ay0:a[1], bx0:b[0], by0:b[1],
+        t, e
+      });
+    }
+
+    // spinner object
+    return {
+      cx, cy,
+      segs,
+      a: 0,
+      av: rng.range(-1.2, 1.2) || 0.8, // avoid near-zero
+      // render color
+      color: '#fff'
+    };
+  }
+
+  function randomizeSpinner(){
+    spinner = buildSpinner();
+    // keep the last few balls for continuity
+    while(balls.length>80) balls.shift();
+    // reset press counter? Keep counting so spawns can escalate
+  }
+
+  document.getElementById('randomizeBtn').addEventListener('click', () => {
+    randomizeSpinner();
+  });
+
+  // Collision helpers
+  function collideBallWithWalls(b){
+    if(b.y + b.r > H){ b.y = H - b.r; if(b.vy>0) b.vy *= -b.rest * wallRest; b.vx *= 0.985; b.age += 0.25; }
+    if(b.y - b.r < 0){ b.y = b.r;   if(b.vy<0) b.vy *= -b.rest * wallRest; }
+    if(b.x - b.r < 0){ b.x = b.r;   if(b.vx<0) b.vx *= -b.rest * wallRest; }
+    if(b.x + b.r > W){ b.x = W-b.r; if(b.vx>0) b.vx *= -b.rest * wallRest; }
+  }
+
+  function pointSegInfo(px,py, ax,ay, bx,by){
+    const abx=bx-ax, aby=by-ay, apx=px-ax, apy=py-ay;
+    const ab2=abx*abx+aby*aby || 1e-6;
+    let t=(apx*abx + apy*aby)/ab2; t = Math.max(0, Math.min(1,t));
+    const qx=ax+abx*t, qy=ay+aby*t;
+    const dx=px-qx, dy=py-qy; const d2=dx*dx+dy*dy; const d=Math.sqrt(d2);
+    const inv = d>1e-6 ? 1/d : 0;
+    return { qx, qy, d, nx:dx*inv, ny:dy*inv };
+  }
+
+  function transformSeg(s, cx, cy, ang){
+    const [ax,ay] = rotatePoint(s.ax0, s.ay0, cx, cy, ang);
+    const [bx,by] = rotatePoint(s.bx0, s.by0, cx, cy, ang);
+    return { ax,ay,bx,by, t:s.t, e:s.e };
+  }
+
+  // Main loop
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.033, (now-last)/1000); last = now;
+
+    // physics
+    for(const b of balls){
+      b.vx *= (1 - airFriction*dt*1000);
+      b.vy *= (1 - airFriction*dt*1000);
+      b.vy += gravity*dt;
+      b.x += b.vx*dt;
+      b.y += b.vy*dt;
+      collideBallWithWalls(b);
+      b.age += dt*0.12;
+      if(b.age>12 && Math.abs(b.vx)+Math.abs(b.vy) < 12 && b.y > H - b.r - 2){ b.alive=false; }
+    }
+    // cull
+    for(let i=balls.length-1;i>=0;i--) if(!balls[i].alive) balls.splice(i,1);
+
+    // spinner
+    if (!spinner) randomizeSpinner();
+    spinner.a += spinner.av * dt;
+    const trs = spinner.segs.map(s => transformSeg(s, spinner.cx, spinner.cy, spinner.a));
+
+    // collisions with spinner
+    for(const b of balls){
+      for(const tr of trs){
+        const info = pointSegInfo(b.x,b.y, tr.ax,tr.ay, tr.bx,tr.by);
+        const effective = b.r + tr.t*0.5;
+        if(info.d < effective){
+          const pen = (effective - info.d);
+          b.x += info.nx * pen;
+          b.y += info.ny * pen;
+          const vn = b.vx*info.nx + b.vy*info.ny;
+          const e = tr.e * b.rest;
+          b.vx = b.vx - (1+e)*vn*info.nx;
+          b.vy = b.vy - (1+e)*vn*info.ny;
+          b.vx *= 0.996; b.vy *= 0.996;
+          b.age = Math.max(0, b.age - 0.1);
+        }
+      }
+    }
+
+    // render
+    drawBackdrop();
+
+    // draw spinner
+    ctx.lineCap='round';
+    ctx.strokeStyle='#fff';
+    for(const tr of trs){
+      ctx.lineWidth = tr.t;
+      ctx.beginPath();
+      ctx.moveTo(tr.ax,tr.ay);
+      ctx.lineTo(tr.bx,tr.by);
+      ctx.stroke();
+    }
+
+    // draw balls
+    for(const b of balls){
+      ctx.beginPath();
+      ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.fillStyle='#000';
+      ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle='#fff7';
+      ctx.arc(b.x,b.y,Math.max(2,b.r*0.65),0,Math.PI*2); ctx.stroke();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // Init
+  randomizeSpinner();
+  // start with one tap-like burst for fun
+  pressCount = 0;
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

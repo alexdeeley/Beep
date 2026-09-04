@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Boomshine — Minimal Glow</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --accent:#fff;
+    --muted: #aaa;
+  }
+  html,body{
+    margin:0;
+    height:100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  }
+  #ui{
+    position:fixed; inset:0; pointer-events:none; display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+  }
+  .topbar, .bottombar{
+    width:100%; display:flex; justify-content:space-between; gap:.5rem; padding: .75rem 1rem; box-sizing:border-box; font-weight:600;
+  }
+  .topbar{ background: linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,0)); }
+  .bottombar{ background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0)); align-items:flex-end;}
+  .btn{
+    pointer-events:auto;
+    border:1.5px solid var(--fg);
+    color:var(--fg);
+    background:transparent;
+    padding:.5rem .75rem;
+    border-radius:999px;
+    font-weight:700;
+    letter-spacing:.02em;
+    transition:transform .08s ease;
+    touch-action:manipulation;
+  }
+  .btn:active{ transform: scale(.98); }
+  #centerOverlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.05), rgba(0,0,0,.75));
+  }
+  #centerCard{
+    text-align:center;
+    padding: 1.2rem 1.4rem;
+    border: 1.5px solid var(--fg);
+    border-radius: 16px;
+    backdrop-filter: blur(6px);
+    max-width:min(90vw, 540px);
+  }
+  h1{
+    margin:.2em 0 .4em;
+    font-size: clamp(22px, 4.5vw, 32px);
+    letter-spacing:.02em;
+  }
+  p{ margin:.4em 0; color:var(--muted); line-height:1.4; }
+  canvas{ display:block; width:100vw; height:100vh; }
+  .kbd{ border:1px solid var(--muted); padding:.05rem .35rem; border-radius:.35rem; font-family: ui-monospace, monospace; font-weight:600;}
+  .stat{ color:var(--muted); font-weight:600;}
+  .right{ text-align:right;}
+  .left{ text-align:left;}
+  #progress{
+    width:100%; height:6px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden; margin-top:.6rem;
+  }
+  #progress>span{ display:block; height:100%; width:0%; background:linear-gradient(90deg, rgba(255,255,255,.2), rgba(255,255,255,.9)); }
+  a{ color:var(--fg); }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div id="ui" aria-hidden="false">
+  <div class="topbar">
+    <div class="left">
+      <div>Level <span id="levelVal">1</span></div>
+      <div class="stat"><span id="ballsRemaining">0</span> balls • Target <span id="targetVal">0</span></div>
+    </div>
+    <div class="right">
+      <div>Score <span id="scoreVal">0</span></div>
+      <div class="stat">Best <span id="bestVal">0</span></div>
+    </div>
+  </div>
+  <div class="bottombar">
+    <button class="btn" id="restartBtn" title="Restart level">Restart</button>
+    <div style="display:flex; gap:.5rem">
+      <button class="btn" id="soundBtn" title="Toggle sound">Sound: On</button>
+      <button class="btn" id="helpBtn" title="How to play">Help</button>
+    </div>
+  </div>
+</div>
+
+<div id="centerOverlay">
+  <div id="centerCard">
+    <h1>BOOMSHINE — Minimal Glow</h1>
+    <p>Tap or click <b>once</b> to place a glowing circle. Any ball that touches it explodes into its own glow. Create the longest chain you can.</p>
+    <p>Explosions last <b>4 seconds</b>. Score grows with combos. White-on-black for crisp vibes. Headphones recommended 🎧</p>
+    <div id="progress" aria-hidden="true"><span></span></div>
+    <div style="display:flex; gap:.6rem; justify-content:center; margin-top:.8rem">
+      <button class="btn" id="startBtn">Start</button>
+      <button class="btn" id="muteBtn">Mute</button>
+    </div>
+    <p style="margin-top:.6rem; font-size:.9em;">Controls: <span class="kbd">Click/Tap</span> to set your first explosion. Then watch the chain reaction.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  const TAU = Math.PI*2;
+  const canvas = document.getElementById('c');
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const ctx = canvas.getContext('2d', {alpha:false, desynchronized:true});
+  let W = 0, H = 0;
+  function resize(){
+    W = canvas.width = Math.floor(window.innerWidth * dpr);
+    H = canvas.height = Math.floor(window.innerHeight * dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // UI
+  const overlay = document.getElementById('centerOverlay');
+  const progressBar = document.querySelector('#progress>span');
+  const startBtn = document.getElementById('startBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const helpBtn = document.getElementById('helpBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const levelVal = document.getElementById('levelVal');
+  const scoreVal = document.getElementById('scoreVal');
+  const bestVal = document.getElementById('bestVal');
+  const targetVal = document.getElementById('targetVal');
+  const ballsRemaining = document.getElementById('ballsRemaining');
+
+  // Audio (initialized on user gesture for iOS)
+  let AC = null, masterGain, soundOn = true;
+  function initAudio(){
+    if (AC) return;
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = AC.createGain();
+    masterGain.gain.value = 0.6;
+    masterGain.connect(AC.destination);
+    // wake tone (silent)
+    const osc = AC.createOscillator();
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0, AC.currentTime);
+    osc.connect(g).connect(masterGain);
+    osc.start(); osc.stop(AC.currentTime+0.01);
+  }
+  function tone(freq=440, t=0.14, type='sine', vol=0.25){
+    if (!AC || !soundOn) return;
+    const now = AC.currentTime;
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(vol, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + t);
+    o.connect(g).connect(masterGain);
+    o.start(now);
+    o.stop(now + t + 0.02);
+  }
+  function popSound(pitch=440){
+    // soft pluck with a little noise burst
+    if (!AC || !soundOn) return;
+    const now = AC.currentTime;
+    const o = AC.createOscillator();
+    const n = AC.createBufferSource();
+    const g = AC.createGain();
+    const gn = AC.createGain();
+    // noise buffer
+    const len = AC.sampleRate * 0.06;
+    const buf = AC.createBuffer(1, len, AC.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<len;i++) data[i] = (Math.random()*2-1) * (1 - i/len);
+    n.buffer = buf;
+    gn.gain.setValueAtTime(0.08, now);
+    gn.gain.exponentialRampToValueAtTime(0.0001, now+0.06);
+    n.connect(gn).connect(masterGain);
+    n.start(now);
+
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(pitch, now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.28, now+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+    o.connect(g).connect(masterGain);
+    o.start(now);
+    o.stop(now + 0.3);
+  }
+
+  // Game state
+  const rnd = (a,b)=> Math.random()*(b-a)+a;
+  const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
+
+  const params = {
+    baseBalls: 24,
+    radius: { min: 8, max: 14 },   // moving balls radius
+    speed: { min: 0.5, max: 1.6 }, // pixels per ms (scaled by dpr)
+    explodeRadius: 90,             // peak radius of explosion glow in px (at dpr=1)
+    explodeDuration: 4000,         // 4 seconds per request
+    targetPct: 0.3,                // target % to pass level
+    bonusPerBall: 10,              // score per exploded ball
+    chainBonus: 3,                 // extra per chain depth
+  };
+
+  let level = 1, score = 0, best = Number(localStorage.getItem('boom_min_best')||0);
+  bestVal.textContent = best;
+
+  let balls = [];
+  let explosions = [];
+  let hasPlaced = false;
+  let playing = false;
+  let lastT = 0;
+
+  class Ball{
+    constructor(){
+      const r = rnd(params.radius.min, params.radius.max) * dpr;
+      this.r = r;
+      this.x = rnd(r, W-r);
+      this.y = rnd(r, H-r);
+      const ang = rnd(0, TAU);
+      const sp = rnd(params.speed.min, params.speed.max) * dpr;
+      this.vx = Math.cos(ang)*sp;
+      this.vy = Math.sin(ang)*sp;
+      this.col = 1; // brightness factor
+      this.hit = false;
+      // subtle per-ball hue shimmer via phase
+      this.phase = Math.random()*TAU;
+    }
+    update(dt){
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      // bounce
+      if (this.x < this.r && this.vx < 0) { this.x = this.r; this.vx *= -1; }
+      if (this.x > W-this.r && this.vx > 0) { this.x = W-this.r; this.vx *= -1; }
+      if (this.y < this.r && this.vy < 0) { this.y = this.r; this.vy *= -1; }
+      if (this.y > H-this.r && this.vy > 0) { this.y = H-this.r; this.vy *= -1; }
+    }
+    draw(t){
+      // minimalist glowing dot with a faint tail
+      const rad = this.r;
+      const shimmer = 0.5 + 0.5*Math.sin(t*0.002 + this.phase);
+      const gR = rad*4;
+      const grd = ctx.createRadialGradient(this.x, this.y, rad*0.2, this.x, this.y, gR);
+      // white center to gray falloff
+      grd.addColorStop(0, "rgba(255,255,255,0.95)");
+      grd.addColorStop(0.15, "rgba(255,255,255,0.6)");
+      grd.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, gR, 0, TAU);
+      ctx.fill();
+
+      // solid core for crisp minimal look
+      ctx.fillStyle = "rgba(255,255,255," + (0.8*shimmer) + ")";
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, rad, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  class Explosion{
+    constructor(x,y,depth){
+      this.x = x; this.y = y;
+      this.t0 = performance.now();
+      this.depth = depth||1;
+      this.killed = false;
+      popSound(240 + this.depth*40);
+    }
+    get age(){ return performance.now() - this.t0; }
+    get alive(){ return this.age < params.explodeDuration; }
+    radius(){
+      const t = this.age / params.explodeDuration; // 0..1
+      // ease-out growth to a peak radius, hold, then gentle fade
+      const peak = params.explodeRadius * dpr * (1 + 0.05*this.depth);
+      if (t < 0.15) return peak * (t/0.15);        // quick rise
+      if (t < 0.85) return peak;                   // hold
+      const k = (t-0.85)/0.15;                     // 0..1
+      return peak * (1 - k*0.9);                   // slight shrink
+    }
+    draw(){
+      const r = this.radius();
+      // outer glow
+      const g = ctx.createRadialGradient(this.x, this.y, r*0.25, this.x, this.y, r*1.35);
+      g.addColorStop(0, "rgba(255,255,255,0.25)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(this.x, this.y, r*1.35, 0, TAU); ctx.fill();
+
+      // inner disk
+      const alpha = clamp(1 - this.age/params.explodeDuration, 0.15, 0.9);
+      ctx.fillStyle = "rgba(255,255,255,"+alpha+")";
+      ctx.beginPath(); ctx.arc(this.x, this.y, r*0.9, 0, TAU); ctx.fill();
+    }
+  }
+
+  function setupLevel(n){
+    balls = Array.from({length:n}, ()=> new Ball());
+    explosions = [];
+    hasPlaced = false;
+    lastT = performance.now();
+    updateHUD(n);
+  }
+
+  function updateHUD(n){
+    levelVal.textContent = level;
+    targetVal.textContent = Math.ceil(n * params.targetPct);
+    ballsRemaining.textContent = n - (balls.filter(b=>b.hit).length);
+    scoreVal.textContent = score;
+    bestVal.textContent = best;
+  }
+
+  function checkCollisions(){
+    for (const b of balls){
+      if (b.hit) continue;
+      for (const e of explosions){
+        const dx = b.x - e.x;
+        const dy = b.y - e.y;
+        const rr = e.radius() + b.r * 0.6; // a little generous
+        if (dx*dx + dy*dy <= rr*rr){
+          b.hit = true;
+          // add new explosion at ball pos
+          explosions.push( new Explosion(b.x, b.y, (e.depth||1)+1) );
+          const chainValue = params.bonusPerBall + (e.depth||1)*params.chainBonus;
+          score += chainValue;
+          if (soundOn) popSound(320 + (e.depth||1)*55);
+        }
+      }
+    }
+  }
+
+  function drawBackground(t){
+    // subtle vignette grid: minimalist + fancy
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+    const step = Math.floor(48 * dpr);
+    ctx.globalAlpha = 0.05;
+    ctx.beginPath();
+    for (let x=0; x<W; x+=step){
+      ctx.moveTo(x,0); ctx.lineTo(x,H);
+    }
+    for (let y=0; y<H; y+=step){
+      ctx.moveTo(0,y); ctx.lineTo(W,y);
+    }
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // faint corner glow for style
+    const g = ctx.createRadialGradient(W*0.05, H*0.05, 0, W*0.05, H*0.05, Math.max(W,H)*0.8);
+    g.addColorStop(0,"rgba(255,255,255,0.04)");
+    g.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+
+  function loop(t){
+    if (!playing){ return; }
+    const dt = Math.min(32, t - lastT); // cap to avoid spiral
+    lastT = t;
+
+    drawBackground(t);
+
+    // update and draw balls
+    for (const b of balls){
+      if (!b.hit) b.update(dt);
+      b.draw(t);
+    }
+
+    // explosions
+    explosions = explosions.filter(e => e.alive);
+    for (const e of explosions){ e.draw(); }
+
+    // collisions
+    checkCollisions();
+
+    // progress (time left after placing)
+    if (hasPlaced){
+      // remaining time: when all explosions are gone, round ends
+      const anyAlive = explosions.length>0;
+      if (!anyAlive){
+        endRound();
+        return;
+      }
+      // simple progress = life of oldest current explosion vs total?
+      const oldest = explosions.reduce((m,e)=> Math.min(m, e.t0), Infinity);
+      const latestEnd = oldest + params.explodeDuration;
+      const pct = clamp(1 - (latestEnd - performance.now())/params.explodeDuration, 0, 1);
+      progressBar.style.width = (pct*100).toFixed(1)+"%";
+    } else {
+      progressBar.style.width = "0%";
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  function beginGame(){
+    overlay.style.display = 'none';
+    playing = true;
+    level = 1;
+    score = 0;
+    setupLevel(params.baseBalls);
+    requestAnimationFrame(ts=>{ lastT = ts; loop(ts); });
+  }
+
+  function endRound(){
+    playing = true; // keep loop alive
+    const total = balls.length;
+    const hit = balls.filter(b=>b.hit).length;
+    const needed = Math.ceil(total*params.targetPct);
+    if (hit >= needed){
+      // advance level: scale balls modestly
+      level++;
+      // level bonus
+      score += 50 + (hit-needed)*5;
+      const next = Math.round(params.baseBalls * (1 + 0.12*(level-1)));
+      setupLevel(next);
+      // soft "success" chord
+      tone(440, .18, 'sine', .15);
+      tone(660, .18, 'sine', .12);
+      tone(880, .18, 'sine', .09);
+    } else {
+      // show overlay with results and allow restart
+      overlay.style.display = 'flex';
+      const card = document.getElementById('centerCard');
+      card.innerHTML = `
+        <h1>Round Over</h1>
+        <p>You exploded <b>${hit}</b> / ${total} balls (target ${needed}).</p>
+        <p>Score this run: <b>${score}</b></p>
+        <div style="display:flex; gap:.6rem; justify-content:center; margin-top:.8rem">
+          <button class="btn" id="againBtn">Try Again</button>
+          <button class="btn" id="newRunBtn">New Run</button>
+        </div>
+      `;
+      document.getElementById('againBtn').onclick = ()=>{
+        overlay.style.display = 'none';
+        setupLevel(balls.length);
+      };
+      document.getElementById('newRunBtn').onclick = ()=>{
+        overlay.style.display = 'none';
+        level = 1; score = 0; setupLevel(params.baseBalls);
+      };
+      if (score > best){ best = score; localStorage.setItem('boom_min_best', best); bestVal.textContent = best; }
+      // sad beep
+      tone(220, .18, 'sine', .12);
+    }
+    updateHUD(balls.length);
+  }
+
+  // Input: one placement per round
+  function placeExplosion(px, py){
+    if (!playing) return;
+    if (hasPlaced) return;
+    hasPlaced = true;
+    explosions.push( new Explosion(px, py, 1) );
+  }
+  function pointerHandler(ev){
+    initAudio();
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    const y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - rect.top;
+    placeExplosion(x*dpr, y*dpr);
+  }
+  canvas.addEventListener('pointerdown', pointerHandler, {passive:true});
+  canvas.addEventListener('touchstart', pointerHandler, {passive:true});
+
+  // Buttons
+  startBtn.onclick = ()=>{ initAudio(); beginGame(); };
+  muteBtn.onclick = ()=>{
+    initAudio();
+    soundOn = !soundOn;
+    muteBtn.textContent = soundOn ? 'Mute' : 'Unmute';
+    soundBtn.textContent = soundOn ? 'Sound: On' : 'Sound: Off';
+  };
+  restartBtn.onclick = ()=>{
+    overlay.style.display = 'none';
+    setupLevel(params.baseBalls + Math.round((level-1)*params.baseBalls*0.12));
+  };
+  helpBtn.onclick = ()=>{
+    overlay.style.display = 'flex';
+    const t = params.explodeDuration/1000;
+    document.getElementById('centerCard').innerHTML = `
+      <h1>How to Play</h1>
+      <p>Tap or click <b>once</b> to place a glowing circle. Any ball that touches it explodes and creates its own glow.</p>
+      <p>Each glow lasts <b>${t.toFixed(0)} seconds</b>. Hitting multiple balls in sequence yields <b>combo</b> points.</p>
+      <div style="display:flex; gap:.6rem; justify-content:center; margin-top:.8rem">
+        <button class="btn" id="resumeBtn">Resume</button>
+      </div>
+    `;
+    document.getElementById('resumeBtn').onclick = ()=> overlay.style.display = 'none';
+  };
+  soundBtn.onclick = ()=>{
+    initAudio();
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? 'Sound: On' : 'Sound: Off';
+  };
+
+  // Start in paused overlay; draw a static background preview
+  (function preview(){
+    drawBackground(performance.now());
+    // sprinkle a few idle dots
+    ctx.globalAlpha = 0.5;
+    for (let i=0;i<10;i++){
+      const r = (Math.random()*8+6)*dpr;
+      const x = Math.random()*W, y = Math.random()*H;
+      const gR = r*4;
+      const grd = ctx.createRadialGradient(x,y,r*0.2,x,y,gR);
+      grd.addColorStop(0,"rgba(255,255,255,0.9)");
+      grd.addColorStop(0.15,"rgba(255,255,255,0.55)");
+      grd.addColorStop(1,"rgba(255,255,255,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(x,y,gR,0,TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  })();
+})();
+</script>
+</body>
+</html>

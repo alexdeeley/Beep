@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>UNICORN AIR HOCKEY — 2P</title>
+<style>
+  :root {
+    --bg-top: #0077ff;   /* bright blue */
+    --bg-bot: #ff2244;   /* bright red */
+    --lines: #ffffff;
+    --ui: #ffffff;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: var(--ui);
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    touch-action: none;
+  }
+
+  /* Minimal UI buttons (replay/share) */
+  #btns {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 6;
+    display: flex;
+    gap: 8px;
+  }
+  .iconbtn, .pill {
+    border: 2px solid var(--ui);
+    color: var(--ui);
+    background: transparent;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .iconbtn {
+    width: 38px; height: 38px;
+    font-size: 18px;
+    line-height: 34px;
+    text-align: center;
+  }
+  .pill {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+  .iconbtn:active, .pill:active { transform: translateY(1px); }
+
+  /* Score dots (puck icons) */
+  .scoreCol {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    grid-auto-rows: 14px;
+    gap: 8px;
+    z-index: 5;
+  }
+  #p1col { left: 10px; }
+  #p2col { right: 10px; }
+  .dot {
+    width: 14px; height: 14px;
+    border: 2px solid var(--ui);
+    border-radius: 50%;
+    background: transparent;
+    box-sizing: border-box;
+  }
+  .dot.filled { background: var(--ui); }
+
+  /* Flash overlay */
+  #flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: #fff;
+    opacity: 0;
+    transition: opacity 140ms ease;
+    z-index: 4;
+    mix-blend-mode: screen;
+  }
+
+  /* Splash screen */
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(120vmax 120vmax at 50% 50%, #111 0%, #000 60%, #000 100%);
+    color: #fff;
+    text-align: center;
+    padding: 24px;
+  }
+  #splash .card {
+    border: 2px solid #fff;
+    border-radius: 16px;
+    padding: 22px 18px;
+    width: min(92vw, 560px);
+    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.4);
+  }
+  #splash h1 {
+    margin: 6px 0 2px 0;
+    font-size: 30px;
+    letter-spacing: 1px;
+  }
+  #splash h2 {
+    margin: 0 0 14px 0;
+    font-size: 16px;
+    opacity: 0.85;
+  }
+  #splash .row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  /* End game overlay */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 7;
+    background: rgba(0,0,0,0.85);
+    color: var(--ui);
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay .card {
+    border: 2px solid var(--ui);
+    border-radius: 16px;
+    padding: 20px 16px;
+    max-width: 520px;
+    width: min(92vw, 520px);
+  }
+  #overlay h1 {
+    margin: 0 0 6px 0;
+    font-size: 28px;
+  }
+  #overlay p {
+    margin: 6px 0 18px 0;
+    opacity: 0.9;
+  }
+  #overlay .row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  #overlay .btn {
+    border: 2px solid var(--ui);
+    color: var(--ui);
+    background: transparent;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <!-- splash: sound first, then start -->
+  <div id="splash" role="dialog" aria-modal="true" aria-labelledby="spTitle">
+    <div class="card">
+      <h1 id="spTitle">UNICORN AIR HOCKEY</h1>
+      <h2>Two-Player • Multitouch • Echo SFX</h2>
+      <div id="unicornPreview" style="margin:8px 0 12px 0;"></div>
+      <div class="row">
+        <button id="soundBtn" class="pill" aria-label="Toggle sound">🔊 Sound: On</button>
+        <button id="startBtn" class="pill" aria-label="Start">▶ Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- minimal buttons -->
+  <div id="btns" aria-label="controls">
+    <button id="replayBtn" class="iconbtn" title="Replay" aria-label="Replay">↻</button>
+    <button id="shareBtn"  class="iconbtn" title="Share score" aria-label="Share score">⤴</button>
+  </div>
+
+  <!-- score with dots -->
+  <div id="p1col" class="scoreCol" aria-hidden="false"></div>
+  <div id="p2col" class="scoreCol" aria-hidden="false"></div>
+
+  <div id="flash" aria-hidden="true"></div>
+  <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="ovTitle">
+    <div class="card">
+      <h1 id="ovTitle">Game Over</h1>
+      <p id="ovText">Final score</p>
+      <div class="row">
+        <button id="ovReplay" class="btn">Replay</button>
+        <button id="ovShare" class="btn">Share</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const flashEl = document.getElementById('flash');
+  const overlay = document.getElementById('overlay');
+  const ovText = document.getElementById('ovText');
+  const p1col = document.getElementById('p1col');
+  const p2col = document.getElementById('p2col');
+
+  const replayBtn = document.getElementById('replayBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const ovReplay = document.getElementById('ovReplay');
+  const ovShare  = document.getElementById('ovShare');
+
+  const splash = document.getElementById('splash');
+  const startBtn = document.getElementById('startBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const unicornPreview = document.getElementById('unicornPreview');
+
+  // WebAudio for echoey SFX (with mute toggle)
+  let AC, master, delay, feedback, filt, muted = false;
+  function initAudio() {
+    if (AC) return;
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = muted ? 0.0 : 0.5;
+    delay = AC.createDelay(1.0); delay.delayTime.value = 0.18;
+    feedback = AC.createGain(); feedback.gain.value = 0.35;
+    filt = AC.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 3600;
+    delay.connect(feedback).connect(filt).connect(delay);
+    const mix = AC.createGain(); mix.gain.value = 0.8;
+    const wet = AC.createGain(); wet.gain.value = 0.9;
+    mix.connect(master);
+    delay.connect(master);
+    master.connect(AC.destination);
+    master._dry = mix;
+    master._wet = delay;
+  }
+  function setMuted(m) {
+    muted = m;
+    if (!master) return;
+    master.gain.value = muted ? 0.0 : 0.5;
+  }
+  function now() { return AC ? AC.currentTime : 0; }
+
+  function hitSound(vel=1) {
+    if (muted) return;
+    initAudio();
+    const t = now();
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(220 + 280 * Math.min(1, vel), t);
+    g.gain.setValueAtTime(0.0, t);
+    g.gain.linearRampToValueAtTime(0.25, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g);
+    g.connect(master);
+    g.connect(delay);
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+
+  function wallSound() {
+    if (muted) return;
+    initAudio();
+    const t = now();
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(90, t + 0.12);
+    g.gain.setValueAtTime(0.2, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    o.connect(g);
+    g.connect(master);
+    g.connect(delay);
+    o.start(t);
+    o.stop(t + 0.22);
+  }
+
+  function goalBlast() {
+    if (muted) return;
+    initAudio();
+    const t = now();
+    // noise burst
+    const bufferSize = 0.25 * AC.sampleRate;
+    const buffer = AC.createBuffer(1, bufferSize, AC.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, 0.6);
+    const src = AC.createBufferSource();
+    src.buffer = buffer;
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    src.connect(g);
+    g.connect(master);
+    g.connect(delay);
+    src.start(t);
+    // extra descending tone
+    const o = AC.createOscillator();
+    const og = AC.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(420, t);
+    o.frequency.exponentialRampToValueAtTime(120, t + 0.5);
+    og.gain.setValueAtTime(0.4, t);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(og); og.connect(master); og.connect(delay);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  let W = 0, H = 0, DPR = 1;
+  let running = false;   // gated by splash start
+  let last = 0;
+
+  // Game objects
+  const state = { p1: 0, p2: 0, toWin: 7 };
+
+  const rink = {
+    pad: 20,
+    line: 2.5,
+    centerRadius: 56,
+    goalWidthRatio: 0.45,
+  };
+
+  // Bigger puck + shimmer
+  const puck = {
+    x: 0, y: 0, r: 18,            // bigger radius
+    vx: 0, vy: 0,
+    maxSpeed: 520,
+    friction: 0.985,
+    restitution: 0.985
+  };
+
+  const p1 = { // bottom
+    x: 0, y: 0, r: 28,
+    vx: 0, vy: 0,
+    maxSpeed: 900,
+    targetX: null, targetY: null,
+    touchId: null
+  };
+  const p2 = { // top
+    x: 0, y: 0, r: 28,
+    vx: 0, vy: 0,
+    maxSpeed: 900,
+    targetX: null, targetY: null,
+    touchId: null
+  };
+
+  function buildDots() {
+    p1col.innerHTML = '';
+    p2col.innerHTML = '';
+    for (let i=0;i<state.toWin;i++) {
+      const d1 = document.createElement('div');
+      d1.className = 'dot' + (i < state.p1 ? ' filled' : '');
+      p1col.appendChild(d1);
+      const d2 = document.createElement('div');
+      d2.className = 'dot' + (i < state.p2 ? ' filled' : '');
+      p2col.appendChild(d2);
+    }
+  }
+  function updateDots() {
+    [...p1col.children].forEach((el, i) => el.classList.toggle('filled', i < state.p1));
+    [...p2col.children].forEach((el, i) => el.classList.toggle('filled', i < state.p2));
+  }
+
+  function resize() {
+    DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    W = Math.floor(innerWidth);
+    H = Math.floor(innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    // Place paddles
+    p1.x = W * 0.5; p1.y = H * 0.82;
+    p2.x = W * 0.5; p2.y = H * 0.18;
+    resetPuck(Math.random() < 0.5 ? 1 : -1);
+  }
+
+  function resetPuck(dir = 1) {
+    puck.x = W * 0.5;
+    puck.y = H * 0.5 + dir * 40;
+    puck.vx = (Math.random() * 2 - 1) * 120;
+    puck.vy = dir * (140 + Math.random() * 80);
+  }
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function reflectOnWalls() {
+    const pad = rink.pad;
+    const left = pad + puck.r;
+    const right = W - pad - puck.r;
+
+    let bounced = false;
+
+    if (puck.x < left) { puck.x = left; puck.vx = -puck.vx * puck.restitution; bounced = true; }
+    if (puck.x > right) { puck.x = right; puck.vx = -puck.vx * puck.restitution; bounced = true; }
+
+    const goalHalf = (W * rink.goalWidthRatio) * 0.5;
+    const goalX1 = W * 0.5 - goalHalf;
+    const goalX2 = W * 0.5 + goalHalf;
+
+    if (puck.y - puck.r < rink.pad) {
+      if (puck.x > goalX1 && puck.x < goalX2) {
+        if (puck.y < -puck.r) score(1);
+      } else {
+        puck.y = rink.pad + puck.r;
+        puck.vy = -puck.vy * puck.restitution; bounced = true;
+      }
+    }
+    if (puck.y + puck.r > H - rink.pad) {
+      if (puck.x > goalX1 && puck.x < goalX2) {
+        if (puck.y > H + puck.r) score(2);
+      } else {
+        puck.y = H - rink.pad - puck.r;
+        puck.vy = -puck.vy * puck.restitution; bounced = true;
+      }
+    }
+    if (bounced) wallSound();
+  }
+
+  function score(who) {
+    if (who === 1) state.p1++; else state.p2++;
+    updateDots();
+    flash();
+    goalBlast();
+    if (state.p1 >= state.toWin || state.p2 >= state.toWin) endGame();
+    else resetPuck(who === 1 ? -1 : 1);
+  }
+
+  function flash() {
+    flashEl.style.background = '#fff';
+    flashEl.style.opacity = '1';
+    setTimeout(() => { flashEl.style.opacity = '0'; }, 220);
+  }
+
+  function endGame() {
+    running = false;
+    const msg = `Final: P1 ${state.p1} — ${state.p2} P2`;
+    ovText.textContent = msg;
+    overlay.style.display = 'flex';
+  }
+
+  function resetMatch() {
+    state.p1 = 0; state.p2 = 0;
+    updateDots();
+    overlay.style.display = 'none';
+    running = true;
+    resetPuck(Math.random() < 0.5 ? 1 : -1);
+  }
+
+  function collidePuckWithMallet(m) {
+    const dx = puck.x - m.x;
+    const dy = puck.y - m.y;
+    const d = Math.hypot(dx, dy);
+    const minDist = puck.r + m.r;
+    if (d < minDist && d > 0) {
+      const nx = dx / d, ny = dy / d;
+      const overlap = minDist - d;
+      puck.x += nx * overlap;
+      puck.y += ny * overlap;
+
+      const rvx = puck.vx - m.vx;
+      const rvy = puck.vy - m.vy;
+      const relNorm = rvx * nx + rvy * ny;
+      const k = 1.05;
+      const j = -(1 + k) * relNorm;
+      puck.vx += j * nx;
+      puck.vy += j * ny;
+
+      const sp = Math.hypot(puck.vx, puck.vy);
+      const maxSp = puck.maxSpeed;
+      if (sp > maxSp) {
+        puck.vx = puck.vx / sp * maxSp;
+        puck.vy = puck.vy / sp * maxSp;
+      }
+      const vmag = Math.min(1, Math.hypot(m.vx, m.vy) / 1000);
+      hitSound(0.3 + 0.7 * vmag);
+    }
+  }
+
+  function physics(dt) {
+    puck.x += puck.vx * dt;
+    puck.y += puck.vy * dt;
+    puck.vx *= Math.pow(puck.friction, dt * 60);
+    puck.vy *= Math.pow(puck.friction, dt * 60);
+
+    reflectOnWalls();
+    collidePuckWithMallet(p1);
+    collidePuckWithMallet(p2);
+  }
+
+  function drawGoalGlow(top=true) {
+    const depth = 48; // glow depth into rink
+    const y0 = top ? rink.pad : H - rink.pad - depth;
+    const y1 = top ? rink.pad + depth : H - rink.pad;
+    const grad = ctx.createLinearGradient(0, y0, 0, y1);
+    grad.addColorStop(0, 'rgba(255,255,255,0.55)');
+    grad.addColorStop(0.6, 'rgba(255,255,255,0.0)');
+    ctx.fillStyle = grad;
+    const goalHalf = (W * rink.goalWidthRatio) * 0.5;
+    const gx1 = W * 0.5 - goalHalf;
+    const gx2 = W * 0.5 + goalHalf;
+    ctx.fillRect(gx1, y0, (gx2 - gx1), (y1 - y0));
+  }
+
+  // Pixel Art Unicorn (16x16 grid)
+  const unicorn16 = [
+    "................",
+    "......KK........",
+    ".....KKY........",
+    "....KYYW........",
+    "...KWWWWh.......",
+    "...WWWWhh..bb...",
+    "..WWWWWhh.bbb...",
+    "..WWWWWWwwbbb...",
+    ".WWWWWWWWwwbb...",
+    ".WWWWWWWWwwb....",
+    ".WWWWhWWWww.....",
+    ".WWWWhWWWW......",
+    "..WWWWhWWW......",
+    "...WWWwww.......",
+    "....wwww........",
+    "................",
+  ];
+  const COLORS = {
+    ".":"transparent",
+    "K":"#ffd700", // horn (gold)
+    "Y":"#ff9ad1", // mane (pink)
+    "W":"#ffffff", // body white
+    "h":"#ddddee", // body shadow
+    "w":"#c7c7e8", // legs shadow
+    "b":"#9056ff"  // tail (purple)
+  };
+  function drawPixelUnicorn(x, y, scale=4, alpha=0.95) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    for (let j=0;j<16;j++){
+      for (let i=0;i<16;i++){
+        const ch = unicorn16[j][i];
+        if (ch !== ".") {
+          ctx.fillStyle = COLORS[ch] || "#fff";
+          ctx.fillRect(x + i*scale, y + j*scale, scale, scale);
+        }
+      }
+    }
+    // Tiny black eye pixel for charm
+    ctx.fillStyle = "#000";
+    ctx.fillRect(x + 9*scale, y + 7*scale, scale, scale);
+    ctx.restore();
+  }
+
+  function drawUnicornCenter() {
+    // place centered on rink center
+    const scale = Math.max(3, Math.floor(Math.min(W, H) / 120));
+    const w = 16*scale, h = 16*scale;
+    drawPixelUnicorn(W*0.5 - w/2, H*0.5 - h/2, scale, 0.9);
+  }
+
+  function drawPuckWithShimmer(t) {
+    // Base puck
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(puck.x, puck.y, puck.r, 0, Math.PI*2);
+    ctx.fill();
+
+    // Subtle radial vignette for depth
+    const grad = ctx.createRadialGradient(puck.x - puck.r*0.4, puck.y - puck.r*0.4, puck.r*0.2, puck.x, puck.y, puck.r);
+    grad.addColorStop(0, 'rgba(255,255,255,0.0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.20)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(puck.x, puck.y, puck.r, 0, Math.PI*2);
+    ctx.fill();
+
+    // Shimmering glint rotating around
+    const a = t * 2.2; // angular speed
+    const r = puck.r * 0.85;
+    const gx = puck.x + Math.cos(a) * r;
+    const gy = puck.y + Math.sin(a) * r;
+    const glint = ctx.createRadialGradient(gx, gy, 0, gx, gy, puck.r * 0.8);
+    glint.addColorStop(0, 'rgba(255,255,255,0.85)');
+    glint.addColorStop(1, 'rgba(255,255,255,0.0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = glint;
+    ctx.beginPath();
+    ctx.arc(puck.x, puck.y, puck.r, 0, Math.PI*2);
+    ctx.fill();
+    // Small spark
+    ctx.beginPath();
+    ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t*4.0);
+    ctx.arc(gx, gy, Math.max(1.5, puck.r*0.12), 0, Math.PI*2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function draw() {
+    // Bright colored halves
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-top').trim() || '#0077ff';
+    ctx.fillRect(0, 0, W, H * 0.5);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-bot').trim() || '#ff2244';
+    ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+    // Rink lines (omit center of goal lines)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = rink.line;
+
+    // Left wall
+    ctx.beginPath();
+    ctx.moveTo(rink.pad, rink.pad);
+    ctx.lineTo(rink.pad, H - rink.pad);
+    ctx.stroke();
+
+    // Right wall
+    ctx.beginPath();
+    ctx.moveTo(W - rink.pad, rink.pad);
+    ctx.lineTo(W - rink.pad, H - rink.pad);
+    ctx.stroke();
+
+    // Goal openings (no line in middle)
+    const goalHalf = (W * rink.goalWidthRatio) * 0.5;
+    const gx1 = W * 0.5 - goalHalf;
+    const gx2 = W * 0.5 + goalHalf;
+
+    // Top wall segments
+    ctx.beginPath();
+    ctx.moveTo(rink.pad, rink.pad);
+    ctx.lineTo(gx1, rink.pad);
+    ctx.moveTo(gx2, rink.pad);
+    ctx.lineTo(W - rink.pad, rink.pad);
+    ctx.stroke();
+
+    // Bottom wall segments
+    ctx.beginPath();
+    ctx.moveTo(rink.pad, H - rink.pad);
+    ctx.lineTo(gx1, H - rink.pad);
+    ctx.moveTo(gx2, H - rink.pad);
+    ctx.lineTo(W - rink.pad, H - rink.pad);
+    ctx.stroke();
+
+    // Center line
+    ctx.beginPath();
+    ctx.moveTo(rink.pad, H * 0.5);
+    ctx.lineTo(W - rink.pad, H * 0.5);
+    ctx.stroke();
+
+    // Center circle
+    ctx.beginPath();
+    ctx.arc(W * 0.5, H * 0.5, rink.centerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Goal glow (clear delineation without a full line)
+    drawGoalGlow(true);
+    drawGoalGlow(false);
+
+    // Unicorn sprite at center
+    drawUnicornCenter();
+
+    // Puck with shimmer
+    drawPuckWithShimmer(performance.now() / 1000);
+    // Mallets
+    drawMallet(p1, '#ffffff');
+    drawMallet(p2, '#ffffff');
+  }
+
+  function drawMallet(m, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, Math.max(2, m.r * 0.25), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Input helpers
+  function getId(e) {
+    if (e.pointerId !== undefined) return e.pointerId;
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].identifier;
+    return 1;
+  }
+  function getPoint(e) {
+    let x, y;
+    if (e.touches && e.touches[0]) {
+      x = e.touches[0].clientX; y = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches[0]) {
+      x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY;
+    } else {
+      x = e.clientX; y = e.clientY;
+    }
+    return { x, y };
+  }
+
+  // Two-player multitouch controls
+  function onPointerDown(e) {
+    const pt = getPoint(e);
+    const id = getId(e);
+    if (pt.y > H * 0.5) {
+      if (p1.touchId === null) p1.touchId = id;
+      p1.targetX = pt.x; p1.targetY = pt.y;
+    } else {
+      if (p2.touchId === null) p2.touchId = id;
+      p2.targetX = pt.x; p2.targetY = pt.y;
+    }
+  }
+  function onPointerMove(e) {
+    const pt = getPoint(e);
+    const id = getId(e);
+    if (id === p1.touchId) {
+      if (pt.y > H * 0.5 - p1.r) {
+        p1.targetX = pt.x; p1.targetY = pt.y;
+      }
+    } else if (id === p2.touchId) {
+      if (pt.y < H * 0.5 + p2.r) {
+        p2.targetX = pt.x; p2.targetY = pt.y;
+      }
+    } else if ('touches' in e) {
+      if (pt.y > H * 0.5 && p1.touchId === null) { p1.targetX = pt.x; p1.targetY = pt.y; }
+      if (pt.y <= H * 0.5 && p2.touchId === null) { p2.targetX = pt.x; p2.targetY = pt.y; }
+    }
+  }
+  function onPointerUp(e) {
+    const id = getId(e);
+    if (id === p1.touchId) { p1.touchId = null; p1.targetX = null; p1.targetY = null; }
+    if (id === p2.touchId) { p2.touchId = null; p2.targetX = null; p2.targetY = null; }
+  }
+
+  // Frame loop
+  function tick(ts) {
+    if (!last) last = ts;
+    const dt = Math.min(0.033, (ts - last) / 1000);
+    last = ts;
+
+    if (running) {
+      const prevX1 = p1.x, prevY1 = p1.y;
+      if (p1.targetX != null) {
+        const dx = p1.targetX - p1.x;
+        const dy = p1.targetY - p1.y;
+        const dist = Math.hypot(dx, dy);
+        const maxStep = p1.maxSpeed * dt;
+        if (dist > 0) {
+          const step = Math.min(dist, maxStep);
+          p1.x += dx / dist * step;
+          p1.y += dy / dist * step;
+        }
+      }
+      p1.x = clamp(p1.x, rink.pad + p1.r, W - rink.pad - p1.r);
+      p1.y = clamp(p1.y, H * 0.5 + p1.r, H - rink.pad - p1.r);
+      p1.vx = (p1.x - prevX1) / dt;
+      p1.vy = (p1.y - prevY1) / dt;
+
+      const prevX2 = p2.x, prevY2 = p2.y;
+      if (p2.targetX != null) {
+        const dx = p2.targetX - p2.x;
+        const dy = p2.targetY - p2.y;
+        const dist = Math.hypot(dx, dy);
+        const maxStep = p2.maxSpeed * dt;
+        if (dist > 0) {
+          const step = Math.min(dist, maxStep);
+          p2.x += dx / dist * step;
+          p2.y += dy / dist * step;
+        }
+      }
+      p2.x = clamp(p2.x, rink.pad + p2.r, W - rink.pad - p2.r);
+      p2.y = clamp(p2.y, rink.pad + p2.r, H * 0.5 - p2.r);
+      p2.vx = (p2.x - prevX2) / dt;
+      p2.vy = (p2.y - prevY2) / dt;
+
+      physics(dt);
+    }
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  function shareScore() {
+    const text = `UNICORN AIR HOCKEY — Score: P1 ${state.p1} — ${state.p2} P2`;
+    if (navigator.share) {
+      navigator.share({ title: 'UNICORN AIR HOCKEY', text, url: location.href }).catch(()=>{});
+    } else {
+      navigator.clipboard?.writeText(text);
+      alert('Score copied!');
+    }
+  }
+  function wireButtons() {
+    replayBtn.addEventListener('click', resetMatch);
+    ovReplay.addEventListener('click', resetMatch);
+    shareBtn.addEventListener('click', shareScore);
+    ovShare.addEventListener('click', shareScore);
+  }
+
+  // --- Unicorn preview on splash ---
+  function drawUnicornPreview() {
+    const c = document.createElement('canvas');
+    c.width = 160; c.height = 80;
+    const cx = c.getContext('2d');
+    // gradient bg
+    const g = cx.createLinearGradient(0,0,160,80);
+    g.addColorStop(0,'#333'); g.addColorStop(1,'#111');
+    cx.fillStyle = g; cx.fillRect(0,0,160,80);
+    // little center sprite
+    // translate a bit
+    cx.save();
+    const scale = 4;
+    const x = 80 - (16*scale)/2;
+    const y = 40 - (16*scale)/2;
+    // draw pixels
+    for (let j=0;j<16;j++){
+      for (let i=0;i<16;i++){
+        const ch = unicorn16[j][i];
+        if (ch !== ".") {
+          cx.fillStyle = COLORS[ch] || "#fff";
+          cx.fillRect(x + i*scale, y + j*scale, scale, scale);
+        }
+      }
+    }
+    cx.restore();
+    unicornPreview.innerHTML = "";
+    unicornPreview.appendChild(c);
+  }
+
+  // Buttons on splash
+  soundBtn.addEventListener('click', () => {
+    initAudio(); // ensure context exists for iOS
+    setMuted(!muted);
+    soundBtn.textContent = muted ? "🔇 Sound: Off" : "🔊 Sound: On";
+  });
+  startBtn.addEventListener('click', () => {
+    initAudio(); // start/resume audio if needed
+    splash.style.display = 'none';
+    running = true;
+    resetMatch();
+  });
+
+  // Events
+  window.addEventListener('resize', resize);
+  if (window.PointerEvent) {
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  } else {
+    canvas.addEventListener('touchstart', onPointerDown, { passive: true });
+    canvas.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('touchend', onPointerUp);
+    window.addEventListener('touchcancel', onPointerUp);
+    canvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+  }
+
+  // Start
+  resize();
+  buildDots();
+  updateDots();
+  wireButtons();
+  drawUnicornPreview();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

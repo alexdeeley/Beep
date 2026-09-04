@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Peggle Noir</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --dim:rgba(255,255,255,.6);
+    --dim2:rgba(255,255,255,.25);
+    --accent:#00ffea;
+    --accent2:#ff3dff;
+    --good:#7CFF00;
+    --bad:#FF3D3D;
+    --b:3px;
+    --ui: min(18px, 2.2vh);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; width:100%; height:100%; background:var(--bg); overflow:hidden; color:var(--fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
+  canvas{display:block; width:100%; height:100%; background:var(--bg);}
+  #hud{ position:fixed; inset:0; pointer-events:none; }
+  .panel{
+    position:absolute; left:12px; top:12px; right:12px;
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
+    pointer-events:none;
+  }
+  .pill{
+    border:var(--b) solid var(--fg);
+    padding:10px 12px;
+    border-radius:999px;
+    background:rgba(0,0,0,.35);
+    box-shadow: 8px 8px 0 rgba(255,255,255,.08);
+    font-size:var(--ui);
+    letter-spacing:1px;
+    text-transform:uppercase;
+    line-height:1;
+    white-space:nowrap;
+  }
+  .pill .small{opacity:.75; font-size:0.88em;}
+  #controls{
+    position:absolute; left:12px; right:12px; bottom:12px;
+    display:flex; gap:10px; justify-content:space-between; align-items:stretch;
+    pointer-events:auto;
+  }
+  button{
+    all:unset;
+    flex:1;
+    border:var(--b) solid var(--fg);
+    border-radius:16px;
+    padding:14px 14px;
+    text-align:center;
+    font-weight:900;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    background:rgba(0,0,0,.45);
+    box-shadow: 10px 10px 0 rgba(255,255,255,.10);
+    cursor:pointer;
+    font-size: min(18px, 2.2vh);
+    user-select:none;
+  }
+  button:active{ transform: translate(2px,2px); box-shadow: 8px 8px 0 rgba(255,255,255,.10); }
+  button[disabled]{ opacity:.35; filter:saturate(.2); cursor:default; }
+  #centerCard{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:auto;
+    background: radial-gradient(closest-side, rgba(255,255,255,.06), rgba(0,0,0,.92));
+  }
+  #centerCard.hidden{display:none;}
+  .card{
+    width:min(560px, calc(100vw - 28px));
+    border:calc(var(--b) + 1px) solid var(--fg);
+    border-radius:22px;
+    background:rgba(0,0,0,.78);
+    box-shadow: 16px 16px 0 rgba(255,255,255,.10);
+    padding:18px;
+  }
+  .title{
+    font-size: min(44px, 6.2vw);
+    letter-spacing: 5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin: 6px 4px 10px;
+  }
+  .subtitle{
+    margin:0 4px 14px;
+    opacity:.8;
+    line-height:1.35;
+    font-size:min(15px, 2.1vh);
+  }
+  .row{
+    display:flex; gap:10px; flex-wrap:wrap;
+    margin-top:14px;
+  }
+  .k{
+    display:inline-flex; align-items:center; gap:8px;
+    border:var(--b) solid var(--dim2);
+    border-radius:999px;
+    padding:10px 12px;
+    opacity:.95;
+    font-size:min(13px, 2vh);
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .dot{
+    width:12px; height:12px; border-radius:999px; border:var(--b) solid var(--fg);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+  }
+  .dot.a{ background:var(--accent); border-color:var(--accent); }
+  .dot.b{ background:var(--accent2); border-color:var(--accent2); }
+  .dot.g{ background:var(--good); border-color:var(--good); }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="panel">
+    <div class="pill">LEVEL <span id="lvl">1</span> <span class="small">/ 8</span></div>
+    <div class="pill"><span id="pegsLeft">0</span> PEGS LEFT</div>
+    <div class="pill">SCORE <span id="score">0</span></div>
+  </div>
+
+  <div id="controls">
+    <button id="btnShoot" disabled>SHOOT</button>
+    <button id="btnPower">POWER: <span id="powerTxt">MID</span></button>
+    <button id="btnRestart">RESTART</button>
+  </div>
+
+  <div id="centerCard">
+    <div class="card">
+      <div class="title">PEGGLE NOIR</div>
+      <p class="subtitle" id="mainSub">
+        Aim the cannon. Fire a ball. Clear all <b style="color:#7CFF00;">green</b> pegs to advance.
+        Bounce off pegs for points. Catch a ball in the moving bucket for a bonus ball.
+      </p>
+      <div class="row" id="legendRow">
+        <div class="k"><span class="dot a"></span> CANNON / BALL</div>
+        <div class="k"><span class="dot g"></span> CLEAR THESE</div>
+        <div class="k"><span class="dot b"></span> BONUS PEGS</div>
+      </div>
+      <div class="row" id="actionRow" style="margin-top:16px;">
+        <button id="btnStart" style="flex:1;">TAP TO START</button>
+      </div>
+      <p class="subtitle" id="hintSub" style="margin-top:12px; opacity:.7;">
+        Controls: drag to aim • tap SHOOT • POWER cycles low/mid/high
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha:false });
+
+const UI = {
+  lvl: document.getElementById('lvl'),
+  pegsLeft: document.getElementById('pegsLeft'),
+  score: document.getElementById('score'),
+  btnShoot: document.getElementById('btnShoot'),
+  btnPower: document.getElementById('btnPower'),
+  powerTxt: document.getElementById('powerTxt'),
+  btnRestart: document.getElementById('btnRestart'),
+  centerCard: document.getElementById('centerCard'),
+  btnStart: document.getElementById('btnStart'),
+  mainSub: document.getElementById('mainSub'),
+  hintSub: document.getElementById('hintSub'),
+  actionRow: document.getElementById('actionRow'),
+};
+
+let W=0, H=0, DPR=1;
+function resize(){
+  DPR = Math.min(2.25, window.devicePixelRatio || 1);
+  W = Math.floor(window.innerWidth);
+  H = Math.floor(window.innerHeight);
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize, {passive:true});
+resize();
+
+const COLORS = {
+  bg:"#000",
+  fg:"#fff",
+  dim:"rgba(255,255,255,.6)",
+  dim2:"rgba(255,255,255,.25)",
+  accent:"#00ffea",
+  accent2:"#ff3dff",
+  good:"#7CFF00"
+};
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+function rand(a,b){ return a + Math.random()*(b-a); }
+
+let audioCtx=null, audioOn=false;
+function blip(freq=420, dur=0.05, type="square", gain=0.08){
+  if(!audioOn) return;
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t+0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t);
+    o.stop(t+dur+0.01);
+  }catch(e){}
+}
+
+const PEG_R = 10;
+const BALL_R = 7;
+const GRAV = 900;
+const AIR = 0.999;
+const REST = 0.92;
+const PEG_REST = 0.97;
+
+const POWERS = [
+  {name:"LOW", speed: 620},
+  {name:"MID", speed: 820},
+  {name:"HIGH", speed: 1020},
+];
+
+let timePrev = performance.now();
+
+let state = {
+  levelIndex: 0,
+  score: 0,
+  balls: 10,
+  ballsInPlay: 0,
+  ready: false,
+  powerIndex: 1,
+  ended: false,
+  wonLevel: false,
+  bucketBonusArmed: true,
+};
+
+let cannon = { x: W*0.5, y: Math.max(84, H*0.12), ang: Math.PI/2 };
+let balls = [];
+let pegs = [];
+let particles = [];
+let walls = [];
+let bucket = { x: W*0.5, y: H-40, w: 130, h: 18, vx: 220, dir: 1 };
+
+function makeLevels(){
+  const ring = (cx, cy, rad, n, kind="goal", phase=0) => {
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const a = phase + i*(Math.PI*2/n);
+      arr.push({x: cx + Math.cos(a)*rad, y: cy + Math.sin(a)*rad, kind});
+    }
+    return arr;
+  };
+  const grid = (x0, y0, x1, y1, cols, rows, kind="goal", jitter=0.0) => {
+    const arr=[];
+    for(let j=0;j<rows;j++){
+      const tY = rows===1?0.5:j/(rows-1);
+      for(let i=0;i<cols;i++){
+        const tX = cols===1?0.5:i/(cols-1);
+        arr.push({
+          x: lerp(x0,x1,tX) + rand(-jitter,jitter),
+          y: lerp(y0,y1,tY) + rand(-jitter,jitter),
+          kind
+        });
+      }
+    }
+    return arr;
+  };
+  const arc = (cx, cy, rx, ry, a0, a1, n, kind="goal") => {
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const t = n===1?0.5:i/(n-1);
+      const a = lerp(a0,a1,t);
+      arr.push({x: cx + Math.cos(a)*rx, y: cy + Math.sin(a)*ry, kind});
+    }
+    return arr;
+  };
+
+  return [
+    { pegs:[...grid(0.18,0.10,0.82,0.62,7,6,"goal",0.0),
+            {x:0.15,y:0.07,kind:"bonus"},{x:0.85,y:0.07,kind:"bonus"},
+            {x:0.12,y:0.68,kind:"bonus"},{x:0.88,y:0.68,kind:"bonus"}],
+      stones: ring(0.5,0.40,0.12,8,"stone",Math.PI/8).map(p=>({...p,r:PEG_R+3})) },
+    { pegs:[...ring(0.35,0.30,0.13,10,"goal",0.2),
+            ...ring(0.65,0.40,0.15,12,"goal",-0.1),
+            ...grid(0.22,0.08,0.78,0.70,6,5,"bonus",0.012).slice(0,10)],
+      stones:[{x:0.50,y:0.25,r:PEG_R+4},{x:0.50,y:0.52,r:PEG_R+4}],
+      bumpers:[{x1:0.12,y1:0.16,x2:0.28,y2:0.10},{x1:0.88,y1:0.16,x2:0.72,y2:0.10}],
+      cannonShift:-0.06 },
+    { pegs:[...grid(0.22,0.12,0.78,0.66,6,6,"goal",0.0).filter((_,k)=>k%2===0),
+            ...grid(0.26,0.16,0.74,0.70,6,6,"goal",0.0).filter((_,k)=>k%2===1),
+            ...arc(0.50,0.26,0.30,0.16,Math.PI*1.05,Math.PI*1.95,7,"bonus")],
+      stones: ring(0.5,0.48,0.19,10,"stone",0).map(p=>({...p,r:PEG_R+2})) },
+    { pegs:[...grid(0.22,0.08,0.78,0.70,7,7,"goal",0.0).filter(p=>{
+              const dx=Math.abs(p.x-0.5), dy=Math.abs(p.y-0.39);
+              return Math.abs(dx - dy*0.95) < 0.08;
+            }),
+            ...grid(0.50,0.12,0.50,0.70,1,7,"bonus",0.0)],
+      stones:[{x:0.33,y:0.38,r:PEG_R+6},{x:0.67,y:0.38,r:PEG_R+6}],
+      bumpers:[{x1:0.18,y1:0.56,x2:0.34,y2:0.64},{x1:0.82,y1:0.56,x2:0.66,y2:0.64}],
+      cannonShift:0.06 },
+    { pegs:(() => {
+              const arr=[], cols=10, rows=7;
+              for(let j=0;j<rows;j++){
+                for(let i=0;i<cols;i++){
+                  const x = lerp(0.14,0.86,i/(cols-1)) + ((j%2)?0.028:0);
+                  const y = lerp(0.10,0.68,j/(rows-1));
+                  arr.push({x,y,kind:"goal"});
+                }
+              }
+              return arr;
+            })().concat(ring(0.5,0.36,0.24,14,"bonus",0.1)),
+      stones:[{x:0.50,y:0.36,r:PEG_R+10}],
+      cannonDrop:0.02 },
+    { pegs:(() => {
+              const arr=[];
+              let a=0.4, r=0.02;
+              for(let k=0;k<34;k++){
+                a += 0.35; r += 0.008;
+                const x = 0.5 + Math.cos(a)*r*5.0;
+                const y = 0.18 + Math.sin(a)*r*3.2 + k*0.012;
+                if(y<=0.72) arr.push({x: clamp(x,0.12,0.88), y, kind:"goal"});
+              }
+              return arr;
+            })().concat(grid(0.22,0.18,0.78,0.66,5,4,"bonus",0.015).slice(0,9)),
+      stones:ring(0.5,0.52,0.20,9,"stone",0.2).map(p=>({...p,r:PEG_R+3})),
+      bumpers:[{x1:0.12,y1:0.22,x2:0.20,y2:0.36},{x1:0.88,y1:0.22,x2:0.80,y2:0.36}] },
+    { pegs:[...grid(0.18,0.10,0.48,0.66,5,7,"goal",0.0),
+            ...grid(0.52,0.10,0.82,0.66,5,7,"goal",0.0),
+            ...arc(0.50,0.46,0.22,0.22,-Math.PI*0.2,Math.PI*1.2,9,"bonus")],
+      stones:[{x:0.50,y:0.28,r:PEG_R+18}],
+      bumpers:[{x1:0.50,y1:0.18,x2:0.50,y2:0.62}] },
+    { pegs:[...ring(0.50,0.34,0.26,16,"goal",0.12),
+            ...ring(0.50,0.34,0.16,12,"goal",-0.05),
+            ...ring(0.50,0.34,0.08,6,"bonus",0.0),
+            ...grid(0.24,0.62,0.76,0.70,8,2,"bonus",0.0)],
+      stones:[{x:0.50,y:0.34,r:PEG_R+26}, ...ring(0.50,0.34,0.34,8,"stone",0).map(p=>({x:p.x,y:p.y,r:PEG_R+6}))],
+      bumpers:[{x1:0.20,y1:0.14,x2:0.34,y2:0.20},{x1:0.80,y1:0.14,x2:0.66,y2:0.20}] }
+  ];
+}
+
+function resetWorldForLevel(idx){
+  state.levelIndex = idx;
+  state.balls = 10;
+  state.ballsInPlay = 0;
+  state.ready = true;
+  state.ended = false;
+  state.wonLevel = false;
+  state.bucketBonusArmed = true;
+
+  balls = [];
+  pegs = [];
+  particles = [];
+  walls = [];
+
+  cannon = { x: W*0.5, y: Math.max(84, H*0.12), ang: Math.PI/2 };
+
+  const inset = 14;
+  walls.push({x1: inset, y1: inset, x2: W-inset, y2: inset});
+  walls.push({x1: inset, y1: inset, x2: inset, y2: H-inset});
+  walls.push({x1: W-inset, y1: inset, x2: W-inset, y2: H-inset});
+
+  if(idx>=3){
+    const y0 = H*0.26;
+    walls.push({x1: W*0.18, y1: y0, x2: W*0.05, y2: y0+H*0.18});
+    walls.push({x1: W*0.82, y1: y0, x2: W*0.95, y2: y0+H*0.18});
+  }
+
+  const levels = makeLevels();
+  const L = levels[idx % levels.length];
+
+  const safeTop = Math.max(100, H*0.16);
+  const safeBottom = H*0.86;
+  const toX = n => n*W;
+  const toY = n => lerp(safeTop, safeBottom, n);
+
+  for(const pegDef of L.pegs){
+    pegs.push({
+      x: toX(pegDef.x), y: toY(pegDef.y),
+      r: pegDef.r ?? PEG_R,
+      kind: pegDef.kind,
+      hit:false, pulse:0,
+      base: pegDef.kind==="goal" ? 120 : (pegDef.kind==="bonus" ? 220 : 0),
+      mult: pegDef.kind==="bonus" ? 2 : 1
+    });
+  }
+  if(L.stones){
+    for(const s of L.stones){
+      pegs.push({
+        x: toX(s.x), y: toY(s.y),
+        r: s.r ?? (PEG_R+2),
+        kind:"stone", hit:false, pulse:0,
+        base:0, mult:1
+      });
+    }
+  }
+  if(L.bumpers){
+    for(const b of L.bumpers){
+      walls.push({x1:toX(b.x1), y1:toY(b.y1), x2:toX(b.x2), y2:toY(b.y2), bumper:true});
+    }
+  }
+
+  bucket = {
+    x: W*0.5,
+    y: H - Math.max(34, H*0.045),
+    w: clamp(W*0.20, 110, 180),
+    h: 18,
+    vx: lerp(200, 320, (idx%8)/7),
+    dir: Math.random()<0.5 ? -1 : 1
+  };
+
+  cannon.x = W*(0.5 + (L.cannonShift ?? 0));
+  cannon.y = Math.max(84, H*(0.12 + (L.cannonDrop ?? 0)));
+
+  UI.lvl.textContent = String(idx+1);
+  UI.score.textContent = String(state.score|0);
+  UI.powerTxt.textContent = POWERS[state.powerIndex].name;
+  updatePegsLeft();
+  UI.btnShoot.disabled = !state.ready || state.balls<=0;
+}
+
+function updatePegsLeft(){
+  const left = pegs.filter(p => p.kind==="goal" && !p.hit).length;
+  UI.pegsLeft.textContent = String(left);
+}
+
+function setAimFrom(x,y){
+  const dx = x - cannon.x;
+  const dy = y - cannon.y;
+  let a = Math.atan2(dy,dx);
+  a = clamp(a, 0.15*Math.PI, 0.85*Math.PI);
+  cannon.ang = a;
+}
+
+let pointerDown=false;
+function getPointerPos(e){
+  if(e.touches && e.touches.length){
+    return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  }
+  return {x:e.clientX, y:e.clientY};
+}
+function onDown(e){
+  if(state.ended) return;
+  pointerDown=true;
+  const p=getPointerPos(e);
+  setAimFrom(p.x,p.y);
+  e.preventDefault?.();
+}
+function onMove(e){
+  if(!pointerDown) return;
+  const p=getPointerPos(e);
+  setAimFrom(p.x,p.y);
+  e.preventDefault?.();
+}
+function onUp(e){
+  pointerDown=false;
+  e.preventDefault?.();
+}
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+canvas.addEventListener('touchstart', onDown, {passive:false});
+canvas.addEventListener('touchmove', onMove, {passive:false});
+canvas.addEventListener('touchend', onUp, {passive:false});
+
+function cyclePower(){
+  state.powerIndex = (state.powerIndex + 1) % POWERS.length;
+  UI.powerTxt.textContent = POWERS[state.powerIndex].name;
+  blip(240 + state.powerIndex*120, 0.04, "square", 0.06);
+}
+UI.btnPower.addEventListener('click', cyclePower);
+
+function shoot(){
+  if(!state.ready) return;
+  if(state.balls<=0) return;
+
+  state.balls--;
+  const sp = POWERS[state.powerIndex].speed;
+  const nx = Math.cos(cannon.ang), ny = Math.sin(cannon.ang);
+  const x = cannon.x + nx*22;
+  const y = cannon.y + ny*22;
+
+  balls.push({ x,y, vx:nx*sp, vy:ny*sp, r:BALL_R, age:0, trail:[] });
+  state.ballsInPlay++;
+  state.ready=false;
+  state.bucketBonusArmed=true;
+  UI.btnShoot.disabled = true;
+  blip(820, 0.05, "sawtooth", 0.06);
+}
+UI.btnShoot.addEventListener('click', shoot);
+
+function restart(){
+  state.score = 0;
+  resetWorldForLevel(state.levelIndex);
+  UI.score.textContent = String(state.score|0);
+  blip(180,0.06,"square",0.05);
+}
+UI.btnRestart.addEventListener('click', restart);
+
+// collision helpers
+function collideBallWithSegment(ball, seg){
+  const x1=seg.x1, y1=seg.y1, x2=seg.x2, y2=seg.y2;
+  const vx = x2-x1, vy = y2-y1;
+  const wx = ball.x - x1, wy = ball.y - y1;
+  const len2 = vx*vx + vy*vy || 1;
+  let t = (wx*vx + wy*vy) / len2;
+  t = clamp(t, 0, 1);
+  const cx = x1 + vx*t, cy = y1 + vy*t;
+  const dx = ball.x - cx, dy = ball.y - cy;
+  const d2 = dx*dx + dy*dy;
+  const r = ball.r + 1.5;
+  if(d2 < r*r){
+    const d = Math.sqrt(d2)||0.001;
+    const nx = dx/d, ny = dy/d;
+    const pen = r - d;
+    ball.x += nx*pen;
+    ball.y += ny*pen;
+
+    const vn = ball.vx*nx + ball.vy*ny;
+    if(vn < 0){
+      ball.vx -= (1+REST)*vn*nx;
+      ball.vy -= (1+REST)*vn*ny;
+      if(seg.bumper) blip(320+Math.random()*240, 0.04, "triangle", 0.05);
+    }
+    ball.vx *= 0.995; ball.vy *= 0.995;
+  }
+}
+
+function burst(x,y,kind){
+  const n = kind==="bonus" ? 16 : (kind==="stone" ? 10 : 12);
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2;
+    const sp = rand(80, 420) * (kind==="bonus"?1.1:1);
+    particles.push({ x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:rand(0.25,0.75), t:0, kind });
+  }
+}
+
+function collideBallWithPeg(ball, peg){
+  const r = ball.r + peg.r;
+  const d2 = dist2(ball.x, ball.y, peg.x, peg.y);
+  if(d2 >= r*r) return;
+
+  const d = Math.sqrt(d2)||0.001;
+  const nx = (ball.x - peg.x)/d;
+  const ny = (ball.y - peg.y)/d;
+
+  const pen = r - d;
+  ball.x += nx*pen;
+  ball.y += ny*pen;
+
+  const vn = ball.vx*nx + ball.vy*ny;
+  if(vn < 0){
+    ball.vx -= (1+PEG_REST)*vn*nx;
+    ball.vy -= (1+PEG_REST)*vn*ny;
+  }
+
+  if(peg.kind !== "stone"){
+    if(!peg.hit){
+      peg.hit = true;
+      const gained = Math.floor(peg.base * peg.mult);
+      state.score += gained;
+      UI.score.textContent = String(state.score|0);
+      burst(peg.x, peg.y, peg.kind);
+      peg.pulse = 1;
+      if(peg.kind==="goal") blip(520+Math.random()*180, 0.03, "square", 0.05);
+      if(peg.kind==="bonus") blip(820+Math.random()*220, 0.04, "triangle", 0.06);
+      updatePegsLeft();
+    }
+  } else {
+    burst(peg.x, peg.y, "stone");
+    peg.pulse = 1;
+    blip(280+Math.random()*180, 0.03, "sine", 0.03);
+  }
+}
+
+function checkBucket(ball){
+  const bx = bucket.x - bucket.w/2;
+  const by = bucket.y - bucket.h/2;
+  const inX = (ball.x > bx && ball.x < bx+bucket.w);
+  const inY = (ball.y > by && ball.y < by+bucket.h+8);
+  if(inX && inY && ball.vy > 0 && state.bucketBonusArmed){
+    state.bucketBonusArmed = false;
+    state.balls++;
+    state.score += 800;
+    UI.score.textContent = String(state.score|0);
+    blip(980,0.06,"triangle",0.08);
+    for(let i=0;i<18;i++) particles.push({
+      x: ball.x, y: bucket.y, vx: rand(-220,220), vy: rand(-520,-180),
+      life: rand(0.35,0.9), t:0, kind:"bonus"
+    });
+  }
+}
+
+function showOverlay(title, body, primaryLabel, primaryFn){
+  document.querySelector('.title').textContent = title;
+  UI.mainSub.innerHTML = body;
+  UI.hintSub.textContent = "Drag to aim • tap SHOOT • POWER cycles low/mid/high";
+
+  UI.actionRow.innerHTML = '';
+  const b1 = document.createElement('button');
+  b1.style.flex = '1';
+  b1.textContent = primaryLabel;
+  b1.addEventListener('click', primaryFn, {once:true});
+
+  const b2 = document.createElement('button');
+  b2.style.flex = '1';
+  b2.textContent = 'TOGGLE SOUND';
+  b2.addEventListener('click', ()=>{ audioOn = !audioOn; blip(audioOn?520:160, 0.05, "square", 0.06); });
+
+  UI.actionRow.appendChild(b1);
+  UI.actionRow.appendChild(b2);
+
+  UI.centerCard.classList.remove('hidden');
+}
+
+function maybeEndTurn(){
+  const goalLeft = pegs.filter(p => p.kind==="goal" && !p.hit).length;
+  if(goalLeft === 0){
+    state.wonLevel = true;
+    state.ended = true;
+    UI.btnShoot.disabled = true;
+    blip(660,0.08,"triangle",0.08);
+    const bonus = state.balls * 250;
+    state.score += bonus;
+    UI.score.textContent = String(state.score|0);
+
+    showOverlay("LEVEL CLEARED", `Bonus: <b>+${bonus}</b> for remaining balls.`, "NEXT LEVEL", ()=>{
+      UI.centerCard.classList.add('hidden');
+      resetWorldForLevel((state.levelIndex+1)%8);
+    });
+  } else if(state.balls <= 0){
+    state.wonLevel = false;
+    state.ended = true;
+    UI.btnShoot.disabled = true;
+    blip(140,0.12,"sawtooth",0.06);
+
+    showOverlay("OUT OF BALLS", `You had <b>${goalLeft}</b> green pegs left.`, "RETRY", ()=>{
+      UI.centerCard.classList.add('hidden');
+      resetWorldForLevel(state.levelIndex);
+    });
+  } else {
+    state.ready = true;
+    UI.btnShoot.disabled = false;
+  }
+}
+
+function roundRect(x,y,w,h,r, fill, stroke){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+  if(fill) ctx.fill();
+  if(stroke) ctx.stroke();
+}
+
+function drawBackground(){
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha = 0.16;
+  ctx.strokeStyle = COLORS.dim2;
+  ctx.lineWidth = 1;
+  for(let y=0;y<H;y+=14){
+    ctx.beginPath(); ctx.moveTo(0,y+0.5); ctx.lineTo(W,y+0.5); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawWalls(){
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = COLORS.fg;
+  ctx.globalAlpha = 0.85;
+  for(const w of walls){
+    ctx.beginPath(); ctx.moveTo(w.x1,w.y1); ctx.lineTo(w.x2,w.y2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBucket(dt){
+  const inset = 18;
+  bucket.x += bucket.dir * bucket.vx * dt;
+  if(bucket.x - bucket.w/2 < inset){ bucket.x = inset + bucket.w/2; bucket.dir*=-1; }
+  if(bucket.x + bucket.w/2 > W - inset){ bucket.x = W - inset - bucket.w/2; bucket.dir*=-1; }
+
+  const x = bucket.x - bucket.w/2;
+  const y = bucket.y - bucket.h/2;
+
+  ctx.save();
+  ctx.globalAlpha = 0.95;
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = COLORS.accent2;
+  ctx.fillStyle = "rgba(255,61,255,.10)";
+  roundRect(x,y,bucket.w,bucket.h,10,true,true);
+
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x+10, y+bucket.h/2); ctx.lineTo(x+bucket.w-10, y+bucket.h/2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawCannon(){
+  const x=cannon.x, y=cannon.y, a=cannon.ang;
+  ctx.save();
+  ctx.globalAlpha = 0.65;
+  ctx.strokeStyle = COLORS.accent;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10,10]);
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*600, y+Math.sin(a)*600); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(a);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = COLORS.accent;
+  ctx.fillStyle = "rgba(0,255,234,.12)";
+  roundRect(0,-10,46,20,10,true,true);
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(46,0,8,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 4;
+  ctx.fillStyle = "rgba(255,255,255,.06)";
+  ctx.beginPath(); ctx.arc(x,y,16,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = COLORS.dim;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x,y,26,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPegs(){
+  for(const p of pegs){
+    let stroke=COLORS.fg, fill="rgba(255,255,255,.06)";
+    if(p.kind==="goal"){ stroke=COLORS.good; fill="rgba(124,255,0,.10)"; }
+    if(p.kind==="bonus"){ stroke=COLORS.accent2; fill="rgba(255,61,255,.10)"; }
+    if(p.kind==="stone"){ stroke=COLORS.fg; fill="rgba(255,255,255,.04)"; }
+
+    if(p.hit){
+      ctx.globalAlpha = 0.12;
+      fill="rgba(255,255,255,.02)";
+      stroke="rgba(255,255,255,.20)";
+    } else ctx.globalAlpha=1;
+
+    if(p.pulse>0 && !p.hit){
+      const pr = p.r + 10*p.pulse;
+      ctx.globalAlpha = 0.45 * p.pulse;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x,p.y,pr,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.globalAlpha = p.hit ? 0.10 : 0.9;
+    ctx.fillStyle = stroke;
+    ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(2,p.r*0.22),0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawBalls(){
+  for(const b of balls){
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if(b.trail.length){
+      ctx.moveTo(b.trail[0].x,b.trail[0].y);
+      for(let i=1;i<b.trail.length;i++) ctx.lineTo(b.trail[i].x,b.trail[i].y);
+    }
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,255,234,.18)";
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = COLORS.fg;
+    ctx.beginPath(); ctx.arc(b.x-b.r*0.25,b.y-b.r*0.25,Math.max(1.5,b.r*0.18),0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    let col = COLORS.fg;
+    if(p.kind==="goal") col = COLORS.good;
+    if(p.kind==="bonus") col = COLORS.accent2;
+    if(p.kind==="stone") col = COLORS.dim;
+    const k = 1 - (p.t / p.life);
+    ctx.globalAlpha = clamp(k,0,1);
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.2+3.2*k,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function step(dt){
+  for(const p of pegs) if(p.pulse>0) p.pulse = Math.max(0, p.pulse - dt*2.6);
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.t += dt;
+    p.vx *= 0.985;
+    p.vy += GRAV*0.35*dt;
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    if(p.t >= p.life) particles.splice(i,1);
+  }
+
+  for(let i=balls.length-1;i>=0;i--){
+    const b=balls[i];
+    b.age += dt;
+    b.vy += GRAV*dt;
+    b.vx *= Math.pow(AIR, dt*60);
+    b.vy *= Math.pow(AIR, dt*60);
+    b.x += b.vx*dt;
+    b.y += b.vy*dt;
+
+    b.trail.push({x:b.x,y:b.y});
+    if(b.trail.length>18) b.trail.shift();
+
+    for(const w of walls) collideBallWithSegment(b,w);
+    for(const p of pegs){
+      if(p.hit && p.kind!=="stone") continue;
+      collideBallWithPeg(b,p);
+    }
+    checkBucket(b);
+
+    if(b.y > H + 140 || b.x < -200 || b.x > W+200){
+      balls.splice(i,1);
+      state.ballsInPlay--;
+      blip(110, 0.03, "sine", 0.02);
+    }
+  }
+
+  if(!state.ready && state.ballsInPlay<=0 && !state.ended) maybeEndTurn();
+  if(state.ready && !state.ended) UI.btnShoot.disabled = (state.balls<=0);
+}
+
+function tick(now){
+  const dt = clamp((now-timePrev)/1000, 0, 1/20);
+  timePrev = now;
+
+  if(!UI.centerCard.classList.contains('hidden')){
+    // Pause gameplay behind overlays
+    drawBackground();
+    drawWalls();
+    drawBucket(0);
+    drawPegs();
+    drawParticles();
+    drawCannon();
+    requestAnimationFrame(tick);
+    return;
+  }
+
+  drawBackground();
+  drawWalls();
+  drawBucket(dt);
+
+  if(!state.ended) step(dt);
+
+  drawPegs();
+  drawBalls();
+  drawParticles();
+  drawCannon();
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// Start screen behavior
+UI.btnShoot.disabled = true;
+UI.powerTxt.textContent = POWERS[state.powerIndex].name;
+
+UI.btnStart.addEventListener('click', ()=>{
+  audioOn = true;
+  UI.centerCard.classList.add('hidden');
+  resetWorldForLevel(0);
+});
+UI.centerCard.addEventListener('click', ()=>{
+  // tap anywhere on the start card to begin
+  if(!UI.centerCard.classList.contains('hidden') && document.querySelector('.title').textContent.includes("PEGGLE NOIR")){
+    UI.btnStart.click();
+  }
+});
+
+// Desktop shortcuts
+window.addEventListener('keydown', (e)=>{
+  if(e.key===" "){ e.preventDefault(); if(UI.centerCard.classList.contains('hidden')) shoot(); }
+  if(e.key==="p") cyclePower();
+  if(e.key==="r") restart();
+});
+</script>
+</body>
+</html>

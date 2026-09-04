@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Factorial Push Art — Longform Generator</title>
+  <style>
+    :root{
+      --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.65);
+      --border:6px; --radius:16px; --pad:14px;
+      --accent:#fff;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+    html,body{margin:0; width:100%; height:100%; background:var(--bg); color:var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow:hidden; touch-action:none;}
+    #wrap{position:fixed; inset:0; display:flex; flex-direction:column; gap:12px; padding:12px;}
+    #top{
+      display:flex; gap:12px; align-items:stretch;
+      flex:0 0 auto;
+    }
+    #panel{
+      flex:0 0 380px;
+      border:var(--border) solid var(--fg);
+      border-radius:var(--radius);
+      padding:var(--pad);
+      display:flex; flex-direction:column; gap:12px;
+      background:#000;
+    }
+    #stage{
+      flex:1 1 auto;
+      border:var(--border) solid var(--fg);
+      border-radius:var(--radius);
+      overflow:hidden;
+      position:relative;
+      background:#000;
+    }
+    canvas{display:block; width:100%; height:100%;}
+    .row{display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+    .btn{
+      background:#000; color:#fff;
+      border:3px solid #fff;
+      border-radius:14px;
+      padding:14px 12px;
+      font-weight:900;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      font-size:14px;
+      width:100%;
+    }
+    .btn:active{transform:translateY(1px);}
+    .btn.small{width:auto; padding:12px 10px; border-radius:999px;}
+    .label{color:var(--dim); font-size:12px; letter-spacing:.08em; text-transform:uppercase;}
+    .big{
+      font-size: clamp(24px, 2.9vw, 34px);
+      font-weight:900;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      line-height:1.05;
+    }
+    .meter{
+      border:2px solid #fff; border-radius:12px; overflow:hidden;
+      height:14px; width:100%;
+      background:#000;
+    }
+    .meter > div{height:100%; background:#fff; width:0%;}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .card{
+      border:2px solid rgba(255,255,255,.9);
+      border-radius:14px;
+      padding:10px;
+      background:#000;
+    }
+    input[type="range"]{
+      width:100%;
+      height:38px;
+      appearance:none;
+      background:transparent;
+    }
+    input[type="range"]::-webkit-slider-runnable-track{
+      height:8px; background:#fff;
+    }
+    input[type="range"]::-webkit-slider-thumb{
+      appearance:none; width:28px; height:28px; border-radius:50%;
+      background:#000; border:3px solid #fff; margin-top:-10px;
+    }
+    input[type="number"], input[type="text"], select{
+      width:100%;
+      background:#000; color:#fff;
+      border:2px solid #fff;
+      border-radius:12px;
+      padding:10px 10px;
+      font-size:16px;
+      outline:none;
+    }
+    #hint{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      border:2px solid rgba(255,255,255,.85);
+      border-radius:14px;
+      padding:10px 12px;
+      color:rgba(255,255,255,.85);
+      font-size:12px;
+      line-height:1.35;
+      background:rgba(0,0,0,.72);
+      backdrop-filter: blur(6px);
+      user-select:none;
+    }
+    #splash{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:#000;
+      z-index:5;
+      cursor:pointer;
+    }
+    #splashInner{
+      width:min(720px, 92%);
+      border:var(--border) solid #fff;
+      border-radius:22px;
+      padding:18px;
+      text-align:center;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    #splashTitle{
+      font-size: clamp(34px, 6.6vw, 72px);
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      line-height: .95;
+    }
+    #splashSub{
+      color:rgba(255,255,255,.75);
+      font-size: clamp(13px, 2.6vw, 18px);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    #toast{
+      position:absolute; left:50%; top:12px; transform:translateX(-50%);
+      border:2px solid #fff; border-radius:999px;
+      padding:10px 14px;
+      background:#000;
+      font-weight:900;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      font-size:12px;
+      opacity:0; transition:opacity .18s ease;
+      pointer-events:none;
+      z-index:6;
+      white-space:nowrap;
+    }
+    #toast.show{opacity:1;}
+    @media (max-width: 920px){
+      #top{flex-direction:column;}
+      #panel{flex:0 0 auto;}
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <div id="top">
+    <div id="panel" aria-label="Controls">
+      <div class="row">
+        <div class="big" id="status">Stopped</div>
+        <button class="btn small" id="modeBtn" title="Toggle minimal hints">Hints</button>
+      </div>
+
+      <button class="btn" id="startBtn">Tap to Start (60 min piece)</button>
+
+      <div class="card">
+        <div class="row">
+          <div class="label">Piece Progress</div>
+          <div class="label" id="timeLabel">00:00 / 60:00</div>
+        </div>
+        <div class="meter" aria-hidden="true"><div id="progressBar"></div></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Seed</div>
+          <input id="seed" type="text" value="FACTORIAL-PUSH" />
+          <div class="row" style="margin-top:8px;">
+            <button class="btn small" id="newSeed">New</button>
+            <button class="btn small" id="copySeed">Copy</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="label">Starting n</div>
+          <input id="nStart" type="number" min="1" max="240" value="6" />
+          <div class="label" style="margin-top:8px;">Macro speed</div>
+          <input id="macro" type="range" min="0" max="100" value="45"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><div class="label">Instruments</div><div class="label">tap to toggle</div></div>
+        <div class="row" style="gap:8px; margin-top:6px; flex-wrap:wrap;">
+          <button class="btn small" data-inst="drone">Drone</button>
+          <button class="btn small" data-inst="pluck">Pluck</button>
+          <button class="btn small" data-inst="bass">Bass</button>
+          <button class="btn small" data-inst="dust">Dust</button>
+          <button class="btn small" data-inst="perc">Perc</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Density</div>
+          <input id="density" type="range" min="0" max="100" value="55"/>
+          <div class="label">Brightness</div>
+          <input id="bright" type="range" min="0" max="100" value="55"/>
+        </div>
+        <div class="card">
+          <div class="label">Space (reverb)</div>
+          <input id="space" type="range" min="0" max="100" value="42"/>
+          <div class="label">Echo (delay)</div>
+          <input id="echo" type="range" min="0" max="100" value="28"/>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Tone (filter)</div>
+          <input id="tone" type="range" min="0" max="100" value="60"/>
+          <div class="label">Motion (push)</div>
+          <input id="push" type="range" min="0" max="100" value="65"/>
+        </div>
+        <div class="card">
+          <div class="label">Scale</div>
+          <select id="scaleSel">
+            <option value="penta">Pentatonic</option>
+            <option value="dorian">Dorian</option>
+            <option value="minor">Natural Minor</option>
+            <option value="chrom">Chromatic</option>
+          </select>
+          <div class="label" style="margin-top:8px;">Master</div>
+          <input id="master" type="range" min="0" max="100" value="70"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Gesture</div>
+        <div class="label" style="margin-top:6px; color:rgba(255,255,255,.85); text-transform:none; letter-spacing:0;">
+          Push on the canvas to sculpt the flow field and the soundscape.
+          Stronger pushes = more motion + momentary density/brightness swells.
+        </div>
+      </div>
+    </div>
+
+    <div id="stage">
+      <div id="toast"></div>
+      <canvas id="c"></canvas>
+      <div id="hint">
+        • Tap START to unlock audio<br/>
+        • Push/drag to paint force fields<br/>
+        • Longform form: factorial digits drive harmony, rhythm & section changes<br/>
+        • Runs indefinitely, but the progress bar is calibrated to 60 minutes
+      </div>
+
+      <div id="splash" role="button" aria-label="Tap to start">
+        <div id="splashInner">
+          <div id="splashTitle">Factorial Push Art</div>
+          <div id="splashSub">Tap to unlock audio · then sculpt an hour-long piece</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // -----------------------------
+  // Utilities
+  // -----------------------------
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const nowMs = ()=>performance.now();
+
+  // PRNG (seeded) — Mulberry32
+  function xmur3(str){
+    let h = 1779033703 ^ str.length;
+    for (let i=0; i<str.length; i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function(){
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return (h ^= (h >>> 16)) >>> 0;
+    };
+  }
+  function mulberry32(a){
+    return function(){
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // -----------------------------
+  // UI elements
+  // -----------------------------
+  const els = {
+    splash: document.getElementById('splash'),
+    startBtn: document.getElementById('startBtn'),
+    status: document.getElementById('status'),
+    timeLabel: document.getElementById('timeLabel'),
+    progressBar: document.getElementById('progressBar'),
+    seed: document.getElementById('seed'),
+    newSeed: document.getElementById('newSeed'),
+    copySeed: document.getElementById('copySeed'),
+    nStart: document.getElementById('nStart'),
+    macro: document.getElementById('macro'),
+    density: document.getElementById('density'),
+    bright: document.getElementById('bright'),
+    space: document.getElementById('space'),
+    echo: document.getElementById('echo'),
+    tone: document.getElementById('tone'),
+    push: document.getElementById('push'),
+    master: document.getElementById('master'),
+    scaleSel: document.getElementById('scaleSel'),
+    modeBtn: document.getElementById('modeBtn'),
+    hint: document.getElementById('hint'),
+    toast: document.getElementById('toast')
+  };
+
+  function toast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>els.toast.classList.remove('show'), 800);
+  }
+
+  let hintsOn = true;
+  els.modeBtn.addEventListener('click', ()=>{
+    hintsOn = !hintsOn;
+    els.hint.style.display = hintsOn ? 'block' : 'none';
+    toast(hintsOn ? 'hints on' : 'hints off');
+  });
+
+  // Instruments toggle buttons
+  const instState = {
+    drone:true, pluck:true, bass:true, dust:true, perc:true
+  };
+  document.querySelectorAll('[data-inst]').forEach(btn=>{
+    const k = btn.dataset.inst;
+    const sync = ()=>{
+      btn.style.background = instState[k] ? '#fff' : '#000';
+      btn.style.color = instState[k] ? '#000' : '#fff';
+    };
+    sync();
+    btn.addEventListener('click', ()=>{
+      instState[k] = !instState[k];
+      sync();
+      toast(`${k} ${instState[k] ? 'on' : 'off'}`);
+    });
+  });
+
+  // Seed controls
+  function randomSeed(){
+    const a = Math.floor(Math.random()*1e9).toString(36).toUpperCase();
+    const b = Math.floor(Math.random()*1e9).toString(36).toUpperCase();
+    els.seed.value = `F-${a}-${b}`;
+  }
+  els.newSeed.addEventListener('click', ()=>{ randomSeed(); toast('new seed'); resetEngine(); });
+  els.copySeed.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(els.seed.value);
+      toast('seed copied');
+    }catch(e){
+      toast('copy blocked');
+    }
+  });
+  els.seed.addEventListener('change', ()=>{ resetEngine(); toast('seed set'); });
+
+  // -----------------------------
+  // Canvas + "push art" flow field
+  // -----------------------------
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+
+  function fit(){
+    const r = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(r.width * dpr);
+    canvas.height = Math.floor(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', fit, {passive:true});
+
+  // Particles
+  let particles = [];
+  const MAX_PARTICLES = 2400;
+
+  // Force "stamps" created by pushing
+  const stamps = [];
+  const MAX_STAMPS = 48;
+
+  function spawnParticles(count, rng){
+    const r = canvas.getBoundingClientRect();
+    for (let i=0;i<count;i++){
+      particles.push({
+        x: rng()*r.width,
+        y: rng()*r.height,
+        vx: 0, vy: 0,
+        a: 0.6 + rng()*0.4,
+        w: 0.6 + rng()*2.2
+      });
+    }
+    if (particles.length > MAX_PARTICLES){
+      particles.splice(0, particles.length - MAX_PARTICLES);
+    }
+  }
+
+  function addStamp(x,y,strength,spin){
+    stamps.push({
+      x,y,
+      s: strength,
+      spin,
+      life: 1
+    });
+    if (stamps.length > MAX_STAMPS) stamps.shift();
+  }
+
+  let pushing = false;
+  let lastPush = {x:0,y:0,t:0};
+  function pointerXY(ev){
+    const r = canvas.getBoundingClientRect();
+    const p = ev.touches ? ev.touches[0] : ev;
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  }
+  function onDown(ev){
+    pushing = true;
+    const {x,y} = pointerXY(ev);
+    lastPush = {x,y,t:nowMs()};
+    // instant stamp
+    addStamp(x,y, 0.55, (Math.random()-0.5)*2);
+    // sound swell
+    pushImpulse(1);
+  }
+  function onMove(ev){
+    if(!pushing) return;
+    const {x,y} = pointerXY(ev);
+    const t = nowMs();
+    const dt = Math.max(1, t - lastPush.t);
+    const dx = x - lastPush.x;
+    const dy = y - lastPush.y;
+    const speed = Math.sqrt(dx*dx+dy*dy) / dt; // px/ms
+    const pushAmt = clamp(speed * 1.3, 0.15, 1.0);
+
+    // stamps along drag
+    addStamp(x,y, 0.35 + pushAmt*0.85, (dx*0.01 - dy*0.01));
+
+    // periodic sound impulses
+    if (t - lastPush._soundT > 80 || !lastPush._soundT){
+      pushImpulse(pushAmt);
+      lastPush._soundT = t;
+    }
+    lastPush = {x,y,t,_soundT:lastPush._soundT};
+  }
+  function onUp(){
+    pushing = false;
+  }
+  canvas.addEventListener('pointerdown', onDown, {passive:true});
+  canvas.addEventListener('pointermove', onMove, {passive:true});
+  window.addEventListener('pointerup', onUp, {passive:true});
+  canvas.addEventListener('touchstart', onDown, {passive:true});
+  canvas.addEventListener('touchmove', onMove, {passive:true});
+  window.addEventListener('touchend', onUp, {passive:true});
+
+  // -----------------------------
+  // Factorial engine (BigInt) + digit stream
+  // -----------------------------
+  let n = 6;
+  let factN = 1;
+  let factVal = 1n;
+  let digitBuf = "1";
+  let digitPos = 0;
+
+  function factorialTo(target){
+    target = Math.max(1, target|0);
+    if (target < factN){ factN = 1; factVal = 1n; }
+    for (let i=factN+1; i<=target; i++){
+      factVal *= BigInt(i);
+      factN = i;
+    }
+    return factVal;
+  }
+
+  function refillDigits(){
+    // Keep last 256 digits — stable, inexpensive enough.
+    const s = factorialTo(n).toString();
+    digitBuf = s.slice(-256);
+    digitPos = 0;
+  }
+
+  function nextDigit(){
+    if (digitPos >= digitBuf.length) refillDigits();
+    const d = digitBuf.charCodeAt(digitPos) - 48;
+    digitPos++;
+    return (d>=0 && d<=9) ? d : 0;
+  }
+
+  function digitsToFloat(k){
+    // 0..1 from k digits
+    let v = 0;
+    for (let i=0;i<k;i++){
+      v = v*10 + nextDigit();
+    }
+    return v / (Math.pow(10,k)-1);
+  }
+
+  // -----------------------------
+  // Scales
+  // -----------------------------
+  function buildScale(name){
+    const base = 110; // A2-ish
+    let semis;
+    if (name === "chrom") semis = [...Array(24)].map((_,i)=>i);
+    else if (name === "minor") semis = [0,2,3,5,7,8,10,12,14,15,17,19,20,22,24];
+    else if (name === "dorian") semis = [0,2,3,5,7,9,10,12,14,15,17,19,21,22,24];
+    else semis = [0,3,5,7,10,12,15,17,19,22,24]; // pentatonic-ish
+    return semis.map(s => base * Math.pow(2, s/12));
+  }
+  let scale = buildScale(els.scaleSel.value);
+  els.scaleSel.addEventListener('change', ()=>{
+    scale = buildScale(els.scaleSel.value);
+    toast(`scale ${els.scaleSel.value}`);
+  });
+
+  // -----------------------------
+  // Audio: longform generative scheduler
+  // -----------------------------
+  let audioCtx = null;
+  let master = null;
+  let pre = null;
+  let filter = null;
+
+  // Reverb (convolver) — synthetic impulse
+  let convolver = null;
+  let revMix = null;
+
+  // Delay
+  let delay = null;
+  let fb = null;
+  let dMix = null;
+
+  // Macro clock
+  const PIECE_SECONDS = 60 * 60; // 60 minutes
+  let startedAt = 0;
+  let pausedAt = 0;
+
+  // Scheduler
+  const LOOKAHEAD_MS = 25;
+  const SCHEDULE_AHEAD_S = 0.22;
+  let schedulerTimer = null;
+  let nextNoteTime = 0;
+
+  // Section system
+  let section = 0;
+  let sectionEndsAt = 0;
+
+  // Momentary push influence (from gestures)
+  let pushEnergy = 0; // decays 0..1
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Master chain
+    master = audioCtx.createGain();
+    master.gain.value = 0.75;
+
+    pre = audioCtx.createGain();
+    pre.gain.value = 1.0;
+
+    filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 2500;
+    filter.Q.value = 0.7;
+
+    // Delay
+    delay = audioCtx.createDelay(1.5);
+    delay.delayTime.value = 0.22;
+    fb = audioCtx.createGain(); fb.gain.value = 0.35;
+    dMix = audioCtx.createGain(); dMix.gain.value = 0.18;
+
+    // Reverb
+    convolver = audioCtx.createConvolver();
+    revMix = audioCtx.createGain(); revMix.gain.value = 0.22;
+
+    // Routing
+    pre.connect(filter);
+    filter.connect(master);
+    master.connect(audioCtx.destination);
+
+    filter.connect(delay);
+    delay.connect(fb);
+    fb.connect(delay);
+    delay.connect(dMix);
+    dMix.connect(master);
+
+    filter.connect(convolver);
+    convolver.connect(revMix);
+    revMix.connect(master);
+
+    convolver.buffer = makeImpulse(audioCtx, 2.9, 2.0);
+  }
+
+  function makeImpulse(ctx, seconds, decay){
+    const rate = ctx.sampleRate;
+    const len = Math.floor(rate * seconds);
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let c=0;c<2;c++){
+      const ch = buf.getChannelData(c);
+      for (let i=0;i<len;i++){
+        const t = i / len;
+        // white noise with exponential tail
+        ch[i] = (Math.random()*2-1) * Math.pow(1 - t, decay);
+      }
+    }
+    return buf;
+  }
+
+  function setFxFromUI(){
+    const m = (+els.master.value)/100;
+    master.gain.setTargetAtTime(0.0001 + m*1.1, audioCtx.currentTime, 0.03);
+
+    const tone = (+els.tone.value)/100;
+    const f = 400 + tone*tone*9000;
+    filter.frequency.setTargetAtTime(f, audioCtx.currentTime, 0.03);
+    filter.Q.setTargetAtTime(0.5 + tone*2.8, audioCtx.currentTime, 0.03);
+
+    const e = (+els.echo.value)/100;
+    delay.delayTime.setTargetAtTime(0.12 + e*0.48, audioCtx.currentTime, 0.04);
+    fb.gain.setTargetAtTime(0.12 + e*0.62, audioCtx.currentTime, 0.05);
+    dMix.gain.setTargetAtTime(0.03 + e*0.35, audioCtx.currentTime, 0.05);
+
+    const s = (+els.space.value)/100;
+    revMix.gain.setTargetAtTime(0.02 + s*0.55, audioCtx.currentTime, 0.05);
+  }
+
+  // Simple envelopes
+  function expEnv(g, t, a, d, peak){
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0.00001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.00002, peak), t + a);
+    g.gain.exponentialRampToValueAtTime(0.00001, t + a + d);
+  }
+
+  // Voice builders
+  function playDrone(t, rootHz, bright, width){
+    if (!instState.drone) return;
+    const dur = 6.0 + width*8.0;
+
+    const g = audioCtx.createGain();
+    const f = audioCtx.createBiquadFilter();
+    const s = audioCtx.createStereoPanner();
+
+    f.type = "lowpass";
+    f.frequency.value = 400 + bright*2200;
+    f.Q.value = 0.7;
+
+    s.pan.value = (nextDigit()-4.5)/10;
+
+    const o1 = audioCtx.createOscillator();
+    const o2 = audioCtx.createOscillator();
+    const o3 = audioCtx.createOscillator();
+
+    o1.type = "sine";
+    o2.type = "triangle";
+    o3.type = "sine";
+
+    const det = (nextDigit()-5) * 3.0;
+    o1.frequency.value = rootHz;
+    o2.frequency.value = rootHz * 0.5;
+    o3.frequency.value = rootHz * Math.pow(2, 7/12); // fifth
+
+    o2.detune.value = det;
+    o3.detune.value = -det*0.8;
+
+    o1.connect(g); o2.connect(g); o3.connect(g);
+    g.connect(f); f.connect(s); s.connect(pre);
+
+    expEnv(g, t, 0.35, dur, 0.08 + 0.12*bright);
+
+    o1.start(t); o2.start(t); o3.start(t);
+    o1.stop(t+dur+1.0); o2.stop(t+dur+1.0); o3.stop(t+dur+1.0);
+  }
+
+  function playPluck(t, hz, bright, pan){
+    if (!instState.pluck) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const f = audioCtx.createBiquadFilter();
+    const p = audioCtx.createStereoPanner();
+
+    o.type = "triangle";
+    o.frequency.setValueAtTime(hz, t);
+    o.detune.setValueAtTime((nextDigit()-5)*8, t);
+
+    f.type = "lowpass";
+    f.frequency.value = 900 + bright*5200;
+    f.Q.value = 0.8 + bright*2.2;
+
+    p.pan.value = pan;
+
+    o.connect(g); g.connect(f); f.connect(p); p.connect(pre);
+    expEnv(g, t, 0.008, 0.22 + (1-bright)*0.1, 0.10 + bright*0.07);
+    o.start(t);
+    o.stop(t + 0.8);
+  }
+
+  function playBass(t, hz, weight){
+    if (!instState.bass) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const f = audioCtx.createBiquadFilter();
+
+    o.type = "sine";
+    o.frequency.setValueAtTime(hz, t);
+
+    f.type = "lowpass";
+    f.frequency.value = 220 + weight*680;
+    f.Q.value = 0.9;
+
+    o.connect(g); g.connect(f); f.connect(pre);
+    expEnv(g, t, 0.01, 0.34 + weight*0.25, 0.14 + weight*0.12);
+    o.start(t);
+    o.stop(t + 1.0);
+  }
+
+  function playDust(t, bright, pan){
+    if (!instState.dust) return;
+    const dur = 0.12 + bright*0.18;
+    const buffer = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate*dur), audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<data.length;i++){
+      // sparse noise "grains"
+      const r = Math.random()*2-1;
+      data[i] = r * (Math.random() > 0.9 ? 1 : 0.15);
+    }
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+
+    const g = audioCtx.createGain();
+    const bp = audioCtx.createBiquadFilter();
+    const p = audioCtx.createStereoPanner();
+
+    bp.type = "bandpass";
+    bp.frequency.value = 1200 + bright*7000;
+    bp.Q.value = 1.2 + bright*7.0;
+
+    p.pan.value = pan;
+
+    src.connect(g); g.connect(bp); bp.connect(p); p.connect(pre);
+    expEnv(g, audioCtx.currentTime, 0.001, dur, 0.05 + bright*0.06);
+
+    src.start();
+    src.stop(audioCtx.currentTime + dur + 0.05);
+  }
+
+  function playPerc(t, bright, pan){
+    if (!instState.perc) return;
+    // clicky / woody
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const p = audioCtx.createStereoPanner();
+    o.type = "square";
+    o.frequency.setValueAtTime(180 + bright*520, t);
+
+    p.pan.value = pan;
+
+    o.connect(g); g.connect(p); p.connect(pre);
+    expEnv(g, t, 0.001, 0.06 + (1-bright)*0.08, 0.06 + bright*0.05);
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+
+  // -----------------------------
+  // Macroform — hour-long piece
+  // -----------------------------
+  function macroSpeed(){
+    // 0..100 -> 0.6x .. 1.6x section evolution
+    const x = (+els.macro.value)/100;
+    return 0.6 + x*1.0;
+  }
+
+  function chooseSectionLength(rng){
+    // 90s .. 300s
+    return (90 + rng()*210) / macroSpeed();
+  }
+
+  function startNewSection(t, rng){
+    section++;
+    // n climbs slowly across sections, factorial digits shift the universe.
+    const nTarget = clamp(n + 1 + Math.floor(rng()*2), 2, 240);
+    n = nTarget;
+    refillDigits();
+
+    const len = chooseSectionLength(rng);
+    sectionEndsAt = t + len;
+
+    // slightly rebuild reverb impulse sometimes (keeps space evolving)
+    if (section % 3 === 0){
+      convolver.buffer = makeImpulse(audioCtx, 2.0 + rng()*2.2, 1.6 + rng()*1.2);
+    }
+
+    toast(`section ${section} · n=${n}`);
+  }
+
+  function bpmBase(){
+    // factorial digits decide a "pulse family", but slow and airy.
+    // 48..112 BPM
+    const d = nextDigit();
+    const dd = nextDigit();
+    const v = (d*10+dd)/99;
+    const bpm = 48 + v*64;
+    return bpm;
+  }
+
+  function stepDurFromBpm(bpm){
+    // mixture of 1/8 and 1/16 pockets — longform feels like breathing
+    return (60 / bpm) / (Math.random() < 0.5 ? 2 : 4);
+  }
+
+  // -----------------------------
+  // Push gesture -> musical influence
+  // -----------------------------
+  function pushImpulse(amt){
+    // amt 0..1
+    pushEnergy = clamp(pushEnergy + amt*0.55, 0, 1);
+  }
+
+  // -----------------------------
+  // Scheduler
+  // -----------------------------
+  let rng = mulberry32(xmur3(els.seed.value)());
+
+  function resetEngine(){
+    rng = mulberry32(xmur3(els.seed.value)());
+    n = clamp(parseInt(els.nStart.value || "6", 10), 1, 240);
+    factN = 1; factVal = 1n;
+    refillDigits();
+    section = 0;
+    sectionEndsAt = 0;
+  }
+
+  function schedule(){
+    if (!audioCtx) return;
+    setFxFromUI();
+
+    // decay push energy
+    pushEnergy = Math.max(0, pushEnergy - 0.008);
+
+    while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_S){
+      // section transitions
+      if (nextNoteTime >= sectionEndsAt){
+        startNewSection(nextNoteTime, rng);
+      }
+
+      // Global controls
+      const density = (+els.density.value)/100;
+      const bright = (+els.bright.value)/100;
+      const push = (+els.push.value)/100;
+
+      // derive micro-parameters from factorial digits
+      const drift = digitsToFloat(3); // 0..1
+      const bpm = bpmBase() * (0.88 + 0.28*drift);
+      const step = stepDurFromBpm(bpm);
+
+      // choose pitch region
+      const d = nextDigit();
+      const rootIdx = (d + section) % scale.length;
+      const root = scale[rootIdx];
+
+      // Drone: sparse, section-anchoring
+      if (instState.drone && rng() < (0.08 + density*0.06)){
+        const width = 0.2 + 0.8*(0.5*bright + 0.5*pushEnergy);
+        playDrone(nextNoteTime, root, bright, width);
+      }
+
+      // Plucks: factorial-digit-driven, denser with density + pushEnergy
+      if (instState.pluck){
+        const pProb = 0.18 + density*0.45 + pushEnergy*0.22;
+        if (rng() < pProb){
+          const di = nextDigit();
+          const idx = (rootIdx + (di % 9) - 4 + scale.length*10) % scale.length;
+          const hz = scale[idx] * (rng() < 0.18 ? 2 : 1);
+          const pan = clamp((digitsToFloat(2) * 2 - 1) * (0.5 + push*0.5), -1, 1);
+          playPluck(nextNoteTime, hz, bright, pan);
+        }
+      }
+
+      // Bass: periodic anchor
+      if (instState.bass){
+        const bProb = 0.10 + density*0.18;
+        if (rng() < bProb){
+          const oct = (rng() < 0.7) ? 0.5 : 1.0;
+          playBass(nextNoteTime, root * oct, 0.25 + 0.75*(1-bright));
+        }
+      }
+
+      // Dust: airy texture
+      if (instState.dust){
+        const dProb = 0.14 + density*0.20 + pushEnergy*0.15;
+        if (rng() < dProb){
+          playDust(nextNoteTime, bright, clamp(digitsToFloat(2)*2-1, -1, 1));
+        }
+      }
+
+      // Perc: occasional ticks, increases with push
+      if (instState.perc){
+        const kProb = 0.05 + density*0.14 + pushEnergy*0.22;
+        if (rng() < kProb){
+          playPerc(nextNoteTime, bright, clamp((digitsToFloat(2)*2-1) * 0.8, -1, 1));
+        }
+      }
+
+      // Visual particle emission tied to density
+      if (running){
+        const add = Math.floor(6 + density*18 + pushEnergy*22);
+        spawnParticles(add, rng);
+      }
+
+      nextNoteTime += Math.max(0.03, step + (pushEnergy-0.5)*0.01);
+    }
+  }
+
+  // -----------------------------
+  // Run state / timing UI
+  // -----------------------------
+  let running = false;
+
+  function fmtTime(sec){
+    sec = Math.max(0, sec|0);
+    const m = Math.floor(sec/60);
+    const s = sec%60;
+    const mm = String(m).padStart(2,'0');
+    const ss = String(s).padStart(2,'0');
+    return `${mm}:${ss}`;
+  }
+
+  function updateProgress(){
+    if(!running){
+      // keep label
+      return;
+    }
+    const elapsed = (audioCtx.currentTime - startedAt);
+    const clamped = Math.min(elapsed, PIECE_SECONDS);
+    els.timeLabel.textContent = `${fmtTime(clamped)} / 60:00`;
+    els.progressBar.style.width = `${(clamped/PIECE_SECONDS)*100}%`;
+  }
+
+  function start(){
+    ensureAudio();
+    audioCtx.resume?.();
+    resetEngine();
+    setFxFromUI();
+
+    running = true;
+    els.status.textContent = 'Playing';
+    els.startBtn.textContent = 'Pause';
+    els.splash.style.display = 'none';
+
+    startedAt = audioCtx.currentTime;
+    pausedAt = 0;
+
+    nextNoteTime = audioCtx.currentTime + 0.06;
+    section = 0;
+    sectionEndsAt = audioCtx.currentTime; // triggers new section immediately
+
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    schedulerTimer = setInterval(schedule, LOOKAHEAD_MS);
+
+    toast('unlocked');
+  }
+
+  function stop(){
+    running = false;
+    els.status.textContent = 'Paused';
+    els.startBtn.textContent = 'Resume';
+    if (audioCtx) pausedAt = audioCtx.currentTime;
+    if (schedulerTimer){
+      clearInterval(schedulerTimer);
+      schedulerTimer = null;
+    }
+  }
+
+  function toggle(){
+    if(!audioCtx){
+      start();
+      return;
+    }
+    if(!running){
+      // resume: adjust startedAt to preserve progress display
+      if (pausedAt){
+        const pausedDur = (audioCtx.currentTime - pausedAt);
+        startedAt += pausedDur;
+      }
+      running = true;
+      els.status.textContent = 'Playing';
+      els.startBtn.textContent = 'Pause';
+      if (schedulerTimer) clearInterval(schedulerTimer);
+      schedulerTimer = setInterval(schedule, LOOKAHEAD_MS);
+      toast('resume');
+      return;
+    }
+    stop();
+    toast('pause');
+  }
+
+  els.startBtn.addEventListener('click', toggle);
+  els.splash.addEventListener('click', start);
+
+  // Realtime progress updater
+  setInterval(updateProgress, 200);
+
+  // Update FX when sliders move (snappy feel)
+  ['density','bright','space','echo','tone','push','master','macro'].forEach(id=>{
+    els[id].addEventListener('input', ()=>{
+      if(audioCtx) setFxFromUI();
+    });
+  });
+
+  // -----------------------------
+  // Visual simulation
+  // -----------------------------
+  let lastT = performance.now();
+  function draw(){
+    const r = canvas.getBoundingClientRect();
+    const w = r.width, h = r.height;
+
+    // background fade (higher brightness = less fade = more trails)
+    const bright = (+els.bright.value)/100;
+    const fade = 0.10 + (1-bright)*0.18;
+    ctx.fillStyle = `rgba(0,0,0,${fade})`;
+    ctx.fillRect(0,0,w,h);
+
+    // stamps decay
+    for (let i=stamps.length-1; i>=0; i--){
+      stamps[i].life -= 0.006;
+      if (stamps[i].life <= 0) stamps.splice(i,1);
+    }
+
+    // flow influence from factorial digits (slow)
+    const d1 = nextDigit(), d2 = nextDigit();
+    const globalSpin = ((d1-4.5)/9) * 0.8;
+    const globalWave = (d2/9);
+
+    // integrate particles
+    const t = performance.now();
+    const dt = Math.min(0.033, (t - lastT)/1000);
+    lastT = t;
+
+    const push = (+els.push.value)/100;
+    const density = (+els.density.value)/100;
+
+    // Draw particles as white strokes
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+
+    for (let i=0; i<particles.length; i++){
+      const p = particles[i];
+
+      // base vector field (curvy)
+      const nx = p.x / w;
+      const ny = p.y / h;
+      let ang = (nx*6.283*2.0 + ny*6.283*1.0) + Math.sin((nx+ny+globalWave)*6.0 + t*0.00035)*1.1;
+      ang += globalSpin * 0.7;
+
+      // stamps add vortices / pushes
+      for (let j=0; j<stamps.length; j++){
+        const s = stamps[j];
+        const dx = p.x - s.x;
+        const dy = p.y - s.y;
+        const dist2 = dx*dx + dy*dy;
+        const rad = 140 + 260*push;
+        const wgt = Math.exp(-dist2/(rad*rad)) * s.life;
+        if (wgt > 0.001){
+          // rotational + radial component
+          ang += (Math.atan2(dy,dx) + s.spin) * wgt * (0.7 + push*1.8);
+          p.vx += (-dy) * wgt * 0.0025 * push;
+          p.vy += ( dx) * wgt * 0.0025 * push;
+        }
+      }
+
+      // integrate velocity toward field direction
+      const ax = Math.cos(ang) * (10 + density*28) * (0.8 + pushEnergy*0.7);
+      const ay = Math.sin(ang) * (10 + density*28) * (0.8 + pushEnergy*0.7);
+
+      p.vx = p.vx*0.90 + ax*dt;
+      p.vy = p.vy*0.90 + ay*dt;
+
+      const ox = p.x, oy = p.y;
+      p.x += p.vx * (30*dt);
+      p.y += p.vy * (30*dt);
+
+      // wrap
+      if (p.x < 0) p.x += w;
+      if (p.x > w) p.x -= w;
+      if (p.y < 0) p.y += h;
+      if (p.y > h) p.y -= h;
+
+      // stroke
+      ctx.globalAlpha = p.a * (0.5 + bright*0.5);
+      ctx.lineWidth = p.w;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Minimal overlay: section + n
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.font = "900 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    const txt = running ? `section ${section} · n=${n} · push=${pushEnergy.toFixed(2)}` : `stopped · push art ready`;
+    ctx.fillText(txt, 14, 22);
+
+    requestAnimationFrame(draw);
+  }
+
+  // Start visuals
+  fit();
+  // initial particles
+  resetEngine();
+  spawnParticles(900, rng);
+  draw();
+
+  // "splash" also unlocks audio in iOS
+  els.splash.addEventListener('pointerdown', ()=>{ /* no-op */ }, {passive:true});
+
+  // Keep factorial digit use from exploding when stopped:
+  // (We still pull a few digits for visuals; it's fine.)
+})();
+</script>
+</body>
+</html>

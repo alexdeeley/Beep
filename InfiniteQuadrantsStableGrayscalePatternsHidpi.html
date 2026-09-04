@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Infinite Quadrants – Stable Patterns (HiDPI)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;touch-action:none;}
+body{
+  width:100vw;height:100vh;overflow:hidden;background:#000;
+  display:flex;justify-content:center;align-items:center;
+}
+canvas{
+  display:block;
+  width:100vmin;height:100vmin;
+  max-width:100vh;max-height:100vh;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha:false });
+
+// --- HiDPI / "DPI" control ---
+// Increase this if you want more detail (4096 is heavy; 2048 is usually safe)
+const BASE_RES = 2048;
+
+// Also account for devicePixelRatio so it stays crisp on retina screens
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+// Internal render size (the "pixel buffer")
+const size = Math.round(BASE_RES * DPR);
+canvas.width = size;
+canvas.height = size;
+
+// --- Data model coordinates live in "world units" = canvas pixels ---
+let quadrants = [];
+
+function clamp255(v){ return Math.max(0, Math.min(255, v|0)); }
+function randInt(min, max){ return (min + Math.floor(Math.random()*(max-min+1))); }
+function gray(v){ v = clamp255(v); return `rgb(${v},${v},${v})`; }
+
+function makeGrayPair(){
+  const bg = randInt(10, 245);
+  const delta = randInt(40, 140) * (Math.random() < 0.5 ? -1 : 1);
+  const fg = clamp255(bg + delta);
+  return { bg, fg };
+}
+
+function makePatternData(type){
+  // All randomness is stored here so patterns are perfectly stable.
+  if (type === 0 || type === 1){
+    const n = randInt(3, 10);
+    const jitter = Math.random() * 0.25;
+    const phase = Math.random();
+    return { n, jitter, phase };
+  }
+  if (type === 2){
+    const n = randInt(2, 6);
+    const skew = (Math.random()*2 - 1) * 0.35;
+    const both = Math.random() < 0.7;
+    return { n, skew, both };
+  }
+  const count = randInt(6, 18);
+  const dots = [];
+  for (let i=0;i<count;i++){
+    dots.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.max(0.008, Math.random()*0.06),
+      g: randInt(0, 40) * (Math.random()<0.5 ? -1 : 1)
+    });
+  }
+  return { dots };
+}
+
+function pseudo01(a){
+  // Deterministic pseudo-random in [0,1)
+  const s = Math.sin(a) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
+function drawPattern(q){
+  // Solid background
+  ctx.fillStyle = gray(q.bg);
+  ctx.fillRect(q.x, q.y, q.w, q.h);
+
+  // Line width stays visible even at tiny sizes
+  const minDim = Math.max(1, Math.min(q.w, q.h));
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  ctx.strokeStyle = gray(q.fg);
+  ctx.lineWidth = Math.max(1, minDim * 0.045);
+
+  const x=q.x, y=q.y, w=q.w, h=q.h;
+
+  switch(q.type){
+    case 0: { // vertical
+      const { n, jitter, phase } = q.data;
+      const step = w / (n + 1);
+      for (let i=1;i<=n;i++){
+        const j = pseudo01((i+phase)*12.9898);
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const xx = x + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(xx, y);
+        ctx.lineTo(xx, y + h);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 1: { // horizontal
+      const { n, jitter, phase } = q.data;
+      const step = h / (n + 1);
+      for (let i=1;i<=n;i++){
+        const j = pseudo01((i+phase)*78.233);
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const yy = y + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(x, yy);
+        ctx.lineTo(x + w, yy);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 2: { // hatch
+      const { n, skew, both } = q.data;
+      const step = (w + h) / (n + 2);
+      for (let i=0;i<n+3;i++){
+        const t = i*step;
+        ctx.beginPath();
+        ctx.moveTo(x - h*skew + t, y);
+        ctx.lineTo(x + t, y + h);
+        ctx.stroke();
+      }
+      if (both){
+        for (let i=0;i<n+3;i++){
+          const t = i*step;
+          ctx.beginPath();
+          ctx.moveTo(x + t, y);
+          ctx.lineTo(x + w + h*skew - t, y + h);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    default: { // dots
+      const { dots } = q.data;
+      for (let k=0;k<dots.length;k++){
+        const d = dots[k];
+        const rr = Math.max(1, d.r * minDim);
+        const gx = x + d.x * w;
+        const gy = y + d.y * h;
+        const g = clamp255(q.fg + d.g);
+        ctx.fillStyle = gray(g);
+        ctx.beginPath();
+        ctx.arc(gx, gy, rr, 0, Math.PI*2);
+        ctx.fill();
+      }
+      break;
+    }
+  }
+}
+
+class Quadrant{
+  constructor(x,y,w,h){
+    this.x=x; this.y=y; this.w=w; this.h=h;
+    const {bg, fg} = makeGrayPair();
+    this.bg=bg; this.fg=fg;
+    this.type = randInt(0,3);
+    this.data = makePatternData(this.type);
+    this.children=null;
+    this.isLeaf=true;
+  }
+  split(){
+    if (!this.isLeaf) return;
+
+    // Allow deeper splits by not stopping early; but prevent *infinite* recursion
+    // once a square is too small to meaningfully draw.
+    if (this.w < 2 || this.h < 2) return;
+
+    const hw=this.w/2, hh=this.h/2;
+    this.children=[
+      new Quadrant(this.x, this.y, hw, hh),
+      new Quadrant(this.x+hw, this.y, hw, hh),
+      new Quadrant(this.x, this.y+hh, hw, hh),
+      new Quadrant(this.x+hw, this.y+hh, hw, hh),
+    ];
+    this.isLeaf=false;
+  }
+  contains(px,py){
+    return px>=this.x && px<this.x+this.w && py>=this.y && py<this.y+this.h;
+  }
+  draw(){
+    if (this.isLeaf) drawPattern(this);
+    else this.children.forEach(c=>c.draw());
+  }
+  find(px,py){
+    if (!this.contains(px,py)) return null;
+    if (this.isLeaf) return this;
+    for (const c of this.children){
+      const f = c.find(px,py);
+      if (f) return f;
+    }
+    return null;
+  }
+}
+
+function init(){
+  const h=size/2;
+  quadrants=[
+    new Quadrant(0,0,h,h),
+    new Quadrant(h,0,h,h),
+    new Quadrant(0,h,h,h),
+    new Quadrant(h,h,h,h),
+  ];
+  draw();
+}
+
+function draw(){
+  ctx.clearRect(0,0,size,size);
+  quadrants.forEach(q=>q.draw());
+}
+
+function coords(e){
+  const r = canvas.getBoundingClientRect();
+  const sx = size / r.width;
+  const sy = size / r.height;
+  const p = e.touches ? e.touches[0] : e;
+  return { x:(p.clientX - r.left) * sx, y:(p.clientY - r.top) * sy };
+}
+
+function handle(e){
+  const p = coords(e);
+  for (const q of quadrants){
+    const leaf = q.find(p.x,p.y);
+    if (leaf){
+      leaf.split();
+      draw();
+      break;
+    }
+  }
+}
+
+canvas.addEventListener('click', handle);
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); handle(e); });
+
+init();
+</script>
+</body>
+</html>

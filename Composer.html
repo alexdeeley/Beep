@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Composer</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --dim:rgba(255,255,255,.55);
+    --dim2:rgba(255,255,255,.25);
+    --b:4px;
+    --r:18px;
+    --hit:64px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; width:100%; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
+  button{all:unset; cursor:pointer;}
+  #app{position:fixed; inset:0; display:flex; flex-direction:column; gap:12px; padding:12px;}
+  #stage{
+    position:relative; flex:1.2; border:var(--b) solid var(--fg); border-radius:var(--r);
+    overflow:hidden; background: radial-gradient(1200px 800px at 20% 20%, rgba(255,255,255,.06), transparent 60%),
+                      radial-gradient(900px 700px at 80% 30%, rgba(255,255,255,.04), transparent 60%),
+                      radial-gradient(800px 900px at 50% 90%, rgba(255,255,255,.03), transparent 55%);
+  }
+  #viz,#spark{position:absolute; inset:0; width:100%; height:100%;}
+  #spark{opacity:.6; mix-blend-mode:screen; pointer-events:none;}
+  #controls{
+    flex:.9; display:grid; gap:12px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: 1fr 1fr;
+  }
+  .panel{
+    border:var(--b) solid var(--fg); border-radius:var(--r);
+    padding:10px; display:flex; align-items:center; justify-content:center; position:relative;
+    background: rgba(255,255,255,.02);
+  }
+  .panel:active{background: rgba(255,255,255,.04);}
+  .panel::after{
+    content:""; position:absolute; inset:8px; border:2px solid var(--dim2); border-radius:calc(var(--r) - 8px);
+    pointer-events:none;
+  }
+
+  /* Start overlay (no text) */
+  #splash{
+    position:fixed; inset:0; background:rgba(0,0,0,.92);
+    display:flex; align-items:center; justify-content:center; z-index:50;
+  }
+  #splashBtn{
+    width:min(44vmin, 240px); height:min(44vmin, 240px);
+    border:var(--b) solid var(--fg); border-radius:32px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.02);
+  }
+  #splashBtn:active{transform:scale(.985);}
+  .tri{
+    width:0; height:0;
+    border-top:55px solid transparent;
+    border-bottom:55px solid transparent;
+    border-left:88px solid var(--fg);
+    margin-left:10px;
+    filter:drop-shadow(0 0 14px rgba(255,255,255,.25));
+  }
+
+  /* Controls: knobs, levers, pad, buttons */
+  .knob{
+    width:92px; height:92px; border-radius:50%;
+    border:var(--b) solid var(--fg);
+    position:relative;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.10), rgba(255,255,255,.02) 55%, rgba(0,0,0,.55) 100%);
+    touch-action:none;
+  }
+  .knob .ring{
+    position:absolute; inset:8px; border-radius:50%;
+    border:2px solid var(--dim2);
+  }
+  .knob .needle{
+    position:absolute; left:50%; top:50%;
+    width:4px; height:36px; background:var(--fg);
+    transform-origin:50% 100%;
+    transform: translate(-50%,-100%) rotate(0deg);
+    border-radius:3px;
+    box-shadow: 0 0 10px rgba(255,255,255,.22);
+  }
+  .knob .pip{
+    position:absolute; width:10px; height:10px; border-radius:50%;
+    background:var(--fg); left:50%; top:14px; transform:translateX(-50%);
+    opacity:.8;
+  }
+
+  .lever{
+    width:92px; height:132px; border-radius:18px;
+    border:var(--b) solid var(--fg); position:relative; touch-action:none;
+    background: linear-gradient(to bottom, rgba(255,255,255,.05), rgba(255,255,255,.01));
+    overflow:hidden;
+  }
+  .lever .track{
+    position:absolute; left:50%; top:12px; bottom:12px; width:8px; transform:translateX(-50%);
+    background: rgba(255,255,255,.15); border-radius:20px;
+  }
+  .lever .handle{
+    position:absolute; left:50%; width:62px; height:22px; transform:translateX(-50%);
+    border:3px solid var(--fg); border-radius:14px;
+    background: rgba(255,255,255,.06);
+    box-shadow: 0 0 14px rgba(255,255,255,.18);
+  }
+
+  .pad{
+    width:100%; height:100%;
+    border-radius:18px; border:var(--b) solid var(--fg);
+    position:relative; overflow:hidden;
+    background:
+      linear-gradient(0deg, rgba(255,255,255,.05), rgba(255,255,255,.01)),
+      radial-gradient(700px 300px at 25% 35%, rgba(255,255,255,.06), transparent 55%),
+      radial-gradient(800px 350px at 80% 70%, rgba(255,255,255,.04), transparent 55%);
+    touch-action:none;
+  }
+  .pad::after{
+    content:""; position:absolute; inset:10px; border:2px dashed rgba(255,255,255,.25); border-radius:14px;
+  }
+  .pad .dot{
+    position:absolute; width:16px; height:16px; border-radius:50%;
+    background:var(--fg); box-shadow: 0 0 14px rgba(255,255,255,.35);
+    transform:translate(-50%,-50%);
+    left:50%; top:50%;
+  }
+
+  .btnRow{
+    width:100%; height:100%;
+    display:grid; gap:10px; grid-template-columns: repeat(4, 1fr);
+  }
+  .shapeBtn{
+    border:var(--b) solid var(--fg);
+    border-radius:18px;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,.02);
+    min-height:var(--hit);
+  }
+  .shapeBtn:active{transform:scale(.99); background: rgba(255,255,255,.05);}
+  .shapeBtn.on{background: rgba(255,255,255,.10);}
+  .shapeBtn svg{width:42px; height:42px; opacity:.95;}
+
+  .transport{
+    width:100%; height:100%; display:flex; gap:10px; align-items:center; justify-content:center;
+  }
+  .tbtn{
+    width:74px; height:74px; border-radius:50%;
+    border:var(--b) solid var(--fg);
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,.02);
+  }
+  .tbtn:active{transform:scale(.99); background: rgba(255,255,255,.05);}
+  .tbtn.on{background: rgba(255,255,255,.10);}
+  .tbtn svg{width:36px; height:36px;}
+
+  /* tiny no-text feedback for unsupported record: subtle blink */
+  .blink{animation:blink 0.18s linear 0s 2;}
+  @keyframes blink{50%{transform:scale(.985); background:rgba(255,255,255,.08);} }
+
+  :focus-visible{outline:3px solid rgba(255,255,255,.85); outline-offset:6px;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="splash">
+  <button id="splashBtn" aria-label="Start audio">
+    <div class="tri" aria-hidden="true"></div>
+  </button>
+</div>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="viz"></canvas>
+    <canvas id="spark"></canvas>
+  </div>
+
+  <div id="controls">
+    <!-- Transport -->
+    <div class="panel">
+      <div class="transport">
+        <button class="tbtn" id="btnPlay" aria-label="Toggle sound">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 5l12 7-12 7z"></path>
+          </svg>
+        </button>
+        <button class="tbtn" id="btnFreeze" aria-label="Freeze">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2v20"></path><path d="M4 7l16 10"></path><path d="M20 7L4 17"></path>
+            <path d="M7 4l10 16"></path><path d="M17 4L7 20"></path>
+          </svg>
+        </button>
+        <button class="tbtn" id="btnRecord" aria-label="Record">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="6"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Macro Pad -->
+    <div class="panel">
+      <div class="pad" id="padMacro" aria-label="Macro pad" role="application" tabindex="0">
+        <div class="dot" id="dotMacro"></div>
+      </div>
+    </div>
+
+    <!-- 4 source mixers -->
+    <div class="panel"><div class="knob" data-param="mixA" aria-label="Source A level" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="mixB" aria-label="Source B level" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="mixC" aria-label="Source C level" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="mixD" aria-label="Source D level" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+
+    <!-- 4 shaping knobs -->
+    <div class="panel"><div class="knob" data-param="density" aria-label="Density" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="chaos" aria-label="Chaos" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="tilt" aria-label="Spectral tilt" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="reson" aria-label="Resonator" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+
+    <!-- 2 levers -->
+    <div class="panel">
+      <div class="lever" data-param="space" aria-label="Space" role="slider" tabindex="0">
+        <div class="track"></div><div class="handle"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="lever" data-param="crush" aria-label="Crush" role="slider" tabindex="0">
+        <div class="track"></div><div class="handle"></div>
+      </div>
+    </div>
+
+    <!-- FX knobs -->
+    <div class="panel"><div class="knob" data-param="delay" aria-label="Delay" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+    <div class="panel"><div class="knob" data-param="verb" aria-label="Reverb" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+
+    <!-- Morph knob -->
+    <div class="panel"><div class="knob" data-param="morph" aria-label="Morph" role="slider" tabindex="0"><div class="ring"></div><div class="pip"></div><div class="needle"></div></div></div>
+
+    <!-- Scene Buttons -->
+    <div class="panel">
+      <div class="btnRow" id="sceneButtons" aria-label="Scenes">
+        <button class="shapeBtn" data-scene="0" aria-label="Scene 1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle></svg>
+        </button>
+        <button class="shapeBtn" data-scene="1" aria-label="Scene 2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 18H3z"></path></svg>
+        </button>
+        <button class="shapeBtn" data-scene="2" aria-label="Scene 3">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
+        </button>
+        <button class="shapeBtn" data-scene="3" aria-label="Scene 4">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode Buttons -->
+    <div class="panel">
+      <div class="btnRow" id="modeButtons" aria-label="Modes">
+        <button class="shapeBtn" data-mode="scatter" aria-label="Scatter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h6"></path><path d="M14 7h6"></path><path d="M7 4v6"></path><path d="M17 4v6"></path>
+            <path d="M4 17h6"></path><path d="M14 17h6"></path><path d="M7 14v6"></path><path d="M17 14v6"></path>
+          </svg>
+        </button>
+        <button class="shapeBtn" data-mode="pulse" aria-label="Pulse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h4l2-6 4 12 2-6h4"></path></svg>
+        </button>
+        <button class="shapeBtn" data-mode="void" aria-label="Void">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+        <button class="shapeBtn" data-mode="bloom" aria-label="Bloom">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M5 5l14 14"></path><path d="M19 5L5 19"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep = (t)=>t*t*(3-2*t);
+  const storageKey = "composer_state_v1_1";
+  const defaultState = {
+    mixA: 0.62, mixB: 0.50, mixC: 0.45, mixD: 0.35,
+    density: 0.35, chaos: 0.35, tilt: 0.55, reson: 0.30,
+    space: 0.55, crush: 0.20, delay: 0.22, verb: 0.30, morph: 0.40,
+    padX: 0.50, padY: 0.50,
+    mode: "bloom",
+    scene: 0,
+    playing: true,
+  };
+  let state = {...defaultState};
+  try{
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if(saved && typeof saved === "object") state = {...state, ...saved};
+  }catch(e){}
+  const save = ()=>{ try{ localStorage.setItem(storageKey, JSON.stringify(state)); }catch(e){} };
+
+  // Canvas
+  const viz = document.getElementById("viz");
+  const spark = document.getElementById("spark");
+  const vctx = viz.getContext("2d");
+  const sctx = spark.getContext("2d");
+  const stage = document.getElementById("stage");
+  let lastDraw = 0, t0 = performance.now();
+
+  function resize(){
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    viz.width = Math.floor(r.width * dpr);
+    viz.height = Math.floor(r.height * dpr);
+    spark.width = viz.width; spark.height = viz.height;
+    vctx.setTransform(dpr,0,0,dpr,0,0);
+    sctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener("resize", resize, {passive:true});
+  resize();
+
+  // Audio
+  let audioCtx=null, master=null, limiter=null;
+  let srcA=null, srcB=null, srcC=null, srcD=null;
+  let gainA=null,gainB=null,gainC=null,gainD=null;
+  let tiltFilter=null, resonator=null, waveshaper=null, bitcrusher=null;
+  let delayNode=null, delayFB=null, delayMix=null;
+  let convolver=null, verbMix=null, verbPre=null;
+  let widthSplit=null, widthMerge=null, widthL=null, widthR=null, widthPanL=null, widthPanR=null;
+
+  let mediaDest=null, rec=null, recChunks=[], recOn=false;
+
+  const now = ()=> (audioCtx ? audioCtx.currentTime : 0);
+  const setParamSmooth = (param, value, time=0.02)=>{
+    const t = now();
+    try{ param.cancelScheduledValues(t); param.setTargetAtTime(value, t, time); }catch(e){}
+  };
+
+  function makeImpulse(ctx, seconds=2.2, decay=2.8){
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(rate * seconds));
+    const buf = ctx.createBuffer(2, len, rate);
+    for(let c=0;c<2;c++){
+      const ch = buf.getChannelData(c);
+      for(let i=0;i<len;i++){
+        const t = i/len;
+        const n = (Math.random()*2-1) * Math.pow(1-t, decay);
+        ch[i] = n * (0.8 + 0.2*Math.sin(2*Math.PI*37*t));
+      }
+    }
+    return buf;
+  }
+
+  function makeWaveshaperCurve(kind, amount){
+    const n = 1024;
+    const curve = new Float32Array(n);
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*2-1;
+      let y=x;
+      if(kind===0){
+        const k = 1 + amount*12;
+        y = Math.tanh(k*x)/Math.tanh(k);
+      } else if(kind===1){
+        const k = 1 + amount*8;
+        y = Math.sin(k*x*Math.PI*0.9);
+      } else {
+        const k = 1 + amount*10;
+        y = Math.tanh(k*(x + 0.18*Math.sin(6*x)))/Math.tanh(k);
+        y = (y + 0.25*Math.pow(x,3));
+      }
+      curve[i] = clamp(y, -1, 1);
+    }
+    return curve;
+  }
+
+  function makeBitcrusher(ctx){
+    // ScriptProcessor is deprecated but still widely supported (incl. many iOS builds).
+    const sp = ctx.createScriptProcessor(1024, 1, 1);
+    let phaser = 0, last = 0;
+    let bits = 10, norm = Math.pow(2, bits-1);
+    let step = 0.12;
+    sp.onaudioprocess = (e)=>{
+      const input = e.inputBuffer.getChannelData(0);
+      const output = e.outputBuffer.getChannelData(0);
+      for(let i=0;i<input.length;i++){
+        phaser += step;
+        if(phaser >= 1){
+          phaser -= 1;
+          last = Math.round(input[i] * norm) / norm;
+        }
+        output[i] = last;
+      }
+    };
+    sp._set = (crush)=>{
+      const b = Math.floor(16 - crush*12);
+      bits = clamp(b, 3, 16);
+      norm = Math.pow(2, bits-1);
+      step = lerp(0.02, 0.55, crush);
+    };
+    sp._set(state.crush);
+    return sp;
+  }
+
+  function makeResonator(ctx){
+    const d = ctx.createDelay(0.2);
+    const fb = ctx.createGain();
+    const damp = ctx.createBiquadFilter();
+    damp.type = "lowpass";
+    damp.frequency.value = 2200;
+    fb.gain.value = 0.0;
+    d.delayTime.value = 0.03;
+    d.connect(damp); damp.connect(fb); fb.connect(d);
+    return {d, fb, damp};
+  }
+
+  // Sources
+  function SourceA(ctx){
+    const out = ctx.createGain(); out.gain.value = 0.9;
+    const carriers = [];
+    const L = 10;
+    const base = ctx.createOscillator();
+    base.type = "sine";
+    base.start();
+
+    for(let i=0;i<L;i++){
+      const o = ctx.createOscillator();
+      o.type = (i%3===0)?"triangle":(i%3===1)?"sine":"sawtooth";
+      const g = ctx.createGain(); g.gain.value = 0.0;
+
+      const lfo = ctx.createOscillator(); lfo.type="sine";
+      const lfg = ctx.createGain(); lfg.gain.value = 0.0;
+      lfo.frequency.value = 0.005 + Math.random()*0.03;
+      lfo.connect(lfg); lfg.connect(o.frequency);
+
+      o.connect(g); g.connect(out);
+      o.start(); lfo.start();
+      carriers.push({o,g,lfg});
+    }
+
+    function update(p){
+      const drift = lerp(0.2, 24, Math.pow(p.chaos, 1.2));
+      const brightness = p.tilt;
+      const density = p.density;
+      const baseHz = lerp(18, 180, Math.pow(lerp(p.padY, p.morph, 0.5), 1.3));
+      base.frequency.setTargetAtTime(baseHz, now(), 0.02);
+
+      for(let i=0;i<L;i++){
+        const harmonic = 1 + i + (Math.sin((p.padX*6.28)+(i*1.7))*0.3);
+        const target = baseHz * harmonic * lerp(0.6, 1.8, p.morph);
+        const wob = (Math.random()*2-1) * drift;
+        const f = clamp(target + wob, 8, 12000);
+        carriers[i].o.frequency.setTargetAtTime(f, now(), 0.04);
+        carriers[i].lfg.gain.setTargetAtTime(lerp(0.0, 55, p.chaos) * (0.2 + i/L), now(), 0.08);
+        const w = Math.pow(1 - (i/(L-1)), lerp(1.8, 0.5, brightness));
+        const amp = 0.04 * (0.5 + density*1.4) * w;
+        carriers[i].g.gain.setTargetAtTime(amp, now(), 0.07);
+      }
+    }
+    return {out, update};
+  }
+
+  function SourceB(ctx){
+    const out = ctx.createGain(); out.gain.value = 0.85;
+    const bus = ctx.createGain(); bus.gain.value = 1.0; bus.connect(out);
+
+    const seconds = 2.0;
+    const len = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let phase = 0;
+    for(let i=0;i<len;i++){
+      const n = (Math.random()*2-1);
+      phase += (40 + 280*Math.random())/ctx.sampleRate;
+      const chirp = Math.sin(phase*2*Math.PI) * (0.15 + 0.85*Math.random());
+      const click = (Math.random()<0.004) ? (Math.random()*2-1)*0.9 : 0;
+      const env = Math.pow(1 - (i/len), 0.4);
+      d[i] = (0.55*n + 0.35*chirp + 0.25*click) * env * 0.65;
+    }
+
+    let nextTime = 0;
+    let frozen = false;
+    let freezeAt = 0.0;
+
+    function spawnGrain(p, t){
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const g = ctx.createGain();
+      const pan = ctx.createStereoPanner();
+      const hp = ctx.createBiquadFilter(); hp.type = "highpass";
+
+      const size = lerp(0.015, 0.38, Math.pow(p.density, 0.85));
+      const spray = lerp(0.0, 0.45, p.chaos);
+      const rate = lerp(0.35, 2.2, lerp(p.padX, p.morph, 0.4));
+      src.playbackRate.value = rate;
+
+      const posBase = frozen ? freezeAt : (p.padY * (seconds - size));
+      const pos = clamp(posBase + (Math.random()*2-1)*spray, 0, seconds - size);
+
+      const a = size * 0.18, r = size * 0.65;
+      g.gain.setValueAtTime(0.0, t);
+      g.gain.linearRampToValueAtTime(lerp(0.06, 0.35, p.tilt) * (0.6 + p.density), t + a);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + a + r);
+
+      hp.frequency.setValueAtTime(lerp(20, 1800, Math.pow(p.tilt, 1.2)), t);
+      pan.pan.setValueAtTime((Math.random()*2-1) * lerp(0.1, 0.95, p.space), t);
+
+      src.connect(hp); hp.connect(pan); pan.connect(g); g.connect(bus);
+      src.start(t, pos, size);
+      src.stop(t + a + r + 0.02);
+    }
+
+    function update(p){
+      const t = now();
+      if(nextTime < t) nextTime = t + 0.02;
+      const baseRate = lerp(1.5, 38.0, smoothstep(p.density));
+      const jitter = lerp(0.0, 0.030, p.chaos);
+      const interval = 1/baseRate;
+
+      if(frozen) freezeAt = clamp(freezeAt + (p.morph-0.5)*0.0006, 0, seconds-0.02);
+
+      while(nextTime < t + 0.12){
+        spawnGrain(p, nextTime);
+        nextTime += interval + (Math.random()*2-1)*jitter;
+      }
+    }
+
+    function setFreeze(on){
+      frozen = !!on;
+      if(frozen) freezeAt = clamp(state.padY * (seconds-0.02), 0, seconds-0.02);
+    }
+
+    return {out, update, setFreeze};
+  }
+
+  function SourceC(ctx){
+    const out = ctx.createGain(); out.gain.value = 0.9;
+    const car = ctx.createOscillator();
+    const mod = ctx.createOscillator();
+    car.type = "sine"; mod.type = "triangle";
+    const modGain = ctx.createGain();
+    const amp = ctx.createGain(); amp.gain.value = 0.0;
+
+    const lfo = ctx.createOscillator(); lfo.type="sine";
+    const lfoG = ctx.createGain(); lfoG.gain.value = 0.0;
+
+    mod.connect(modGain); modGain.connect(car.frequency);
+    lfo.connect(lfoG); lfoG.connect(mod.frequency); lfoG.connect(modGain.gain);
+
+    car.connect(amp); amp.connect(out);
+    car.start(); mod.start(); lfo.start();
+
+    function update(p){
+      const t = now();
+      const base = lerp(22, 420, Math.pow(lerp(p.padX, p.morph, 0.55), 1.5));
+      const ratio = lerp(0.1, 13.0, Math.pow(p.tilt, 1.2));
+      const mf = clamp(base * ratio, 0.2, 6000);
+      const idx = lerp(0, 1100, Math.pow(p.reson, 1.1)) * lerp(0.45, 1.7, p.chaos);
+
+      setParamSmooth(car.frequency, base, 0.03);
+      setParamSmooth(mod.frequency, mf, 0.03);
+      setParamSmooth(modGain.gain, idx, 0.04);
+
+      lfo.frequency.setTargetAtTime(lerp(0.03, 9.0, p.chaos), t, 0.05);
+      lfoG.gain.setTargetAtTime(lerp(0, 380, p.chaos), t, 0.06);
+
+      const loud = lerp(0.03, 0.36, p.density) * lerp(0.35, 1.0, p.morph);
+      amp.gain.setTargetAtTime(loud, t, 0.08);
+    }
+    return {out, update};
+  }
+
+  function SourceD(ctx){
+    const out = ctx.createGain(); out.gain.value = 1.0;
+    const bus = ctx.createGain(); bus.gain.value = 1.0;
+
+    const body = ctx.createBiquadFilter();
+    body.type = "bandpass";
+    body.frequency.value = 220;
+    body.Q.value = 10;
+
+    const bodyGain = ctx.createGain(); bodyGain.gain.value = 0.0;
+
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+    const nd = noiseBuf.getChannelData(0);
+    for(let i=0;i<nd.length;i++){
+      const tt = i/nd.length;
+      nd[i] = (Math.random()*2-1) * Math.pow(1-tt, 3.5);
+    }
+
+    const gate = ctx.createGain(); gate.gain.value = 1.0;
+
+    bus.connect(body); body.connect(bodyGain); bodyGain.connect(gate); gate.connect(out);
+
+    let next = 0;
+
+    function trigger(p, t){
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+      const g = ctx.createGain();
+      src.playbackRate.value = lerp(0.5, 3.2, p.morph);
+
+      const amp = lerp(0.04, 0.55, p.density) * lerp(0.4, 1.25, p.chaos);
+      g.gain.setValueAtTime(amp, t);
+      g.gain.exponentialRampToValueAtTime(0.0009, t + lerp(0.02, 0.18, p.density));
+
+      const f = lerp(40, 2200, Math.pow(p.padY, 1.2)) * lerp(0.6, 1.6, p.tilt);
+      body.frequency.setTargetAtTime(f, t, 0.02);
+      body.Q.setTargetAtTime(lerp(2, 28, Math.pow(p.reson, 1.2)), t, 0.03);
+
+      src.connect(g); g.connect(bus);
+      src.start(t); src.stop(t + 0.22);
+    }
+
+    function update(p){
+      const t = now();
+      if(next < t) next = t + 0.02;
+
+      const baseHz = lerp(0.5, 12.0, smoothstep(p.density));
+      const stutter = lerp(0.0, 0.65, p.chaos);
+
+      while(next < t + 0.15){
+        if(Math.random() < lerp(0.22, 0.92, p.density) || Math.random() < stutter){
+          trigger(p, next);
+        }
+        const div = 1 + Math.floor(lerp(0, 5, stutter) * Math.random());
+        next += (1/baseHz) / div;
+      }
+
+      const mode = state.mode;
+      const gateAmt = (mode==="void") ? lerp(0.06, 0.9, 1-state.padX) :
+                      (mode==="pulse") ? lerp(0.15, 1.0, state.padX) :
+                      (mode==="scatter") ? lerp(0.0, 1.0, Math.random()) :
+                      lerp(0.2, 1.0, state.morph);
+      gate.gain.setTargetAtTime(gateAmt, t, 0.06);
+      bodyGain.gain.setTargetAtTime(lerp(0.08, 1.2, state.mixD), t, 0.08);
+    }
+
+    return {out, update};
+  }
+
+  function applyAllParams(instant=false){
+    if(!audioCtx) return;
+    const t = now();
+    const k = instant ? 0.0001 : 0.04;
+
+    setParamSmooth(gainA.gain, state.mixA, k);
+    setParamSmooth(gainB.gain, state.mixB, k);
+    setParamSmooth(gainC.gain, state.mixC, k);
+    setParamSmooth(gainD.gain, state.mixD, k);
+
+    // Tilt: lowshelf gain
+    tiltFilter.gain.setTargetAtTime(lerp(-18, 18, state.tilt), t, 0.08);
+
+    // Resonator (short feedback delay)
+    resonator.d.delayTime.setTargetAtTime(lerp(0.006, 0.090, Math.pow(state.reson, 1.2)), t, 0.06);
+    resonator.fb.gain.setTargetAtTime(lerp(0.0, 0.92, Math.pow(state.reson, 1.1)), t, 0.08);
+    resonator.damp.frequency.setTargetAtTime(lerp(700, 8000, Math.pow(state.tilt, 1.2)), t, 0.08);
+
+    // Scene -> waveshaper flavor
+    const kind = (state.scene % 3);
+    waveshaper.curve = makeWaveshaperCurve(kind, state.crush);
+
+    bitcrusher._set(state.crush);
+
+    // Delay
+    delayNode.delayTime.setTargetAtTime(lerp(0.06, 1.15, Math.pow(state.delay, 1.2)), t, 0.08);
+    delayFB.gain.setTargetAtTime(lerp(0.0, 0.82, Math.pow(state.delay, 1.05)), t, 0.10);
+    delayMix.gain.setTargetAtTime(lerp(0.0, 0.55, state.delay) * (state.mode==="void" ? 0.35 : 1.0), t, 0.12);
+
+    // Reverb
+    verbPre.frequency.setTargetAtTime(lerp(30, 500, Math.pow(1-state.verb, 1.1)), t, 0.10);
+    verbMix.gain.setTargetAtTime(lerp(0.0, 0.70, state.verb), t, 0.12);
+
+    // Stereo width
+    const spread = lerp(0.25, 0.98, Math.pow(state.space, 1.25));
+    widthPanL.pan.setTargetAtTime(-spread, t, 0.10);
+    widthPanR.pan.setTargetAtTime(spread, t, 0.10);
+    widthL.delayTime.setTargetAtTime(lerp(0.0, 0.018, state.space), t, 0.12);
+    widthR.delayTime.setTargetAtTime(lerp(0.0, 0.026, state.space), t, 0.12);
+
+    const energy = (state.mixA+state.mixB+state.mixC+state.mixD)/4;
+    master.gain.setTargetAtTime(lerp(0.75, 0.55, energy) * (state.playing?1:0), t, 0.08);
+
+    srcB.setFreeze(document.getElementById("btnFreeze").classList.contains("on"));
+  }
+
+  function buildAudio(){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:"interactive"});
+    master = audioCtx.createGain(); master.gain.value = 0.9;
+
+    limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -12; limiter.knee.value = 24; limiter.ratio.value = 12;
+    limiter.attack.value = 0.003; limiter.release.value = 0.18;
+
+    tiltFilter = audioCtx.createBiquadFilter();
+    tiltFilter.type = "lowshelf";
+    tiltFilter.frequency.value = 650;
+
+    resonator = makeResonator(audioCtx);
+
+    waveshaper = audioCtx.createWaveShaper();
+    waveshaper.oversample = "4x";
+    waveshaper.curve = makeWaveshaperCurve(0, state.crush);
+
+    bitcrusher = makeBitcrusher(audioCtx);
+
+    widthSplit = audioCtx.createChannelSplitter(2);
+    widthMerge = audioCtx.createChannelMerger(2);
+    widthL = audioCtx.createDelay(0.03);
+    widthR = audioCtx.createDelay(0.03);
+    widthPanL = audioCtx.createStereoPanner();
+    widthPanR = audioCtx.createStereoPanner();
+
+    delayNode = audioCtx.createDelay(1.5);
+    delayFB = audioCtx.createGain();
+    delayMix = audioCtx.createGain(); delayMix.gain.value = 0.0;
+    delayNode.connect(delayFB); delayFB.connect(delayNode);
+
+    convolver = audioCtx.createConvolver();
+    convolver.buffer = makeImpulse(audioCtx, 2.4, 3.2);
+    verbPre = audioCtx.createBiquadFilter(); verbPre.type="highpass"; verbPre.frequency.value=80;
+    verbMix = audioCtx.createGain(); verbMix.gain.value = 0.0;
+
+    mediaDest = audioCtx.createMediaStreamDestination();
+
+    srcA = SourceA(audioCtx);
+    srcB = SourceB(audioCtx);
+    srcC = SourceC(audioCtx);
+    srcD = SourceD(audioCtx);
+
+    gainA = audioCtx.createGain(); gainB = audioCtx.createGain(); gainC = audioCtx.createGain(); gainD = audioCtx.createGain();
+    gainA.gain.value = state.mixA; gainB.gain.value = state.mixB; gainC.gain.value = state.mixC; gainD.gain.value = state.mixD;
+
+    srcA.out.connect(gainA); srcB.out.connect(gainB); srcC.out.connect(gainC); srcD.out.connect(gainD);
+
+    const mix = audioCtx.createGain();
+    gainA.connect(mix); gainB.connect(mix); gainC.connect(mix); gainD.connect(mix);
+
+    mix.connect(tiltFilter);
+    tiltFilter.connect(resonator.d);
+    resonator.d.connect(waveshaper);
+    waveshaper.connect(bitcrusher);
+
+    bitcrusher.connect(widthSplit);
+    widthSplit.connect(widthL, 0);
+    widthSplit.connect(widthR, 1);
+    widthL.connect(widthPanL);
+    widthR.connect(widthPanR);
+    widthPanL.connect(widthMerge, 0, 0);
+    widthPanR.connect(widthMerge, 0, 1);
+
+    const post = audioCtx.createGain();
+    widthMerge.connect(post);
+
+    post.connect(delayNode);
+    delayNode.connect(delayMix);
+
+    post.connect(verbPre);
+    verbPre.connect(convolver);
+    convolver.connect(verbMix);
+
+    const sum = audioCtx.createGain();
+    post.connect(sum);
+    delayMix.connect(sum);
+    verbMix.connect(sum);
+
+    sum.connect(limiter);
+    limiter.connect(master);
+
+    master.connect(audioCtx.destination);
+    master.connect(mediaDest);
+
+    applyAllParams(true);
+  }
+
+  // Rendering
+  function draw(){
+    const w = viz.clientWidth, h = viz.clientHeight;
+    const t = (performance.now() - t0) * 0.001;
+
+    if(performance.now() - lastDraw < 16) return;
+    lastDraw = performance.now();
+
+    vctx.fillStyle = "rgba(0,0,0,0.20)";
+    vctx.fillRect(0,0,w,h);
+
+    const cx = w*0.5, cy = h*0.52;
+    const energy = (state.mixA + state.mixB + state.mixC + state.mixD)/4;
+    const dens = state.density;
+    const ch = state.chaos;
+    const bright = state.tilt;
+    const res = state.reson;
+
+    const rings = 4 + Math.floor(dens*7);
+    for(let i=0;i<rings;i++){
+      const r = (Math.min(w,h)*0.10) + i*(Math.min(w,h)*0.045);
+      const wob = (Math.sin(t*0.7 + i*1.9)*0.5 + Math.sin(t*1.3 + i*0.8)*0.5) * (8 + ch*20);
+      const rr = r + wob;
+      vctx.beginPath();
+      vctx.arc(cx, cy, rr, 0, Math.PI*2);
+      vctx.strokeStyle = `rgba(255,255,255,${0.06 + 0.06*bright})`;
+      vctx.lineWidth = 2;
+      vctx.stroke();
+    }
+
+    const count = 40 + Math.floor(dens*180);
+    for(let i=0;i<count;i++){
+      const a = (i/count)*Math.PI*2 + t*(0.08 + ch*0.55);
+      const rad = (Math.min(w,h)*0.12) + (Math.sin(t*0.3 + i)*0.5+0.5)*(Math.min(w,h)*0.34) + (res*80);
+      const x = cx + Math.cos(a)*rad + (Math.random()*2-1)*ch*18;
+      const y = cy + Math.sin(a)*rad*0.8 + (Math.random()*2-1)*ch*18;
+      const s = 1 + Math.random()*2 + dens*2;
+      vctx.fillStyle = `rgba(255,255,255,${0.04 + 0.12*energy})`;
+      vctx.fillRect(x, y, s, s);
+    }
+
+    sctx.fillStyle = "rgba(0,0,0,0.10)";
+    sctx.fillRect(0,0,w,h);
+    const spikes = 10 + Math.floor(ch*40);
+    for(let i=0;i<spikes;i++){
+      const a = Math.random()*Math.PI*2;
+      const length = (40 + Math.random()*180) * (0.25 + bright);
+      const x2 = cx + Math.cos(a)*length;
+      const y2 = cy + Math.sin(a)*length;
+      sctx.beginPath();
+      sctx.moveTo(cx, cy);
+      sctx.lineTo(x2, y2);
+      sctx.strokeStyle = `rgba(255,255,255,${0.02 + 0.06*ch})`;
+      sctx.lineWidth = 1.5;
+      sctx.stroke();
+    }
+  }
+
+  // UI plumbing
+  const btnPlay = document.getElementById("btnPlay");
+  const btnFreeze = document.getElementById("btnFreeze");
+  const btnRecord = document.getElementById("btnRecord");
+  const padMacro = document.getElementById("padMacro");
+  const dotMacro = document.getElementById("dotMacro");
+  const sceneButtons = [...document.querySelectorAll("#sceneButtons .shapeBtn")];
+  const modeButtons = [...document.querySelectorAll("#modeButtons .shapeBtn")];
+
+  const paramRange = {
+    mixA:[0,1], mixB:[0,1], mixC:[0,1], mixD:[0,1],
+    density:[0,1], chaos:[0,1], tilt:[0,1], reson:[0,1],
+    space:[0,1], crush:[0,1], delay:[0,1], verb:[0,1], morph:[0,1]
+  };
+
+  function renderControls(){
+    document.querySelectorAll(".knob").forEach(k=>{
+      const p = k.dataset.param;
+      const v = state[p] ?? 0.0;
+      const deg = lerp(-135, 135, v);
+      k.querySelector(".needle").style.transform = `translate(-50%,-100%) rotate(${deg}deg)`;
+      k.style.boxShadow = `0 0 ${8 + v*16}px rgba(255,255,255,${0.06 + v*0.14})`;
+      k.setAttribute("aria-valuenow", String(Math.round(v*100)));
+      k.setAttribute("aria-valuemin", "0");
+      k.setAttribute("aria-valuemax", "100");
+    });
+
+    document.querySelectorAll(".lever").forEach(l=>{
+      const p = l.dataset.param;
+      const v = state[p] ?? 0.0;
+      const handle = l.querySelector(".handle");
+      const top = 12, bottom = l.clientHeight - 12 - 22;
+      const y = lerp(bottom, top, v);
+      handle.style.top = y + "px";
+      l.setAttribute("aria-valuenow", String(Math.round(v*100)));
+      l.setAttribute("aria-valuemin", "0");
+      l.setAttribute("aria-valuemax", "100");
+    });
+
+    dotMacro.style.left = (state.padX*100) + "%";
+    dotMacro.style.top  = (state.padY*100) + "%";
+
+    btnPlay.classList.toggle("on", !!state.playing);
+    sceneButtons.forEach(b=>b.classList.toggle("on", Number(b.dataset.scene)===state.scene));
+    modeButtons.forEach(b=>b.classList.toggle("on", b.dataset.mode===state.mode));
+    btnRecord.classList.toggle("on", !!recOn);
+  }
+
+  function setParam(name, v, commit=true){
+    if(!(name in state)) return;
+    const [a,b] = paramRange[name] || [0,1];
+    state[name] = clamp(v, a, b);
+    if(audioCtx) applyAllParams(false);
+    renderControls();
+    if(commit) save();
+  }
+
+  function pointerDrag(el, cb){
+    let active = false;
+    const onDown = (e)=>{
+      active = true;
+      el.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+      onMove(e);
+    };
+    const onMove = (e)=>{
+      if(!active) return;
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left)/r.width;
+      const y = (e.clientY - r.top)/r.height;
+      cb(clamp(x,0,1), clamp(y,0,1));
+    };
+    const onUp = (e)=>{
+      if(!active) return;
+      active = false;
+      try{ el.releasePointerCapture?.(e.pointerId); }catch(_){}
+      save();
+    };
+    el.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove, {passive:false});
+    window.addEventListener("pointerup", onUp, {passive:true});
+    window.addEventListener("pointercancel", onUp, {passive:true});
+  }
+
+  // Knobs
+  document.querySelectorAll(".knob").forEach(k=>{
+    const p = k.dataset.param;
+    pointerDrag(k, (x,y)=>{
+      const v = clamp(1-y, 0, 1);
+      setParam(p, Math.pow(v, 1.05), false);
+    });
+    k.addEventListener("keydown", (e)=>{
+      const step = (e.shiftKey?0.05:0.02);
+      if(e.key==="ArrowUp"||e.key==="ArrowRight") setParam(p, (state[p]||0)+step);
+      if(e.key==="ArrowDown"||e.key==="ArrowLeft") setParam(p, (state[p]||0)-step);
+    });
+  });
+
+  // Levers
+  document.querySelectorAll(".lever").forEach(l=>{
+    const p = l.dataset.param;
+    pointerDrag(l, (x,y)=>{
+      const v = clamp(1-y, 0, 1);
+      setParam(p, v, false);
+    });
+    l.addEventListener("keydown", (e)=>{
+      const step = (e.shiftKey?0.05:0.02);
+      if(e.key==="ArrowUp"||e.key==="ArrowRight") setParam(p, (state[p]||0)+step);
+      if(e.key==="ArrowDown"||e.key==="ArrowLeft") setParam(p, (state[p]||0)-step);
+    });
+  });
+
+  // Macro XY pad (cross-coupled)
+  pointerDrag(padMacro, (x,y)=>{
+    state.padX = x; state.padY = y;
+    state.morph   = clamp(lerp(state.morph, x, 0.35), 0, 1);
+    state.density = clamp(lerp(state.density, 1-y, 0.25), 0, 1);
+    state.tilt    = clamp(lerp(state.tilt, 0.25 + x*0.75, 0.18), 0, 1);
+    if(audioCtx) applyAllParams(false);
+    renderControls();
+  });
+
+  // Scenes
+  sceneButtons.forEach(b=>{
+    b.addEventListener("click", ()=>{
+      state.scene = Number(b.dataset.scene);
+      if(state.scene===0){
+        state.mixA = clamp(state.mixA+0.12,0,1);
+        state.mixD = clamp(state.mixD*0.85,0,1);
+        state.verb = clamp(state.verb+0.08,0,1);
+        state.crush = clamp(state.crush*0.6,0,1);
+      } else if(state.scene===1){
+        state.reson = clamp(state.reson+0.22,0,1);
+        state.tilt = clamp(state.tilt+0.18,0,1);
+        state.mixD = clamp(state.mixD+0.15,0,1);
+      } else if(state.scene===2){
+        state.crush = clamp(state.crush+0.35,0,1);
+        state.chaos = clamp(state.chaos+0.18,0,1);
+        state.delay = clamp(state.delay+0.12,0,1);
+      } else {
+        state.space = clamp(state.space+0.25,0,1);
+        state.verb = clamp(state.verb+0.22,0,1);
+        state.delay = clamp(state.delay+0.18,0,1);
+        state.mixB = clamp(state.mixB+0.12,0,1);
+      }
+      if(audioCtx) applyAllParams(false);
+      renderControls();
+      save();
+    });
+  });
+
+  // Modes
+  modeButtons.forEach(b=>{
+    b.addEventListener("click", ()=>{
+      state.mode = b.dataset.mode;
+      if(state.mode==="scatter"){
+        state.chaos = clamp(Math.max(state.chaos, 0.62),0,1);
+        state.density = clamp(Math.max(state.density, 0.55),0,1);
+        state.mixD = clamp(Math.max(state.mixD, 0.45),0,1);
+      } else if(state.mode==="pulse"){
+        state.density = clamp(Math.max(state.density, 0.45),0,1);
+        state.mixD = clamp(Math.max(state.mixD, 0.35),0,1);
+        state.delay = clamp(Math.max(state.delay, 0.18),0,1);
+      } else if(state.mode==="void"){
+        state.mixA = clamp(Math.max(state.mixA, 0.55),0,1);
+        state.mixB = clamp(state.mixB*0.6,0,1);
+        state.verb = clamp(state.verb*0.7,0,1);
+        state.tilt = clamp(state.tilt*0.7,0,1);
+      } else {
+        state.space = clamp(Math.max(state.space, 0.55),0,1);
+        state.verb = clamp(Math.max(state.verb, 0.35),0,1);
+        state.mixB = clamp(Math.max(state.mixB, 0.45),0,1);
+      }
+      if(audioCtx) applyAllParams(false);
+      renderControls();
+      save();
+    });
+  });
+
+  // Transport
+  btnPlay.addEventListener("click", ()=>{
+    state.playing = !state.playing;
+    if(audioCtx) applyAllParams(false);
+    renderControls();
+    save();
+  });
+  btnFreeze.addEventListener("click", ()=>{
+    btnFreeze.classList.toggle("on");
+    if(audioCtx) applyAllParams(false);
+    renderControls();
+    save();
+  });
+
+  // Recorder (webm) – start/stop and auto-download (best-effort)
+  function startRecorder(){
+    if(!audioCtx || recOn) return;
+    if(typeof MediaRecorder === "undefined"){
+      btnRecord.classList.add("blink");
+      setTimeout(()=>btnRecord.classList.remove("blink"), 450);
+      return;
+    }
+    recChunks = [];
+    try{
+      rec = new MediaRecorder(mediaDest.stream, {mimeType: "audio/webm"});
+    }catch(e){
+      try{ rec = new MediaRecorder(mediaDest.stream); }catch(_){
+        btnRecord.classList.add("blink");
+        setTimeout(()=>btnRecord.classList.remove("blink"), 450);
+        return;
+      }
+    }
+    rec.ondataavailable = (e)=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+    rec.onstop = ()=>{
+      const blob = new Blob(recChunks, {type: rec.mimeType || "audio/webm"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "composer.webm";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    };
+    rec.start(250);
+    recOn = true;
+    renderControls();
+  }
+  function stopRecorder(){
+    if(rec && recOn){
+      try{ rec.stop(); }catch(e){}
+    }
+    recOn = false;
+    renderControls();
+  }
+  btnRecord.addEventListener("click", ()=>{
+    if(!audioCtx) return;
+    if(!recOn) startRecorder();
+    else stopRecorder();
+  });
+
+  // Engine tick (audio scheduling + visuals)
+  let running=false;
+  function tick(){
+    if(!running) return;
+
+    const p = {
+      mixA: state.mixA, mixB: state.mixB, mixC: state.mixC, mixD: state.mixD,
+      density: state.density, chaos: state.chaos, tilt: state.tilt, reson: state.reson,
+      space: state.space, crush: state.crush, delay: state.delay, verb: state.verb, morph: state.morph,
+      padX: state.padX, padY: state.padY
+    };
+
+    // Scene / mode behaviors
+    if(state.scene === 1){ p.reson = clamp(p.reson + 0.18, 0, 1); p.tilt = clamp(p.tilt + 0.12, 0, 1); }
+    if(state.scene === 2){ p.crush = clamp(p.crush + 0.22, 0, 1); p.chaos = clamp(p.chaos + 0.18, 0, 1); }
+    if(state.scene === 3){ p.space = clamp(p.space + 0.22, 0, 1); p.delay = clamp(p.delay + 0.18, 0, 1); p.verb = clamp(p.verb + 0.22, 0, 1); }
+
+    if(state.mode === "scatter"){
+      p.density = clamp(p.density + (Math.random()*0.15), 0, 1);
+      p.morph = clamp(p.morph + (Math.random()*0.12 - 0.06), 0, 1);
+    } else if(state.mode === "pulse"){
+      const tt = (performance.now() - t0) * 0.001;
+      const b = 0.5 + 0.5*Math.sin(tt*0.65);
+      p.density = clamp(lerp(p.density, b, 0.12), 0, 1);
+    } else if(state.mode === "void"){
+      p.mixB *= 0.45;
+      p.mixD *= 0.65;
+      p.tilt = clamp(p.tilt*0.65, 0, 1);
+    } else {
+      p.verb = clamp(p.verb + 0.08, 0, 1);
+      p.space = clamp(p.space + 0.06, 0, 1);
+    }
+
+    if(state.playing){
+      srcA.update(p);
+      srcB.update(p);
+      srcC.update(p);
+      srcD.update(p);
+    } else {
+      // still animate gently while muted
+      srcB.update({...p, density: p.density*0.3, chaos: p.chaos*0.2});
+    }
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  // Start overlay
+  const splash = document.getElementById("splash");
+  const splashBtn = document.getElementById("splashBtn");
+  splashBtn.addEventListener("click", async ()=>{
+    if(audioCtx) return;
+    buildAudio();
+    try{ await audioCtx.resume(); }catch(e){}
+    splash.style.display = "none";
+    renderControls();
+    running = true;
+    requestAnimationFrame(tick);
+  });
+
+  renderControls();
+  draw();
+})();
+</script>
+
+</body>
+</html>

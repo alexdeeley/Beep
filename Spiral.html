@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SPIRAL</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    cursor: crosshair;
+    font-family: 'Courier New', monospace;
+  }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+
+  #toolbar {
+    position: fixed;
+    top: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 20;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 8px 10px;
+    border-radius: 2px;
+  }
+  .tool-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.45);
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tool-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+  .tool-btn.active { color: #000; background: #fff; border-color: #fff; }
+
+  #hint {
+    position: fixed;
+    bottom: 22px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.2);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 1.5s;
+  }
+  #audio-btn {
+    position: fixed;
+    bottom: 22px; right: 22px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.4);
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    z-index: 20;
+    transition: all 0.15s;
+  }
+  #audio-btn.on { color: #fff; border-color: rgba(255,255,255,0.6); }
+  #cursor-ring {
+    position: fixed;
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 15;
+    transform: translate(-50%, -50%);
+    mix-blend-mode: screen;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div id="toolbar">
+  <button class="tool-btn active" id="btn-vortex"  onclick="setTool('vortex')">VORTEX</button>
+  <button class="tool-btn"        id="btn-repel"   onclick="setTool('repel')">REPEL</button>
+  <button class="tool-btn"        id="btn-attract" onclick="setTool('attract')">ATTRACT</button>
+  <button class="tool-btn"        id="btn-shear"   onclick="setTool('shear')">SHEAR</button>
+  <button class="tool-btn"        id="btn-erase"   onclick="setTool('erase')">ERASE</button>
+  <button class="tool-btn"        id="btn-clear"   onclick="clearFields()">CLEAR ALL</button>
+</div>
+
+<div id="hint">CLICK TO PLACE · DRAG TO SIZE · RIGHT-CLICK TO REMOVE</div>
+<button id="audio-btn" onclick="toggleAudio()">▶ SOUND ON</button>
+<div id="cursor-ring"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const ring   = document.getElementById('cursor-ring');
+
+let W, H;
+let tool = 'vortex';
+let fields = [];
+let mouse  = { x: 0, y: 0 };
+let dragging  = false;
+let dragField = null;
+let dragStart = null;
+let time = 0;
+
+const ARMS       = 3;
+const TURNS      = 18;
+const LINE_WIDTH = 4;
+const STEPS      = 4000;
+const DECAY_SECS = 30;
+
+const toolColors = {
+  vortex:  'rgba(180,220,255,0.6)',
+  repel:   'rgba(255,180,100,0.6)',
+  attract: 'rgba(100,255,180,0.6)',
+  shear:   'rgba(255,100,200,0.6)',
+  erase:   'rgba(255,255,255,0.3)',
+};
+const toolStrengths = { vortex:1.8, repel:2.2, attract:2.0, shear:1.5, erase:0 };
+
+// ─── AUDIO ────────────────────────────────────────────────────────────────────
+let AC = null;
+let masterGain, noiseGain, glitchGain, droneGain;
+let noiseSource, droneOsc, droneOsc2;
+let noiseFilter, noiseFilter2, noiseShaper;
+let glitchBuf = null;
+let glitchActive = false;
+let audioOn = false;
+
+// Noise buffer (1 second of white noise, reused)
+function makeNoiseBuffer(ac) {
+  const buf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function makeDistCurve(k) {
+  const n = 1024, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    c[i] = ((Math.PI + k) * x) / (Math.PI + k * Math.abs(x));
+  }
+  return c;
+}
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = AC.createGain();
+  masterGain.gain.value = 0.85;
+  masterGain.connect(AC.destination);
+
+  // ── 1. Industrial noise wall ──
+  noiseGain = AC.createGain();
+  noiseGain.gain.value = 0;
+
+  glitchBuf = makeNoiseBuffer(AC);
+
+  noiseSource = AC.createBufferSource();
+  noiseSource.buffer = glitchBuf;
+  noiseSource.loop = true;
+  noiseSource.loopEnd = glitchBuf.duration;
+
+  noiseShaper = AC.createWaveShaper();
+  noiseShaper.curve = makeDistCurve(800);
+  noiseShaper.oversample = '4x';
+
+  const sat2 = AC.createWaveShaper();
+  sat2.curve = makeDistCurve(2000);
+  sat2.oversample = '4x';
+
+  noiseFilter = AC.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.value = 2000;
+  noiseFilter.Q.value = 1.5;
+
+  noiseFilter2 = AC.createBiquadFilter();
+  noiseFilter2.type = 'highpass';
+  noiseFilter2.frequency.value = 400;
+
+  noiseSource.connect(noiseShaper);
+  noiseShaper.connect(sat2);
+  sat2.connect(noiseFilter);
+  noiseFilter.connect(noiseFilter2);
+  noiseFilter2.connect(noiseGain);
+  noiseGain.connect(masterGain);
+  noiseSource.start();
+
+  // ── 2. Drone oscillators ──
+  droneGain = AC.createGain();
+  droneGain.gain.value = 0;
+
+  droneOsc = AC.createOscillator();
+  droneOsc.type = 'sawtooth';
+  droneOsc.frequency.value = 55;
+
+  droneOsc2 = AC.createOscillator();
+  droneOsc2.type = 'square';
+  droneOsc2.frequency.value = 82.4;
+
+  const droneShaper = AC.createWaveShaper();
+  droneShaper.curve = makeDistCurve(400);
+  droneShaper.oversample = '4x';
+
+  const droneFilter = AC.createBiquadFilter();
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.value = 1200;
+
+  droneOsc.connect(droneShaper);
+  droneOsc2.connect(droneShaper);
+  droneShaper.connect(droneFilter);
+  droneFilter.connect(droneGain);
+  droneGain.connect(masterGain);
+
+  droneOsc.start();
+  droneOsc2.start();
+
+  // ── 3. Glitch burst source ──
+  glitchGain = AC.createGain();
+  glitchGain.gain.value = 0;
+  glitchGain.connect(masterGain);
+}
+
+// Schedule a glitch burst — sharp crack/zap
+let nextGlitch = 0;
+function scheduleGlitches(activity, now) {
+  if (!AC || activity < 0.05) { nextGlitch = 0; return; }
+
+  // Rate: from ~4/sec at low activity to ~20/sec at full
+  const rate = 4 + activity * 16;
+  const interval = 1 / rate;
+
+  if (now >= nextGlitch) {
+    fireGlitch(activity);
+    nextGlitch = now + interval * (0.5 + Math.random() * 0.8);
+  }
+}
+
+function fireGlitch(activity) {
+  const t = AC.currentTime;
+  // Create a short noise burst through a peaky resonant filter
+  const src = AC.createBufferSource();
+  src.buffer = glitchBuf;
+  src.playbackRate.value = 0.5 + Math.random() * 3;
+
+  const filt = AC.createBiquadFilter();
+  filt.type = 'peaking';
+  filt.frequency.value = 200 + Math.random() * 8000;
+  filt.Q.value = 10 + Math.random() * 20;
+  filt.gain.value = 20;
+
+  const env = AC.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(activity * 0.9, t + 0.002);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + 0.02 + Math.random() * 0.08);
+
+  src.connect(filt);
+  filt.connect(env);
+  env.connect(glitchGain);
+  glitchGain.gain.value = 1;
+
+  src.start(t);
+  src.stop(t + 0.15);
+}
+
+function updateAudio(activity) {
+  if (!AC || !audioOn) return;
+  const t = AC.currentTime;
+
+  // Noise wall
+  noiseGain.gain.setTargetAtTime(activity * 0.6, t, 0.05);
+  noiseFilter.frequency.setTargetAtTime(300 + activity * 6000, t, 0.08);
+  noiseFilter.Q.setTargetAtTime(0.5 + activity * 4, t, 0.08);
+
+  // Drone
+  droneGain.gain.setTargetAtTime(activity * 0.4, t, 0.1);
+  // Drone pitch warbles with time
+  droneOsc.frequency.setTargetAtTime(55 + Math.sin(time * 0.3) * 8 * activity, t, 0.05);
+  droneOsc2.frequency.setTargetAtTime(82.4 + Math.cos(time * 0.17) * 12 * activity, t, 0.05);
+
+  // Glitch bursts
+  scheduleGlitches(activity, t);
+}
+
+function visualActivity() {
+  if (!fields.length) return 0;
+  let s = 0;
+  for (const f of fields) s += Math.min(1, f.strength / 3);
+  return Math.min(1, s * 0.6);
+}
+
+function toggleAudio() {
+  if (!AC) initAudio();
+  audioOn = !audioOn;
+  const btn = document.getElementById('audio-btn');
+  if (audioOn) {
+    AC.resume();
+    btn.textContent = '■ SOUND OFF';
+    btn.classList.add('on');
+  } else {
+    // Silence immediately
+    if (noiseGain) noiseGain.gain.setTargetAtTime(0, AC.currentTime, 0.05);
+    if (droneGain) droneGain.gain.setTargetAtTime(0, AC.currentTime, 0.05);
+    btn.textContent = '▶ SOUND ON';
+    btn.classList.remove('on');
+  }
+}
+
+// ─── VISUALS ──────────────────────────────────────────────────────────────────
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + t).classList.add('active');
+  updateRing(mouse.x, mouse.y);
+}
+
+function clearFields() { fields = []; }
+
+function fieldDisplace(f, px, py) {
+  const ex = px - f.x, ey = py - f.y;
+  const dist = Math.sqrt(ex*ex + ey*ey);
+  if (dist < 1) return [0,0];
+  const falloff = Math.exp(-dist / (f.r * 0.5)) * f.strength;
+  switch (f.type) {
+    case 'vortex':  return [-ey/dist*falloff*60,  ex/dist*falloff*60];
+    case 'repel':   return [ ex/dist*falloff*80,  ey/dist*falloff*80];
+    case 'attract': return [-ex/dist*falloff*80, -ey/dist*falloff*80];
+    case 'shear':   return [ ey/dist*falloff*70,  0];
+    default:        return [0,0];
+  }
+}
+
+function totalDisplace(px, py) {
+  let dx=0, dy=0;
+  for (const f of fields) { const [fx,fy]=fieldDisplace(f,px,py); dx+=fx; dy+=fy; }
+  return [dx, dy];
+}
+
+function decayFields(dt) {
+  const k = Math.min(1, dt * 3 / DECAY_SECS * 60);
+  for (const f of fields) {
+    if (f === dragField) continue;
+    f.x += (f.ox - f.x) * k;
+    f.y += (f.oy - f.y) * k;
+    f.r += (f.or_ - f.r) * k;
+    f.strength = toolStrengths[f.type] * (f.r / 80);
+  }
+}
+
+function render(activity) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2;
+  const maxR = Math.hypot(W,H) * 0.52;
+
+  // Glitch visual: occasional horizontal slice corruption driven by audio activity
+  if (audioOn && activity > 0.1 && Math.random() < activity * 0.15) {
+    const sliceY  = Math.random() * H;
+    const sliceH  = 2 + Math.random() * 12;
+    const sliceOff = (Math.random() - 0.5) * 40 * activity;
+    const imgd = ctx.getImageData(0, sliceY, W, sliceH);
+    ctx.putImageData(imgd, sliceOff, sliceY);
+  }
+
+  // Field rings
+  for (const f of fields) {
+    const col = toolColors[f.type] || 'rgba(255,255,255,0.2)';
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.strokeStyle = col.replace('0.6','1');
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,5]);
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = col.replace('0.6','1');
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 2.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Spiral arms
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = LINE_WIDTH;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  for (let arm=0; arm<ARMS; arm++) {
+    const armOffset = (arm/ARMS) * Math.PI*2;
+    ctx.beginPath();
+    let started = false;
+
+    for (let i=0; i<=STEPS; i++) {
+      const t     = i/STEPS;
+      const angle = t*TURNS*Math.PI*2 + armOffset + time;
+      const r     = t * maxR;
+
+      let px = cx + Math.cos(angle)*r;
+      let py = cy + Math.sin(angle)*r;
+
+      const [dx,dy] = totalDisplace(px,py);
+      px+=dx; py+=dy;
+
+      if (!started) { ctx.moveTo(px,py); started=true; }
+      else          { ctx.lineTo(px,py); }
+    }
+    ctx.stroke();
+  }
+}
+
+// ─── LOOP ─────────────────────────────────────────────────────────────────────
+let lastT = null;
+function tick(ts) {
+  const dt = lastT ? Math.min(0.1, (ts-lastT)/1000) : 0.016;
+  lastT = ts;
+  time += 0.12;
+  decayFields(dt);
+  const activity = visualActivity();
+  render(activity);
+  updateAudio(activity);
+  requestAnimationFrame(tick);
+}
+
+// ─── CURSOR RING ──────────────────────────────────────────────────────────────
+let previewR = 80;
+function updateRing(x,y) {
+  ring.style.left   = x+'px';
+  ring.style.top    = y+'px';
+  ring.style.width  = previewR*2+'px';
+  ring.style.height = previewR*2+'px';
+  ring.style.border = '1px solid '+(toolColors[tool]||'rgba(255,255,255,0.3)');
+  ring.style.opacity = tool==='erase'?'0.3':'0.5';
+}
+
+// ─── INTERACTION ──────────────────────────────────────────────────────────────
+function startInteraction(x,y) {
+  dragStart = {x,y};
+  previewR  = 80;
+  if (tool==='erase') { eraseAt(x,y); return; }
+  dragField = { x,y,r:previewR, ox:x,oy:y,or_:previewR, type:tool, strength:toolStrengths[tool] };
+  fields.push(dragField);
+  dragging = true;
+}
+
+function moveInteraction(x,y) {
+  mouse.x=x; mouse.y=y;
+  updateRing(x,y);
+  if (dragging && dragField) {
+    const dx=x-dragStart.x, dy=y-dragStart.y;
+    previewR = Math.max(20, Math.min(300, 80+Math.hypot(dx,dy)));
+    dragField.r=previewR; dragField.or_=previewR;
+    dragField.strength = toolStrengths[tool]*(previewR/80);
+    updateRing(x,y);
+  }
+}
+
+function endInteraction() {
+  if (dragField) { dragField.ox=dragField.x; dragField.oy=dragField.y; dragField.or_=dragField.r; }
+  dragging=false; dragField=null;
+}
+
+function eraseAt(x,y) {
+  let best=-1, bestD=80;
+  for (let i=0;i<fields.length;i++) {
+    const d=Math.hypot(fields[i].x-x,fields[i].y-y);
+    if (d<bestD){best=i;bestD=d;}
+  }
+  if (best>=0) fields.splice(best,1);
+}
+
+canvas.addEventListener('mousedown', e=>{ if(e.button===2)return; startInteraction(e.clientX,e.clientY); });
+canvas.addEventListener('mousemove', e=>moveInteraction(e.clientX,e.clientY));
+canvas.addEventListener('mouseup',   ()=>endInteraction());
+canvas.addEventListener('contextmenu',e=>{ e.preventDefault(); eraseAt(e.clientX,e.clientY); });
+
+canvas.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; startInteraction(t.clientX,t.clientY); },{passive:false});
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); const t=e.touches[0]; moveInteraction(t.clientX,t.clientY); },{passive:false});
+canvas.addEventListener('touchend',  e=>{ e.preventDefault(); endInteraction(); },{passive:false});
+
+setTimeout(()=>{ document.getElementById('hint').style.opacity='0'; },5000);
+
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

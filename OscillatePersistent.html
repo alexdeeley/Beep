@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OSCILLATE — Persistent</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
+
+  :root{
+    --neon-green:#00ff9f;
+    --neon-cyan:#00eeff;
+    --neon-pink:#ff00aa;
+    --bg:#000407;
+  }
+
+  html,body{width:100%;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--neon-green);
+    font-family:monospace;
+    height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    touch-action:none;
+  }
+
+  canvas{
+    width:min(900px,100vw);
+    display:block;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d',{alpha:false});
+
+let analyser,dataArray,bufferLength;
+let running=false;
+let animId=0;
+
+function resize(){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=Math.min(900,window.innerWidth);
+  const h=Math.max(220,Math.round(w*0.45));
+
+  canvas.style.width=w+'px';
+  canvas.style.height=h+'px';
+  canvas.width=Math.round(w*dpr);
+  canvas.height=Math.round(h*dpr);
+
+  // IMPORTANT: DO NOT CLEAR — keeps old drawing
+}
+resize();
+window.addEventListener('resize',resize,{passive:true});
+
+async function initAudio(){
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  await audioCtx.resume();
+
+  const source=audioCtx.createMediaStreamSource(stream);
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=2048;
+  source.connect(analyser);
+
+  bufferLength=analyser.frequencyBinCount;
+  dataArray=new Uint8Array(bufferLength);
+
+  running=true;
+
+  // only clear once at start
+  ctx.fillStyle="rgb(0,4,7)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  draw();
+}
+
+// tap anywhere to start (Safari friendly)
+document.body.addEventListener("pointerdown",()=>{
+  if(!running) initAudio();
+},{once:true});
+
+let hueOffset=0;
+
+function draw(){
+  if(!running) return;
+  animId=requestAnimationFrame(draw);
+
+  analyser.getByteTimeDomainData(dataArray);
+
+  const W=canvas.width;
+  const H=canvas.height;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+
+  const sliceW=W/bufferLength;
+  let x=0;
+
+  ctx.lineWidth=2*dpr;
+  ctx.lineCap='round';
+  ctx.shadowBlur=16*dpr;
+
+  ctx.beginPath();
+
+  for(let i=0;i<bufferLength;i++){
+    const v=dataArray[i]/128.0;
+    const y=(v*H)/2;
+
+    const hue=(i/bufferLength)*280+160+hueOffset;
+    ctx.strokeStyle=`hsl(${hue%360},100%,60%)`;
+    ctx.shadowColor=ctx.strokeStyle;
+
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+
+    x+=sliceW;
+  }
+
+  ctx.stroke();
+
+  // very slow color drift so readout grows visually
+  hueOffset+=0.2;
+}
+</script>
+</body>
+</html>

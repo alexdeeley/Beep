@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Chrome Checkerboard 16x16</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#000; overflow:hidden; touch-action:none; }
+  body { position:fixed; inset:0; }
+  canvas { display:block; width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", { alpha:false, desynchronized:true });
+
+  let W=0, H=0, DPR=1;
+
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, Math.floor(window.innerWidth));
+    H = Math.max(1, Math.floor(window.innerHeight));
+    const pw = Math.max(1, Math.floor(W*DPR));
+    const ph = Math.max(1, Math.floor(H*DPR));
+    if (canvas.width !== pw || canvas.height !== ph){
+      canvas.width = pw; canvas.height = ph;
+    }
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }
+
+  let resizeQueued=false;
+  function queueResize(){
+    if (resizeQueued) return;
+    resizeQueued=true;
+    requestAnimationFrame(() => { resizeQueued=false; resize(); });
+  }
+
+  resize();
+  window.addEventListener("resize", queueResize, {passive:true});
+  window.addEventListener("orientationchange", queueResize, {passive:true});
+
+  // ---- Grid (requested)
+  const GRID = 16;               // 16x16 checkerboard
+  const SEGMENTS = 70;           // per-cell line segments (keep light for Safari)
+  const LINES_PER_CELL = 6;      // how many sub-lines inside each cell
+
+  // ---- Ghost/touch
+  const GHOST_DECAY   = 0.000018;
+  const ECHO_LAYERS   = 7;
+  const ECHO_SPREAD   = 55;
+  const ECHO_DELAY_MS = 1150;
+  const MAX_GHOSTS    = 44;
+
+  let t = 0;
+  let lastNow = performance.now();
+  let ghosts = [];
+  const pointers = new Map();
+
+  function addPointer(id,x,y){ pointers.set(id,{x,y}); }
+  function updatePointer(id,x,y){ const p=pointers.get(id); if(p){p.x=x;p.y=y;} }
+  function removePointer(id){ pointers.delete(id); }
+
+  function spawnGhost(x,y,strength){
+    ghosts.push({x,y,strength,born:performance.now()});
+    if (ghosts.length > MAX_GHOSTS) ghosts.shift();
+  }
+
+  // Pointer Events first (best on iOS Safari)
+  if ("PointerEvent" in window){
+    canvas.addEventListener("pointerdown",(e)=>{
+      canvas.setPointerCapture?.(e.pointerId);
+      addPointer(e.pointerId, e.clientX, e.clientY);
+      spawnGhost(e.clientX, e.clientY, 1.0);
+    }, {passive:true});
+
+    canvas.addEventListener("pointermove",(e)=>{
+      if (!pointers.has(e.pointerId)) return;
+      updatePointer(e.pointerId, e.clientX, e.clientY);
+      if (Math.random() < 0.11) spawnGhost(e.clientX, e.clientY, 0.35);
+    }, {passive:true});
+
+    const end=(e)=>removePointer(e.pointerId);
+    canvas.addEventListener("pointerup", end, {passive:true});
+    canvas.addEventListener("pointercancel", end, {passive:true});
+    canvas.addEventListener("pointerleave", end, {passive:true});
+  } else {
+    // Touch fallback (older Safari)
+    const lastTouchPos = Object.create(null);
+    function syncTouches(e,spawn){
+      for (const tc of e.touches){
+        const id = "t"+tc.identifier;
+        pointers.set(id,{x:tc.clientX,y:tc.clientY});
+        if (spawn){
+          spawnGhost(tc.clientX, tc.clientY, 1.0);
+        } else {
+          const last = lastTouchPos[tc.identifier];
+          if (last){
+            const dx=tc.clientX-last.x, dy=tc.clientY-last.y;
+            if (dx*dx+dy*dy>260 && Math.random()<0.14) spawnGhost(tc.clientX, tc.clientY, 0.35);
+          }
+        }
+        lastTouchPos[tc.identifier]={x:tc.clientX,y:tc.clientY};
+      }
+      for (const tc of e.changedTouches){
+        if (e.type==="touchend"||e.type==="touchcancel") delete lastTouchPos[tc.identifier];
+      }
+    }
+    canvas.addEventListener("touchstart",(e)=>{e.preventDefault(); syncTouches(e,true);},{passive:false});
+    canvas.addEventListener("touchmove",(e)=>{e.preventDefault(); syncTouches(e,false);},{passive:false});
+    canvas.addEventListener("touchend",(e)=>{e.preventDefault(); syncTouches(e,false);},{passive:false});
+    canvas.addEventListener("touchcancel",(e)=>{e.preventDefault(); syncTouches(e,false);},{passive:false});
+  }
+
+  // ---- Field math (same vibe, but with local cell modulation)
+  function pushY(px, py, ox, oy, mag, infl){
+    const dx=px-ox, dy=py-oy;
+    const dist2=dx*dx+dy*dy;
+    const infl2=infl*infl;
+    if (dist2 < infl2 && dist2 > 0.001){
+      const dist = Math.sqrt(dist2);
+      const k = 1 - dist / infl;
+      return (dy / dist) * k * k * mag;
+    }
+    return 0;
+  }
+
+  function getTotalDisplacement(px, baseY, now, cellFlip){
+    let fy = baseY;
+
+    const nx = px / W;
+    const ny = baseY / H;
+
+    // Ambient slow swirl, with a subtle checker flip so adjacent cells feel "braided"
+    const flip = cellFlip ? -1 : 1;
+
+    fy += Math.sin(nx * Math.PI * 2.1 + t * 0.28 + ny * 3.1 * flip) * 5.5;
+    fy += Math.sin(nx * Math.PI * 4.3 - t * 0.19 + ny * 1.7) * 3.0;
+    fy += Math.sin(nx * Math.PI * 1.1 + t * 0.11 + ny * 5.3 * flip) * 7.0;
+    fy += Math.cos(nx * Math.PI * 3.7 + t * 0.22 - ny * 2.9) * 2.5;
+    fy += Math.sin(nx * Math.PI * 6.1 - t * 0.09 + ny * 0.8) * 1.5;
+
+    // Pointers
+    for (const p of pointers.values()){
+      fy += pushY(px, fy, p.x, p.y, 130, 220);
+    }
+
+    // Ghost echoes
+    for (let gi=0; gi<ghosts.length; gi++){
+      const g = ghosts[gi];
+      const age = now - g.born;
+      const baseStr = g.strength * Math.max(0, 1 - age * GHOST_DECAY);
+      if (baseStr < 0.001) continue;
+
+      for (let e=0; e<ECHO_LAYERS; e++){
+        const echoAge = age - e * ECHO_DELAY_MS;
+        if (echoAge <= 0) continue;
+
+        const echoStr = baseStr * Math.pow(0.58, e);
+        if (echoStr < 0.002) continue;
+
+        const infl = 160 + e * ECHO_SPREAD + echoAge * 0.025;
+        const mag  = 95 * echoStr * Math.pow(0.65, e);
+        if (mag < 0.5) continue;
+
+        fy += pushY(px, fy, g.x, g.y, mag, infl);
+      }
+    }
+
+    return fy;
+  }
+
+  function chromeColor(slope, seed){
+    const s = Math.abs(slope);
+    const lum = Math.min(1, s * 2.9);
+
+    const base = 0.06 + lum * 0.94;
+    const warm = Math.sin(seed * 0.22 + t * 0.08) * 0.06;
+
+    const r = Math.min(255, (base + warm + 0.04) * 255) | 0;
+    const g = Math.min(255, (base + warm * 0.28) * 255) | 0;
+    const b = Math.min(255, (base - warm * 0.55 + 0.02) * 255) | 0;
+
+    const a = 0.30 + lum * 0.70;
+    return "rgba(" + r + "," + g + "," + b + "," + a.toFixed(3) + ")";
+  }
+
+  function frame(now){
+    // prune ghosts in-place
+    let w=0;
+    for (let i=0;i<ghosts.length;i++){
+      const g=ghosts[i];
+      const alive = g.strength * (1 - (now - g.born) * GHOST_DECAY) > 0.001;
+      if (alive) ghosts[w++] = g;
+    }
+    ghosts.length = w;
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+
+    const cellW = W / GRID;
+    const cellH = H / GRID;
+
+    // ultra subtle grid edges (kept faint so it still feels "no UI")
+    // comment out if you want zero grid lines
+    // ctx.strokeStyle = "rgba(255,255,255,0.03)";
+    // ctx.lineWidth = 1;
+
+    // Draw each cell as its own little chrome field
+    const xStep = cellW / SEGMENTS;
+
+    for (let gy=0; gy<GRID; gy++){
+      const y0 = gy * cellH;
+
+      for (let gx=0; gx<GRID; gx++){
+        const x0 = gx * cellW;
+        const flip = ((gx + gy) & 1) === 1;  // checkerboard
+
+        // Clip to cell (big win: keeps it looking like a grid without drawing borders)
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, y0, cellW + 0.01, cellH + 0.01);
+        ctx.clip();
+
+        // optional: darken alternating cells slightly (keeps checkerboard read)
+        // (still black overall, just a tiny difference)
+        if (flip){
+          ctx.fillStyle = "rgba(0,0,0,0.10)";
+          ctx.fillRect(x0, y0, cellW, cellH);
+        }
+
+        // Multiple sub-lines inside the cell
+        for (let li=0; li<LINES_PER_CELL; li++){
+          const frac = (li + 1) / (LINES_PER_CELL + 1);
+          const baseY = y0 + frac * cellH;
+
+          let px0 = x0;
+          let py0 = getTotalDisplacement(px0, baseY, now, flip);
+
+          // Slight per-cell/per-line phase offset to avoid repeating tiles
+          const seed = gx*97 + gy*131 + li*19;
+          // small horizontal wobble via baseY shift: subtle "woven" look
+          const baseY2 = baseY + Math.sin(t*0.7 + seed*0.11) * (flip ? 0.9 : -0.9);
+
+          py0 = getTotalDisplacement(px0, baseY2, now, flip);
+
+          for (let s=0; s<SEGMENTS; s++){
+            const px1 = x0 + (s+1)*xStep;
+            const py1 = getTotalDisplacement(px1, baseY2, now, flip);
+
+            const slope = (py1 - py0) / (xStep + 1e-3);
+
+            ctx.beginPath();
+            ctx.moveTo(px0, py0);
+            ctx.lineTo(px1, py1);
+            ctx.strokeStyle = chromeColor(slope, seed);
+            ctx.lineWidth = 1.05;
+            ctx.stroke();
+
+            px0 = px1;
+            py0 = py1;
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // Echo halos (global, over the grid)
+    for (let gi=0; gi<ghosts.length; gi++){
+      const g = ghosts[gi];
+      const age = now - g.born;
+      const baseStr = g.strength * Math.max(0, 1 - age * GHOST_DECAY);
+      if (baseStr < 0.003) continue;
+
+      for (let e=0; e<ECHO_LAYERS; e++){
+        const echoAge = age - e * ECHO_DELAY_MS;
+        if (echoAge <= 0) continue;
+
+        const echoStr = baseStr * Math.pow(0.58, e);
+        const r2 = 12 + e * 26 + echoAge * 0.028;
+        const alpha = echoStr * 0.18 * Math.max(0, 1 - echoAge * 0.00008);
+        if (alpha < 0.003) continue;
+
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, r2, 0, Math.PI*2);
+        ctx.strokeStyle = "rgba(220,225,235," + alpha.toFixed(4) + ")";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // time step
+    const dt = Math.min(50, now - lastNow);
+    lastNow = now;
+    t += dt * 0.00064;
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame((n)=>{ lastNow=n; frame(n); });
+})();
+</script>
+</body>
+</html>

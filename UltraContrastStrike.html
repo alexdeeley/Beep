@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTRA CONTRAST STRIKE</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Arial Black', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #gameCanvas {
+            display: block;
+            border: 10px solid #fff;
+        }
+        #ui {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            font-size: 40px;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 50px;
+            text-align: center;
+            background: #000;
+            border: 8px solid #fff;
+            padding: 40px;
+            z-index: 20;
+            width: 80%;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="ui">SCORE: 0<br>POWER: 1</div>
+<div id="msg">TAP TO START<br><br><span style="font-size:30px">ULTRA HIGH CONTRAST</span></div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const ui = document.getElementById('ui');
+const msg = document.getElementById('msg');
+
+function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeCanvas();
+
+const game = {
+    active: false,
+    score: 0,
+    powerLevel: 1,
+    frame: 0,
+    spawnRate: 60,
+    shake: 0
+};
+
+const player = {
+    x: window.innerWidth / 2,
+    y: window.innerHeight - 150,
+    size: 80,
+    speed: 20
+};
+
+const bullets = [];
+const enemies = [];
+const powerups = [];
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const sounds = {
+    shoot() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    },
+    boom() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    },
+    powerup() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+    }
+};
+
+function intersects(a, b) {
+    return (
+        a.x < b.x + b.size &&
+        a.x + a.size > b.x &&
+        a.y < b.y + b.size &&
+        a.y + a.size > b.y
+    );
+}
+
+function spawnEnemy() {
+    const size = 80 + Math.random() * 50;
+    enemies.push({
+        x: Math.random() * (canvas.width - size),
+        y: -size,
+        size,
+        speed: 3 + game.score / 2000
+    });
+}
+
+function spawnPowerup(x, y) {
+    powerups.push({ x, y, size: 60, speed: 4 });
+}
+
+function update() {
+    if (!game.active) return;
+
+    game.frame++;
+    if (game.shake > 0) game.shake--;
+
+    if (game.frame % 8 === 0) {
+        sounds.shoot();
+        const spread = 35;
+        const totalWidth = (game.powerLevel - 1) * spread;
+
+        for (let i = 0; i < game.powerLevel; i++) {
+            bullets.push({
+                x: (player.x + player.size / 2 - 15) - totalWidth / 2 + i * spread,
+                y: player.y,
+                size: 30
+            });
+        }
+    }
+
+    bullets.forEach(b => b.y -= 15);
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        if (bullets[i].y < -60) bullets.splice(i, 1);
+    }
+
+    if (game.frame % game.spawnRate === 0) {
+        spawnEnemy();
+        game.spawnRate = Math.max(20, game.spawnRate - 1);
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.y += e.speed;
+
+        if (e.y > canvas.height + 100) {
+            enemies.splice(i, 1);
+            continue;
+        }
+
+        if (intersects(e, player)) {
+            gameOver();
+            return;
+        }
+
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            if (intersects(e, bullets[j])) {
+                sounds.boom();
+                game.score += 10;
+                if (Math.random() > 0.7) spawnPowerup(e.x, e.y);
+                enemies.splice(i, 1);
+                bullets.splice(j, 1);
+                break;
+            }
+        }
+    }
+
+    for (let i = powerups.length - 1; i >= 0; i--) {
+        const p = powerups[i];
+        p.y += p.speed;
+        if (intersects(p, player)) {
+            game.powerLevel = Math.min(game.powerLevel + 1, 8);
+            game.shake = 10;
+            sounds.powerup();
+            powerups.splice(i, 1);
+        }
+    }
+
+    ui.innerHTML = `SCORE: ${game.score}<br>POWER: ${game.powerLevel}`;
+}
+
+function draw() {
+    ctx.save();
+
+    if (game.shake > 0) {
+        ctx.translate(Math.random() * 8 - 4, Math.random() * 8 - 4);
+    }
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(player.x + player.size / 2, player.y);
+    ctx.lineTo(player.x, player.y + player.size);
+    ctx.lineTo(player.x + player.size, player.y + player.size);
+    ctx.fill();
+
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, b.size, b.size));
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 10;
+    enemies.forEach(e => ctx.strokeRect(e.x, e.y, e.size, e.size));
+
+    powerups.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x + p.size / 2, p.y + p.size / 2, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+}
+
+function gameOver() {
+    game.active = false;
+    msg.classList.remove('hidden');
+    msg.innerHTML = `GAME OVER<br>SCORE: ${game.score}<br><br>TAP TO RESTART`;
+}
+
+function startGame() {
+    if (game.active) return;
+    game.active = true;
+    game.score = 0;
+    game.powerLevel = 1;
+    game.frame = 0;
+    game.spawnRate = 60;
+    bullets.length = enemies.length = powerups.length = 0;
+    msg.classList.add('hidden');
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+canvas.addEventListener('mousemove', e => {
+    player.x = Math.max(0, Math.min(canvas.width - player.size, e.clientX - player.size / 2));
+});
+
+canvas.addEventListener('touchmove', e => {
+    player.x = Math.max(0, Math.min(canvas.width - player.size, e.touches[0].clientX - player.size / 2));
+    e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('mousedown', startGame);
+canvas.addEventListener('touchstart', e => { startGame(); e.preventDefault(); }, { passive: false });
+
+document.addEventListener('visibilitychange', () => {
+    game.active = !document.hidden;
+});
+
+window.addEventListener('resize', resizeCanvas);
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Touch Fade Grid</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #fff;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    touch-action: manipulation;
+    image-rendering: pixelated;
+  }
+  /* Optional tiny hint for accessibility: double-tap with two fingers to clear */
+  .hint {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
+    font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    opacity: .35;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div class="hint">Two‑finger double‑tap to clear</div>
+<script>
+(() => {
+  const DECAY = 0.15;           // per "ring" opacity drop (15 percentage points)
+  const CELL = 3;               // pixel cell size (adjust for performance vs. detail)
+  const NEIGHBOR_8 = true;      // use 8-neighborhood (surrounding neighbors)
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  let cols = 0, rows = 0;
+  let grid = null;              // Float32Array of alpha per cell
+  let hasSeededOnce = false;    // first tap only seeds; subsequent taps expand
+  let lastTouchTime = 0;
+  let twoFingerTapCount = 0;
+  let twoFingerTimer = null;
+
+  function resize() {
+    const w = Math.floor(window.innerWidth);
+    const h = Math.floor(window.innerHeight);
+    canvas.width  = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+
+    cols = Math.ceil(canvas.width / (CELL * dpr));
+    rows = Math.ceil(canvas.height / (CELL * dpr));
+
+    if (!grid) {
+      grid = new Float32Array(cols * rows);
+    } else {
+      // If size changed, keep existing content centered-ish by copying overlap
+      const old = grid;
+      const oldCols = grid._cols || cols;
+      const oldRows = grid._rows || rows;
+      const newGrid = new Float32Array(cols * rows);
+      const cx = Math.floor(Math.min(cols, oldCols) / 2);
+      const cy = Math.floor(Math.min(rows, oldRows) / 2);
+      for (let y = 0; y < Math.min(rows, oldRows); y++) {
+        for (let x = 0; x < Math.min(cols, oldCols); x++) {
+          const nx = x + Math.floor((cols - oldCols) / 2);
+          const ny = y + Math.floor((rows - oldRows) / 2);
+          if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+            newGrid[ny * cols + nx] = old[y * oldCols + x];
+          }
+        }
+      }
+      grid = newGrid;
+    }
+    grid._cols = cols;
+    grid._rows = rows;
+    draw();
+  }
+
+  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
+  function seedAtClientXY(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor(((clientX - rect.left) * dpr) / (CELL * dpr));
+    const y = Math.floor(((clientY - rect.top)  * dpr) / (CELL * dpr));
+    if (x < 0 || y < 0 || x >= cols || y >= rows) return;
+    const i = y * cols + x;
+    grid[i] = 1.0; // fully white at touch point
+    draw();
+  }
+
+  function expandStep() {
+    if (!grid) return;
+    const accum = new Float32Array(cols * rows);
+
+    // For each lit cell, contribute to its neighbors with -15% opacity
+    for (let y = 0; y < rows; y++) {
+      const yoff = y * cols;
+      for (let x = 0; x < cols; x++) {
+        const idx = yoff + x;
+        const a = grid[idx];
+        if (a <= 0) continue;
+        const contrib = a - DECAY;
+        if (contrib <= 0) continue;
+
+        // 8-neighborhood (or 4)
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (!NEIGHBOR_8 && Math.abs(dx) + Math.abs(dy) !== 1) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+            const nIdx = ny * cols + nx;
+            accum[nIdx] += contrib; // let overlaps add up
+          }
+        }
+      }
+    }
+
+    // Apply accumulated contributions; clamp to [0,1]
+    for (let i = 0; i < accum.length; i++) {
+      if (accum[i] !== 0) {
+        grid[i] = clamp01(grid[i] + accum[i]);
+      }
+    }
+
+    draw();
+  }
+
+  function draw() {
+    // Clear to black
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    const size = CELL;
+    for (let y = 0; y < rows; y++) {
+      const yoff = y * cols;
+      for (let x = 0; x < cols; x++) {
+        const a = grid[yoff + x];
+        if (a <= 0) continue;
+        ctx.globalAlpha = clamp01(a);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x * size, y * size, size, size);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function clearAll() {
+    if (!grid) return;
+    grid.fill(0);
+    hasSeededOnce = false;
+    draw();
+  }
+
+  // Pointer handling
+  function onPointerDown(e) {
+    // Two-finger double tap to clear
+    if (e.pointerType === 'touch' && e.isPrimary === false) { return; } // ignore non-primary pointers individually
+
+    const now = performance.now();
+    const isTouch = (e.pointerType === 'touch' || e.type.startsWith('touch'));
+    const touches = (e.touches ? e.touches.length : (e.pointerType === 'touch' ? 1 : 0));
+
+    // Process main action
+    if (!hasSeededOnce) {
+      const { clientX, clientY } = ('clientX' in e) ? e : e.changedTouches[0];
+      seedAtClientXY(clientX, clientY);
+      hasSeededOnce = true;
+    } else {
+      // On subsequent taps: expand everywhere AND allow adding a new seed at the tap point
+      const { clientX, clientY } = ('clientX' in e) ? e : e.changedTouches[0];
+      seedAtClientXY(clientX, clientY);
+      expandStep();
+    }
+
+    lastTouchTime = now;
+  }
+
+  // Two-finger double-tap clear (simple heuristic)
+  function onTouchStart(e) {
+    if (e.touches && e.touches.length === 2) {
+      twoFingerTapCount++;
+      if (twoFingerTimer) clearTimeout(twoFingerTimer);
+      twoFingerTimer = setTimeout(() => {
+        if (twoFingerTapCount >= 2) {
+          clearAll();
+        }
+        twoFingerTapCount = 0;
+        twoFingerTimer = null;
+      }, 350);
+    }
+  }
+
+  // Mouse support: click to seed/expand
+  canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
+  canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+</body>
+</html>

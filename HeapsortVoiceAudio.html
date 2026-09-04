@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heapsort Audio Visualizer</title>
+<style>
+body {
+    background:#000;
+    color:#fff;
+    font-family:Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    margin:0;
+}
+h1 { font-size:2.2rem; }
+.controls { margin:15px 0; }
+button {
+    background:#000;
+    color:#fff;
+    border:3px solid #fff;
+    padding:14px 26px;
+    font-size:1.1rem;
+    font-weight:bold;
+    margin:0 8px;
+}
+button:hover { background:#fff; color:#000; }
+button:disabled { color:#555; border-color:#555; }
+canvas {
+    border:4px solid #fff;
+    background:#000;
+    max-width:95vw;
+}
+.status {
+    margin-top:12px;
+    font-size:1.3rem;
+    font-weight:bold;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<h1>VOICE → HEAPSORT → SOUND</h1>
+
+<div class="controls">
+    <button id="micBtn">Enable Mic</button>
+    <button id="sortBtn" disabled>Sort Spectrum</button>
+</div>
+
+<canvas id="canvas" width="1000" height="420"></canvas>
+<div class="status" id="status">Waiting for microphone</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusLabel = document.getElementById('status');
+const micBtn = document.getElementById('micBtn');
+const sortBtn = document.getElementById('sortBtn');
+
+let audioCtx, analyser, dataArray;
+let bars = [];
+const BAR_COUNT = 64;
+let isSorting = false;
+
+// ---------- AUDIO SETUP ----------
+micBtn.onclick = async () => {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = audioCtx.createMediaStreamSource(stream);
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = BAR_COUNT * 2;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    source.connect(analyser);
+    statusLabel.innerText = "Listening… speak or make noise";
+    sortBtn.disabled = false;
+
+    drawSpectrum();
+};
+
+// ---------- DRAW ----------
+function drawSpectrum(active=-1) {
+    requestAnimationFrame(drawSpectrum);
+    if (!analyser || isSorting) return;
+
+    analyser.getByteFrequencyData(dataArray);
+    bars = Array.from(dataArray);
+
+    drawBars(active);
+}
+
+function drawBars(active=-1) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const w = canvas.width / BAR_COUNT;
+
+    for (let i=0;i<BAR_COUNT;i++) {
+        const h = bars[i];
+        const x = i * w;
+        const y = canvas.height - h;
+
+        ctx.fillStyle = (i === active) ? "#fff" : "#000";
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.rect(x+1, y, w-2, h);
+        ctx.fill();
+        ctx.stroke();
+    }
+}
+
+// ---------- SOUND FOR SORTING ----------
+function playTone(value) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = 200 + value * 6;
+    gain.gain.value = 0.05;
+
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+}
+
+// ---------- HEAPSORT ----------
+async function swap(i,j) {
+    [bars[i], bars[j]] = [bars[j], bars[i]];
+    playTone(bars[j]);
+    drawBars(j);
+    await new Promise(r=>setTimeout(r,35));
+}
+
+async function heapify(n,i) {
+    let largest=i;
+    let l=2*i+1, r=2*i+2;
+
+    if (l<n && bars[l]>bars[largest]) largest=l;
+    if (r<n && bars[r]>bars[largest]) largest=r;
+
+    if (largest!==i) {
+        await swap(i,largest);
+        await heapify(n,largest);
+    }
+}
+
+sortBtn.onclick = async () => {
+    if (!bars.length) return;
+    isSorting=true;
+    sortBtn.disabled=true;
+    statusLabel.innerText="Sorting spectrum…";
+
+    let n = bars.length;
+    for (let i=Math.floor(n/2)-1;i>=0;i--) {
+        await heapify(n,i);
+    }
+    for (let i=n-1;i>0;i--) {
+        await swap(0,i);
+        await heapify(i,0);
+    }
+
+    statusLabel.innerText="Complete";
+    isSorting=false;
+    sortBtn.disabled=false;
+};
+</script>
+</body>
+</html>

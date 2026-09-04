@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>303 + MAZIE SAMPLER</title>
+  <style>
+    :root{
+      --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.65);
+      --border:5px; --pad:22px; --gap:18px; --radius:14px;
+      --accent:#fff;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
+    body{display:flex; align-items:center; justify-content:center; overflow:hidden;}
+    #app{
+      width:min(980px, 96vw);
+      border:var(--border) solid var(--fg);
+      border-radius:var(--radius);
+      padding:clamp(14px, 2.2vw, 28px);
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(14px, 2vw, 26px);
+      background: #000;
+    }
+    .group{display:flex; flex-direction:column; align-items:center; gap:10px;}
+    .label{font-weight:900; letter-spacing:.12em; text-transform:uppercase; font-size:14px; color:var(--fg);}
+    .small{font-size:12px; color:var(--dim); letter-spacing:.1em; text-transform:uppercase;}
+    input[type=range]{
+      appearance:none; -webkit-appearance:none;
+      width: 100%;
+      height: 54px;
+      background: transparent;
+      touch-action: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track{height:10px; background:var(--fg); border-radius:999px;}
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none; appearance:none;
+      height:34px; width:34px;
+      background:var(--fg);
+      border:3px solid #000;
+      margin-top:-12px;
+      border-radius:10px;
+    }
+    input[type=range]::-moz-range-track{height:10px; background:var(--fg); border-radius:999px;}
+    input[type=range]::-moz-range-thumb{height:34px; width:34px; background:var(--fg); border:3px solid #000; border-radius:10px;}
+    .btn{
+      width:100%;
+      background:#000; color:#fff;
+      border:var(--border) solid var(--fg);
+      padding:18px 12px;
+      font-size:18px; font-weight:900;
+      letter-spacing:.12em; text-transform:uppercase;
+      border-radius:12px;
+      cursor:pointer;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .btn:active{background:#fff; color:#000;}
+    .btn.on{background:#fff; color:#000;}
+    .wide{grid-column: 1 / -1;}
+    .row{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(12px, 2vw, 24px);
+      align-items:center;
+    }
+    .divider{
+      grid-column:1/-1;
+      height:0;
+      border-top:var(--border) solid var(--fg);
+      margin-top:2px;
+    }
+    .panel{
+      grid-column:1/-1;
+      border:var(--border) solid var(--fg);
+      border-radius:14px;
+      padding:16px;
+      display:grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 14px;
+      align-items:center;
+    }
+    .panel .left{display:flex; flex-direction:column; gap:10px;}
+    .panel .right{display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;}
+    .pill{
+      border:3px solid var(--fg);
+      padding:10px 12px;
+      border-radius:999px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      color:var(--dim);
+    }
+    #splash{
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:#000;
+      z-index:50;
+      cursor:pointer;
+      padding:22px;
+    }
+    #splashBox{
+      width:min(860px, 96vw);
+      border:var(--border) solid var(--fg);
+      border-radius:18px;
+      padding:24px;
+      text-align:center;
+    }
+    #splashTitle{
+      font-weight:1000;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      font-size: clamp(22px, 4vw, 46px);
+      margin:0 0 10px 0;
+    }
+    #splashSub{
+      margin:0;
+      color:var(--dim);
+      font-weight:700;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      line-height:1.4;
+      font-size: clamp(12px, 1.8vw, 16px);
+    }
+    #status{
+      margin-top:14px;
+      font-size:12px;
+      color:var(--dim);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    @media (max-width: 720px){
+      #app{grid-template-columns:1fr; }
+      .row{grid-template-columns:1fr;}
+      .panel{grid-template-columns:1fr;}
+      .panel .right{justify-content:stretch;}
+      .btn{font-size:17px;}
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="splash" role="button" aria-label="Tap to start audio">
+  <div id="splashBox">
+    <h1 id="splashTitle">303 + Mazie Sampler</h1>
+    <p id="splashSub">Tap to begin • hold record • play acid note • everything is big + high-contrast</p>
+    <div id="status">audio: not started</div>
+  </div>
+</div>
+
+<div id="app" aria-label="303 controls">
+  <div class="group">
+    <div class="label">Cutoff</div>
+    <input type="range" id="cutoff" min="80" max="6000" value="900">
+    <div class="small"><span id="cutoffVal">900</span> Hz</div>
+  </div>
+
+  <div class="group">
+    <div class="label">Reso</div>
+    <input type="range" id="res" min="0" max="25" value="15">
+    <div class="small">Q <span id="resVal">15</span></div>
+  </div>
+
+  <div class="group">
+    <div class="label">Env Mod</div>
+    <input type="range" id="env" min="0" max="3200" value="1200">
+    <div class="small"><span id="envVal">1200</span></div>
+  </div>
+
+  <button class="btn" id="playBtn">Play Note</button>
+  <button class="btn" id="accentBtn" aria-pressed="false">Accent</button>
+  <button class="btn" id="waveBtn">Saw</button>
+
+  <div class="group wide">
+    <div class="row">
+      <div class="group">
+        <div class="label">Drive</div>
+        <input type="range" id="drive" min="0" max="1" step="0.01" value="0.25">
+        <div class="small"><span id="driveVal">0.25</span></div>
+      </div>
+      <div class="group">
+        <div class="label">Delay</div>
+        <input type="range" id="delay" min="0" max="0.55" step="0.01" value="0.18">
+        <div class="small"><span id="delayVal">0.18</span>s</div>
+      </div>
+      <div class="group">
+        <div class="label">Feedback</div>
+        <input type="range" id="fb" min="0" max="0.85" step="0.01" value="0.35">
+        <div class="small"><span id="fbVal">0.35</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="panel" aria-label="sampler">
+    <div class="left">
+      <div class="label">Mazie's Voice</div>
+      <div class="small">Hold to record • tap to play</div>
+      <div class="pill" id="micState">mic: not armed</div>
+      <div class="pill" id="sampleState">sample: empty</div>
+    </div>
+    <div class="right">
+      <button class="btn" id="recBtn">Hold Record</button>
+      <button class="btn" id="sampleBtn">Play Sample</button>
+      <button class="btn" id="clearBtn">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const status = (msg) => { $("status").textContent = msg; };
+
+  // Update UI readouts
+  const binds = [
+    ["cutoff","cutoffVal"],["res","resVal"],["env","envVal"],
+    ["drive","driveVal"],["delay","delayVal"],["fb","fbVal"],
+  ];
+  binds.forEach(([a,b]) => {
+    const el = $(a), out = $(b);
+    const upd = () => out.textContent = el.value;
+    el.addEventListener("input", upd, {passive:true});
+    upd();
+  });
+
+  // ---------- Audio bootstrap ----------
+  let audioCtx = null;
+
+  // FX chain nodes
+  let master = null, driveNode = null, delayNode = null, fbGain = null, wetGain = null, convolver = null;
+  let sampleBuffer = null;
+
+  // Sampler record chain
+  let micStream = null;
+  let micSource = null;
+  let workletNode = null;
+  let isRecording = false;
+  let recorded = [];
+  let recStartT = 0;
+
+  // Synth state
+  let oscType = "sawtooth";
+  let isAccent = false;
+
+  function makeImpulseResponse(ctx, seconds = 1.2, decay = 2.0){
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * seconds);
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let c=0;c<2;c++){
+      const ch = impulse.getChannelData(c);
+      for (let i=0;i<length;i++){
+        const t = i/length;
+        ch[i] = (Math.random()*2-1) * Math.pow(1 - t, decay);
+      }
+    }
+    return impulse;
+  }
+
+  function makeDriveCurve(amount){
+    // amount: 0..1
+    const k = 1 + amount * 60;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for (let i=0;i<n;i++){
+      const x = (i*2/n) - 1;
+      curve[i] = Math.tanh(k*x);
+    }
+    return curve;
+  }
+
+  async function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = audioCtx.createGain();
+    master.gain.value = 0.9;
+
+    // Drive
+    driveNode = audioCtx.createWaveShaper();
+    driveNode.curve = makeDriveCurve(parseFloat($("drive").value));
+    driveNode.oversample = "4x";
+
+    // Delay
+    delayNode = audioCtx.createDelay(1.0);
+    fbGain = audioCtx.createGain();
+    wetGain = audioCtx.createGain();
+
+    delayNode.delayTime.value = parseFloat($("delay").value);
+    fbGain.gain.value = parseFloat($("fb").value);
+    wetGain.gain.value = 0.55;
+
+    // Reverb (subtle, always-on but not huge)
+    convolver = audioCtx.createConvolver();
+    convolver.buffer = makeImpulseResponse(audioCtx, 1.1, 2.2);
+    const verbWet = audioCtx.createGain();
+    const verbDry = audioCtx.createGain();
+    verbWet.gain.value = 0.22;
+    verbDry.gain.value = 0.88;
+
+    // Routing:
+    // input -> drive -> dry -> master
+    //              -> delay -> wet -> master
+    //              -> convolver -> master
+    const fxIn = driveNode;
+    const dry = audioCtx.createGain();
+    dry.gain.value = 1.0;
+
+    fxIn.connect(dry);
+    dry.connect(verbDry);
+    verbDry.connect(master);
+
+    fxIn.connect(delayNode);
+    delayNode.connect(fbGain);
+    fbGain.connect(delayNode);
+    delayNode.connect(wetGain);
+    wetGain.connect(master);
+
+    fxIn.connect(convolver);
+    convolver.connect(verbWet);
+    verbWet.connect(master);
+
+    master.connect(audioCtx.destination);
+
+    // UI-driven FX updates
+    $("drive").addEventListener("input", () => {
+      driveNode.curve = makeDriveCurve(parseFloat($("drive").value));
+    }, {passive:true});
+
+    $("delay").addEventListener("input", () => {
+      delayNode.delayTime.setTargetAtTime(parseFloat($("delay").value), audioCtx.currentTime, 0.01);
+    }, {passive:true});
+
+    $("fb").addEventListener("input", () => {
+      fbGain.gain.setTargetAtTime(parseFloat($("fb").value), audioCtx.currentTime, 0.01);
+    }, {passive:true});
+
+    status("audio: ready");
+  }
+
+  // Start audio on splash tap
+  $("splash").addEventListener("pointerdown", async () => {
+    await ensureAudio();
+    await audioCtx.resume();
+    $("splash").style.display = "none";
+  }, {passive:true});
+
+  // ---------- 303 Synth ----------
+  function play303(){
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+
+    const osc = audioCtx.createOscillator();
+    const filter = audioCtx.createBiquadFilter();
+    const amp = audioCtx.createGain();
+
+    // "303-ish" enhancements
+    const pre = audioCtx.createGain();
+    pre.gain.value = isAccent ? 1.2 : 0.9;
+
+    osc.type = oscType;
+    // A1 (55) vs A2 (110) — accent bumps octave
+    osc.frequency.setValueAtTime(isAccent ? 110 : 55, now);
+
+    filter.type = "lowpass";
+    filter.Q.value = parseFloat($("res").value);
+
+    const baseCutoff = parseFloat($("cutoff").value);
+    const envMod = parseFloat($("env").value);
+
+    // snappy filter env
+    filter.frequency.setValueAtTime(clamp(baseCutoff + envMod, 60, 12000), now);
+    filter.frequency.exponentialRampToValueAtTime(clamp(baseCutoff, 60, 12000), now + 0.22);
+
+    // amp env
+    const peak = isAccent ? 0.62 : 0.38;
+    amp.gain.setValueAtTime(0.0001, now);
+    amp.gain.exponentialRampToValueAtTime(peak, now + 0.008);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+    // routing into FX chain (driveNode)
+    osc.connect(filter);
+    filter.connect(pre);
+    pre.connect(amp);
+    amp.connect(driveNode);
+
+    osc.start(now);
+    osc.stop(now + 0.45);
+  }
+
+  $("playBtn").addEventListener("pointerdown", async () => {
+    await ensureAudio();
+    await audioCtx.resume();
+    play303();
+  }, {passive:true});
+
+  $("accentBtn").addEventListener("pointerdown", () => {
+    isAccent = !isAccent;
+    $("accentBtn").classList.toggle("on", isAccent);
+    $("accentBtn").setAttribute("aria-pressed", String(isAccent));
+  }, {passive:true});
+
+  $("waveBtn").addEventListener("pointerdown", () => {
+    oscType = (oscType === "sawtooth") ? "square" : "sawtooth";
+    $("waveBtn").textContent = (oscType === "sawtooth") ? "Saw" : "Squ";
+  }, {passive:true});
+
+  // ---------- Recorder (AudioWorklet, iOS-friendly) ----------
+  const micState = (txt) => $("micState").textContent = "mic: " + txt;
+  const sampleState = (txt) => $("sampleState").textContent = "sample: " + txt;
+
+  function wavEncodeFloat32(ch0, ch1, sampleRate){
+    // 16-bit PCM WAV
+    const numCh = ch1 ? 2 : 1;
+    const length = ch0.length;
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = length * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    let o = 0;
+    function writeStr(s){
+      for (let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i));
+      o += s.length;
+    }
+    function writeU32(v){ view.setUint32(o, v, true); o += 4; }
+    function writeU16(v){ view.setUint16(o, v, true); o += 2; }
+
+    writeStr("RIFF"); writeU32(36 + dataSize); writeStr("WAVE");
+    writeStr("fmt "); writeU32(16); writeU16(1); writeU16(numCh);
+    writeU32(sampleRate); writeU32(byteRate); writeU16(blockAlign); writeU16(16);
+    writeStr("data"); writeU32(dataSize);
+
+    // interleave
+    let idx = 44;
+    const out = new DataView(buffer);
+    for (let i=0;i<length;i++){
+      const s0 = clamp(ch0[i], -1, 1);
+      out.setInt16(idx, s0 < 0 ? s0*0x8000 : s0*0x7FFF, true); idx += 2;
+      if (numCh === 2){
+        const s1 = clamp(ch1[i], -1, 1);
+        out.setInt16(idx, s1 < 0 ? s1*0x8000 : s1*0x7FFF, true); idx += 2;
+      }
+    }
+    return buffer;
+  }
+
+  async function armMic(){
+    await ensureAudio();
+    await audioCtx.resume();
+
+    if (micStream) return true;
+
+    try{
+      micState("requesting…");
+      micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      micSource = audioCtx.createMediaStreamSource(micStream);
+
+      // Build a tiny worklet processor on the fly.
+      const workletCode = `
+        class RecorderProcessor extends AudioWorkletProcessor {
+          constructor(){
+            super();
+            this.recording = false;
+            this.left = [];
+            this.right = [];
+            this.maxSeconds = 8.0;
+          }
+          static get parameterDescriptors(){ return []; }
+          clear(){
+            this.left.length = 0; this.right.length = 0;
+          }
+          process(inputs, outputs, parameters){
+            const input = inputs[0];
+            if (!input || input.length === 0) return true;
+            const ch0 = input[0];
+            const ch1 = input[1] || null;
+
+            if (this.recording){
+              // Copy to plain arrays (transferable chunks are sent to main thread at stop)
+              this.left.push(new Float32Array(ch0));
+              if (ch1) this.right.push(new Float32Array(ch1));
+
+              // Safety: stop if too long
+              const frames = this.left.reduce((a,b)=>a+b.length, 0);
+              if (frames > sampleRate * this.maxSeconds){
+                this.recording = false;
+                this.port.postMessage({type:"autoStop"});
+              }
+            }
+            return true;
+          }
+        }
+        registerProcessor("recorder-processor", RecorderProcessor);
+      `;
+      const blobURL = URL.createObjectURL(new Blob([workletCode], {type:"application/javascript"}));
+      await audioCtx.audioWorklet.addModule(blobURL);
+      URL.revokeObjectURL(blobURL);
+
+      workletNode = new AudioWorkletNode(audioCtx, "recorder-processor", {numberOfInputs:1, numberOfOutputs:0});
+      // We don't need to hear the mic directly. (But route to nowhere; node has no outputs.)
+      micSource.connect(workletNode);
+
+      micState("armed");
+      return true;
+    }catch(err){
+      console.error(err);
+      micState("blocked");
+      alert("Mic permission blocked. Enable microphone in Safari/iOS settings for this site.");
+      return false;
+    }
+  }
+
+  function flatten(chunks){
+    let total = 0;
+    for (const c of chunks) total += c.length;
+    const out = new Float32Array(total);
+    let o = 0;
+    for (const c of chunks){ out.set(c, o); o += c.length; }
+    return out;
+  }
+
+  async function startRecord(){
+    const ok = await armMic();
+    if (!ok || !workletNode) return;
+
+    recorded = [];
+    isRecording = true;
+    recStartT = performance.now();
+    workletNode.port.onmessage = (e) => {
+      if (e.data && e.data.type === "autoStop") stopRecord(true);
+    };
+
+    // Tell user
+    $("recBtn").classList.add("on");
+    sampleState("recording…");
+  }
+
+  async function stopRecord(auto=false){
+    if (!isRecording) return;
+    isRecording = false;
+
+    $("recBtn").classList.remove("on");
+
+    // Pull audio from the worklet by temporarily re-creating a recorder that buffers in main thread:
+    // Since we cannot access internal arrays inside AudioWorklet directly,
+    // we re-record using MediaRecorder fallback if available, otherwise we do a small trick:
+    // Use a MediaStreamDestination and record that.
+    // BUT: iOS MediaRecorder is unreliable, so we instead re-arm a ScriptProcessor-like path:
+    // We'll implement a short "offline" capture from the mic stream using AudioContext's
+    // built-in capture: create a MediaStreamAudioSourceNode -> Gain -> AudioWorklet that
+    // posts chunks to main.
+    //
+    // Practical approach: use an AudioWorklet that *posts chunks* while recording.
+    // We'll replace the earlier processor with a posting processor.
+
+    // --- Posting worklet (loaded once) ---
+    // If already created, just use it.
+  }
+
+  // Instead of the above, implement recording via a posting worklet from the start.
+  // We'll rebuild armMic accordingly, with a processor that posts chunks.
+
+})();
+</script>
+
+<script>
+/* Second script: recorder implementation that posts chunks (kept separate for readability). */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  // Share AudioContext & nodes from the first IIFE via window (simple + reliable)
+  // (We intentionally keep globals minimal and namespaced.)
+  if (!window.__MAZIE__) window.__MAZIE__ = {};
+  const S = window.__MAZIE__;
+
+  // Patch in references created in first script (if present)
+  const getCtx = () => S.audioCtx;
+  const getDrive = () => S.driveNode;
+
+  // If first script didn't populate these yet, we'll do it now via monkeypatch hooks.
+})();
+</script>
+
+<script>
+/*
+  Because iOS Safari can be picky, we use ONE unified script below instead of cross-script globals.
+  The two-script approach above was getting messy — so here's the clean implementation.
+*/
+</script>
+
+<script>
+(() => {
+  // ---------- Unified implementation ----------
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const status = (msg) => { $("status").textContent = msg; };
+
+  // Update readouts
+  const binds = [
+    ["cutoff","cutoffVal"],["res","resVal"],["env","envVal"],
+    ["drive","driveVal"],["delay","delayVal"],["fb","fbVal"],
+  ];
+  binds.forEach(([a,b]) => {
+    const el = $(a), out = $(b);
+    const upd = () => out.textContent = el.value;
+    el.addEventListener("input", upd, {passive:true});
+    upd();
+  });
+
+  // Audio + FX
+  let audioCtx=null, master=null, driveNode=null, delayNode=null, fbGain=null, wetGain=null, convolver=null;
+  let oscType="sawtooth", isAccent=false;
+  let sampleBuffer=null;
+
+  const micState = (txt) => $("micState").textContent = "mic: " + txt;
+  const sampleState = (txt) => $("sampleState").textContent = "sample: " + txt;
+
+  function makeImpulseResponse(ctx, seconds = 1.1, decay = 2.0){
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * seconds);
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let c=0;c<2;c++){
+      const ch = impulse.getChannelData(c);
+      for (let i=0;i<length;i++){
+        const t = i/length;
+        ch[i] = (Math.random()*2-1) * Math.pow(1 - t, decay);
+      }
+    }
+    return impulse;
+  }
+  function makeDriveCurve(amount){
+    const k = 1 + amount * 60;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for (let i=0;i<n;i++){
+      const x = (i*2/n) - 1;
+      curve[i] = Math.tanh(k*x);
+    }
+    return curve;
+  }
+
+  async function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = audioCtx.createGain();
+    master.gain.value = 0.9;
+
+    driveNode = audioCtx.createWaveShaper();
+    driveNode.curve = makeDriveCurve(parseFloat($("drive").value));
+    driveNode.oversample = "4x";
+
+    delayNode = audioCtx.createDelay(1.0);
+    fbGain = audioCtx.createGain();
+    wetGain = audioCtx.createGain();
+    delayNode.delayTime.value = parseFloat($("delay").value);
+    fbGain.gain.value = parseFloat($("fb").value);
+    wetGain.gain.value = 0.55;
+
+    convolver = audioCtx.createConvolver();
+    convolver.buffer = makeImpulseResponse(audioCtx, 1.1, 2.2);
+    const verbWet = audioCtx.createGain();
+    const verbDry = audioCtx.createGain();
+    verbWet.gain.value = 0.22;
+    verbDry.gain.value = 0.88;
+
+    const dry = audioCtx.createGain();
+    dry.gain.value = 1.0;
+
+    // Routing: drive -> (dry+verb) + (delay loop) + (convolver)
+    driveNode.connect(dry);
+    dry.connect(verbDry);
+    verbDry.connect(master);
+
+    driveNode.connect(delayNode);
+    delayNode.connect(fbGain);
+    fbGain.connect(delayNode);
+    delayNode.connect(wetGain);
+    wetGain.connect(master);
+
+    driveNode.connect(convolver);
+    convolver.connect(verbWet);
+    verbWet.connect(master);
+
+    master.connect(audioCtx.destination);
+
+    // UI updates
+    $("drive").addEventListener("input", () => {
+      driveNode.curve = makeDriveCurve(parseFloat($("drive").value));
+    }, {passive:true});
+    $("delay").addEventListener("input", () => {
+      delayNode.delayTime.setTargetAtTime(parseFloat($("delay").value), audioCtx.currentTime, 0.01);
+    }, {passive:true});
+    $("fb").addEventListener("input", () => {
+      fbGain.gain.setTargetAtTime(parseFloat($("fb").value), audioCtx.currentTime, 0.01);
+    }, {passive:true});
+
+    status("audio: ready");
+  }
+
+  // Splash
+  $("splash").addEventListener("pointerdown", async () => {
+    await ensureAudio();
+    await audioCtx.resume();
+    $("splash").style.display = "none";
+  }, {passive:true});
+
+  // 303 note
+  function play303(){
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+
+    const osc = audioCtx.createOscillator();
+    const filter = audioCtx.createBiquadFilter();
+    const amp = audioCtx.createGain();
+    const pre = audioCtx.createGain();
+    pre.gain.value = isAccent ? 1.2 : 0.9;
+
+    osc.type = oscType;
+    osc.frequency.setValueAtTime(isAccent ? 110 : 55, now);
+
+    filter.type = "lowpass";
+    filter.Q.value = parseFloat($("res").value);
+
+    const baseCutoff = parseFloat($("cutoff").value);
+    const envMod = parseFloat($("env").value);
+
+    filter.frequency.setValueAtTime(clamp(baseCutoff + envMod, 60, 12000), now);
+    filter.frequency.exponentialRampToValueAtTime(clamp(baseCutoff, 60, 12000), now + 0.22);
+
+    const peak = isAccent ? 0.62 : 0.38;
+    amp.gain.setValueAtTime(0.0001, now);
+    amp.gain.exponentialRampToValueAtTime(peak, now + 0.008);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+    osc.connect(filter);
+    filter.connect(pre);
+    pre.connect(amp);
+    amp.connect(driveNode);
+
+    osc.start(now);
+    osc.stop(now + 0.45);
+  }
+
+  $("playBtn").addEventListener("pointerdown", async () => {
+    await ensureAudio();
+    await audioCtx.resume();
+    play303();
+  }, {passive:true});
+
+  $("accentBtn").addEventListener("pointerdown", () => {
+    isAccent = !isAccent;
+    $("accentBtn").classList.toggle("on", isAccent);
+    $("accentBtn").setAttribute("aria-pressed", String(isAccent));
+  }, {passive:true});
+
+  $("waveBtn").addEventListener("pointerdown", () => {
+    oscType = (oscType === "sawtooth") ? "square" : "sawtooth";
+    $("waveBtn").textContent = (oscType === "sawtooth") ? "Saw" : "Squ";
+  }, {passive:true});
+
+  // ---- Recorder (AudioWorklet that POSTS chunks) ----
+  let micStream=null, micSource=null, recNode=null;
+  let isRecording=false;
+  let chunksL=[], chunksR=[];
+  let sampleRate=48000;
+
+  function wavEncodeFloat32(ch0, ch1, sampleRate){
+    const numCh = ch1 ? 2 : 1;
+    const length = ch0.length;
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = length * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    let o = 0;
+    function writeStr(s){ for (let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); o += s.length; }
+    function writeU32(v){ view.setUint32(o, v, true); o += 4; }
+    function writeU16(v){ view.setUint16(o, v, true); o += 2; }
+
+    writeStr("RIFF"); writeU32(36 + dataSize); writeStr("WAVE");
+    writeStr("fmt "); writeU32(16); writeU16(1); writeU16(numCh);
+    writeU32(sampleRate); writeU32(byteRate); writeU16(blockAlign); writeU16(16);
+    writeStr("data"); writeU32(dataSize);
+
+    let idx = 44;
+    const out = new DataView(buffer);
+    for (let i=0;i<length;i++){
+      const s0 = clamp(ch0[i], -1, 1);
+      out.setInt16(idx, s0 < 0 ? s0*0x8000 : s0*0x7FFF, true); idx += 2;
+      if (numCh === 2){
+        const s1 = clamp(ch1[i], -1, 1);
+        out.setInt16(idx, s1 < 0 ? s1*0x8000 : s1*0x7FFF, true); idx += 2;
+      }
+    }
+    return buffer;
+  }
+
+  function flatten(chunks){
+    let total = 0;
+    for (const c of chunks) total += c.length;
+    const out = new Float32Array(total);
+    let o = 0;
+    for (const c of chunks){ out.set(c, o); o += c.length; }
+    return out;
+  }
+
+  async function armMic(){
+    await ensureAudio();
+    await audioCtx.resume();
+    sampleRate = audioCtx.sampleRate;
+
+    if (micStream && recNode) return true;
+
+    try{
+      micState("requesting…");
+      micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      micSource = audioCtx.createMediaStreamSource(micStream);
+
+      const workletCode = `
+        class ChunkRecorder extends AudioWorkletProcessor {
+          constructor(){
+            super();
+            this.recording = false;
+            this.frames = 0;
+            this.maxFrames = sampleRate * 8.0;
+            this.port.onmessage = (e) => {
+              const m = e.data || {};
+              if (m.type === "start"){ this.recording = true; this.frames = 0; }
+              if (m.type === "stop"){ this.recording = false; this.port.postMessage({type:"stopped"}); }
+              if (m.type === "clear"){ this.recording = false; this.frames = 0; }
+            };
+          }
+          process(inputs){
+            const input = inputs[0];
+            if (!input || input.length === 0) return true;
+            const ch0 = input[0];
+            const ch1 = input[1] || null;
+
+            if (this.recording){
+              this.frames += ch0.length;
+              // Send chunks to main thread
+              this.port.postMessage({type:"chunk", ch0, ch1}, [ch0.buffer, ch1 ? ch1.buffer : null].filter(Boolean));
+
+              if (this.frames >= this.maxFrames){
+                this.recording = false;
+                this.port.postMessage({type:"autoStop"});
+              }
+            }
+            return true;
+          }
+        }
+        registerProcessor("chunk-recorder", ChunkRecorder);
+      `;
+      const url = URL.createObjectURL(new Blob([workletCode], {type:"application/javascript"}));
+      await audioCtx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+
+      recNode = new AudioWorkletNode(audioCtx, "chunk-recorder", {numberOfInputs:1, numberOfOutputs:0});
+      micSource.connect(recNode);
+
+      recNode.port.onmessage = (e) => {
+        const m = e.data || {};
+        if (m.type === "chunk"){
+          chunksL.push(new Float32Array(m.ch0));
+          if (m.ch1) chunksR.push(new Float32Array(m.ch1));
+        } else if (m.type === "autoStop"){
+          stopRecord(true);
+        }
+      };
+
+      micState("armed");
+      return true;
+    }catch(err){
+      console.error(err);
+      micState("blocked");
+      alert("Mic permission blocked. Enable microphone for this site in iOS settings.");
+      return false;
+    }
+  }
+
+  async function startRecord(){
+    const ok = await armMic();
+    if (!ok || !recNode) return;
+
+    chunksL = []; chunksR = [];
+    isRecording = true;
+    $("recBtn").classList.add("on");
+    sampleState("recording…");
+    recNode.port.postMessage({type:"start"});
+  }
+
+  async function stopRecord(auto=false){
+    if (!isRecording) return;
+    isRecording = false;
+
+    $("recBtn").classList.remove("on");
+    if (recNode) recNode.port.postMessage({type:"stop"});
+
+    // Build wav -> decode -> set buffer
+    const left = flatten(chunksL);
+    const right = chunksR.length ? flatten(chunksR) : null;
+
+    if (!left.length){
+      sampleState("empty");
+      return;
+    }
+
+    try{
+      const wav = wavEncodeFloat32(left, right, sampleRate);
+      const ab = wav.slice(0);
+      sampleBuffer = await audioCtx.decodeAudioData(ab);
+      sampleState(auto ? "saved (auto-stop)" : "saved");
+    }catch(err){
+      console.error(err);
+      sampleState("failed");
+      alert("Could not decode the recording. Try a shorter hold.");
+    }
+  }
+
+  // Hold-to-record with pointer events (works on mouse + touch)
+  const recBtn = $("recBtn");
+  recBtn.addEventListener("pointerdown", async (e) => {
+    e.preventDefault();
+    await ensureAudio();
+    await audioCtx.resume();
+    await startRecord();
+    recBtn.setPointerCapture(e.pointerId);
+  });
+
+  recBtn.addEventListener("pointerup", async () => stopRecord(false));
+  recBtn.addEventListener("pointercancel", async () => stopRecord(false));
+  recBtn.addEventListener("pointerleave", async () => {
+    // if finger slides off while still pressed, we stop
+    if (isRecording) stopRecord(false);
+  });
+
+  $("sampleBtn").addEventListener("pointerdown", async () => {
+    await ensureAudio();
+    await audioCtx.resume();
+    if (!sampleBuffer) return;
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = sampleBuffer;
+
+    // Slightly into the FX chain for fun
+    const g = audioCtx.createGain();
+    g.gain.value = 0.95;
+
+    src.connect(g);
+    g.connect(driveNode);
+    src.start();
+  }, {passive:true});
+
+  $("clearBtn").addEventListener("pointerdown", () => {
+    sampleBuffer = null;
+    chunksL = []; chunksR = [];
+    sampleState("empty");
+  }, {passive:true});
+
+  // default labels
+  micState("not armed");
+  sampleState("empty");
+
+})();
+</script>
+
+</body>
+</html>

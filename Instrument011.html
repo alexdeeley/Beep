@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Instrument 01.1</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #000; color: #fff; overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      touch-action: none;
+      user-select: none;
+    }
+    body { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+
+    #splash {
+      position: fixed; inset: 0;
+      background: #000;
+      display: flex; justify-content: center; align-items: center;
+      z-index: 10; cursor: pointer;
+    }
+    .triangle {
+      width: 0; height: 0;
+      border-left: 52px solid transparent;
+      border-right: 52px solid transparent;
+      border-bottom: 86px solid #fff;
+      transform: rotate(90deg);
+      filter: drop-shadow(0 0 14px rgba(255,255,255,0.35));
+    }
+
+    #ui-layer {
+      position: fixed;
+      right: 10%;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 5;
+      pointer-events: auto;
+    }
+    .note-btn {
+      width: 44px; height: 44px;
+      background: #000;
+      border: 2px solid #fff;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 800;
+      display: flex; justify-content: center; align-items: center;
+      cursor: pointer;
+    }
+    .note-btn:active { background: #fff; color: #000; }
+
+    #bottom-ui {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 26px;
+      width: min(720px, 70vw);
+      display: none;
+      align-items: center;
+      gap: 18px;
+      z-index: 5;
+      pointer-events: auto;
+    }
+    .arrow { font-size: 26px; font-weight: 900; line-height: 1; opacity: 0.9; }
+    input[type="range"]{
+      flex: 1;
+      accent-color: #fff;
+      cursor: pointer;
+      height: 2px;
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+  <div id="splash" aria-label="Start audio">
+    <div class="triangle" aria-hidden="true"></div>
+  </div>
+
+  <div id="ui-layer" aria-label="Pitch step buttons"></div>
+
+  <div id="bottom-ui" aria-label="Tempo control">
+    <span class="arrow">&#9661;</span>
+    <input type="range" id="tempo" min="20" max="250" value="100" />
+    <span class="arrow">&#9651;</span>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const splash = document.getElementById('splash');
+    const uiLayer = document.getElementById('ui-layer');
+    const bottomUi = document.getElementById('bottom-ui');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    const tempoSlider = document.getElementById('tempo');
+
+    let audioCtx;
+    const primes = [2, 3, 5, 7, 11, 13, 17];
+    let activePrimes = [true, true, true, false, false, false, false];
+
+    const scale = [110, 123.47, 130.81, 146.83, 164.81, 174.61, 196.00, 220, 246.94, 261.63, 293.66, 329.63, 392.00, 440];
+    let currentNotes = [0, 2, 4, 6, 7, 9, 11];
+
+    let step = 0;
+    let nextStepTime = 0;
+    let rafId = null;
+    let schedTimer = null;
+
+    function resizeCanvas(){
+      const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      const w = Math.floor(window.innerWidth);
+      const h = Math.floor(window.innerHeight);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function initAudio(){
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function init(){
+      initAudio();
+      splash.style.display = 'none';
+      uiLayer.style.display = 'flex';
+      bottomUi.style.display = 'flex';
+
+      uiLayer.innerHTML = '';
+      primes.forEach((p, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'note-btn';
+        btn.type = 'button';
+        btn.textContent = '+';
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          currentNotes[i] = (currentNotes[i] + 1) % scale.length;
+          playTone(scale[currentNotes[i]], 0.10, 0.06);
+        }, { passive: false });
+        uiLayer.appendChild(btn);
+      });
+
+      resizeCanvas();
+      nextStepTime = audioCtx.currentTime + 0.05;
+      scheduler();
+      render();
+    }
+
+    function playTone(freq, decay, level){
+      if (!audioCtx) return;
+      const t0 = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0);
+
+      const g0 = (typeof level === 'number') ? level : 0.15;
+      gain.gain.setValueAtTime(g0, t0);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(t0);
+      osc.stop(t0 + decay);
+    }
+
+    function secondsPerStep(){
+      const bpm = Math.max(20, Math.min(250, +tempoSlider.value || 100));
+      return 60 / (bpm * 4);
+    }
+
+    function scheduler(){
+      if (!audioCtx) return;
+
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+
+      const lookAhead = 0.12;
+      while (nextStepTime < audioCtx.currentTime + lookAhead) {
+        primes.forEach((p, i) => {
+          if (activePrimes[i] && (step % p === 0)) {
+            playTone(scale[currentNotes[i]], 0.38, 0.14);
+          }
+        });
+        nextStepTime += secondsPerStep();
+        step++;
+      }
+
+      schedTimer = setTimeout(scheduler, 25);
+    }
+
+    function render(){
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+
+      for (let i = 0; i < primes.length; i++) {
+        const p = primes[i];
+        const radius = 60 + (i * 35);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+
+        ctx.strokeStyle = activePrimes[i] ? '#fff' : '#222';
+        ctx.lineWidth = activePrimes[i] ? 2 : 1;
+        ctx.stroke();
+
+        if (activePrimes[i]) {
+          const angle = (step % p) * (Math.PI * 2 / p) - Math.PI/2;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
+
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+        }
+      }
+
+      rafId = requestAnimationFrame(render);
+    }
+
+    function toggleRingAt(x, y){
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.hypot(dx, dy);
+
+      for (let i = 0; i < primes.length; i++) {
+        const radius = 60 + (i * 35);
+        if (Math.abs(dist - radius) < 20) {
+          activePrimes[i] = !activePrimes[i];
+          playTone(scale[currentNotes[i]], 0.10, activePrimes[i] ? 0.10 : 0.06);
+          break;
+        }
+      }
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      toggleRingAt(x, y);
+    }, { passive: false });
+
+    splash.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      init();
+    }, { passive: false });
+
+    window.addEventListener('resize', () => resizeCanvas());
+
+    document.addEventListener('visibilitychange', () => {
+      if (!audioCtx) return;
+      if (document.hidden) {
+        if (schedTimer) clearTimeout(schedTimer);
+        schedTimer = null;
+      } else {
+        nextStepTime = audioCtx.currentTime + 0.05;
+        scheduler();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Aurora Dance</title>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  background:#000;
+  overflow:hidden;
+  touch-action:none;
+  font-family: monospace;
+}
+canvas{
+  display:block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+#audio-btn{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#000;
+  color:#fff;
+  font-size:18px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  cursor:pointer;
+  z-index:10;
+}
+#audio-btn.hidden{display:none;}
+#audio-btn span{
+  border:3px solid #fff;
+  padding:18px 28px;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="audio-btn"><span>Enable Audio</span></div>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d",{willReadFrequently:true});
+const audioBtn = document.getElementById("audio-btn");
+
+let W,H,DPR,renderW,renderH;
+const downscale=3, pixelSize=4;
+let cols,rows,pixels=[];
+
+function resize(){
+  DPR=Math.min(2,devicePixelRatio||1);
+  W=innerWidth; H=innerHeight;
+  renderW=Math.floor(W/downscale);
+  renderH=Math.floor(H/downscale);
+  canvas.width=renderW;
+  canvas.height=renderH;
+  canvas.style.width=W+"px";
+  canvas.style.height=H+"px";
+  cols=Math.ceil(renderW/pixelSize);
+  rows=Math.ceil(renderH/pixelSize);
+  pixels=[];
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++)
+    pixels.push({x,y,hue:100+Math.random()*80,brightness:Math.random(),noise:Math.random(),vx:0,vy:0,energy:0});
+}
+addEventListener("resize",resize); resize();
+
+/* AUDIO */
+let audioCtx,analyser,dataArray;
+let audioEnergy=0,bassEnergy=0,midEnergy=0,highEnergy=0,audioReady=false;
+
+async function enableAudio(){
+  if(audioReady) return;
+  audioCtx=new (AudioContext||webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=512;
+  dataArray=new Uint8Array(analyser.frequencyBinCount);
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  audioReady=true;
+  audioBtn.classList.add("hidden");
+}
+audioBtn.addEventListener("pointerdown",enableAudio);
+
+function analyzeAudio(){
+  if(!audioReady) return;
+  analyser.getByteFrequencyData(dataArray);
+  let b=0,m=0,h=0,t=0,n=dataArray.length;
+  for(let i=0;i<n;i++){
+    const v=dataArray[i]/255; t+=v;
+    if(i<n*.15)b+=v; else if(i<n*.5)m+=v; else h+=v;
+  }
+  audioEnergy=t/n; bassEnergy=b/(n*.15); midEnergy=m/(n*.35); highEnergy=h/(n*.5);
+}
+
+/* NOISE */
+function noise(x,y,t){
+  return Math.sin(x*.1+t)*Math.cos(y*.08+t*.7)+Math.sin(x*.05-t*.5)*Math.sin(y*.06+t*.3);
+}
+function turb(x,y,t){
+  return noise(x*2,y*2,t)*.5+noise(x*4,y*4,t*1.3)*.25+noise(x*8,y*8,t*1.7)*.125;
+}
+
+/* INTERACTION */
+let last=null;
+canvas.addEventListener("pointermove",e=>{
+  if(!last){last={x:e.clientX,y:e.clientY};return;}
+  const vx=e.clientX-last.x, vy=e.clientY-last.y;
+  const gx=Math.floor((e.clientX/W*renderW)/pixelSize);
+  const gy=Math.floor((e.clientY/H*renderH)/pixelSize);
+  const r=20+Math.hypot(vx,vy)*.5;
+  for(let y=Math.max(0,gy-r);y<Math.min(rows,gy+r);y++)
+    for(let x=Math.max(0,gx-r);x<Math.min(cols,gx+r);x++){
+      const d=Math.hypot(x-gx,y-gy);
+      if(d<r){
+        const p=pixels[y*cols+x];
+        const f=(1-d/r)**2;
+        p.vx+=vx*f*.02; p.vy+=vy*f*.02;
+        p.energy=Math.min(p.energy+f*5,10);
+      }
+    }
+  last={x:e.clientX,y:e.clientY};
+});
+canvas.addEventListener("pointerleave",()=>last=null);
+
+/* LOOP */
+let t=0;
+function loop(){
+  t+=.02; analyzeAudio();
+  ctx.fillStyle="rgba(0,0,0,.12)";
+  ctx.fillRect(0,0,renderW,renderH);
+  for(const p of pixels){
+    const wx=p.x*pixelSize, wy=p.y*pixelSize;
+    const aWarp=bassEnergy*3;
+    p.vx+=turb(wx,wy,t)*.3+aWarp*Math.sin(wx*.1+t);
+    p.vy+=turb(wy,wx,t)*.3;
+    p.vx*=.85; p.vy*=.85; p.energy*=.92;
+    p.brightness=.3+Math.abs(noise(wx*.05,wy*.05,t))*.4+p.energy*.1+highEnergy*.2;
+    p.hue=(120+noise(wx*.03,wy*.03,t*.5)*60+aWarp*30+t*5)%360;
+    ctx.fillStyle=`hsla(${p.hue},${50+p.energy*20+midEnergy*20}%,${30+p.brightness*50+audioEnergy*20}%,${.5+p.brightness*.4+p.energy*.1})`;
+    ctx.fillRect(Math.floor((wx+p.vx*2)/pixelSize)*pixelSize,Math.floor((wy+p.vy*2)/pixelSize)*pixelSize,pixelSize,pixelSize);
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

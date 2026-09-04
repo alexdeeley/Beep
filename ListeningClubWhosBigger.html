@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LISTENING CLUB TRIVIA: TOP ARTIST</title>
+<style>
+  :root{
+    --bg:#170606;
+    --bg2:#2a0a0a;
+    --fg:#fff3e0;
+    --dim:#d9a3a3;
+    --line:#5c1414;
+    --pink:#ff2b3c;
+    --yellow:#ffd23f;
+    --cyan:#ffb703;
+    --purple:#b3122a;
+    --green:#4bffa0;
+    --curtain:#7a0f16;
+    --curtainDark:#3d0709;
+    --curtainW: clamp(14px,5vw,46px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--bg);color:var(--fg);
+    font-family:"Arial Black","Helvetica Neue",Helvetica,Arial,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body{
+    display:flex;flex-direction:column;
+    min-height:100vh;min-height:100dvh;
+    padding-top:var(--safe-top);padding-bottom:calc(var(--safe-bottom) + 14px);
+    padding-left:var(--curtainW);padding-right:var(--curtainW);
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -8%, #4a0d0f 0%, rgba(74,13,15,0) 60%),
+      var(--bg);
+    position:relative;
+  }
+  .mono{font-family:"Courier New",Courier,monospace;font-weight:700;letter-spacing:.04em;}
+  button{font-family:inherit;}
+  ::selection{background:var(--yellow);color:#000;}
+
+  /* ---------- theater curtains & marquee lights ---------- */
+  .curtain{
+    position:fixed;top:0;bottom:0;width:var(--curtainW);z-index:6;pointer-events:none;
+    background:
+      repeating-linear-gradient(90deg, var(--curtainDark) 0 6px, var(--curtain) 6px 13px);
+    box-shadow: inset 0 0 24px rgba(0,0,0,.7);
+  }
+  .curtain-left{left:0;border-right:3px solid var(--yellow);}
+  .curtain-right{right:0;border-left:3px solid var(--yellow);}
+  .marquee{
+    height:11px;width:100%;flex:0 0 auto;
+    background-image:repeating-radial-gradient(circle, var(--yellow) 0 3px, transparent 4px 24px);
+    background-size:24px 11px;
+    animation:chase 900ms linear infinite;
+  }
+  .marquee.dim2{
+    background-image:repeating-radial-gradient(circle, var(--pink) 0 3px, transparent 4px 24px);
+    animation-direction:reverse;
+  }
+  .marquee-bottom{
+    position:fixed;left:var(--curtainW);right:var(--curtainW);bottom:0;z-index:6;
+    padding-bottom:var(--safe-bottom);
+  }
+  @keyframes chase{ from{background-position-x:0;} to{background-position-x:-24px;} }
+
+  /* ---------- layout scaffolding ---------- */
+  .screen{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    width:100%;
+    max-width:720px;
+    margin:0 auto;
+    padding:20px 20px 28px;
+  }
+  .screen.active{display:flex;}
+  .noscroll{overflow:hidden;}
+
+  /* ---------- top brand bar ---------- */
+  .brandbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px 0;
+    max-width:720px;margin:0 auto;width:100%;
+  }
+  .brand{
+    font-size:13px;letter-spacing:.14em;color:var(--dim);
+    text-transform:uppercase;
+  }
+  .brand b{color:var(--fg);}
+
+  /* ---------- title screen ---------- */
+  #screen-title{justify-content:center;gap:22px;text-align:center;}
+  .title-lockup{margin-top:4px;}
+  .title-lockup .kicker{
+    font-family:"Courier New",monospace;font-weight:700;
+    letter-spacing:.32em;color:var(--yellow);font-size:12px;
+    margin-bottom:14px;text-transform:uppercase;
+  }
+  .marquee-sign{
+    display:inline-block;
+    padding:20px 26px;
+    background:linear-gradient(180deg, var(--pink) 0%, #8e0f1c 100%);
+    border:4px solid var(--yellow);
+    border-radius:8px;
+    box-shadow:
+      0 0 0 6px var(--bg),
+      0 0 0 9px var(--yellow),
+      0 12px 34px rgba(0,0,0,.55);
+    position:relative;
+  }
+  .title-lockup h1{
+    margin:0;
+    font-size:clamp(38px,11vw,64px);
+    line-height:.92;letter-spacing:-.01em;
+    text-transform:uppercase;
+    color:var(--yellow);
+    -webkit-text-stroke:1px #5c0a10;
+    text-shadow:0 0 10px rgba(255,210,63,.85), 0 0 26px rgba(255,43,60,.55);
+  }
+  .title-sub{color:var(--dim);font-size:14px;line-height:1.5;max-width:440px;margin:0 auto;}
+  .title-sub b{color:var(--fg);}
+
+  .choice-block{width:100%;text-align:left;}
+  .choice-label{
+    font-family:"Courier New",monospace;font-size:12px;letter-spacing:.18em;
+    color:var(--dim);text-transform:uppercase;margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .choice-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .chip{
+    border:2px solid var(--line);background:var(--bg2);color:var(--fg);
+    border-radius:0;padding:12px 6px;text-align:center;
+    font-family:"Courier New",monospace;font-weight:700;font-size:12px;
+    letter-spacing:.05em;text-transform:uppercase;cursor:pointer;
+    transition:transform .12s ease, border-color .12s ease, background .12s ease;
+    min-height:44px;
+  }
+  .chip:active{transform:scale(.96);}
+  .chip.selected{
+    border-color:var(--yellow);background:var(--yellow);color:#000;
+  }
+  .theme-scroll{
+    display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .theme-scroll::-webkit-scrollbar{display:none;}
+  .theme-scroll .chip{flex:0 0 auto;padding:10px 14px;}
+
+  .btn-start{
+    margin-top:6px;
+    width:100%;border:none;cursor:pointer;
+    background:var(--fg);color:#000;
+    font-family:"Arial Black",sans-serif;font-weight:900;
+    font-size:20px;letter-spacing:.02em;text-transform:uppercase;
+    padding:20px;min-height:56px;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:transform .1s ease;
+  }
+  .btn-start:active{transform:scale(.98);}
+  .btn-start .arrow{color:var(--pink);font-weight:900;}
+
+  /* ---------- round screen ---------- */
+  #screen-round{gap:14px;padding-top:14px;}
+  .round-head{display:flex;align-items:center;justify-content:space-between;}
+  .round-count{font-family:"Courier New",monospace;font-size:12px;color:var(--dim);letter-spacing:.08em;}
+  .round-score{font-family:"Courier New",monospace;font-size:12px;color:var(--yellow);letter-spacing:.08em;}
+  .progress-track{height:4px;background:var(--line);width:100%;position:relative;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--cyan));width:0%;transition:width .3s linear;}
+  .timer-track{height:6px;background:var(--line);width:100%;position:relative;overflow:hidden;margin-top:2px;}
+  .timer-fill{height:100%;background:var(--yellow);width:100%;transform-origin:left;}
+  .timer-fill.danger{background:var(--pink);}
+
+  .mode-banner{
+    font-family:"Courier New",monospace;font-size:11px;letter-spacing:.16em;
+    color:var(--dim);text-transform:uppercase;text-align:center;margin-top:2px;
+  }
+  .mode-banner b{color:var(--cyan);}
+
+  .prompt{
+    text-align:center;margin:2px 0 4px;
+    font-size:clamp(26px,7.5vw,38px);
+    line-height:1;text-transform:uppercase;letter-spacing:-.01em;
+  }
+  .prompt .accent{color:var(--pink);}
+
+  .rank-hint{
+    text-align:center;font-family:"Courier New",monospace;font-size:11px;
+    color:var(--dim);letter-spacing:.06em;text-transform:uppercase;min-height:14px;
+  }
+
+  .cards{
+    display:flex;flex-direction:column;gap:10px;flex:1;justify-content:center;
+  }
+  .card{
+    position:relative;
+    border:2px solid var(--line);
+    background:var(--bg2);
+    padding:16px 18px;
+    cursor:pointer;
+    -webkit-user-select:none;user-select:none;
+    min-height:64px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    transition:transform .1s ease, border-color .12s ease, background .12s ease;
+  }
+  .card:active{transform:scale(.985);}
+  .card .stripe{
+    position:absolute;left:0;top:0;bottom:0;width:6px;
+  }
+  .card .name{
+    font-size:clamp(17px,5vw,22px);text-transform:uppercase;line-height:1.05;
+    padding-left:10px;
+  }
+  .card .meta{
+    font-family:"Courier New",monospace;font-size:10px;color:var(--dim);
+    letter-spacing:.06em;text-transform:uppercase;padding-left:10px;margin-top:4px;
+  }
+  .card .rankmark{
+    font-family:"Courier New",monospace;font-weight:900;font-size:13px;
+    color:var(--dim);min-width:20px;text-align:right;
+  }
+  .card.picked{border-color:var(--yellow);}
+  .card.correct{border-color:var(--green);background:#0f1c14;}
+  .card.wrong{border-color:var(--pink);background:#1c0f14;}
+  .card.dim{opacity:.5;}
+  .card .value{
+    font-family:"Courier New",monospace;font-weight:900;font-size:15px;color:var(--fg);
+    opacity:0;transition:opacity .15s ease;
+  }
+  .card.reveal .value{opacity:1;}
+
+  .sticker{
+    position:absolute;top:-10px;right:-8px;
+    background:var(--yellow);color:#000;
+    font-family:"Courier New",monospace;font-weight:900;font-size:11px;
+    padding:5px 8px;transform:rotate(6deg);
+    border:2px solid #000;
+    opacity:0;transition:opacity .15s ease, transform .15s ease;
+    pointer-events:none;
+  }
+  .card.reveal .sticker{opacity:1;transform:rotate(-4deg);}
+  .card.reveal.correct .sticker{background:var(--green);}
+
+  .feedback-bar{
+    min-height:78px;
+    border:2px solid var(--line);
+    padding:12px 16px;
+    display:flex;flex-direction:column;justify-content:center;gap:4px;
+    opacity:0;transform:translateY(6px);
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .feedback-bar.show{opacity:1;transform:translateY(0);}
+  .feedback-bar.good{border-color:var(--green);}
+  .feedback-bar.bad{border-color:var(--pink);}
+  .feedback-head{
+    font-size:15px;text-transform:uppercase;letter-spacing:.01em;
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  }
+  .feedback-head .pts{font-family:"Courier New",monospace;color:var(--yellow);font-size:14px;}
+  .feedback-explain{
+    font-family:"Courier New",monospace;font-size:11.5px;color:var(--dim);
+    line-height:1.4;letter-spacing:.01em;
+  }
+  .feedback-explain b{color:var(--fg);}
+
+  .next-btn{
+    width:100%;border:2px solid var(--fg);background:transparent;color:var(--fg);
+    font-family:"Arial Black",sans-serif;font-weight:900;font-size:16px;
+    text-transform:uppercase;letter-spacing:.04em;padding:16px;cursor:pointer;
+    opacity:0;pointer-events:none;transition:opacity .15s ease, background .12s ease;
+    min-height:50px;
+  }
+  .next-btn.show{opacity:1;pointer-events:auto;}
+  .next-btn:active{background:var(--fg);color:#000;}
+
+  .streak-flag{
+    position:fixed;top:calc(var(--safe-top) + 8px);right:12px;
+    font-family:"Courier New",monospace;font-weight:900;font-size:12px;
+    color:var(--yellow);letter-spacing:.06em;
+    background:rgba(0,0,0,.6);padding:5px 9px;border:1px solid var(--yellow);
+    opacity:0;transition:opacity .2s ease;pointer-events:none;
+    z-index:20;
+  }
+  .streak-flag.show{opacity:1;}
+
+  /* ---------- results screen ---------- */
+  #screen-results{gap:18px;justify-content:flex-start;padding-top:24px;text-align:center;}
+  .results-kicker{
+    font-family:"Courier New",monospace;font-size:12px;letter-spacing:.24em;
+    color:var(--dim);text-transform:uppercase;
+  }
+  .results-rank{
+    font-size:clamp(34px,10vw,54px);text-transform:uppercase;line-height:.95;margin:2px 0 6px;
+  }
+  .results-score{font-family:"Courier New",monospace;color:var(--yellow);font-size:15px;letter-spacing:.06em;}
+  .stat-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;margin-top:6px;
+  }
+  .stat{
+    border:2px solid var(--line);padding:12px 14px;
+  }
+  .stat .k{font-family:"Courier New",monospace;font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;}
+  .stat .v{font-size:22px;margin-top:4px;text-transform:uppercase;}
+  .stat.wide{grid-column:1/-1;}
+  .stat.accent .v{color:var(--pink);}
+  .stat.accent2 .v{color:var(--cyan);}
+
+  .results-actions{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
+  .btn-secondary{
+    width:100%;border:2px solid var(--fg);background:transparent;color:var(--fg);
+    font-family:"Arial Black",sans-serif;font-weight:900;font-size:15px;
+    text-transform:uppercase;letter-spacing:.03em;padding:16px;cursor:pointer;min-height:50px;
+  }
+  .btn-secondary:active{background:var(--fg);color:#000;}
+  .btn-ghost{
+    width:100%;border:none;background:transparent;color:var(--dim);
+    font-family:"Courier New",monospace;font-size:12px;letter-spacing:.08em;
+    text-transform:uppercase;padding:10px;cursor:pointer;
+  }
+  .copy-flash{
+    font-family:"Courier New",monospace;font-size:11px;color:var(--green);
+    text-align:center;height:14px;
+  }
+
+  .methodology{
+    margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;
+    font-family:"Courier New",monospace;font-size:10.5px;color:var(--dim);
+    line-height:1.6;text-align:left;
+  }
+  .methodology b{color:var(--fg);}
+
+  @media (min-width:560px){
+    .cards{flex-direction:row;align-items:stretch;}
+    .card{flex:1;flex-direction:column;align-items:flex-start;justify-content:space-between;min-height:150px;}
+    .card .rankmark{align-self:flex-end;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div class="curtain curtain-left" aria-hidden="true"></div>
+<div class="curtain curtain-right" aria-hidden="true"></div>
+<div class="marquee" aria-hidden="true"></div>
+<div class="marquee marquee-bottom dim2" aria-hidden="true"></div>
+
+<div class="streak-flag mono" id="streakFlag">🔥 STREAK x0</div>
+
+<div class="brandbar">
+  <div class="brand mono">LISTENING CLUB TRIVIA</div>
+  <div class="brand mono" id="brandRight">TOP ARTIST</div>
+</div>
+
+<!-- ================= TITLE SCREEN ================= -->
+<section class="screen active" id="screen-title">
+  <div class="title-lockup">
+    <div class="kicker">✦ Listening Club Trivia Presents ✦</div>
+    <div class="marquee-sign"><h1>Top Artist</h1></div>
+  </div>
+  <p class="title-sub">Three artists take the stage. <b>Estimated career-wide popularity</b> is the hidden number &mdash; guess who's bigger before the studio clock runs out.</p>
+
+  <div class="choice-block">
+    <div class="choice-label"><span>Mode</span></div>
+    <div class="choice-row" id="modeRow">
+      <div class="chip selected" data-mode="classic">Classic</div>
+      <div class="chip" data-mode="rank">Rank Them</div>
+      <div class="chip" data-mode="middle">Middle Child</div>
+    </div>
+  </div>
+
+  <div class="choice-block">
+    <div class="choice-label"><span>Theme</span><span id="themeCount" class="mono" style="color:var(--dim);font-weight:400;"></span></div>
+    <div class="theme-scroll" id="themeRow"></div>
+  </div>
+
+  <button class="btn-start" id="startBtn">Start Game <span class="arrow">&#8594;</span></button>
+  <div class="methodology" id="titleMethodNote">Placeholder popularity scores &mdash; swap in real chart data any time. 25 rounds, 284 artists, never repeats.</div>
+</section>
+
+<!-- ================= ROUND SCREEN ================= -->
+<section class="screen" id="screen-round">
+  <div class="round-head">
+    <div class="round-count mono" id="roundCount">ROUND 1 / 25</div>
+    <div class="round-score mono" id="roundScore">SCORE 0</div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+  <div class="mode-banner" id="modeBanner">CLASSIC &mdash; TAP THE <b>BIGGER</b> ARTIST</div>
+
+  <h2 class="prompt">WHO'S <span class="accent">BIGGER?</span></h2>
+  <div class="rank-hint" id="rankHint"></div>
+
+  <div class="cards" id="cardsWrap"></div>
+
+  <div class="feedback-bar" id="feedbackBar">
+    <div class="feedback-head"><span id="feedbackHead">&nbsp;</span><span class="pts" id="feedbackPts"></span></div>
+    <div class="feedback-explain" id="feedbackExplain"></div>
+  </div>
+
+  <button class="next-btn" id="nextBtn">Next Round &#8594;</button>
+</section>
+
+<!-- ================= RESULTS SCREEN ================= -->
+<section class="screen" id="screen-results">
+  <div class="results-kicker mono">FINAL RESULTS</div>
+  <div class="results-rank" id="resultsRankTitle">TASTEMAKER</div>
+  <div class="results-score mono" id="resultsScoreLine">SCORE 0</div>
+
+  <div class="stat-grid">
+    <div class="stat"><div class="k mono">Correct</div><div class="v" id="statCorrect">0/25</div></div>
+    <div class="stat"><div class="k mono">Accuracy</div><div class="v" id="statAccuracy">0%</div></div>
+    <div class="stat accent"><div class="k mono">Best Streak</div><div class="v" id="statStreak">0</div></div>
+    <div class="stat accent2"><div class="k mono">Avg Speed</div><div class="v" id="statSpeed">0.0s</div></div>
+    <div class="stat wide"><div class="k mono">Favorite Genre</div><div class="v" id="statGenre">&mdash;</div></div>
+  </div>
+
+  <div class="results-actions">
+    <button class="btn-start" id="playAgainBtn">Play Again <span class="arrow">&#8594;</span></button>
+    <button class="btn-secondary" id="copyBtn">Copy Result</button>
+    <button class="btn-ghost" id="methodBtn">How scoring works</button>
+  </div>
+  <div class="copy-flash mono" id="copyFlash"></div>
+  <div class="methodology" id="methodBlock" style="display:none;"></div>
+</section>
+
+<script id="artist-data" type="application/json">[{"name": "The Beatles", "genre": "Classic Icons", "era": "1960s", "tags": ["UK", "Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 600, "notes": "British Invasion pioneers; best-selling group in history"}, {"name": "Elvis Presley", "genre": "Classic Icons", "era": "1950s", "tags": ["Rock and Roll", "Solo", "Grammy Winners", "Rock Hall"], "score": 500, "notes": "The King of Rock and Roll, launched the genre into the mainstream"}, {"name": "Michael Jackson", "genre": "Classic Icons", "era": "1980s", "tags": ["Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 400, "notes": "King of Pop; Thriller remains the best-selling album ever"}, {"name": "Queen", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 300, "notes": "Operatic arena-rock, anthems built for stadiums"}, {"name": "Madonna", "genre": "Classic Icons", "era": "1980s", "tags": ["Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 335, "notes": "Queen of Pop; reinvention as career strategy"}, {"name": "Pink Floyd", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Rock", "Band", "Rock Hall"], "score": 250, "notes": "Progressive rock architects; Dark Side of the Moon charted for years"}, {"name": "Led Zeppelin", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Rock", "Band", "Rock Hall"], "score": 300, "notes": "Hard rock titans, blues roots blown up to stadium scale"}, {"name": "Rolling Stones", "genre": "Classic Icons", "era": "1960s", "tags": ["UK", "Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 250, "notes": "Six-decade touring machine, the world's self-proclaimed greatest rock band"}, {"name": "Taylor Swift", "genre": "Classic Icons", "era": "2000s", "tags": ["Pop", "Country", "Solo", "Grammy Winners"], "score": 200, "notes": "Country-to-pop crossover, generation-defining songwriter and touring force"}, {"name": "Elton John", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 300, "notes": "Flamboyant piano-pop hitmaker with Bernie Taupin"}, {"name": "U2", "genre": "Classic Icons", "era": "1980s", "tags": ["Ireland", "Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 170, "notes": "Irish stadium rock, socially conscious anthems"}, {"name": "Celine Dion", "genre": "Classic Icons", "era": "1990s", "tags": ["Pop", "Solo", "Grammy Winners"], "score": 250, "notes": "Powerhouse balladeer, Titanic theme sold the world over"}, {"name": "Mariah Carey", "genre": "Classic Icons", "era": "1990s", "tags": ["Pop", "R&B", "Solo", "Grammy Winners"], "score": 220, "notes": "Five-octave range, queen of Christmas and the whistle note"}, {"name": "AC/DC", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Rock Hall"], "score": 200, "notes": "Australian hard rock, Back in Black among best-sellers ever"}, {"name": "Fleetwood Mac", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Rock Hall"], "score": 120, "notes": "Rumours turned band drama into generational songwriting"}, {"name": "Eagles", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 200, "notes": "Southern California rock, Their Greatest Hits a US sales record"}, {"name": "Bruce Springsteen", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Solo", "Grammy Winners", "Rock Hall"], "score": 140, "notes": "The Boss, blue-collar rock storytelling"}, {"name": "Whitney Houston", "genre": "Classic Icons", "era": "1980s", "tags": ["Pop", "R&B", "Solo", "Grammy Winners", "Rock Hall"], "score": 200, "notes": "Vocal powerhouse, Bodyguard soundtrack a diamond-certified phenomenon"}, {"name": "Metallica", "genre": "Classic Icons", "era": "1980s", "tags": ["Metal", "Band", "Grammy Winners", "Rock Hall"], "score": 125, "notes": "Thrash pioneers who went mainstream with the Black Album"}, {"name": "Billy Joel", "genre": "Classic Icons", "era": "1970s", "tags": ["Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 150, "notes": "Piano Man, working-class New York storytelling"}, {"name": "ABBA", "genre": "Classic Icons", "era": "1970s", "tags": ["Sweden", "Pop", "Band", "Grammy Winners", "Rock Hall"], "score": 150, "notes": "Swedish pop architects, Eurovision winners turned global juggernaut"}, {"name": "Phil Collins", "genre": "Classic Icons", "era": "1980s", "tags": ["Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 150, "notes": "Genesis drummer turned solo pop-rock hitmaker"}, {"name": "Bob Dylan", "genre": "Classic Icons", "era": "1960s", "tags": ["Folk", "Solo", "Grammy Winners", "Rock Hall"], "score": 125, "notes": "Nobel laureate, reshaped songwriting as literature"}, {"name": "Bob Marley", "genre": "Classic Icons", "era": "1970s", "tags": ["Jamaica", "Reggae", "Band", "Rock Hall"], "score": 75, "notes": "Reggae's global ambassador, Legend a perennial catalog seller"}, {"name": "Prince", "genre": "Classic Icons", "era": "1980s", "tags": ["Pop", "Funk", "Solo", "Grammy Winners", "Rock Hall"], "score": 150, "notes": "Purple Rain auteur, genre-blurring virtuoso"}, {"name": "Bon Jovi", "genre": "Classic Icons", "era": "1980s", "tags": ["Rock", "Band", "Rock Hall"], "score": 130, "notes": "Arena rock anthems, Slippery When Wet defined the era"}, {"name": "Bee Gees", "genre": "Classic Icons", "era": "1970s", "tags": ["Pop", "Disco", "Band", "Grammy Winners", "Rock Hall"], "score": 220, "notes": "Disco falsetto kings, Saturday Night Fever soundtrack a phenomenon"}, {"name": "Santana", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Latin", "Band", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "Latin rock guitar icon, Supernatural a late-career comeback smash"}, {"name": "Aerosmith", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 150, "notes": "Boston hard rock, best-selling American rock band"}, {"name": "Neil Diamond", "genre": "Classic Icons", "era": "1960s", "tags": ["Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 130, "notes": "Sweet Caroline songwriter, prolific singles catalog"}, {"name": "Eric Clapton", "genre": "Classic Icons", "era": "1960s", "tags": ["Rock", "Blues", "Solo", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "Guitar god across Cream, Derek and the Dominos, and solo work"}, {"name": "Barbra Streisand", "genre": "Classic Icons", "era": "1960s", "tags": ["Pop", "Solo", "Grammy Winners"], "score": 150, "notes": "Broadway-to-pop crossover, best-selling female artist of her era"}, {"name": "Garth Brooks", "genre": "Classic Icons", "era": "1990s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 170, "notes": "Arena-scale country, among the best-selling solo artists in the US"}, {"name": "Beach Boys", "genre": "Classic Icons", "era": "1960s", "tags": ["Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "California pop harmonies, Pet Sounds studio innovation"}, {"name": "Journey", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Rock Hall"], "score": 100, "notes": "Arena rock, Don't Stop Believin' a streaming-era standard"}, {"name": "Coldplay", "genre": "Classic Icons", "era": "1990s", "tags": ["UK", "Rock", "Band", "Grammy Winners"], "score": 100, "notes": "Britpop-adjacent arena rock, stadium spectacle production"}, {"name": "Linkin Park", "genre": "Classic Icons", "era": "1990s", "tags": ["Rock", "Band", "Grammy Winners"], "score": 100, "notes": "Nu-metal/rap-rock crossover, Hybrid Theory a genre landmark"}, {"name": "Guns N' Roses", "genre": "Classic Icons", "era": "1980s", "tags": ["Rock", "Band", "Rock Hall"], "score": 100, "notes": "Appetite for Destruction reignited hard rock's danger"}, {"name": "David Bowie", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Rock", "Solo", "Rock Hall"], "score": 140, "notes": "Shape-shifting glam-rock innovator, Ziggy Stardust to Berlin era"}, {"name": "Stevie Wonder", "genre": "Classic Icons", "era": "1970s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "Motown prodigy turned genre-defining soul auteur"}, {"name": "George Michael", "genre": "Classic Icons", "era": "1980s", "tags": ["UK", "Pop", "Solo", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "Wham! frontman turned blue-eyed soul solo star"}, {"name": "Def Leppard", "genre": "Classic Icons", "era": "1980s", "tags": ["Rock", "Band", "Rock Hall"], "score": 100, "notes": "Sheffield hard rock polished into pop-metal, Hysteria diamond-certified"}, {"name": "Foreigner", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band"], "score": 80, "notes": "Anglo-American arena rock hit machine"}, {"name": "Chicago", "genre": "Classic Icons", "era": "1970s", "tags": ["Rock", "Band", "Rock Hall"], "score": 100, "notes": "Horn-driven rock band, decades of consistent hitmaking"}, {"name": "Britney Spears", "genre": "Classic Icons", "era": "1990s", "tags": ["Pop", "Solo", "Grammy Winners"], "score": 100, "notes": "Turn-of-millennium teen-pop icon"}, {"name": "Justin Bieber", "genre": "Classic Icons", "era": "2000s", "tags": ["Pop", "Solo", "Grammy Winners"], "score": 150, "notes": "YouTube-discovered teen idol turned global pop star"}, {"name": "Ed Sheeran", "genre": "Classic Icons", "era": "2010s", "tags": ["UK", "Pop", "Solo", "Grammy Winners"], "score": 150, "notes": "Singer-songwriter turned loop-pedal-to-stadium pop force"}, {"name": "Drake", "genre": "Classic Icons", "era": "2010s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 170, "notes": "Streaming-era chart dominator blending rap and R&B"}, {"name": "Shania Twain", "genre": "Classic Icons", "era": "1990s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 100, "notes": "Come On Over crossed country into pop's biggest sellers"}, {"name": "Paul McCartney", "genre": "Classic Icons", "era": "1970s", "tags": ["UK", "Rock", "Solo", "Grammy Winners", "Rock Hall"], "score": 60, "notes": "Beatle turned Wings frontman and prolific solo artist"}, {"name": "R.E.M.", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band", "Rock Hall"], "score": 90, "notes": "Athens jangle-pop pioneers who broke alternative into the mainstream"}, {"name": "Pixies", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 15, "notes": "Loud-quiet-loud blueprint that shaped 90s alt-rock"}, {"name": "Sonic Youth", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 12, "notes": "No-wave noise-rock experimentalists"}, {"name": "Pavement", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 8, "notes": "Slacker indie-rock, lo-fi and wryly detached"}, {"name": "Dinosaur Jr.", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 6, "notes": "Fuzzed-out guitar squall, indie-rock loud dynamics"}, {"name": "Guided by Voices", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 4, "notes": "Lo-fi prolific songwriting, hundreds of two-minute songs"}, {"name": "Violent Femmes", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 10, "notes": "Acoustic punk energy, Blister in the Sun staple"}, {"name": "The Replacements", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 8, "notes": "Minneapolis punk-informed power pop, critics' favorite"}, {"name": "H\u00fcsker D\u00fc", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 5, "notes": "Melodic hardcore that paved the way for alt-rock"}, {"name": "They Might Be Giants", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 10, "notes": "Quirky nerd-rock, Birdhouse in Your Soul"}, {"name": "Wilco", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 12, "notes": "Alt-country roots stretched into art-rock experimentation"}, {"name": "Modest Mouse", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 15, "notes": "Angular indie-rock, Float On breakthrough single"}, {"name": "Death Cab for Cutie", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 12, "notes": "Emotive indie-rock, Plans went platinum"}, {"name": "Arcade Fire", "genre": "Alternative", "era": "2000s", "tags": ["Canada", "Rock", "Band", "Grammy Winners"], "score": 20, "notes": "Maximalist indie-rock, Funeral to Grammy-winning The Suburbs"}, {"name": "The National", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 12, "notes": "Baritone-led brooding indie-rock"}, {"name": "Bright Eyes", "genre": "Alternative", "era": "1990s", "tags": ["Band"], "score": 8, "notes": "Conor Oberst's confessional folk-rock project"}, {"name": "Spoon", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 8, "notes": "Consistently sharp, taut indie-rock songwriting"}, {"name": "Built to Spill", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 5, "notes": "Guitar-heavy Idaho indie-rock"}, {"name": "Yo La Tengo", "genre": "Alternative", "era": "1980s", "tags": ["Rock", "Band"], "score": 5, "notes": "Hoboken indie-rock lifers, noise to tenderness"}, {"name": "Belle and Sebastian", "genre": "Alternative", "era": "1990s", "tags": ["UK", "Band"], "score": 8, "notes": "Twee Scottish chamber-pop storytellers"}, {"name": "Radiohead", "genre": "Alternative", "era": "1990s", "tags": ["UK", "Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 35, "notes": "OK Computer to Kid A, reshaped what rock could sound like"}, {"name": "Foo Fighters", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Seattle", "Band", "Grammy Winners", "Rock Hall"], "score": 25, "notes": "Dave Grohl's post-Nirvana arena-rock band"}, {"name": "Green Day", "genre": "Alternative", "era": "1990s", "tags": ["Punk", "Band", "Grammy Winners", "Rock Hall"], "score": 75, "notes": "Pop-punk breakout, Dookie and American Idiot both diamond-certified"}, {"name": "Pearl Jam", "genre": "Alternative", "era": "1990s", "tags": ["Grunge", "Seattle", "Band", "Rock Hall"], "score": 32, "notes": "Seattle grunge, Ten a genre-defining debut"}, {"name": "Smashing Pumpkins", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 30, "notes": "Alt-rock maximalism, Mellon Collie double album ambition"}, {"name": "Stone Temple Pilots", "genre": "Alternative", "era": "1990s", "tags": ["Grunge", "Band"], "score": 40, "notes": "Grunge-adjacent hard rock, Core and Purple both multi-platinum"}, {"name": "Alice in Chains", "genre": "Alternative", "era": "1990s", "tags": ["Grunge", "Seattle", "Band"], "score": 30, "notes": "Seattle grunge with metal weight, Dirt a genre landmark"}, {"name": "Soundgarden", "genre": "Alternative", "era": "1980s", "tags": ["Grunge", "Seattle", "Band", "Rock Hall"], "score": 20, "notes": "Seattle grunge pioneers, Superunknown breakthrough"}, {"name": "The Offspring", "genre": "Alternative", "era": "1990s", "tags": ["Punk", "Band"], "score": 40, "notes": "Pop-punk crossover, Smash an independent-label sales record"}, {"name": "Blink-182", "genre": "Alternative", "era": "1990s", "tags": ["Punk", "Band"], "score": 30, "notes": "Pop-punk trio, Enema of the State defined the genre's peak"}, {"name": "Weezer", "genre": "Alternative", "era": "1990s", "tags": ["Rock", "Band"], "score": 15, "notes": "Geek-rock, self-titled Blue Album a genre touchstone"}, {"name": "The Cure", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Goth", "Band", "Rock Hall"], "score": 30, "notes": "Goth-pop mood architects from Boys Don't Cry to Disintegration"}, {"name": "Depeche Mode", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Electronic", "Band", "Rock Hall"], "score": 100, "notes": "Synth-pop turned darker and stadium-sized"}, {"name": "The Smiths", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Manchester", "Band", "Rock Hall"], "score": 15, "notes": "Morrissey and Marr's jangly, literate melancholy"}, {"name": "Joy Division", "genre": "Goth / Post-Punk", "era": "1970s", "tags": ["UK", "Post-Punk", "Manchester", "Band"], "score": 8, "notes": "Bleak post-punk that reshaped the genre before Curtis's death"}, {"name": "New Order", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Electronic", "Manchester", "Band"], "score": 15, "notes": "Joy Division's successor, fused post-punk with dance music"}, {"name": "Bauhaus", "genre": "Goth / Post-Punk", "era": "1970s", "tags": ["UK", "Goth", "Band"], "score": 3, "notes": "Bela Lugosi's Dead, the goth genre's founding statement"}, {"name": "Siouxsie and the Banshees", "genre": "Goth / Post-Punk", "era": "1970s", "tags": ["UK", "Goth", "Band"], "score": 5, "notes": "Art-punk into goth, theatrical and influential"}, {"name": "Echo & the Bunnymen", "genre": "Goth / Post-Punk", "era": "1970s", "tags": ["UK", "Post-Punk", "Band"], "score": 5, "notes": "Atmospheric post-punk, cinematic guitar sound"}, {"name": "The Chameleons", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "Cult post-punk band, shimmering layered guitars"}, {"name": "Killing Joke", "genre": "Goth / Post-Punk", "era": "1970s", "tags": ["UK", "Post-Punk", "Band"], "score": 2, "notes": "Confrontational post-punk with industrial edge"}, {"name": "Cocteau Twins", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 3, "notes": "Ethereal dream-pop, wordless vocal textures"}, {"name": "Lush", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 2, "notes": "Shoegaze with pop hooks"}, {"name": "Ride", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 2, "notes": "Wall-of-sound shoegaze pioneers"}, {"name": "Slowdive", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 2, "notes": "Dreamy shoegaze, later critically reappraised"}, {"name": "My Bloody Valentine", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 3, "notes": "Loveless redefined guitar texture and volume"}, {"name": "Chapterhouse", "genre": "Goth / Post-Punk", "era": "1990s", "tags": ["UK", "Shoegaze", "Band"], "score": 0.5, "notes": "Second-wave shoegaze act"}, {"name": "Curve", "genre": "Goth / Post-Punk", "era": "1990s", "tags": ["UK", "Shoegaze", "Band"], "score": 0.5, "notes": "Industrial-tinged shoegaze duo"}, {"name": "Swervedriver", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 0.5, "notes": "Noisy, driving shoegaze with rock muscle"}, {"name": "Pale Saints", "genre": "Goth / Post-Punk", "era": "1980s", "tags": ["UK", "Shoegaze", "Band"], "score": 0.3, "notes": "Understated shoegaze/dream-pop act"}, {"name": "Editors", "genre": "Goth / Post-Punk", "era": "2000s", "tags": ["UK", "Post-Punk", "Band"], "score": 4, "notes": "Post-punk revival, baritone-led anthems"}, {"name": "White Lies", "genre": "Goth / Post-Punk", "era": "2000s", "tags": ["UK", "Post-Punk", "Band"], "score": 2, "notes": "Joy Division-indebted post-punk revivalists"}, {"name": "Fontaines D.C.", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["Ireland", "Post-Punk", "Band"], "score": 2, "notes": "Dublin post-punk with literary bite"}, {"name": "IDLES", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 3, "notes": "Cathartic, politically charged post-punk"}, {"name": "Viagra Boys", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["Sweden", "Post-Punk", "Band"], "score": 1, "notes": "Absurdist, sax-driven post-punk"}, {"name": "Shame", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "South London post-punk with sardonic edge"}, {"name": "Dry Cleaning", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "Deadpan spoken-word post-punk"}, {"name": "Squid", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "Angular, experimental post-punk"}, {"name": "black midi", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "Chaotic, virtuosic art-rock"}, {"name": "Black Country, New Road", "genre": "Goth / Post-Punk", "era": "2010s", "tags": ["UK", "Post-Punk", "Band"], "score": 1, "notes": "Literate, orchestral post-punk collective"}, {"name": "Nine Inch Nails", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Industrial", "Solo/Band", "Grammy Winners", "Rock Hall"], "score": 20, "notes": "Trent Reznor's industrial-rock, The Downward Spiral a genre landmark"}, {"name": "Ministry", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Industrial", "Band"], "score": 3, "notes": "Aggressive industrial metal pioneers"}, {"name": "Tool", "genre": "Metal / Industrial", "era": "1990s", "tags": ["Metal", "Band", "Grammy Winners"], "score": 15, "notes": "Progressive metal, meticulous and mathematically precise"}, {"name": "A Perfect Circle", "genre": "Metal / Industrial", "era": "1990s", "tags": ["Metal", "Band"], "score": 6, "notes": "Maynard James Keenan's melodic alt-metal side project"}, {"name": "Puscifer", "genre": "Metal / Industrial", "era": "2000s", "tags": ["Metal", "Band"], "score": 1, "notes": "Maynard James Keenan's experimental industrial-pop project"}, {"name": "Pantera", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band", "Rock Hall"], "score": 15, "notes": "Groove metal pioneers, Vulgar Display of Power"}, {"name": "Megadeth", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band", "Grammy Winners"], "score": 20, "notes": "Thrash metal titans, technical and political"}, {"name": "Slayer", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 15, "notes": "Extreme thrash metal, Reign in Blood a genre benchmark"}, {"name": "Anthrax", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band", "Grammy Winners"], "score": 10, "notes": "Big Four thrash band, rap-metal crossover pioneers"}, {"name": "Testament", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 3, "notes": "Bay Area thrash metal mainstays"}, {"name": "Exodus", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 2, "notes": "Bay Area thrash originators"}, {"name": "Dream Theater", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band", "Grammy Winners"], "score": 8, "notes": "Progressive metal virtuosos"}, {"name": "Queensr\u00ffche", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 6, "notes": "Progressive metal, Operation: Mindcrime concept album"}, {"name": "Faith No More", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 8, "notes": "Genre-blending funk-metal pioneers"}, {"name": "Primus", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band", "Grammy Winners"], "score": 5, "notes": "Bass-driven, absurdist alt-metal"}, {"name": "Mr. Bungle", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Band"], "score": 1, "notes": "Mike Patton's genre-scrambling experimental metal project"}, {"name": "Iron Maiden", "genre": "Metal / Industrial", "era": "1970s", "tags": ["UK", "Metal", "Band", "Rock Hall"], "score": 130, "notes": "NWOBHM titans, galloping bass and epic storytelling"}, {"name": "Judas Priest", "genre": "Metal / Industrial", "era": "1970s", "tags": ["UK", "Metal", "Band", "Grammy Winners", "Rock Hall"], "score": 50, "notes": "Leather-clad metal godfathers"}, {"name": "Mot\u00f6rhead", "genre": "Metal / Industrial", "era": "1970s", "tags": ["UK", "Metal", "Band", "Grammy Winners"], "score": 15, "notes": "Lemmy's speed-fueled rock/metal hybrid"}, {"name": "Dio", "genre": "Metal / Industrial", "era": "1980s", "tags": ["Metal", "Solo/Band"], "score": 10, "notes": "Ronnie James Dio's operatic heavy metal"}, {"name": "Accept", "genre": "Metal / Industrial", "era": "1970s", "tags": ["Germany", "Metal", "Band"], "score": 5, "notes": "German metal pioneers, Balls to the Wall"}, {"name": "Saxon", "genre": "Metal / Industrial", "era": "1970s", "tags": ["UK", "Metal", "Band"], "score": 5, "notes": "NWOBHM stalwarts"}, {"name": "The Clash", "genre": "Punk", "era": "1970s", "tags": ["UK", "Punk", "Band", "Rock Hall"], "score": 15, "notes": "Punk's political conscience, London Calling genre-crossing"}, {"name": "Ramones", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band", "Rock Hall"], "score": 20, "notes": "Blitz-tempo, leather-jacket punk originators"}, {"name": "Buzzcocks", "genre": "Punk", "era": "1970s", "tags": ["UK", "Punk", "Band"], "score": 3, "notes": "Melodic pop-punk pioneers"}, {"name": "Bad Religion", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 6, "notes": "Melodic hardcore with intellectual lyrics"}, {"name": "NOFX", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 8, "notes": "Fast, irreverent skate-punk mainstays"}, {"name": "Dead Kennedys", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band"], "score": 3, "notes": "Satirical, politically savage hardcore punk"}, {"name": "Black Flag", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band"], "score": 2, "notes": "Hardcore punk pioneers, relentless touring ethic"}, {"name": "Minor Threat", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 1, "notes": "Straight-edge hardcore founders"}, {"name": "Fugazi", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 2, "notes": "DIY post-hardcore, famously low ticket prices"}, {"name": "Misfits", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band"], "score": 3, "notes": "Horror-punk originators"}, {"name": "Operation Ivy", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 2, "notes": "Short-lived ska-punk band, huge posthumous influence"}, {"name": "Jawbreaker", "genre": "Punk", "era": "1980s", "tags": ["Punk", "Band"], "score": 1, "notes": "Emo-adjacent punk, cult classic Dear You"}, {"name": "Rancid", "genre": "Punk", "era": "1990s", "tags": ["Punk", "Band"], "score": 6, "notes": "Ska-inflected 90s punk revival"}, {"name": "Descendents", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band"], "score": 2, "notes": "Pop-punk originators, suburban teenage angst"}, {"name": "Social Distortion", "genre": "Punk", "era": "1970s", "tags": ["Punk", "Band"], "score": 5, "notes": "Cowpunk-tinged Southern California punk"}, {"name": "Hot Water Music", "genre": "Punk", "era": "1990s", "tags": ["Punk", "Band"], "score": 1, "notes": "Gruff melodic hardcore"}, {"name": "Kendrick Lamar", "genre": "Hip-Hop", "era": "2010s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 60, "notes": "Pulitzer-winning MC, To Pimp a Butterfly critical landmark"}, {"name": "J. Cole", "genre": "Hip-Hop", "era": "2010s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 45, "notes": "Introspective, chart-dominant streaming-era rapper"}, {"name": "Tyler, the Creator", "genre": "Hip-Hop", "era": "2010s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 25, "notes": "Odd Future provocateur turned Grammy-winning auteur"}, {"name": "Nas", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 25, "notes": "Illmatic widely cited as a rap masterpiece"}, {"name": "Common", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Grammy Winners"], "score": 12, "notes": "Conscious Chicago rapper, Grammy and Oscar winner"}, {"name": "Mos Def", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo"], "score": 8, "notes": "Yasiin Bey, socially conscious lyricism"}, {"name": "Talib Kweli", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo"], "score": 5, "notes": "Brooklyn conscious rap, Black Star duo"}, {"name": "Outkast", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Band", "Grammy Winners", "Rock Hall"], "score": 40, "notes": "Atlanta duo, Speakerboxxx/The Love Below diamond-certified"}, {"name": "Wu-Tang Clan", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Band", "Rock Hall"], "score": 20, "notes": "Nine-member collective, Enter the Wu-Tang landmark debut"}, {"name": "Public Enemy", "genre": "Hip-Hop", "era": "1980s", "tags": ["Hip-Hop", "Band", "Rock Hall"], "score": 15, "notes": "Politically charged, sonically dense golden-age rap"}, {"name": "Beastie Boys", "genre": "Hip-Hop", "era": "1980s", "tags": ["Hip-Hop", "Band", "Grammy Winners", "Rock Hall"], "score": 40, "notes": "White Jewish rap trio, Licensed to Ill era-defining"}, {"name": "A Tribe Called Quest", "genre": "Hip-Hop", "era": "1980s", "tags": ["Hip-Hop", "Band", "Rock Hall"], "score": 15, "notes": "Jazz-inflected golden-age hip-hop innovators"}, {"name": "De La Soul", "genre": "Hip-Hop", "era": "1980s", "tags": ["Hip-Hop", "Band"], "score": 10, "notes": "Daisy Age alternative hip-hop pioneers"}, {"name": "MF DOOM", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo"], "score": 5, "notes": "Masked underground rap villain, dense wordplay"}, {"name": "Madlib", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo"], "score": 3, "notes": "Prolific underground producer, Madvillainy collaborator"}, {"name": "J Dilla", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo"], "score": 3, "notes": "Revered producer, Donuts a posthumous classic"}, {"name": "Run the Jewels", "genre": "Hip-Hop", "era": "2010s", "tags": ["Hip-Hop", "Band"], "score": 5, "notes": "El-P and Killer Mike's politically charged duo"}, {"name": "Danny Brown", "genre": "Hip-Hop", "era": "2010s", "tags": ["Hip-Hop", "Solo"], "score": 3, "notes": "Frenetic, genre-bending underground rap"}, {"name": "Cypress Hill", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Band"], "score": 20, "notes": "Latino rap pioneers, cannabis-culture anthems"}, {"name": "Ice Cube", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Rock Hall"], "score": 20, "notes": "N.W.A alum turned solo gangsta-rap and film star"}, {"name": "Dr. Dre", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Grammy Winners", "Rock Hall"], "score": 30, "notes": "The Chronic architect, defined West Coast G-funk"}, {"name": "Snoop Dogg", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Rock Hall"], "score": 40, "notes": "Laid-back G-funk icon, Doggystyle a debut-album sales record"}, {"name": "2Pac", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Rock Hall"], "score": 75, "notes": "All Eyez on Me era icon, posthumous catalog remains huge"}, {"name": "The Notorious B.I.G.", "genre": "Hip-Hop", "era": "1990s", "tags": ["Hip-Hop", "Solo", "Rock Hall"], "score": 20, "notes": "Ready to Die, East Coast rap's defining voice"}, {"name": "Rakim", "genre": "Hip-Hop", "era": "1980s", "tags": ["Hip-Hop", "Solo"], "score": 5, "notes": "Eric B. & Rakim, revered as rap's most influential MC"}, {"name": "Daft Punk", "genre": "Electronic", "era": "1990s", "tags": ["France", "Electronic", "Band", "Grammy Winners"], "score": 12, "notes": "French house duo, Random Access Memories Grammy sweep"}, {"name": "Justice", "genre": "Electronic", "era": "2000s", "tags": ["France", "Electronic", "Band"], "score": 3, "notes": "French electro, Cross a genre touchstone"}, {"name": "Massive Attack", "genre": "Electronic", "era": "1980s", "tags": ["UK", "Electronic", "Band"], "score": 8, "notes": "Bristol trip-hop originators, Blue Lines and Mezzanine"}, {"name": "Portishead", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Band"], "score": 5, "notes": "Melancholic trip-hop, Dummy a genre landmark"}, {"name": "Tricky", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Solo"], "score": 3, "notes": "Bristol trip-hop, Maxinquaye's dark atmospherics"}, {"name": "Moby", "genre": "Electronic", "era": "1990s", "tags": ["Electronic", "Solo"], "score": 20, "notes": "Play licensed every track, electronica went mainstream"}, {"name": "Aphex Twin", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Solo"], "score": 3, "notes": "Richard D. James, IDM's most influential figure"}, {"name": "Boards of Canada", "genre": "Electronic", "era": "1990s", "tags": ["Electronic", "Band"], "score": 2, "notes": "Nostalgic, hazy ambient/IDM duo"}, {"name": "Autechre", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Band"], "score": 1, "notes": "Uncompromising, abstract IDM"}, {"name": "The Chemical Brothers", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Band", "Grammy Winners"], "score": 12, "notes": "Big beat pioneers, festival-scale electronic anthems"}, {"name": "Fatboy Slim", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Solo"], "score": 8, "notes": "Big beat, Praise You a crossover smash"}, {"name": "Air", "genre": "Electronic", "era": "1990s", "tags": ["France", "Electronic", "Band"], "score": 5, "notes": "French chillwave/downtempo, Moon Safari"}, {"name": "Orbital", "genre": "Electronic", "era": "1980s", "tags": ["UK", "Electronic", "Band"], "score": 2, "notes": "British techno duo, Glastonbury-defining live sets"}, {"name": "Underworld", "genre": "Electronic", "era": "1980s", "tags": ["UK", "Electronic", "Band"], "score": 5, "notes": "Born Slippy, Trainspotting soundtrack breakthrough"}, {"name": "The Prodigy", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Band"], "score": 15, "notes": "Aggressive rave-punk crossover, Firestarter"}, {"name": "Brian Eno", "genre": "Electronic", "era": "1970s", "tags": ["UK", "Electronic", "Solo", "Rock Hall"], "score": 5, "notes": "Ambient music pioneer and prolific producer"}, {"name": "Burial", "genre": "Electronic", "era": "2000s", "tags": ["UK", "Electronic", "Solo"], "score": 1, "notes": "Anonymous, atmospheric UK garage/dubstep"}, {"name": "Four Tet", "genre": "Electronic", "era": "1990s", "tags": ["UK", "Electronic", "Solo"], "score": 2, "notes": "Folktronica innovator, genre-blurring producer"}, {"name": "LCD Soundsystem", "genre": "Electronic", "era": "2000s", "tags": ["Electronic", "Band"], "score": 3, "notes": "Dance-punk, James Murphy's arch, danceable rock"}, {"name": "M83", "genre": "Electronic", "era": "2000s", "tags": ["France", "Electronic", "Band"], "score": 5, "notes": "Shoegaze-electronic, Midnight City breakthrough"}, {"name": "CHVRCHES", "genre": "Electronic", "era": "2010s", "tags": ["UK", "Electronic", "Band"], "score": 2, "notes": "Synth-pop trio, sharp hooks and icy production"}, {"name": "Cut Copy", "genre": "Electronic", "era": "2000s", "tags": ["Australia", "Electronic", "Band"], "score": 1, "notes": "Australian indie-dance/synth-pop"}, {"name": "Future Islands", "genre": "Electronic", "era": "2000s", "tags": ["Electronic", "Band"], "score": 1, "notes": "Synth-pop with an unforgettable live-TV breakout moment"}, {"name": "Empire of the Sun", "genre": "Electronic", "era": "2000s", "tags": ["Australia", "Electronic", "Band"], "score": 2, "notes": "Theatrical, costume-heavy electro-pop duo"}, {"name": "Little Dragon", "genre": "Electronic", "era": "2000s", "tags": ["Sweden", "Electronic", "Band"], "score": 1, "notes": "Swedish electro-soul band"}, {"name": "R\u00f6yksopp", "genre": "Electronic", "era": "1990s", "tags": ["Norway", "Electronic", "Band"], "score": 2, "notes": "Norwegian electronic duo, downtempo and dance"}, {"name": "Mitski", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo"], "score": 3, "notes": "Confessional, genre-agile indie singer-songwriter"}, {"name": "Phoebe Bridgers", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo", "Grammy Winners"], "score": 5, "notes": "Wry, devastating indie-folk songwriting"}, {"name": "Japanese Breakfast", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo"], "score": 1, "notes": "Michelle Zauner's dream-pop project and memoirist"}, {"name": "Lucy Dacus", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo"], "score": 1, "notes": "boygenius member, plainspoken indie-rock songwriting"}, {"name": "Julien Baker", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo"], "score": 1, "notes": "Raw, confessional indie-folk"}, {"name": "Courtney Barnett", "genre": "Indie", "era": "2010s", "tags": ["Women of Indie", "Indie", "Solo", "Grammy Winners"], "score": 2, "notes": "Deadpan, detail-rich Australian indie-rock"}, {"name": "Big Thief", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 2, "notes": "Acclaimed indie-folk-rock, prolific and intimate"}, {"name": "Beach House", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 3, "notes": "Dream-pop duo, hazy and meticulous"}, {"name": "Men I Trust", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 1, "notes": "Canadian dream-pop, slow streaming-era rise"}, {"name": "Cigarettes After Sex", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 2, "notes": "Whispery, ambient dream-pop"}, {"name": "Bon Iver", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Solo", "Grammy Winners"], "score": 5, "notes": "Cabin-recorded falsetto folk turned experimental"}, {"name": "Fleet Foxes", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 3, "notes": "Baroque harmony-driven indie-folk"}, {"name": "Sufjan Stevens", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Solo"], "score": 3, "notes": "Prolific, orchestral indie-folk conceptualist"}, {"name": "Father John Misty", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Solo"], "score": 2, "notes": "Wry, orchestral folk-rock persona"}, {"name": "Iron & Wine", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Solo"], "score": 2, "notes": "Whispered, intimate indie-folk"}, {"name": "Mac DeMarco", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Solo"], "score": 2, "notes": "Slacker jangle-pop with lo-fi charm"}, {"name": "King Krule", "genre": "Indie", "era": "2010s", "tags": ["UK", "Indie", "Solo"], "score": 1, "notes": "Jazz-inflected, gravel-voiced indie"}, {"name": "Alex G", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Solo"], "score": 1, "notes": "Prolific lo-fi bedroom-indie auteur"}, {"name": "Khruangbin", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 2, "notes": "Instrumental global funk/psych trio"}, {"name": "Glass Beams", "genre": "Indie", "era": "2020s", "tags": ["Indie", "Band"], "score": 0.3, "notes": "Masked instrumental psych-rock project"}, {"name": "Hermanos Guti\u00e9rrez", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 0.5, "notes": "Instrumental desert-noir guitar duo"}, {"name": "The War on Drugs", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band", "Grammy Winners"], "score": 3, "notes": "Heartland-rock-meets-krautrock atmospherics"}, {"name": "Kurt Vile", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Solo"], "score": 1, "notes": "Laconic, guitar-heavy indie-rock"}, {"name": "Real Estate", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 1, "notes": "Suburban jangle-pop"}, {"name": "Tame Impala", "genre": "Indie", "era": "2000s", "tags": ["Australia", "Indie", "Solo/Band", "Grammy Winners"], "score": 8, "notes": "Psychedelic one-man-band turned festival headliner"}, {"name": "Vampire Weekend", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band", "Grammy Winners"], "score": 5, "notes": "Afropop-inflected preppy indie-rock"}, {"name": "Phoenix", "genre": "Indie", "era": "1990s", "tags": ["France", "Indie", "Band", "Grammy Winners"], "score": 4, "notes": "French indie-pop, Wolfgang Amadeus Phoenix breakthrough"}, {"name": "MGMT", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 4, "notes": "Psych-pop, Kids and Electric Feel ubiquity"}, {"name": "Foster the People", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 3, "notes": "Pumped Up Kicks breakout indie-pop"}, {"name": "Passion Pit", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 2, "notes": "Falsetto-driven synth-indie"}, {"name": "The xx", "genre": "Indie", "era": "2000s", "tags": ["UK", "Indie", "Band", "Grammy Winners"], "score": 3, "notes": "Minimalist, hushed indie-pop duo-plus"}, {"name": "Grizzly Bear", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 2, "notes": "Intricate, harmony-rich indie-rock"}, {"name": "TV on the Radio", "genre": "Indie", "era": "2000s", "tags": ["Indie", "Band"], "score": 2, "notes": "Art-rock/soul hybrid, critically adored"}, {"name": "The Shins", "genre": "Indie", "era": "1990s", "tags": ["Indie", "Band"], "score": 3, "notes": "Garden State soundtrack breakout indie-pop"}, {"name": "Metric", "genre": "Indie", "era": "1990s", "tags": ["Canada", "Indie", "Band"], "score": 2, "notes": "Canadian synth-rock, sharp and driving"}, {"name": "Wolf Alice", "genre": "Indie", "era": "2010s", "tags": ["UK", "Indie", "Band"], "score": 2, "notes": "Genre-shifting British indie-rock"}, {"name": "Alvvays", "genre": "Indie", "era": "2010s", "tags": ["Canada", "Indie", "Band"], "score": 1, "notes": "Jangly, wistful Canadian indie-pop"}, {"name": "The Beths", "genre": "Indie", "era": "2010s", "tags": ["Indie", "Band"], "score": 0.5, "notes": "New Zealand power-pop/indie-rock"}, {"name": "White Stripes", "genre": "Garage / Hard Rock", "era": "1990s", "tags": ["Rock", "Band", "Grammy Winners", "Rock Hall"], "score": 20, "notes": "Minimalist blues-punk duo, Seven Nation Army riff"}, {"name": "Black Keys", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["Rock", "Band", "Grammy Winners"], "score": 15, "notes": "Blues-rock duo turned arena headliners"}, {"name": "Queens of the Stone Age", "genre": "Garage / Hard Rock", "era": "1990s", "tags": ["Rock", "Band", "Grammy Winners"], "score": 12, "notes": "Desert rock, groove-heavy and riff-driven"}, {"name": "Kyuss", "genre": "Garage / Hard Rock", "era": "1980s", "tags": ["Rock", "Band"], "score": 1, "notes": "Desert stoner-rock originators"}, {"name": "Royal Blood", "genre": "Garage / Hard Rock", "era": "2010s", "tags": ["UK", "Rock", "Band"], "score": 3, "notes": "Bass-and-drums duo, massive riff-rock sound"}, {"name": "The Hives", "genre": "Garage / Hard Rock", "era": "1990s", "tags": ["Sweden", "Rock", "Band"], "score": 2, "notes": "Swedish garage-punk showmen"}, {"name": "Franz Ferdinand", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["UK", "Rock", "Band", "Grammy Winners"], "score": 5, "notes": "Danceable art-punk revival"}, {"name": "Arctic Monkeys", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["UK", "Rock", "Band", "Grammy Winners"], "score": 20, "notes": "Sheffield garage-rock, AM a genre-defining hit"}, {"name": "The Libertines", "genre": "Garage / Hard Rock", "era": "1990s", "tags": ["UK", "Rock", "Band"], "score": 3, "notes": "Shambolic, romantic British garage-rock"}, {"name": "The Kills", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["Rock", "Band"], "score": 2, "notes": "Stripped-down blues-punk duo"}, {"name": "Wolfmother", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["Australia", "Rock", "Band", "Grammy Winners"], "score": 3, "notes": "Retro-styled 70s-inspired hard rock"}, {"name": "Band of Skulls", "genre": "Garage / Hard Rock", "era": "2000s", "tags": ["UK", "Rock", "Band"], "score": 1, "notes": "Bluesy British garage-rock trio"}, {"name": "Eagles of Death Metal", "genre": "Garage / Hard Rock", "era": "1990s", "tags": ["Rock", "Band"], "score": 1, "notes": "Josh Homme side project, glam-tinged garage rock"}, {"name": "Neil Young", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Rock", "Solo", "Grammy Winners", "Rock Hall"], "score": 75, "notes": "Restless, uncompromising folk-rock icon"}, {"name": "Tom Petty", "genre": "Singer-Songwriters", "era": "1970s", "tags": ["Rock", "Solo/Band", "Rock Hall"], "score": 80, "notes": "Heartland rock, Free Fallin' and decades of radio staples"}, {"name": "Joni Mitchell", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo", "Grammy Winners", "Rock Hall"], "score": 20, "notes": "Blue widely regarded as a songwriting landmark"}, {"name": "Paul Simon", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo", "Grammy Winners", "Rock Hall"], "score": 40, "notes": "Simon & Garfunkel and Graceland-era global fusion solo work"}, {"name": "Leonard Cohen", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo", "Rock Hall"], "score": 15, "notes": "Poetic, baritone-voiced songwriting, Hallelujah's author"}, {"name": "Nick Drake", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo"], "score": 2, "notes": "Fragile, posthumously revered folk songwriter"}, {"name": "Cat Stevens", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo", "Rock Hall"], "score": 60, "notes": "Yusuf Islam, gentle folk-pop staples"}, {"name": "James Taylor", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Folk", "Solo", "Grammy Winners", "Rock Hall"], "score": 40, "notes": "Fire and Rain, warm confessional folk-rock"}, {"name": "John Prine", "genre": "Singer-Songwriters", "era": "1970s", "tags": ["Folk", "Solo", "Grammy Winners"], "score": 5, "notes": "Wry, plainspoken songwriter's songwriter"}, {"name": "Lucinda Williams", "genre": "Singer-Songwriters", "era": "1980s", "tags": ["Folk", "Solo", "Grammy Winners"], "score": 3, "notes": "Gritty, roots-steeped Americana songwriting"}, {"name": "Jason Isbell", "genre": "Singer-Songwriters", "era": "2000s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 3, "notes": "Drive-By Truckers alum, acclaimed Americana solo career"}, {"name": "Tyler Childers", "genre": "Singer-Songwriters", "era": "2010s", "tags": ["Country", "Solo"], "score": 3, "notes": "Kentucky-bred, traditionalist Americana breakout"}, {"name": "Brandi Carlile", "genre": "Singer-Songwriters", "era": "2000s", "tags": ["Women of Indie", "Country", "Solo", "Grammy Winners"], "score": 3, "notes": "Americana powerhouse vocalist and songwriter"}, {"name": "Sturgill Simpson", "genre": "Singer-Songwriters", "era": "2010s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 2, "notes": "Outlaw-country revivalist with psychedelic streak"}, {"name": "Chris Stapleton", "genre": "Singer-Songwriters", "era": "2010s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 15, "notes": "Traditionalist Nashville country with rock-size sales"}, {"name": "Johnny Cash", "genre": "Singer-Songwriters", "era": "1950s", "tags": ["Country", "Solo", "Grammy Winners", "Rock Hall"], "score": 90, "notes": "The Man in Black, outlaw country legend"}, {"name": "Willie Nelson", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Country", "Solo", "Grammy Winners", "Rock Hall"], "score": 75, "notes": "Outlaw country pioneer, decades of prolific output"}, {"name": "Dolly Parton", "genre": "Singer-Songwriters", "era": "1960s", "tags": ["Country", "Solo", "Grammy Winners", "Rock Hall"], "score": 100, "notes": "Country music icon, Jolene and I Will Always Love You"}, {"name": "Emmylou Harris", "genre": "Singer-Songwriters", "era": "1970s", "tags": ["Country", "Solo", "Grammy Winners", "Rock Hall"], "score": 15, "notes": "Revered harmony vocalist and Americana torchbearer"}, {"name": "Dwight Yoakam", "genre": "Singer-Songwriters", "era": "1980s", "tags": ["Country", "Solo", "Grammy Winners"], "score": 25, "notes": "Bakersfield-sound honky-tonk revivalist"}, {"name": "Aretha Franklin", "genre": "Soul / R&B / Jazz", "era": "1960s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 75, "notes": "Queen of Soul, Respect a defining civil-rights-era anthem"}, {"name": "Ray Charles", "genre": "Soul / R&B / Jazz", "era": "1950s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 50, "notes": "Genius who fused gospel, blues, and country into soul"}, {"name": "Marvin Gaye", "genre": "Soul / R&B / Jazz", "era": "1960s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 30, "notes": "What's Going On, socially conscious soul masterpiece"}, {"name": "Curtis Mayfield", "genre": "Soul / R&B / Jazz", "era": "1960s", "tags": ["Soul", "Solo", "Rock Hall"], "score": 12, "notes": "Impressions leader turned solo funk-soul innovator"}, {"name": "Al Green", "genre": "Soul / R&B / Jazz", "era": "1970s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 25, "notes": "Silky Memphis soul, Let's Stay Together"}, {"name": "Bill Withers", "genre": "Soul / R&B / Jazz", "era": "1970s", "tags": ["Soul", "Solo", "Grammy Winners", "Rock Hall"], "score": 15, "notes": "Plainspoken soul, Lean on Me and Ain't No Sunshine"}, {"name": "Earth, Wind & Fire", "genre": "Soul / R&B / Jazz", "era": "1970s", "tags": ["Soul", "Funk", "Band", "Grammy Winners", "Rock Hall"], "score": 35, "notes": "Horn-driven funk-soul, September a perennial anthem"}, {"name": "Parliament-Funkadelic", "genre": "Soul / R&B / Jazz", "era": "1970s", "tags": ["Funk", "Band", "Rock Hall"], "score": 20, "notes": "George Clinton's sprawling funk collective"}, {"name": "Miles Davis", "genre": "Soul / R&B / Jazz", "era": "1950s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 25, "notes": "Kind of Blue, best-selling jazz album of all time"}, {"name": "John Coltrane", "genre": "Soul / R&B / Jazz", "era": "1950s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 10, "notes": "A Love Supreme, jazz's spiritual and technical peak"}, {"name": "Herbie Hancock", "genre": "Soul / R&B / Jazz", "era": "1960s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 12, "notes": "Genre-crossing jazz-funk innovator"}, {"name": "Louis Armstrong", "genre": "Soul / R&B / Jazz", "era": "1920s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 30, "notes": "Foundational jazz trumpeter and vocalist, What a Wonderful World"}, {"name": "Ella Fitzgerald", "genre": "Soul / R&B / Jazz", "era": "1930s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 40, "notes": "First Lady of Song, peerless vocal jazz technique"}, {"name": "Billie Holiday", "genre": "Soul / R&B / Jazz", "era": "1930s", "tags": ["Jazz", "Solo", "Grammy Winners", "Rock Hall"], "score": 20, "notes": "Strange Fruit, one of jazz's most influential vocalists"}]</script>
+<script>
+(function(){
+"use strict";
+
+/* ============ DATA ============ */
+var ARTISTS = JSON.parse(document.getElementById('artist-data').textContent);
+
+var THEMES = [
+  {key:"all", label:"All Artists"},
+  {key:"Seattle", label:"Seattle"},
+  {key:"Manchester", label:"Manchester"},
+  {key:"Goth", label:"Goth"},
+  {key:"Grunge", label:"Grunge"},
+  {key:"Britpop", label:"Britpop"},
+  {key:"Shoegaze", label:"Shoegaze"},
+  {key:"Hip-Hop", label:"Hip-Hop"},
+  {key:"Women of Indie", label:"Women of Indie"},
+  {key:"Singer-Songwriters", label:"Singer-Songwriters", byGenre:true},
+  {key:"Metal", label:"Metal"},
+  {key:"Punk", label:"Punk"},
+  {key:"Electronic", label:"Electronic"},
+  {key:"1980s", label:"1980s", byEra:true},
+  {key:"1990s", label:"1990s", byEra:true},
+  {key:"Grammy Winners", label:"Grammy Winners"},
+  {key:"Rock Hall", label:"Rock Hall"}
+];
+
+var MIN_THEME_POOL = 9; // need at least this many matches or we fall back to full db
+
+/* ============ STATE ============ */
+var state = null;
+
+function freshState(){
+  return {
+    mode: "classic",
+    theme: "all",
+    round: 0,
+    totalRounds: 25,
+    score: 0,
+    correct: 0,
+    streak: 0,
+    bestStreak: 0,
+    responseTimes: [],
+    genreCorrect: {},
+    pool: [],
+    used: {},
+    current: null,        // {artists:[...], anchor}
+    answered: false,
+    roundStartTime: 0,
+    timerHandle: null,
+    tickHandle: null,
+    timeLimitMs: 8000
+  };
+}
+
+/* ============ HELPERS ============ */
+function $(id){ return document.getElementById(id); }
+function fmtScore(n){
+  if(n >= 100) return Math.round(n) + "M";
+  if(n >= 1) return (Math.round(n*10)/10) + "M";
+  return (Math.round(n*100)/100) + "M";
+}
+function shuffle(arr){
+  var a = arr.slice();
+  for(var i=a.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t=a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+function matchesTheme(artist, themeDef){
+  if(themeDef.key === "all") return true;
+  if(themeDef.byEra) return artist.era === themeDef.key;
+  return artist.tags.indexOf(themeDef.key) !== -1 || artist.genre === themeDef.key;
+}
+function buildPool(themeKey){
+  var def = THEMES.filter(function(t){return t.key===themeKey;})[0] || THEMES[0];
+  var filtered = ARTISTS.filter(function(a){ return matchesTheme(a, def); });
+  if(filtered.length < MIN_THEME_POOL) return ARTISTS.slice();
+  return filtered;
+}
+
+/* ============ ROUND GENERATION ============ */
+// Pick an anchor artist at random from remaining pool, then pick two more artists
+// with the closest scores to it (from remaining pool) to keep rounds close & tense.
+function pickRound(){
+  var remaining = state.pool.filter(function(a){ return !state.used[a.name]; });
+  if(remaining.length < 3){
+    // ran out under current theme -- widen to full db minus used
+    remaining = ARTISTS.filter(function(a){ return !state.used[a.name]; });
+  }
+  if(remaining.length < 3) return null;
+
+  var shuffled = shuffle(remaining);
+  var anchor = shuffled[0];
+  var rest = shuffled.slice(1);
+  rest.sort(function(a,b){
+    return Math.abs(a.score-anchor.score) - Math.abs(b.score-anchor.score);
+  });
+  // take from the closest ~12 candidates randomly so it's not always the literal nearest two
+  var candidatePool = rest.slice(0, Math.min(12, rest.length));
+  var picks = shuffle(candidatePool).slice(0,2);
+  var trio = shuffle([anchor, picks[0], picks[1]]);
+  trio.forEach(function(a){ state.used[a.name] = true; });
+  return trio;
+}
+
+/* ============ SCORING ============ */
+function computeBonuses(trio, correctPositions, responseMs){
+  // correctPositions: number of positions matching correct order (0,1, or 3 for a 3-item perm)
+  var base = correctPositions >= 3 ? 100 : (correctPositions === 1 ? 30 : 0);
+  var speedBonus = 0, streakBonus = 0, diffBonus = 0;
+  if(base > 0){
+    var frac = Math.max(0, 1 - (responseMs/8000));
+    speedBonus = Math.round(50*frac);
+    streakBonus = Math.min(50, state.streak*5);
+    var sorted = trio.slice().sort(function(a,b){return b.score-a.score;});
+    var gap = Math.abs(sorted[0].score - sorted[1].score);
+    var avg = (sorted[0].score+sorted[1].score)/2 || 1;
+    var closeness = Math.max(0, 1 - (gap/avg));
+    diffBonus = Math.round(30*closeness);
+  }
+  return {base:base, speedBonus:speedBonus, streakBonus:streakBonus, diffBonus:diffBonus,
+           total: base+speedBonus+streakBonus+diffBonus};
+}
+
+/* ============ RENDER: TITLE ============ */
+function renderThemeChips(){
+  var row = $('themeRow');
+  row.innerHTML = "";
+  THEMES.forEach(function(t){
+    var el = document.createElement('div');
+    el.className = 'chip' + (t.key===state.theme ? ' selected' : '');
+    el.textContent = t.label;
+    el.setAttribute('data-theme', t.key);
+    el.addEventListener('click', function(){
+      state.theme = t.key;
+      renderThemeChips();
+      updateThemeCount();
+    });
+    row.appendChild(el);
+  });
+}
+function updateThemeCount(){
+  var def = THEMES.filter(function(t){return t.key===state.theme;})[0];
+  var n = ARTISTS.filter(function(a){return matchesTheme(a,def);}).length;
+  var el = $('themeCount');
+  if(state.theme==="all"){ el.textContent = ARTISTS.length + " artists"; return; }
+  if(n < MIN_THEME_POOL){
+    el.textContent = "too few \u2014 auto-widens";
+  } else {
+    el.textContent = n + " artists";
+  }
+}
+
+function initTitleScreen(){
+  var modeRow = $('modeRow');
+  Array.prototype.forEach.call(modeRow.children, function(chip){
+    chip.addEventListener('click', function(){
+      Array.prototype.forEach.call(modeRow.children, function(c){c.classList.remove('selected');});
+      chip.classList.add('selected');
+      state.mode = chip.getAttribute('data-mode');
+    });
+  });
+  renderThemeChips();
+  updateThemeCount();
+  $('startBtn').addEventListener('click', startGame);
+}
+
+/* ============ SCREEN SWITCHING ============ */
+function showScreen(id){
+  ['screen-title','screen-round','screen-results'].forEach(function(s){
+    $(s).classList.toggle('active', s===id);
+  });
+}
+
+/* ============ GAME FLOW ============ */
+function startGame(){
+  var prevMode = state ? state.mode : "classic";
+  var prevTheme = state ? state.theme : "all";
+  state = freshState();
+  state.mode = prevMode;
+  state.theme = prevTheme;
+  state.pool = buildPool(state.theme);
+  showScreen('screen-round');
+  nextRound();
+}
+
+function nextRound(){
+  clearTimers();
+  state.round += 1;
+  if(state.round > state.totalRounds){
+    finishGame();
+    return;
+  }
+  var trio = pickRound();
+  if(!trio){ finishGame(); return; }
+  state.current = { artists: trio, rankSelections: [] };
+  state.answered = false;
+
+  $('roundCount').textContent = "ROUND " + state.round + " / " + state.totalRounds;
+  $('roundScore').textContent = "SCORE " + state.score;
+  $('progressFill').style.width = (100*(state.round-1)/state.totalRounds) + "%";
+  $('modeBanner').innerHTML = modeBannerText();
+  $('rankHint').textContent = state.mode==="rank" ? "TAP IN ORDER: BIGGEST FIRST" : "";
+  $('feedbackBar').className = 'feedback-bar';
+  $('feedbackHead').innerHTML = "&nbsp;";
+  $('feedbackPts').textContent = "";
+  $('feedbackExplain').textContent = "";
+  $('nextBtn').className = 'next-btn';
+
+  renderCards(trio);
+  startTimer();
+  updateStreakFlag();
+}
+
+function modeBannerText(){
+  if(state.mode==="classic") return "CLASSIC &mdash; TAP THE <b>BIGGER</b> ARTIST";
+  if(state.mode==="rank") return "RANK THEM &mdash; TAP BIGGEST TO SMALLEST";
+  return "MIDDLE CHILD &mdash; TAP THE ARTIST IN THE <b>MIDDLE</b>";
+}
+
+var STRIPE_COLORS = ["var(--pink)","var(--cyan)","var(--purple)","var(--yellow)","var(--green)"];
+function stripeColorFor(genre){
+  var idx = 0;
+  for(var i=0;i<genre.length;i++){ idx += genre.charCodeAt(i); }
+  return STRIPE_COLORS[idx % STRIPE_COLORS.length];
+}
+
+function renderCards(trio){
+  var wrap = $('cardsWrap');
+  wrap.innerHTML = "";
+  trio.forEach(function(artist, idx){
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.setAttribute('data-idx', idx);
+    card.innerHTML =
+      '<div class="stripe" style="background:'+stripeColorFor(artist.genre)+'"></div>' +
+      '<div>' +
+        '<div class="name">'+escapeHtml(artist.name)+'</div>' +
+        '<div class="meta">'+escapeHtml(artist.genre)+' &middot; '+escapeHtml(artist.era)+'</div>' +
+      '</div>' +
+      '<div class="value mono" id="val-'+idx+'"></div>' +
+      '<div class="sticker" id="stk-'+idx+'"></div>';
+    card.addEventListener('click', function(){ onCardTap(idx); });
+    wrap.appendChild(card);
+  });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+/* ============ TIMER ============ */
+function startTimer(){
+  state.roundStartTime = Date.now();
+  var fill = $('timerFill');
+  fill.classList.remove('danger');
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  // force reflow then animate
+  void fill.offsetWidth;
+  fill.style.transition = 'width '+state.timeLimitMs+'ms linear';
+  fill.style.width = '0%';
+  state.tickHandle = setTimeout(function(){ fill.classList.add('danger'); }, state.timeLimitMs*0.6);
+  state.timerHandle = setTimeout(function(){ onTimeUp(); }, state.timeLimitMs);
+}
+function clearTimers(){
+  if(state && state.timerHandle){ clearTimeout(state.timerHandle); state.timerHandle=null; }
+  if(state && state.tickHandle){ clearTimeout(state.tickHandle); state.tickHandle=null; }
+}
+function onTimeUp(){
+  if(state.answered) return;
+  if(state.mode==="rank"){
+    resolveRank(true);
+  } else {
+    resolveSingle(-1, true);
+  }
+}
+
+/* ============ ANSWER HANDLING ============ */
+function onCardTap(idx){
+  if(state.answered) return;
+  if(state.mode==="rank"){
+    handleRankTap(idx);
+    return;
+  }
+  resolveSingle(idx, false);
+}
+
+function correctSingleIndex(trio){
+  if(state.mode==="classic"){
+    var best=0;
+    trio.forEach(function(a,i){ if(a.score>trio[best].score) best=i; });
+    return best;
+  }
+  // middle child
+  var order = [0,1,2].slice().sort(function(a,b){ return trio[b].score-trio[a].score; });
+  return order[1];
+}
+
+function resolveSingle(pickedIdx, timedOut){
+  state.answered = true;
+  clearTimers();
+  var trio = state.current.artists;
+  var responseMs = Date.now()-state.roundStartTime;
+  var correctIdx = correctSingleIndex(trio);
+  var isCorrect = (!timedOut) && (pickedIdx===correctIdx);
+  var positions = isCorrect ? 3 : 0;
+  var bonus = computeBonuses(trio, positions, responseMs);
+
+  applyRoundStats(isCorrect, responseMs, trio, bonus);
+  revealCards(trio, function(a,i){
+    var cls = '';
+    if(i===correctIdx) cls='correct';
+    else if(i===pickedIdx) cls='wrong';
+    else cls='dim';
+    return cls;
+  }, correctIdx);
+  showFeedback(isCorrect, bonus, trio, correctIdx, timedOut);
+}
+
+function handleRankTap(idx){
+  var sel = state.current.rankSelections;
+  if(sel.indexOf(idx)!==-1) return;
+  sel.push(idx);
+  var card = document.querySelector('.card[data-idx="'+idx+'"]');
+  card.classList.add('picked');
+  var badge = document.createElement('div');
+  badge.className = 'rankmark mono';
+  badge.textContent = '#'+sel.length;
+  card.appendChild(badge);
+  if(sel.length===3){ resolveRank(false); }
+}
+
+function resolveRank(timedOut){
+  state.answered = true;
+  clearTimers();
+  var trio = state.current.artists;
+  var responseMs = Date.now()-state.roundStartTime;
+  var correctOrder = [0,1,2].slice().sort(function(a,b){ return trio[b].score-trio[a].score; });
+  var sel = state.current.rankSelections;
+  var positions = 0;
+  if(!timedOut && sel.length===3){
+    positions = 0;
+    for(var i=0;i<3;i++){ if(sel[i]===correctOrder[i]) positions++; }
+    if(positions===2) positions=3; // can't happen for perm of 3, but guard anyway
+  }
+  var isCorrect = positions>=3;
+  var bonus = computeBonuses(trio, positions, responseMs);
+  applyRoundStats(isCorrect, responseMs, trio, bonus);
+
+  revealCards(trio, function(a,i){
+    var rank = correctOrder.indexOf(i);
+    return rank===0 ? 'correct' : (rank===2 ? 'wrong' : '');
+  }, correctOrder[0]);
+
+  // annotate rank marks with correct order too
+  trio.forEach(function(a,i){
+    var rank = correctOrder.indexOf(i);
+    var stk = document.getElementById('stk-'+i);
+    stk.textContent = '#'+(rank+1)+' ACTUAL';
+    stk.style.display = '';
+  });
+
+  showFeedback(isCorrect, bonus, trio, correctOrder[0], timedOut, positions);
+}
+
+function applyRoundStats(isCorrect, responseMs, trio, bonus){
+  state.score += bonus.total;
+  state.responseTimes.push(Math.min(responseMs, state.timeLimitMs));
+  if(isCorrect){
+    state.correct += 1;
+    state.streak += 1;
+    if(state.streak>state.bestStreak) state.bestStreak = state.streak;
+    var g = correctSingleGenreForStats(trio);
+    state.genreCorrect[g] = (state.genreCorrect[g]||0)+1;
+  } else {
+    state.streak = 0;
+  }
+  updateStreakFlag();
+}
+function correctSingleGenreForStats(trio){
+  var best=0;
+  trio.forEach(function(a,i){ if(a.score>trio[best].score) best=i; });
+  return trio[best].genre;
+}
+
+function revealCards(trio, classifyFn, primaryIdx){
+  trio.forEach(function(a,i){
+    var card = document.querySelector('.card[data-idx="'+i+'"]');
+    card.classList.add('reveal');
+    var cls = classifyFn(a,i);
+    if(cls) card.classList.add(cls);
+    $('val-'+i).textContent = fmtScore(a.score);
+    var stk = $('stk-'+i);
+    if(!stk.textContent){
+      stk.textContent = i===primaryIdx ? '#1' : '';
+    }
+    if(!stk.textContent){ stk.style.display = 'none'; }
+  });
+}
+
+function showFeedback(isCorrect, bonus, trio, correctIdx, timedOut, positions){
+  var bar = $('feedbackBar');
+  bar.classList.add('show');
+  bar.classList.add(isCorrect ? 'good' : 'bad');
+  var head = $('feedbackHead');
+  var pts = $('feedbackPts');
+  var explain = $('feedbackExplain');
+
+  if(timedOut){
+    head.textContent = "TIME'S UP";
+  } else if(state.mode==='rank'){
+    head.textContent = isCorrect ? "PERFECT ORDER" : (positions===1 ? "PARTIAL CREDIT" : "WRONG ORDER");
+  } else {
+    head.textContent = isCorrect ? "CORRECT" : "WRONG";
+  }
+  pts.textContent = "+" + bonus.total + " PTS";
+
+  var sorted = trio.slice().sort(function(a,b){return b.score-a.score;});
+  var lines = sorted.map(function(a,i){
+    return "#"+(i+1)+" "+a.name+" ("+fmtScore(a.score)+")";
+  }).join("  \u2022  ");
+  var breakdown = "Base "+bonus.base+" + Speed "+bonus.speedBonus+" + Streak "+bonus.streakBonus+" + Closeness "+bonus.diffBonus;
+  explain.innerHTML = "<b>"+lines+"</b><br>"+breakdown+"<br>"+escapeHtml(trio[0].notes)+" &mdash; "+escapeHtml(sorted[0].notes);
+
+  var next = $('nextBtn');
+  next.classList.add('show');
+  next.textContent = state.round>=state.totalRounds ? "See Results \u2192" : "Next Round \u2192";
+  next.onclick = nextRound;
+}
+
+function updateStreakFlag(){
+  var flag = $('streakFlag');
+  if(state.streak>=2){
+    flag.textContent = "\uD83D\uDD25 STREAK x"+state.streak;
+    flag.classList.add('show');
+  } else {
+    flag.classList.remove('show');
+  }
+}
+
+/* ============ RESULTS ============ */
+function rankTitle(acc){
+  if(acc>=0.92) return "CHART TOPPER";
+  if(acc>=0.8) return "A&R LEGEND";
+  if(acc>=0.65) return "CRATE DIGGER";
+  if(acc>=0.5) return "SOLID EAR";
+  if(acc>=0.3) return "CASUAL LISTENER";
+  return "AUX CORD REVOKED";
+}
+
+function finishGame(){
+  showScreen('screen-results');
+  var acc = state.correct/state.totalRounds;
+  $('resultsRankTitle').textContent = rankTitle(acc);
+  $('resultsScoreLine').textContent = "SCORE " + state.score;
+  $('statCorrect').textContent = state.correct + "/" + state.totalRounds;
+  $('statAccuracy').textContent = Math.round(acc*100) + "%";
+  $('statStreak').textContent = state.bestStreak;
+  var avgMs = state.responseTimes.length ? (state.responseTimes.reduce(function(a,b){return a+b;},0)/state.responseTimes.length) : 0;
+  $('statSpeed').textContent = (avgMs/1000).toFixed(1) + "s";
+  var favGenre = "\u2014";
+  var top=0;
+  Object.keys(state.genreCorrect).forEach(function(k){
+    if(state.genreCorrect[k]>top){ top=state.genreCorrect[k]; favGenre=k; }
+  });
+  $('statGenre').textContent = favGenre;
+
+  $('copyFlash').textContent = "";
+  $('methodBlock').style.display = 'none';
+  $('methodBlock').innerHTML = "";
+}
+
+function shareText(){
+  var acc = Math.round(100*state.correct/state.totalRounds);
+  return "LISTENING CLUB TRIVIA: TOP ARTIST\n" +
+    rankTitle(state.correct/state.totalRounds) + " \u2014 " + state.score + " pts\n" +
+    state.correct + "/" + state.totalRounds + " correct (" + acc + "%) \u2022 best streak " + state.bestStreak;
+}
+
+/* ============ WIRE UP RESULTS BUTTONS ============ */
+function initResultsScreen(){
+  $('playAgainBtn').addEventListener('click', function(){
+    showScreen('screen-title');
+  });
+  $('copyBtn').addEventListener('click', function(){
+    var text = shareText();
+    var flash = $('copyFlash');
+    function ok(){ flash.textContent = "Copied to clipboard"; }
+    function fail(){ flash.textContent = text.split("\n").join(" / "); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(ok, fail);
+    } else {
+      fail();
+    }
+    setTimeout(function(){ flash.textContent=""; }, 3500);
+  });
+  $('methodBtn').addEventListener('click', function(){
+    var block = $('methodBlock');
+    if(block.style.display==='none'){
+      block.innerHTML = "<b>How it works:</b> Every artist has a placeholder \"score\" representing estimated career-wide popularity (equivalent album units across sales, streaming and downloads). Each round compares three artists drawn to be close in score so it stays a real guess. Points = base (100 correct / 30 partial) + speed bonus (up to 50) + streak bonus (up to 50) + closeness bonus (up to 30, bigger when the two closest artists were nearly tied). Swap the placeholder numbers for verified data any time \u2014 game logic doesn't change.";
+      block.style.display='block';
+    } else {
+      block.style.display='none';
+    }
+  });
+}
+
+/* ============ INIT ============ */
+function init(){
+  state = freshState();
+  initTitleScreen();
+  initResultsScreen();
+}
+document.addEventListener('DOMContentLoaded', init);
+})();
+
+</script>
+</body>
+</html>

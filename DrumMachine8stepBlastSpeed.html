@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>DRUM 8</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+
+    --pad:12px;
+    --gap:10px;
+
+    --stroke:4px;
+    --radius:12px;
+
+    --seqStroke:3px;
+    --seqRadius:10px;
+  }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;
+    position:fixed;
+  }
+  *{
+    box-sizing:border-box;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+  }
+
+  /* Start screen */
+  #start{
+    position:fixed; inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--bg);
+  }
+  #playBtn{
+    width:min(56vmin, 340px);
+    aspect-ratio:1/1;
+    border: calc(var(--stroke) * 2) solid var(--fg);
+    border-radius: 24px;
+    background: var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    outline:none;
+  }
+  #playBtn:active{ transform:scale(0.995); }
+  #playIcon{
+    width:0; height:0;
+    border-top: 52px solid transparent;
+    border-bottom: 52px solid transparent;
+    border-left: 86px solid var(--fg);
+    transform: translateX(10px);
+  }
+  @media (max-width: 420px){
+    #playIcon{
+      border-top: 40px solid transparent;
+      border-bottom: 40px solid transparent;
+      border-left: 66px solid var(--fg);
+      transform: translateX(8px);
+    }
+  }
+
+  /* Main */
+  #wrap{
+    width:100vw; height:100vh;
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
+    padding:var(--pad);
+    background:var(--bg);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 160ms linear;
+  }
+  #wrap.on{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  /* Controls: 2 squares, no words */
+  #controls{
+    flex: 0 0 auto;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:var(--gap);
+  }
+  .ctrl{
+    border:var(--stroke) solid var(--fg);
+    border-radius:var(--radius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    outline:none;
+    height: clamp(56px, 12vh, 110px);
+  }
+  .ctrl:active{ transform:scale(0.995); }
+  .fill{
+    position:absolute; left:0; bottom:0; width:100%;
+    height:50%;
+    background:var(--fg);
+  }
+  .ctrl.armed{ background:var(--fg); }
+  .ctrl.armed .fill{ background:var(--bg); }
+
+  /* Different patterns to imply different control */
+  .ctrl[data-param="speed"]::after{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.14;
+    background: repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px);
+    mix-blend-mode:difference;
+    pointer-events:none;
+  }
+  .ctrl[data-param="blast"]::after{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.14;
+    background: repeating-linear-gradient(45deg, var(--fg) 0 2px, transparent 2px 12px);
+    mix-blend-mode:difference;
+    pointer-events:none;
+  }
+
+  /* Sequencer */
+  #seq{
+    flex: 1 1 auto;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .row{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    gap:8px;
+    flex: 1 1 0;
+  }
+  .step{
+    border:var(--seqStroke) solid var(--fg);
+    border-radius:var(--seqRadius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    outline:none;
+    min-height: clamp(44px, 8.5vh, 80px);
+  }
+  .step.on{ background:var(--fg); }
+  .step.on::after{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(135deg, var(--bg) 0 2px, transparent 2px 10px);
+    opacity:0.25;
+    pointer-events:none;
+  }
+  .step.playing{
+    box-shadow: 0 0 0 3px var(--fg) inset;
+  }
+
+  /* Row identity patterns (no words) */
+  .row[data-row="kick"] .step::before,
+  .row[data-row="snare"] .step::before,
+  .row[data-row="hat"] .step::before{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.10;
+    mix-blend-mode:difference;
+    pointer-events:none;
+  }
+  .row[data-row="kick"] .step::before{ background:repeating-linear-gradient(0deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .row[data-row="snare"] .step::before{ background:repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .row[data-row="hat"]  .step::before{ background:repeating-linear-gradient(25deg, var(--fg) 0 2px, transparent 2px 12px); }
+
+  @media (max-height: 720px){
+    :root{ --pad:10px; --gap:8px; --stroke:4px; }
+    .row{ gap:7px; }
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <!-- Start -->
+  <div id="start" aria-label="Start">
+    <button id="playBtn" aria-label="Play">
+      <div id="playIcon" aria-hidden="true"></div>
+    </button>
+  </div>
+
+  <!-- Main -->
+  <div id="wrap" aria-label="Drum machine">
+    <div id="controls" aria-label="Controls">
+      <div class="ctrl" data-param="speed" role="button" aria-label="Control 1"><div class="fill"></div></div>
+      <div class="ctrl" data-param="blast" role="button" aria-label="Control 2"><div class="fill"></div></div>
+    </div>
+
+    <div id="seq" aria-label="Sequencer">
+      <div class="row" data-row="kick" aria-label="Row 1"></div>
+      <div class="row" data-row="snare" aria-label="Row 2"></div>
+      <div class="row" data-row="hat" aria-label="Row 3"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ========= UI =========
+  const startScreen = document.getElementById("start");
+  const playBtn = document.getElementById("playBtn");
+  const wrap = document.getElementById("wrap");
+
+  const ctrlEls = Array.from(document.querySelectorAll(".ctrl"));
+  function setCtrlFill(el, v){
+    el.querySelector(".fill").style.height = (Math.max(0, Math.min(1, v))*100).toFixed(2) + "%";
+  }
+
+  // ========= Audio =========
+  let ctx = null;
+
+  const STEPS = 8;
+  const pat = { kick:new Array(STEPS).fill(0), snare:new Array(STEPS).fill(0), hat:new Array(STEPS).fill(0) };
+
+  // Two controls, 0..1
+  const C = {
+    speed: 0.55, // maps to BPM
+    blast: 0.70  // maps to drive/crush/comp/wet
+  };
+
+  let masterGain, shaper, comp, hp, lp, crushNode;
+  let delay, fbGain, wetGain, dryGain;
+  let drumBus;   // pre-fx drum sum
+
+  // Scheduler
+  let stepIndex = 0;
+  let nextStepTime = 0;
+  let schedTimer = null;
+
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function expMap(x, a=1.8){ return Math.pow(clamp01(x), a); }
+
+  function bpmFromSpeed(){
+    const s = expMap(C.speed, 1.4);
+    return 70 + s * 150; // 70..220
+  }
+  function stepDur(){
+    const bpm = bpmFromSpeed();
+    return (60 / bpm) / 2; // 8ths
+  }
+
+  function makeNoiseBuffer(seconds=0.25){
+    const sr = ctx.sampleRate;
+    const len = Math.floor(seconds * sr);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    let rw = 0;
+    for(let i=0;i<len;i++){
+      const w = (Math.random()*2-1);
+      rw = 0.995*rw + 0.005*(Math.random()*2-1);
+      data[i] = 0.85*w + 0.35*rw;
+    }
+    return buf;
+  }
+
+  function makeShaperCurve(amount){
+    const k = 1 + amount * 260;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2 / (n - 1)) - 1;
+      curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+    }
+    return curve;
+  }
+
+  function createBitCrusher(){
+    const sp = ctx.createScriptProcessor(4096, 1, 1);
+    let ph = 0, last = 0;
+    sp.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0);
+      const output = e.outputBuffer.getChannelData(0);
+      const c = clamp01(expMap(C.blast, 1.1));
+      const bits = 16 - Math.floor(c * 13);     // 16..3
+      const step = Math.pow(0.5, bits);
+      const rateDiv = 1 + Math.floor(c * 60);   // 1..61
+      for(let i=0;i<input.length;i++){
+        ph++;
+        if(ph >= rateDiv){
+          ph = 0;
+          last = Math.round(input[i] / step) * step;
+        }
+        output[i] = last;
+      }
+    };
+    return sp;
+  }
+
+  // ========= Drums =========
+  function drumKick(time, vel=1){
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(150, time);
+    o.frequency.exponentialRampToValueAtTime(42, time + 0.12);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.95 * vel, time + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.19);
+    o.connect(g); g.connect(drumBus);
+    o.start(time); o.stop(time + 0.22);
+
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.03);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(2500, time);
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.0001, time);
+    cg.gain.exponentialRampToValueAtTime(0.25 * vel, time + 0.001);
+    cg.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
+    b.connect(hpf); hpf.connect(cg); cg.connect(drumBus);
+    b.start(time); b.stop(time + 0.035);
+  }
+
+  function drumSnare(time, vel=1){
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.20);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(900, time);
+    const bpf = ctx.createBiquadFilter();
+    bpf.type = "bandpass"; bpf.frequency.setValueAtTime(1900, time); bpf.Q.setValueAtTime(0.8, time);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.85 * vel, time + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+
+    b.connect(hpf); hpf.connect(bpf); bpf.connect(g); g.connect(drumBus);
+    b.start(time); b.stop(time + 0.18);
+
+    const o = ctx.createOscillator();
+    const tg = ctx.createGain();
+    o.type = "triangle"; o.frequency.setValueAtTime(210, time);
+    tg.gain.setValueAtTime(0.0001, time);
+    tg.gain.exponentialRampToValueAtTime(0.30 * vel, time + 0.0015);
+    tg.gain.exponentialRampToValueAtTime(0.0001, time + 0.085);
+    o.connect(tg); tg.connect(drumBus);
+    o.start(time); o.stop(time + 0.11);
+  }
+
+  function drumHat(time, vel=1){
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.10);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(6500, time);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.45 * vel, time + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.055);
+    b.connect(hpf); hpf.connect(g); g.connect(drumBus);
+    b.start(time); b.stop(time + 0.07);
+  }
+
+  function build(){
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+
+    drumBus = ctx.createGain();
+    drumBus.gain.value = 1.0;
+
+    shaper = ctx.createWaveShaper();
+    shaper.oversample = "4x";
+
+    crushNode = createBitCrusher();
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -22;
+    comp.knee.value = 24;
+    comp.ratio.value = 14;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.18;
+
+    hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 30;
+    hp.Q.value = 0.7;
+
+    lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 14000;
+    lp.Q.value = 0.8;
+
+    delay = ctx.createDelay(0.08);
+    delay.delayTime.value = 0.010;
+
+    fbGain = ctx.createGain();
+    fbGain.gain.value = 0.0;
+
+    wetGain = ctx.createGain();
+    dryGain = ctx.createGain();
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.0001;
+
+    drumBus.connect(shaper);
+    shaper.connect(crushNode);
+    crushNode.connect(comp);
+    comp.connect(hp);
+    hp.connect(lp);
+
+    lp.connect(dryGain);
+    dryGain.connect(masterGain);
+
+    lp.connect(delay);
+    delay.connect(wetGain);
+    wetGain.connect(masterGain);
+
+    delay.connect(fbGain);
+    fbGain.connect(delay);
+
+    masterGain.connect(ctx.destination);
+
+    applyFX(true);
+
+    stepIndex = 0;
+    nextStepTime = ctx.currentTime + 0.06;
+    startScheduler();
+  }
+
+  function applyFX(immediate=false){
+    if(!ctx) return;
+    const t = ctx.currentTime;
+    const b = expMap(C.blast, 1.15);
+
+    shaper.curve = makeShaperCurve(0.15 + b * 0.85);
+
+    comp.threshold.setTargetAtTime(-26 + b * -18, t, 0.05);
+    comp.ratio.setTargetAtTime(10 + b * 10, t, 0.05);
+
+    lp.frequency.setTargetAtTime(18000 - b * 9000, t, 0.05);
+    hp.frequency.setTargetAtTime(25 + b * 150, t, 0.05);
+
+    const d = 0.006 + b * 0.030;
+    delay.delayTime.setTargetAtTime(Math.min(0.07, d), t, 0.05);
+    fbGain.gain.setTargetAtTime(Math.min(0.85, b * 0.72), t, 0.06);
+
+    wetGain.gain.setTargetAtTime(0.18 + b * 0.62, t, 0.06);
+    dryGain.gain.setTargetAtTime(1.0 - (0.15 + b * 0.55), t, 0.06);
+
+    const mg = Math.max(0.05, 0.25 + b * 0.55);
+    if(immediate) masterGain.gain.setValueAtTime(mg, t);
+    else masterGain.gain.setTargetAtTime(mg, t, 0.08);
+  }
+
+  // ========= Scheduler =========
+  const lookAhead = 0.20;
+  const timerInt = 20;
+
+  function startScheduler(){
+    if(schedTimer) clearInterval(schedTimer);
+    schedTimer = setInterval(() => {
+      if(!ctx || ctx.state !== "running") return;
+      while(nextStepTime < ctx.currentTime + lookAhead){
+        scheduleStep(stepIndex, nextStepTime);
+        nextStepTime += stepDur();
+        stepIndex = (stepIndex + 1) % STEPS;
+      }
+    }, timerInt);
+  }
+
+  function scheduleStep(ix, time){
+    setPlayhead(ix);
+    const vel = 1.0;
+    if(pat.kick[ix])  drumKick(time, vel);
+    if(pat.snare[ix]) drumSnare(time, vel);
+    if(pat.hat[ix])   drumHat(time, vel);
+  }
+
+  // ========= Random pattern =========
+  function rnd(p){ return Math.random() < p ? 1 : 0; }
+  function randomize(){
+    for(let i=0;i<STEPS;i++) pat.hat[i] = rnd(0.86);
+
+    for(let i=0;i<STEPS;i++) pat.kick[i] = 0;
+    pat.kick[0] = 1; pat.kick[4] = 1;
+    for(let i=0;i<STEPS;i++) if(!pat.kick[i]) pat.kick[i] = rnd(0.22);
+
+    for(let i=0;i<STEPS;i++) pat.snare[i] = 0;
+    pat.snare[2] = 1; pat.snare[6] = 1;
+    for(let i=0;i<STEPS;i++) if(!pat.snare[i]) pat.snare[i] = rnd(0.10);
+
+    if(pat.hat.reduce((a,b)=>a+b,0)===0) pat.hat[1]=1;
+    if(pat.kick.reduce((a,b)=>a+b,0)===0) pat.kick[0]=1;
+    if(pat.snare.reduce((a,b)=>a+b,0)===0) pat.snare[2]=1;
+
+    refreshSeq();
+  }
+
+  // ========= UI: Sequencer =========
+  const rows = Array.from(document.querySelectorAll(".row"));
+  const stepEls = { kick: [], snare: [], hat: [] };
+
+  function makeStep(rowName, ix){
+    const d = document.createElement("div");
+    d.className = "step";
+    d.dataset.row = rowName;
+    d.dataset.ix = String(ix);
+    d.setAttribute("role","button");
+    d.setAttribute("aria-label", rowName + " step " + (ix+1));
+    d.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if(!ctx) return;
+
+      pat[rowName][ix] = pat[rowName][ix] ? 0 : 1;
+      d.classList.toggle("on", !!pat[rowName][ix]);
+
+      const t = ctx.currentTime + 0.002;
+      if(rowName==="kick") drumKick(t, 1);
+      if(rowName==="snare") drumSnare(t, 1);
+      if(rowName==="hat") drumHat(t, 1);
+    }, {passive:false});
+    return d;
+  }
+
+  rows.forEach(r => {
+    const name = r.dataset.row;
+    for(let i=0;i<STEPS;i++){
+      const s = makeStep(name, i);
+      r.appendChild(s);
+      stepEls[name].push(s);
+    }
+  });
+
+  function refreshSeq(){
+    for(const k of ["kick","snare","hat"]){
+      for(let i=0;i<STEPS;i++){
+        stepEls[k][i].classList.toggle("on", !!pat[k][i]);
+      }
+    }
+  }
+  function setPlayhead(ix){
+    for(const k of ["kick","snare","hat"]){
+      for(let i=0;i<STEPS;i++){
+        stepEls[k][i].classList.toggle("playing", i===ix);
+      }
+    }
+  }
+
+  // ========= UI: Controls =========
+  const ctrlState = new Map();
+  function ctrlDown(e, el){
+    e.preventDefault();
+    if(!ctx) return;
+
+    const p = el.dataset.param;
+    const rect = el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    C[p] = clamp01(0.65 * C[p] + 0.35 * v);
+    setCtrlFill(el, C[p]);
+
+    el.classList.add("armed");
+
+    if(p === "speed"){
+      // reset scheduler phase so it feels immediate
+      nextStepTime = ctx.currentTime + 0.02;
+    }
+    applyFX(false);
+
+    ctrlState.set(e.pointerId, { el, p, lastMove: performance.now() });
+    el.setPointerCapture(e.pointerId);
+  }
+  function ctrlMove(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+
+    const rect = st.el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    const now = performance.now();
+    const dt = Math.max(1, now - st.lastMove);
+    st.lastMove = now;
+    const alpha = Math.min(1, dt / 32);
+
+    C[st.p] = clamp01((1-alpha)*C[st.p] + alpha*v);
+    setCtrlFill(st.el, C[st.p]);
+
+    if(st.p === "speed"){
+      nextStepTime = Math.min(nextStepTime, ctx.currentTime + 0.08);
+    } else {
+      applyFX(false);
+    }
+  }
+  function ctrlUp(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+    st.el.classList.remove("armed");
+    ctrlState.delete(e.pointerId);
+    applyFX(false);
+  }
+
+  ctrlEls.forEach(el => el.addEventListener("pointerdown", (e)=>ctrlDown(e, el), {passive:false}));
+  window.addEventListener("pointermove", ctrlMove, {passive:false});
+  window.addEventListener("pointerup", ctrlUp, {passive:false});
+  window.addEventListener("pointercancel", ctrlUp, {passive:false});
+
+  ctrlEls.forEach(el => setCtrlFill(el, C[el.dataset.param] ?? 0));
+
+  // ========= Start flow =========
+  async function start(){
+    if(!ctx) build();
+    try { await ctx.resume(); } catch(_){}
+
+    randomize();
+    refreshSeq();
+
+    startScreen.style.display = "none";
+    wrap.classList.add("on");
+  }
+
+  playBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    start();
+  }, {passive:false});
+
+  // Keep alive on iOS: resume on any gesture
+  document.addEventListener("pointerdown", async () => {
+    if(!ctx) return;
+    if(ctx.state === "suspended"){
+      try { await ctx.resume(); } catch(_){}
+      startScheduler();
+    }
+  }, {passive:false});
+
+  document.addEventListener("visibilitychange", () => {
+    if(!ctx) return;
+    if(document.hidden) ctx.suspend();
+  });
+
+})();
+</script>
+</body>
+</html>

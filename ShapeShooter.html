@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Shape Shooter</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at center, #1a4e9c 0%, #3a3a3a 80%);
+    color: #fff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #ui {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 20px;
+    font-weight: 800;
+    text-shadow: 0 0 10px #0ff;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: rgba(0,0,0,0.85);
+    text-align: center;
+    color: #fff;
+  }
+  #overlay.hidden { display: none; }
+  h1 {
+    font-size: 3em;
+    color: #0ff;
+    text-shadow: 0 0 25px #0ff, 0 0 50px #0ff;
+  }
+  button {
+    background: #000;
+    color: #fff;
+    border: 3px solid #0ff;
+    padding: 12px 24px;
+    font-size: 1.3em;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 0 20px #0ff, inset 0 0 10px rgba(0,255,255,0.3);
+  }
+  button:active { transform: scale(0.95); }
+  #flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,0,0,0.25);
+    display: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="ui">
+  <div id="timer">⏳ 60</div>
+  <div id="health">❤️❤️❤️</div>
+  <div id="score">Score: 0</div>
+</div>
+<div id="flash"></div>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <h1>SHAPE SHOOTER</h1>
+  <p>Hold to fire. Drag to move. Collect glowing power-ups!</p>
+  <button id="start">START</button>
+</div>
+
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const timerEl = document.getElementById('timer');
+const healthEl = document.getElementById('health');
+const scoreEl = document.getElementById('score');
+const overlay = document.getElementById('overlay');
+const flash = document.getElementById('flash');
+
+let W, H, DPR;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = c.width = innerWidth * DPR;
+  H = c.height = innerHeight * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Audio
+let audioCtx;
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function tone(freq, dur=0.1, type='square', vol=0.1) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+}
+function boomSound() {
+  tone(120, 0.2, 'sawtooth', 0.2);
+}
+function sparkleSound() {
+  [600,800,1000].forEach((f,i)=>setTimeout(()=>tone(f,0.1,'sine',0.12),i*80));
+}
+
+// Game state
+const G = {
+  running: false,
+  t: 0, dt: 0, last: 0,
+  score: 0,
+  timeLeft: 60,
+  health: 3,
+  bullets: [], enemies: [], particles: [], powerups: [],
+  comboTimer: 0, comboLevel: 0
+};
+
+const player = { x: innerWidth/2, y: innerHeight*0.75, r: 25, cooldown: 0 };
+
+function boom(x,y,color) {
+  for(let i=0;i<60;i++){
+    const a=Math.random()*Math.PI*2;
+    const s=Math.random()*250+50;
+    G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,life:1,color,size:2+Math.random()*3});
+  }
+}
+
+function drawShip(x,y){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.fillStyle='#0ff';
+  ctx.shadowBlur=25; ctx.shadowColor='#0ff';
+  ctx.beginPath();
+  ctx.moveTo(0,-player.r*1.4);
+  ctx.lineTo(player.r,player.r);
+  ctx.lineTo(-player.r,player.r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawEnemy(e){
+  ctx.save();
+  ctx.translate(e.x,e.y);
+  ctx.fillStyle=e.color;
+  ctx.shadowBlur=15;ctx.shadowColor=e.color;
+  ctx.beginPath();
+  if(e.shape==='square') ctx.fillRect(-e.r,-e.r,e.r*2,e.r*2);
+  else if(e.shape==='triangle'){
+    ctx.moveTo(0,-e.r);ctx.lineTo(e.r,e.r);ctx.lineTo(-e.r,e.r);ctx.closePath();ctx.fill();
+  } else {ctx.arc(0,0,e.r,0,Math.PI*2);ctx.fill();}
+  ctx.restore();
+}
+
+function drawBullet(b){
+  ctx.save();
+  ctx.translate(b.x,b.y);
+  ctx.fillStyle='#fff';
+  ctx.shadowBlur=10;ctx.shadowColor='#fff';
+  ctx.fillRect(-3,-10,6,20);
+  ctx.restore();
+}
+
+function drawParticle(p){
+  ctx.globalAlpha = 1 - p.t/p.life;
+  ctx.fillStyle=p.color;
+  ctx.shadowBlur=10;ctx.shadowColor=p.color;
+  ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+function drawPowerup(p){
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  ctx.strokeStyle=p.color;
+  ctx.shadowBlur=15;ctx.shadowColor=p.color;
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.fillText(p.label,0,3);
+  ctx.restore();
+}
+
+function spawnEnemy(){
+  const x=Math.random()*innerWidth, y=-60;
+  const r=20+Math.random()*25;
+  const vy=60+Math.random()*100;
+  const color=['#f66','#6f6','#66f','#ff6','#f6f'][Math.floor(Math.random()*5)];
+  const shape=['circle','square','triangle'][Math.floor(Math.random()*3)];
+  G.enemies.push({x,y,vy,r,color,shape,hp:2});
+}
+
+function spawnPowerup(x,y){
+  const list=[
+    {label:'+T',color:'#0f8',type:'time'},
+    {label:'+H',color:'#f44',type:'health'},
+    {label:'R',color:'#6ff',type:'rapid'},
+    {label:'S',color:'#f6f',type:'spread'},
+    {label:'N',color:'#ff6',type:'nuke'}
+  ];
+  const p=list[Math.floor(Math.random()*list.length)];
+  G.powerups.push({x,y,vx:0,vy:-30,r:12,t:0,type:p.type,label:p.label,color:p.color});
+}
+
+function updatePowerups(dt){
+  for(let i=G.powerups.length-1;i>=0;i--){
+    const p=G.powerups[i];
+    p.t+=dt;
+    // attract
+    const dx=player.x-p.x, dy=player.y-p.y;
+    const d=Math.hypot(dx,dy)+0.001;
+    const pull=800/(d*d);
+    p.vx+=dx*pull; p.vy+=dy*pull;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(d<player.r+15){
+      applyPower(p.type);
+      sparkleSound();
+      G.powerups.splice(i,1);
+    }
+    if(p.y>innerHeight+50) G.powerups.splice(i,1);
+  }
+}
+
+function applyPower(type){
+  if(type==='time'){G.timeLeft+=5;}
+  else if(type==='health'){G.health=Math.min(5,G.health+1);}
+  else if(type==='rapid'){player.fireRate=0.07;setTimeout(()=>player.fireRate=0.15,8000);}
+  else if(type==='spread'){player.spread=true;setTimeout(()=>player.spread=false,8000);}
+  else if(type==='nuke'){
+    for(const e of G.enemies) boom(e.x,e.y,e.color);
+    G.score+=G.enemies.length*50;
+    G.enemies=[];
+    boomSound();
+  }
+}
+
+function collide(ax,ay,ar,bx,by,br){const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy<(ar+br)*(ar+br);}
+
+function updateParticles(dt){
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i];
+    p.t+=dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.t>p.life) G.particles.splice(i,1);
+  }
+}
+
+function updateBullets(dt){
+  for(let i=G.bullets.length-1;i>=0;i--){
+    const b=G.bullets[i];
+    b.y+=b.vy*dt;
+    if(b.y<-40){G.bullets.splice(i,1);continue;}
+    for(let j=G.enemies.length-1;j>=0;j--){
+      const e=G.enemies[j];
+      if(collide(b.x,b.y,6,e.x,e.y,e.r)){
+        G.bullets.splice(i,1);
+        e.hp--;
+        G.score+=50;
+        G.comboTimer=1;
+        G.comboLevel++;
+        const pitch=[220,261,330,392,523][G.comboLevel%5];
+        tone(pitch,0.08,'square',0.12);
+        if(e.hp<=0){
+          boom(e.x,e.y,e.color);
+          if(Math.random()<0.3)spawnPowerup(e.x,e.y);
+          G.enemies.splice(j,1);
+        }
+        break;
+      }
+    }
+  }
+  if(G.comboTimer>0){
+    G.comboTimer-=dt;
+    if(G.comboTimer<=0)G.comboLevel=0;
+  }
+}
+
+function updateEnemies(dt){
+  for(let i=G.enemies.length-1;i>=0;i--){
+    const e=G.enemies[i];
+    e.y+=e.vy*dt;
+    if(e.y>innerHeight+60){G.enemies.splice(i,1);continue;}
+    if(collide(player.x,player.y,player.r,e.x,e.y,e.r)){
+      G.health--;
+      flash.style.display='block';
+      setTimeout(()=>flash.style.display='none',120);
+      boom(e.x,e.y,'#f00');
+      boomSound();
+      G.enemies.splice(i,1);
+      if(G.health<=0){return gameOver();}
+    }
+  }
+}
+
+function step(now){
+  if(!G.running)return;
+  G.dt=Math.min(0.033,(now-G.last)/1000);
+  G.last=now;
+  G.t+=G.dt;
+  G.timeLeft-=G.dt;
+  if(G.timeLeft<=0){return gameOver();}
+  timerEl.textContent='⏳ '+G.timeLeft.toFixed(1);
+  healthEl.textContent='❤️'.repeat(G.health);
+  scoreEl.textContent='Score: '+G.score;
+
+  player.x+=(G.inputX-player.x)*0.2;
+  player.y+=(G.inputY-player.y)*0.2;
+
+  // Shooting
+  player.cooldown-=G.dt;
+  const rate=player.fireRate||0.15;
+  if(G.firing && player.cooldown<=0){
+    const spread=player.spread?[-10,0,10]:[0];
+    for(const ang of spread){
+      const rad=ang*Math.PI/180;
+      const vx=Math.sin(rad)*300, vy=-600*Math.cos(rad);
+      G.bullets.push({x:player.x+Math.sin(rad)*10,y:player.y-20,vx,vy});
+    }
+    tone(440,0.05,'square',0.08);
+    player.cooldown=rate;
+  }
+
+  // Bullets move
+  for(const b of G.bullets){b.x+=b.vx*G.dt;b.y+=b.vy*G.dt;}
+  updateBullets(G.dt);
+  updateEnemies(G.dt);
+  updatePowerups(G.dt);
+  updateParticles(G.dt);
+
+  if(Math.random()<0.025)spawnEnemy();
+
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  for(const e of G.enemies) drawEnemy(e);
+  for(const pu of G.powerups) drawPowerup(pu);
+  for(const b of G.bullets) drawBullet(b);
+  drawShip(player.x,player.y);
+  for(const p of G.particles) drawParticle(p);
+
+  requestAnimationFrame(step);
+}
+
+function gameOver(){
+  G.running=false;
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=`<h1>GAME OVER</h1><p>Score: ${G.score}</p><button id="restart">RESTART</button>`;
+  document.getElementById('restart').onclick=start;
+}
+
+function start(){
+  initAudio();
+  overlay.classList.add('hidden');
+  G.running=true;
+  G.timeLeft=60;
+  G.health=3;
+  G.score=0;
+  G.enemies=[];G.bullets=[];G.particles=[];G.powerups=[];
+  G.last=performance.now();
+  requestAnimationFrame(step);
+}
+
+G.inputX=innerWidth/2; G.inputY=innerHeight*0.75; G.firing=false;
+c.addEventListener('pointerdown',e=>{initAudio();G.firing=true;G.inputX=e.clientX;G.inputY=e.clientY;});
+c.addEventListener('pointermove',e=>{G.inputX=e.clientX;G.inputY=e.clientY;});
+c.addEventListener('pointerup',()=>G.firing=false);
+
+document.getElementById('start').onclick=start;
+</script>
+</body>
+</html>

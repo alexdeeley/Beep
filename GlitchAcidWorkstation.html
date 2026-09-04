@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLITCH-ACID WORKSTATION</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            color: #FFFFFF;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            user-select: none;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            border: 3px solid #FFFFFF;
+            padding: 20px;
+            text-align: center;
+            letter-spacing: 5px;
+        }
+
+        .section {
+            border: 2px solid #FFFFFF;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #FFFFFF;
+            padding-bottom: 10px;
+        }
+
+        button {
+            background: #000000;
+            color: #FFFFFF;
+            border: 2px solid #FFFFFF;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            margin: 5px;
+            min-width: 120px;
+        }
+
+        button:hover {
+            background: #FFFFFF;
+            color: #000000;
+        }
+
+        button.active {
+            background: #FFFFFF;
+            color: #000000;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .control {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control label {
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 40px;
+            background: #000000;
+            border: 2px solid #FFFFFF;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 30px;
+            height: 36px;
+            background: #FFFFFF;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 30px;
+            height: 36px;
+            background: #FFFFFF;
+            cursor: pointer;
+            border: none;
+        }
+
+        .value-display {
+            font-size: 0.8em;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .sequencer {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .seq-track {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .track-label {
+            min-width: 80px;
+            font-weight: bold;
+        }
+
+        .steps {
+            display: flex;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .step {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #FFFFFF;
+            background: #000000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+        }
+
+        .step.active {
+            background: #FFFFFF;
+            color: #000000;
+        }
+
+        .step.playing {
+            border: 2px solid #888;
+        }
+
+        .acid-sequencer {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 3px;
+            margin-top: 10px;
+        }
+
+        .acid-step {
+            border: 2px solid #FFFFFF;
+            background: #000000;
+            padding: 5px;
+            cursor: pointer;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+        }
+
+        .acid-step.active {
+            background: #333;
+        }
+
+        .acid-step.playing {
+            border-color: #888;
+        }
+
+        .note-display {
+            font-size: 0.8em;
+            margin-bottom: 5px;
+        }
+
+        .toggle-btn {
+            padding: 3px 6px;
+            font-size: 0.7em;
+            margin: 2px;
+            min-width: 40px;
+        }
+
+        .step-count-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 10px;
+        }
+
+        .step-count-control button {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            min-width: 40px;
+        }
+
+        .transport {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        select {
+            background: #000000;
+            color: #FFFFFF;
+            border: 2px solid #FFFFFF;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+    <div class="container">
+        <h1>GLITCH-ACID WORKSTATION</h1>
+
+        <div class="section">
+            <button id="startBtn" style="font-size: 1.5em; width: 100%; padding: 20px;">START AUDIO ENGINE</button>
+        </div>
+
+        <div class="section">
+            <h2>MASTER CONTROLS</h2>
+            <div class="controls">
+                <div class="control">
+                    <label>BPM: <span id="bpmValue">120</span></label>
+                    <input type="range" id="bpm" min="60" max="200" value="120">
+                </div>
+                <div class="control">
+                    <label>MASTER VOLUME: <span id="masterVolValue">-6</span> dB</label>
+                    <input type="range" id="masterVol" min="-40" max="0" value="-6">
+                </div>
+            </div>
+            <div class="transport">
+                <button id="playBtn">PLAY</button>
+                <button id="stopBtn">STOP</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>GLITCH DRUM MACHINE</h2>
+
+            <div class="controls">
+                <div class="control">
+                    <label>DESTRUCTION: <span id="destructionValue">0</span>%</label>
+                    <input type="range" id="destruction" min="0" max="100" value="0">
+                </div>
+                <div class="control">
+                    <label>BITCRUSH: <span id="bitcrushValue">16</span> bit</label>
+                    <input type="range" id="bitcrush" min="1" max="16" value="16">
+                </div>
+            </div>
+
+            <div class="sequencer">
+                <div class="seq-track">
+                    <span class="track-label">KICK</span>
+                    <div class="steps" id="kickSteps"></div>
+                    <div class="step-count-control">
+                        <button onclick="changeStepCount('kick', -1)">-</button>
+                        <span id="kickStepCount">8</span>
+                        <button onclick="changeStepCount('kick', 1)">+</button>
+                    </div>
+                </div>
+                <div class="seq-track">
+                    <span class="track-label">SNARE</span>
+                    <div class="steps" id="snareSteps"></div>
+                    <div class="step-count-control">
+                        <button onclick="changeStepCount('snare', -1)">-</button>
+                        <span id="snareStepCount">8</span>
+                        <button onclick="changeStepCount('snare', 1)">+</button>
+                    </div>
+                </div>
+                <div class="seq-track">
+                    <span class="track-label">HI-HAT</span>
+                    <div class="steps" id="hihatSteps"></div>
+                    <div class="step-count-control">
+                        <button onclick="changeStepCount('hihat', -1)">-</button>
+                        <span id="hihatStepCount">8</span>
+                        <button onclick="changeStepCount('hihat', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>303 ACID SYNTHESIZER</h2>
+
+            <div class="controls">
+                <div class="control">
+                    <label>WAVEFORM</label>
+                    <select id="waveform">
+                        <option value="sawtooth">SAWTOOTH</option>
+                        <option value="square">SQUARE</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label>CUTOFF: <span id="cutoffValue">1000</span> Hz</label>
+                    <input type="range" id="cutoff" min="100" max="8000" value="1000">
+                </div>
+                <div class="control">
+                    <label>RESONANCE: <span id="resonanceValue">1</span></label>
+                    <input type="range" id="resonance" min="0.1" max="30" step="0.1" value="1">
+                </div>
+                <div class="control">
+                    <label>ENV MOD: <span id="envModValue">2000</span></label>
+                    <input type="range" id="envMod" min="0" max="8000" value="2000">
+                </div>
+                <div class="control">
+                    <label>DECAY: <span id="decayValue">0.3</span> s</label>
+                    <input type="range" id="decay" min="0.01" max="2" step="0.01" value="0.3">
+                </div>
+                <div class="control">
+                    <label>ACCENT: <span id="accentValue">6</span> dB</label>
+                    <input type="range" id="accent" min="0" max="12" step="0.5" value="6">
+                </div>
+            </div>
+
+            <div class="acid-sequencer" id="acidSequencer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global Audio Context
+        let audioContext;
+        let masterGain;
+        let masterCompressor;
+        let drumGain;
+        let acidGain;
+
+        // Destruction FX
+        let destructionGain;
+        let bitcrusher;
+
+        // Sequencer state
+        let isPlaying = false;
+        let currentStep = 0;
+        let currentAcidStep = 0;
+        let sequencerInterval;
+        let bpm = 120;
+
+        // Drum patterns
+        let drumPatterns = {
+            kick: { steps: 8, pattern: [1,0,0,0,1,0,0,0] },
+            snare: { steps: 8, pattern: [0,0,1,0,0,0,1,0] },
+            hihat: { steps: 8, pattern: [1,0,1,0,1,0,1,0] }
+        };
+
+        // Acid pattern
+        let acidPattern = [];
+        const acidNotes = [33, 36, 38, 40, 43, 45, 48, 50, 52, 55, 57, 60]; // C1 to C3 (MIDI)
+
+        // Initialize acid pattern
+        for (let i = 0; i < 16; i++) {
+            acidPattern.push({
+                active: i % 4 === 0,
+                note: acidNotes[Math.floor(Math.random() * acidNotes.length)],
+                slide: false,
+                accent: false
+            });
+        }
+
+        // Audio parameters
+        let params = {
+            waveform: 'sawtooth',
+            cutoff: 1000,
+            resonance: 1,
+            envMod: 2000,
+            decay: 0.3,
+            accentAmount: 6,
+            destruction: 0,
+            bitcrushBits: 16
+        };
+
+        // Start Audio Engine
+        document.getElementById('startBtn').addEventListener('click', function() {
+            if (!audioContext) {
+                initAudio();
+                this.textContent = 'AUDIO ENGINE ACTIVE';
+                this.classList.add('active');
+                this.disabled = true;
+            }
+        });
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Master chain
+            masterCompressor = audioContext.createDynamicsCompressor();
+            masterCompressor.threshold.value = -20;
+            masterCompressor.knee.value = 10;
+            masterCompressor.ratio.value = 12;
+            masterCompressor.attack.value = 0.003;
+            masterCompressor.release.value = 0.25;
+
+            masterGain = audioContext.createGain();
+            masterGain.gain.value = 0.5; // -6dB default
+
+            drumGain = audioContext.createGain();
+            drumGain.gain.value = 0.8;
+
+            destructionGain = audioContext.createGain();
+            destructionGain.gain.value = 0;
+
+            acidGain = audioContext.createGain();
+            acidGain.gain.value = 0.6;
+
+            // Connect chain
+            drumGain.connect(masterGain);
+            acidGain.connect(masterGain);
+            masterGain.connect(masterCompressor);
+            masterCompressor.connect(audioContext.destination);
+
+            console.log('Audio engine initialized');
+        }
+
+        // Drum synthesis functions
+        function playKick() {
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const pitchEnv = audioContext.createGain();
+
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+
+            osc1.frequency.setValueAtTime(150, now);
+            osc1.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+            osc1.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+
+            osc2.frequency.setValueAtTime(60, now);
+            osc2.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+
+            gain.gain.setValueAtTime(1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(applyDestruction(drumGain));
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + 0.5);
+            osc2.stop(now + 0.5);
+        }
+
+        function playSnare() {
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+
+            // Noise component
+            const noise = audioContext.createBufferSource();
+            const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.2, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noise.buffer = buffer;
+
+            const noiseFilter = audioContext.createBiquadFilter();
+            noiseFilter.type = 'highpass';
+            noiseFilter.frequency.value = 1000;
+
+            const noiseGain = audioContext.createGain();
+            noiseGain.gain.setValueAtTime(0.8, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+            // Tonal component
+            const osc = audioContext.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+
+            const oscGain = audioContext.createGain();
+            oscGain.gain.setValueAtTime(0.3, now);
+            oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(applyDestruction(drumGain));
+
+            osc.connect(oscGain);
+            oscGain.connect(applyDestruction(drumGain));
+
+            noise.start(now);
+            osc.start(now);
+            noise.stop(now + 0.2);
+            osc.stop(now + 0.1);
+        }
+
+        function playHihat() {
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+
+            const noise = audioContext.createBufferSource();
+            const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.05, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noise.buffer = buffer;
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 7000;
+            filter.Q.value = 1;
+
+            const gain = audioContext.createGain();
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(applyDestruction(drumGain));
+
+            noise.start(now);
+            noise.stop(now + 0.05);
+        }
+
+        // Destruction effect (bitcrusher simulation)
+        function applyDestruction(destination) {
+            if (params.destruction > 0 || params.bitcrushBits < 16) {
+                const crusher = audioContext.createWaveShaper();
+                const samples = 44100;
+                const curve = new Float32Array(samples);
+                const deg = Math.PI / 180;
+                const amount = params.destruction / 100;
+
+                for (let i = 0; i < samples; i++) {
+                    const x = i * 2 / samples - 1;
+                    // Bitcrush effect
+                    const steps = Math.pow(2, params.bitcrushBits);
+                    let y = Math.round(x * steps) / steps;
+                    // Saturation
+                    y = (3 + amount * 20) * y * 20 * deg / (Math.PI + amount * Math.abs(y));
+                    curve[i] = y;
+                }
+
+                crusher.curve = curve;
+                crusher.connect(destination);
+                return crusher;
+            }
+            return destination;
+        }
+
+        // 303 Acid synth
+        function play303Note(note, slide = false, accent = false) {
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+            const freq = midiToFreq(note);
+            const duration = 60 / bpm / 4; // 16th note duration
+
+            const osc = audioContext.createOscillator();
+            osc.type = params.waveform;
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.Q.value = params.resonance;
+
+            const vca = audioContext.createGain();
+            const filterEnv = audioContext.createGain();
+
+            // Base frequency
+            if (slide && currentAcidStep > 0) {
+                const prevNote = acidPattern[(currentAcidStep - 1 + 16) % 16].note;
+                osc.frequency.setValueAtTime(midiToFreq(prevNote), now);
+                osc.frequency.exponentialRampToValueAtTime(freq, now + duration * 0.3);
+            } else {
+                osc.frequency.setValueAtTime(freq, now);
+            }
+
+            // Filter envelope
+            const cutoffBase = params.cutoff;
+            const cutoffPeak = Math.min(cutoffBase + params.envMod, 8000);
+            filter.frequency.setValueAtTime(cutoffPeak, now);
+            filter.frequency.exponentialRampToValueAtTime(cutoffBase, now + params.decay);
+
+            // Amplitude envelope
+            const gain = accent ? Math.pow(10, params.accentAmount / 20) : 1;
+            vca.gain.setValueAtTime(gain * 0.6, now);
+            vca.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+            osc.connect(filter);
+            filter.connect(vca);
+            vca.connect(acidGain);
+
+            osc.start(now);
+            osc.stop(now + duration);
+        }
+
+        function midiToFreq(midi) {
+            return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        // Sequencer
+        function stepSequencer() {
+            if (!audioContext || !isPlaying) return;
+
+            // Drum sequencer
+            Object.keys(drumPatterns).forEach(drum => {
+                const track = drumPatterns[drum];
+                const stepInPattern = currentStep % track.steps;
+
+                if (track.pattern[stepInPattern] === 1) {
+                    if (drum === 'kick') playKick();
+                    else if (drum === 'snare') playSnare();
+                    else if (drum === 'hihat') playHihat();
+                }
+
+                updateStepDisplay(drum, stepInPattern);
+            });
+
+            // Acid sequencer
+            const acidStep = acidPattern[currentAcidStep];
+            if (acidStep.active) {
+                play303Note(acidStep.note, acidStep.slide, acidStep.accent);
+            }
+            updateAcidStepDisplay(currentAcidStep);
+
+            currentStep++;
+            currentAcidStep = (currentAcidStep + 1) % 16;
+        }
+
+        function updateStepDisplay(drum, step) {
+            const steps = document.querySelectorAll(`#${drum}Steps .step`);
+            steps.forEach((s, i) => {
+                s.classList.toggle('playing', i === step);
+            });
+        }
+
+        function updateAcidStepDisplay(step) {
+            const steps = document.querySelectorAll('.acid-step');
+            steps.forEach((s, i) => {
+                s.classList.toggle('playing', i === step);
+            });
+        }
+
+        // Transport controls
+        document.getElementById('playBtn').addEventListener('click', function() {
+            if (!audioContext) {
+                alert('Please start the audio engine first');
+                return;
+            }
+
+            isPlaying = true;
+            currentStep = 0;
+            currentAcidStep = 0;
+            this.classList.add('active');
+
+            const interval = (60 / bpm) / 4 * 1000; // 16th note in ms
+            sequencerInterval = setInterval(stepSequencer, interval);
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', function() {
+            isPlaying = false;
+            clearInterval(sequencerInterval);
+            document.getElementById('playBtn').classList.remove('active');
+
+            // Clear visual indicators
+            document.querySelectorAll('.step, .acid-step').forEach(s => {
+                s.classList.remove('playing');
+            });
+        });
+
+        // BPM control
+        document.getElementById('bpm').addEventListener('input', function() {
+            bpm = parseInt(this.value);
+            document.getElementById('bpmValue').textContent = bpm;
+
+            if (isPlaying) {
+                clearInterval(sequencerInterval);
+                const interval = (60 / bpm) / 4 * 1000;
+                sequencerInterval = setInterval(stepSequencer, interval);
+            }
+        });
+
+        // Master volume
+        document.getElementById('masterVol').addEventListener('input', function() {
+            if (masterGain) {
+                const db = parseFloat(this.value);
+                masterGain.gain.value = Math.pow(10, db / 20);
+                document.getElementById('masterVolValue').textContent = db;
+            }
+        });
+
+        // Destruction controls
+        document.getElementById('destruction').addEventListener('input', function() {
+            params.destruction = parseFloat(this.value);
+            document.getElementById('destructionValue').textContent = Math.round(params.destruction);
+        });
+
+        document.getElementById('bitcrush').addEventListener('input', function() {
+            params.bitcrushBits = parseInt(this.value);
+            document.getElementById('bitcrushValue').textContent = params.bitcrushBits;
+        });
+
+        // 303 controls
+        document.getElementById('waveform').addEventListener('change', function() {
+            params.waveform = this.value;
+        });
+
+        document.getElementById('cutoff').addEventListener('input', function() {
+            params.cutoff = parseFloat(this.value);
+            document.getElementById('cutoffValue').textContent = Math.round(params.cutoff);
+        });
+
+        document.getElementById('resonance').addEventListener('input', function() {
+            params.resonance = parseFloat(this.value);
+            document.getElementById('resonanceValue').textContent = params.resonance.toFixed(1);
+        });
+
+        document.getElementById('envMod').addEventListener('input', function() {
+            params.envMod = parseFloat(this.value);
+            document.getElementById('envModValue').textContent = Math.round(params.envMod);
+        });
+
+        document.getElementById('decay').addEventListener('input', function() {
+            params.decay = parseFloat(this.value);
+            document.getElementById('decayValue').textContent = params.decay.toFixed(2);
+        });
+
+        document.getElementById('accent').addEventListener('input', function() {
+            params.accentAmount = parseFloat(this.value);
+            document.getElementById('accentValue').textContent = params.accentAmount.toFixed(1);
+        });
+
+        // Initialize drum sequencer UI
+        function initDrumSequencer() {
+            ['kick', 'snare', 'hihat'].forEach(drum => {
+                const container = document.getElementById(`${drum}Steps`);
+                const track = drumPatterns[drum];
+
+                for (let i = 0; i < track.steps; i++) {
+                    const step = document.createElement('div');
+                    step.className = 'step';
+                    if (track.pattern[i] === 1) step.classList.add('active');
+
+                    step.addEventListener('click', function() {
+                        track.pattern[i] = track.pattern[i] === 1 ? 0 : 1;
+                        this.classList.toggle('active');
+                    });
+
+                    container.appendChild(step);
+                }
+            });
+        }
+
+        // Change step count
+        function changeStepCount(drum, delta) {
+            const track = drumPatterns[drum];
+            const newCount = Math.max(3, Math.min(16, track.steps + delta));
+
+            if (newCount === track.steps) return;
+
+            track.steps = newCount;
+
+            // Resize pattern array
+            if (newCount > track.pattern.length) {
+                while (track.pattern.length < newCount) {
+                    track.pattern.push(0);
+                }
+            } else {
+                track.pattern = track.pattern.slice(0, newCount);
+            }
+
+            // Rebuild UI
+            const container = document.getElementById(`${drum}Steps`);
+            container.innerHTML = '';
+
+            for (let i = 0; i < newCount; i++) {
+                const step = document.createElement('div');
+                step.className = 'step';
+                if (track.pattern[i] === 1) step.classList.add('active');
+
+                step.addEventListener('click', function() {
+                    track.pattern[i] = track.pattern[i] === 1 ? 0 : 1;
+                    this.classList.toggle('active');
+                });
+
+                container.appendChild(step);
+            }
+
+            document.getElementById(`${drum}StepCount`).textContent = newCount;
+        }
+
+        // Initialize acid sequencer UI
+        function initAcidSequencer() {
+            const container = document.getElementById('acidSequencer');
+
+            acidPattern.forEach((step, i) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'acid-step';
+                if (step.active) stepDiv.classList.add('active');
+
+                const noteDisplay = document.createElement('div');
+                noteDisplay.className = 'note-display';
+                noteDisplay.textContent = midiToNoteName(step.note);
+
+                const slideBtn = document.createElement('button');
+                slideBtn.className = 'toggle-btn';
+                slideBtn.textContent = 'SLD';
+                if (step.slide) slideBtn.classList.add('active');
+
+                const accentBtn = document.createElement('button');
+                accentBtn.className = 'toggle-btn';
+                accentBtn.textContent = 'ACC';
+                if (step.accent) accentBtn.classList.add('active');
+
+                // Click to toggle step
+                stepDiv.addEventListener('click', function(e) {
+                    if (e.target === stepDiv || e.target === noteDisplay) {
+                        step.active = !step.active;
+                        stepDiv.classList.toggle('active');
+                    }
+                });
+
+                // Slide toggle
+                slideBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    step.slide = !step.slide;
+                    this.classList.toggle('active');
+                });
+
+                // Accent toggle
+                accentBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    step.accent = !step.accent;
+                    this.classList.toggle('active');
+                });
+
+                // Right-click to change note
+                stepDiv.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    const currentIndex = acidNotes.indexOf(step.note);
+                    step.note = acidNotes[(currentIndex + 1) % acidNotes.length];
+                    noteDisplay.textContent = midiToNoteName(step.note);
+                });
+
+                stepDiv.appendChild(noteDisplay);
+                stepDiv.appendChild(slideBtn);
+                stepDiv.appendChild(accentBtn);
+                container.appendChild(stepDiv);
+            });
+        }
+
+        function midiToNoteName(midi) {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const octave = Math.floor(midi / 12) - 1;
+            const note = notes[midi % 12];
+            return note + octave;
+        }
+
+        // Initialize on load
+        initDrumSequencer();
+        initAcidSequencer();
+    </script>
+</body>
+</html>
