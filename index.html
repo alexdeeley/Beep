@@ -28,28 +28,57 @@
     margin: 0 auto;
     padding: 56px 24px 80px;
   }
-  header { text-align: center; margin-bottom: 56px; }
+  header { text-align: center; margin-bottom: 32px; }
   h1 {
     font-weight: 300;
     letter-spacing: 0.1em;
-    font-size: 2rem;
-    margin: 0 0 8px;
+    font-size: 2.8rem;
+    margin: 0 0 10px;
   }
   header p {
     color: #9c98b4;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     margin: 0;
   }
-  section { margin-bottom: 48px; }
+  nav#catNav {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 0 0 56px;
+  }
+  nav#catNav a {
+    color: #d6d1f5;
+    text-decoration: none;
+    background: #171433;
+    border: 1px solid #332f5c;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    letter-spacing: 0.03em;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  nav#catNav a:hover, nav#catNav a:active {
+    border-color: #6a62b0;
+    background: #221d47;
+  }
+  section {
+    margin-bottom: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #1c1938;
+    scroll-margin-top: 24px;
+  }
+  section:last-child {
+    border-bottom: 0;
+  }
   section h2 {
-    font-weight: 400;
-    font-size: 1.1rem;
-    letter-spacing: 0.06em;
+    font-weight: 500;
+    font-size: 1.7rem;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #a89fd8;
-    border-bottom: 1px solid #2a2650;
-    padding-bottom: 10px;
-    margin: 0 0 20px;
+    color: #c3bcf0;
+    padding-bottom: 14px;
+    margin: 0 0 24px;
   }
   .grid {
     display: grid;
@@ -98,16 +127,16 @@
     font-size: 0.8rem;
     letter-spacing: 0.05em;
   }
-  .card-body { padding: 14px 16px 18px; }
+  .card-body { padding: 16px 18px 20px; }
   .card-body h3 {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     font-weight: 500;
-    font-size: 1.02rem;
+    font-size: 1.25rem;
   }
   .card-body p {
     margin: 0;
-    color: #9c98b4;
-    font-size: 0.85rem;
+    color: #a9a4c4;
+    font-size: 1rem;
     line-height: 1.4;
   }
   .empty {
@@ -122,6 +151,7 @@
     <h1>BEEP</h1>
     <p>Small self-contained apps. Click one to open it.</p>
   </header>
+  <nav id="catNav"></nav>
   <div id="sections"></div>
 </main>
 
@@ -152,14 +182,23 @@ async function main() {
   });
 
   const sectionsEl = document.getElementById("sections");
+  const navEl = document.getElementById("catNav");
 
   if (categories.length === 0) {
     sectionsEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
     return;
   }
 
+  const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
   for (const category of categories) {
+    const navLink = document.createElement("a");
+    navLink.href = "#" + slugify(category);
+    navLink.textContent = category;
+    navEl.appendChild(navLink);
+
     const section = document.createElement("section");
+    section.id = slugify(category);
     const heading = document.createElement("h2");
     heading.textContent = category;
     section.appendChild(heading);
