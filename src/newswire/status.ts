@@ -2,7 +2,8 @@ import type Database from "better-sqlite3";
 import { getRecentPosts } from "./db/postsRepo.js";
 import { getLastHourlyRun, getRecentHourlyRuns } from "./db/researchRunsRepo.js";
 import { getWatchedArtistCount } from "./db/watchedArtistsRepo.js";
-import { getRecentlyPostedMusicItems, getUnpostedMusicItems } from "./db/musicItemsRepo.js";
+import { getRecentlyPostedMusicItems, getUnpostedIndividualItems, getUnpostedAlbumItems } from "./db/musicItemsRepo.js";
+import { getLastRoundupRun } from "./db/weeklyRoundupRepo.js";
 
 export interface NewswireStatus {
   lastRun: {
@@ -15,6 +16,9 @@ export interface NewswireStatus {
   } | null;
   watchedArtistCount: number;
   unpostedItemCount: number;
+  /** Album/EP/compilation releases accumulated and waiting for the next Friday WEEKLY NEW RELEASES roundup. */
+  albumsQueuedForRoundup: number;
+  lastRoundup: { date: string; itemCount: number } | null;
   recentItems: { artistName: string; headline: string; itemType: string }[];
   latestPosts: { text: string; createdAt: string; uri: string | null }[];
   recentFailures: { id: number; startedAt: string; errorMessage: string | null }[];
@@ -26,8 +30,10 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
   const recentPosts = getRecentPosts(db, 5);
   const recentRuns = getRecentHourlyRuns(db, 20);
   const watchedArtistCount = getWatchedArtistCount(db);
-  const unposted = getUnpostedMusicItems(db);
+  const unposted = getUnpostedIndividualItems(db);
+  const queuedAlbums = getUnpostedAlbumItems(db);
   const recentItems = getRecentlyPostedMusicItems(db, 5);
+  const lastRoundup = getLastRoundupRun(db);
 
   return {
     lastRun: lastRun
@@ -42,6 +48,8 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
       : null,
     watchedArtistCount,
     unpostedItemCount: unposted.length,
+    albumsQueuedForRoundup: queuedAlbums.length,
+    lastRoundup: lastRoundup ? { date: lastRoundup.roundup_date, itemCount: lastRoundup.item_count } : null,
     recentItems: recentItems.map((r) => ({ artistName: r.artist_name, headline: r.headline, itemType: r.item_type })),
     latestPosts: recentPosts.map((p) => ({ text: p.text, createdAt: p.created_at, uri: p.uri })),
     recentFailures: recentRuns

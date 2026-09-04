@@ -597,8 +597,10 @@ schedule) does, in order:
    sweep across the whole batch via OpenAI's Responses API with the
    built-in web-search tool, asking for at most one genuinely new item
    (a release, or concrete news like a tour date or lineup change) per
-   artist in roughly the last few days. Candidates with no reported
-   source, an artist name that isn't an exact match in the batch, or an
+   artist in roughly the last few days. A release item is also classified
+   by format - `single`, `album`, `ep`, or `compilation` - which decides
+   how it's posted later (see §18.7). Candidates with no reported source,
+   an artist name that isn't an exact match in the batch, or an
    effectively-identical headline to something already on record for
    that artist are rejected here.
 4. **Verify** (`verification/verifyArtistNews.ts`) — for each surviving
@@ -609,20 +611,25 @@ schedule) does, in order:
    requires **at least 2 independent corroborating source domains** or
    the candidate is dropped outright.
 5. **Rank** (`ranking/rankMusicItems.ts`) — the candidate pool is every
-   verified item not yet posted (this cycle's and any earlier cycle's
-   backlog), in FIFO order (oldest-discovered first) - deliberately
-   **not** importance-ordered, so an item from three days ago is never
-   starved indefinitely behind a stream of newer items. A structural
-   confidence score (release vs. news, fact label, corroboration count)
-   only feeds the quiet-hours check below, never the post order.
+   verified **single or news** item not yet posted (this cycle's and any
+   earlier cycle's backlog) - verified album/EP/compilation releases are
+   deliberately excluded here; they're held back for the Friday roundup
+   instead (§18.7). The pool is in FIFO order (oldest-discovered first) -
+   deliberately **not** importance-ordered, so an item from three days
+   ago is never starved indefinitely behind a stream of newer items. A
+   structural confidence score (release vs. news, fact label,
+   corroboration count) only feeds the quiet-hours check below, never the
+   post order.
 6. **Quiet-hours check** (`quietHours/`) — see §18.4. May end the run
    right here with nothing posted, which is expected most hours.
 7. **Write** (`writing/`) — composes one short, factual post per item
    from the verified facts only, against a hard list of banned AI-cliché
-   and hype phrases (`writing/bannedPhrases.ts`). No claim about quality,
-   significance, or any detail not present in the verified facts is ever
-   invented; an UNCONFIRMED or PREDICTION fact must be hedged in the
-   prose ("reportedly", "expected to"), never stated as settled.
+   and hype phrases (`writing/bannedPhrases.ts`). A single release's post
+   always opens with the literal label `NEW SINGLE ALERT:` (§18.7). No
+   claim about quality, significance, or any detail not present in the
+   verified facts is ever invented; an UNCONFIRMED or PREDICTION fact
+   must be hedged in the prose ("reportedly", "expected to"), never
+   stated as settled.
 8. **Copy-edit** (`copyEdit/`) — a structural check against the banned
    phrase list and your `voice` settings (jokes/hashtags/emoji/rhetorical
    questions), with one revision pass if anything's flagged.
@@ -728,3 +735,36 @@ command with a `--dry-run` flag, because the distinction is safety-load-
 bearing here: `news:preview` is guaranteed to never touch the shared R2
 database or Bluesky account, so it's the one to run repeatedly while
 iterating on `watched-artists.txt` or prompts.
+
+### 18.7 Singles post immediately; albums wait for Friday
+
+Not every release gets posted the moment it's verified. `releaseFormat`
+(set during discovery, §18.1 step 3) splits release items into two very
+different posting paths:
+
+- **Singles** post individually, the same hour they're verified, exactly
+  like a news item - except the post text always opens with the literal
+  label `NEW SINGLE ALERT:` (e.g. *"NEW SINGLE ALERT: Bon Iver released a
+  new single, 'Speyside,' today."*). This is enforced in the writer's
+  system prompt (`writing/prompts.ts`), not bolted on afterward.
+- **Albums, EPs, and compilations** are held back from the normal hourly
+  flow entirely (`db/musicItemsRepo.ts`'s `getUnpostedIndividualItems`
+  excludes them) and instead accumulate, unposted, in the database all
+  week. Once a week - the first cycle on a Friday, local time (in
+  `editorial-focus.json`'s `quietHours.timezone`), at or after
+  `NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL` (default 8am) - `postWeeklyRoundup.ts`
+  compiles everything accumulated since the last roundup into one thread
+  headlined `WEEKLY NEW RELEASES`, one line per album, and marks them all
+  posted. This step is independent of, and runs before, the normal hourly
+  per-item flow, so it isn't affected by that hour's quiet-hours outcome
+  and always gets a chance to run on a Friday.
+
+Because the roundup is built directly from facts the verification stage
+already independently confirmed (not fresh model prose), it skips
+copy-edit/fact-check/duplicate-check entirely - there's no new writer
+output to check. If no albums have accumulated by Friday morning, nothing
+posts and no roundup is recorded, so a later hour the same Friday can
+still catch anything discovered since (see `db/weeklyRoundupRepo.ts` for
+the once-per-Friday idempotency guard). `npm run news:status` reports
+`albumsQueuedForRoundup` (how many are waiting) and `lastRoundup` (the
+date and item count of the most recent one actually posted).

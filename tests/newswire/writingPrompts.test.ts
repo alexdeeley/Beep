@@ -6,6 +6,7 @@ describe("buildWritingUserPrompt", () => {
     musicItemId: 1,
     artistName: "Alvvays",
     itemType: "release",
+    releaseFormat: "album",
     headline: "Alvvays release Blue Rev II",
     facts: [
       {

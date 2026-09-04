@@ -12,7 +12,15 @@ import {
   getArtistByName,
   getWatchedArtistCount,
 } from "../../src/newswire/db/watchedArtistsRepo.js";
-import { insertMusicItem, getUnpostedMusicItems, markMusicItemPosted, getRecentlyPostedMusicItems, hasSimilarItem } from "../../src/newswire/db/musicItemsRepo.js";
+import {
+  insertMusicItem,
+  getUnpostedMusicItems,
+  getUnpostedIndividualItems,
+  getUnpostedAlbumItems,
+  markMusicItemPosted,
+  getRecentlyPostedMusicItems,
+  hasSimilarItem,
+} from "../../src/newswire/db/musicItemsRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -65,6 +73,7 @@ describe("newswire SQLite DB layer", () => {
       insertMusicItem(db, {
         watchedArtistId: 999999, // no such watched_artists row
         itemType: "release",
+        releaseFormat: null,
         headline: "H",
         summary: "S",
         factLabel: "FACT",
@@ -147,6 +156,7 @@ describe("newswire SQLite DB layer", () => {
       const item = insertMusicItem(db, {
         watchedArtistId: artistId,
         itemType: "release",
+        releaseFormat: null,
         headline: "Alvvays release Blue Rev II",
         summary: "Alvvays released a new album titled Blue Rev II.",
         factLabel: "FACT",
@@ -176,6 +186,7 @@ describe("newswire SQLite DB layer", () => {
       const input = {
         watchedArtistId: artistId,
         itemType: "release" as const,
+        releaseFormat: null,
         headline: "Beck news",
         summary: "S",
         factLabel: "FACT" as const,
@@ -201,6 +212,7 @@ describe("newswire SQLite DB layer", () => {
       insertMusicItem(db, {
         watchedArtistId: artistId,
         itemType: "news",
+        releaseFormat: null,
         headline: "Old news",
         summary: "S",
         factLabel: "FACT",
@@ -215,6 +227,7 @@ describe("newswire SQLite DB layer", () => {
       insertMusicItem(db, {
         watchedArtistId: artistId,
         itemType: "news",
+        releaseFormat: null,
         headline: "New news",
         summary: "S",
         factLabel: "FACT",
@@ -238,6 +251,7 @@ describe("newswire SQLite DB layer", () => {
       insertMusicItem(db, {
         watchedArtistId: artistId,
         itemType: "release",
+        releaseFormat: null,
         headline: "Wilco Announce New Album!",
         summary: "S",
         factLabel: "FACT",
@@ -252,6 +266,65 @@ describe("newswire SQLite DB layer", () => {
 
       expect(hasSimilarItem(db, artistId, "wilco announce new album")).toBe(true); // case/punctuation-insensitive match
       expect(hasSimilarItem(db, artistId, "Wilco cancels tour dates")).toBe(false);
+    });
+
+    it("splits unposted items into individual (single/news) vs album/EP/compilation buckets", () => {
+      const run = startHourlyRun(db, false);
+      const artistId = makeArtist("Fontaines D.C.");
+
+      const single = insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "release",
+        releaseFormat: "single",
+        headline: "New single",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://a.com/single",
+        sourceDomains: ["a.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+      const news = insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "news",
+        releaseFormat: null,
+        headline: "Tour announced",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://a.com/tour",
+        sourceDomains: ["a.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+      const album = insertMusicItem(db, {
+        watchedArtistId: artistId,
+        itemType: "release",
+        releaseFormat: "album",
+        headline: "New album",
+        summary: "S",
+        factLabel: "FACT",
+        eventTime: null,
+        eventTimeConfidence: "unknown",
+        articlePublishedAt: null,
+        primarySourceUrl: "https://a.com/album",
+        sourceDomains: ["a.com"],
+        facts: SAMPLE_FACTS,
+        discoveredInRunId: run.id,
+      });
+
+      const individual = getUnpostedIndividualItems(db).map((r) => r.id);
+      expect(individual).toContain(single.id);
+      expect(individual).toContain(news.id);
+      expect(individual).not.toContain(album.id);
+
+      const albums = getUnpostedAlbumItems(db).map((r) => r.id);
+      expect(albums).toEqual([album.id]);
     });
   });
 });

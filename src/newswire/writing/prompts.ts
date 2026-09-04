@@ -1,11 +1,18 @@
 import type { EditorialFocus } from "../editorialFocus.js";
-import type { MusicItemType, VerifiedFact } from "../types.js";
+import type { MusicItemType, ReleaseFormat, VerifiedFact } from "../types.js";
 
-/** One music item, grounded in the facts the verification stage independently confirmed - never invented by the writer. */
+/**
+ * One music item, grounded in the facts the verification stage
+ * independently confirmed - never invented by the writer. Only singles
+ * and news items ever reach the writer: album/EP/compilation releases
+ * are held back for the weekly WEEKLY NEW RELEASES roundup instead (see
+ * runNewswireCycle.ts and weeklyRoundup/postWeeklyRoundup.ts).
+ */
 export interface WritingItem {
   musicItemId: number;
   artistName: string;
   itemType: MusicItemType;
+  releaseFormat: ReleaseFormat | null;
   headline: string;
   facts: VerifiedFact[];
 }
@@ -34,11 +41,13 @@ export const WRITING_JSON_SCHEMA = {
 const GOOD_BAD_EXAMPLES = [
   'BAD (breathless hype): "Get ready to have your mind blown - the legendary indie icons have finally dropped their most anticipated ' +
     'album yet, and it\'s absolutely essential listening!"',
-  'GOOD (wire style): "Alvvays released their new album \\"Blue Rev II\\" today, their first since 2022."',
+  'GOOD (single, with the required label): "NEW SINGLE ALERT: Fontaines D.C. released \\"Favourite\\" today - their first new material ' +
+    'since 2024."',
   'BAD (invented editorial claim not in the facts): "This marks a bold new direction for the band."',
-  'GOOD (states only what\'s given): "Fontaines D.C. announced a new single, \\"Favourite,\\" out September 12 - their first new material since 2024."',
+  'GOOD (news item, no label, states only what\'s given): "Bon Iver will headline three West Coast dates in October, according to a ' +
+    "Tuesday announcement on the band's official site.\"",
   "BAD (padding a one-line announcement into filler): \"In an exciting development for fans everywhere, the wait is finally over as...\"",
-  'GOOD: "Bon Iver will headline three West Coast dates in October, according to a Tuesday announcement on the band\'s official site."',
+  'GOOD (single): "NEW SINGLE ALERT: Bon Iver released a new single, \\"Speyside,\\" today."',
   'BAD (stating an UNCONFIRMED claim as settled fact): "The band is breaking up."',
   'GOOD (hedges appropriately): "Sources close to the band say a breakup is imminent, though nothing has been officially confirmed."',
 ].join("\n");
@@ -70,6 +79,9 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
     "'their best work') that isn't directly supported by the facts. When a fact is labeled UNCONFIRMED or PREDICTION, say so plainly",
     "(\"reportedly\", \"expected to\") rather than stating it as settled. When labeled ANALYSIS, attribute it (\"according to X\") rather",
     "than stating it as fact.",
+    'When an item is marked (single), the post text MUST begin with the literal label "NEW SINGLE ALERT: " (that exact capitalization',
+    "and punctuation, followed immediately by the rest of the announcement in the same sentence) - this is a fixed editorial label, not",
+    "something to reword or omit. Items marked (news) never get this or any other label - just the plain wire-style sentence.",
     "If an item's facts are too thin or contradictory to write a genuine, accurate sentence about, omit that item from posts rather",
     "than padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts",
     "array - staying silent is a normal, expected, and preferred outcome over posting something thin or padded.",
@@ -84,7 +96,8 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
 export function buildWritingUserPrompt(items: WritingItem[]): string {
   const blocks = items.map((item, i) => {
     const factLines = item.facts.map((f) => `  - [${f.factLabel}] ${f.claim}`).join("\n");
-    return [`ITEM ${i} (${item.artistName}, ${item.itemType}):`, `Headline: ${item.headline}`, "Facts:", factLines].join("\n");
+    const kind = item.releaseFormat ?? item.itemType;
+    return [`ITEM ${i} (${item.artistName}, ${kind}):`, `Headline: ${item.headline}`, "Facts:", factLines].join("\n");
   });
   return blocks.join("\n\n");
 }

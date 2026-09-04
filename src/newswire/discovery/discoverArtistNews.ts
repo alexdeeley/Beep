@@ -3,12 +3,13 @@ import { insertRunCandidate } from "../db/researchRunsRepo.js";
 import { hasSimilarItem } from "../db/musicItemsRepo.js";
 import type { WatchedArtistRow } from "../db/watchedArtistsRepo.js";
 import type { NewsRunContext } from "../runContext.js";
-import type { MusicNewsCandidate } from "../types.js";
+import type { MusicNewsCandidate, ReleaseFormat } from "../types.js";
 import { buildDiscoverySystemPrompt, buildDiscoveryUserPrompt, DISCOVERY_JSON_SCHEMA } from "./prompts.js";
 
 interface RawCandidate {
   artistName: string;
   itemType: "release" | "news";
+  releaseFormat: ReleaseFormat | null;
   headline: string;
   summary: string;
   eventTimeIso: string | null;

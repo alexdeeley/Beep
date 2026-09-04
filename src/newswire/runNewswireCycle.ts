@@ -8,7 +8,7 @@ import { loadEditorialFocus } from "./editorialFocus.js";
 import { downloadStoryDb, uploadStoryDb } from "./db/sync.js";
 import { openStoryDb, closeStoryDb } from "./db/connection.js";
 import { startHourlyRun, finishHourlyRun } from "./db/researchRunsRepo.js";
-import { getUnpostedMusicItems, insertMusicItem } from "./db/musicItemsRepo.js";
+import { getUnpostedIndividualItems, insertMusicItem } from "./db/musicItemsRepo.js";
 import { importArtistList } from "./artists/importArtistList.js";
 import { getArtistsDueForCheck, markArtistsChecked } from "./db/watchedArtistsRepo.js";
 import { discoverArtistNews } from "./discovery/discoverArtistNews.js";
@@ -21,6 +21,7 @@ import { copyEditEdition } from "./copyEdit/copyEditEdition.js";
 import { factCheckEdition } from "./factCheck/factCheckEdition.js";
 import { duplicateCheckEdition } from "./duplicateCheck/duplicateCheckEdition.js";
 import { publishMusicItems } from "./publishing/publishMusicItems.js";
+import { postWeeklyRoundup } from "./weeklyRoundup/postWeeklyRoundup.js";
 import type { NewsRunContext } from "./runContext.js";
 import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
@@ -72,6 +73,7 @@ function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): 
   const row = insertMusicItem(ctx.db, {
     watchedArtistId: verified.watchedArtistId,
     itemType: verified.itemType,
+    releaseFormat: verified.releaseFormat,
     headline: verified.headline,
     summary: verified.facts.map((f) => f.claim).join(" "),
     factLabel: primaryFact.factLabel,
@@ -140,7 +142,12 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     for (const item of verified) persistVerifiedItem(ctx, item);
     markArtistsChecked(db, batch.map((a) => a.id));
 
-    const unposted = getUnpostedMusicItems(db);
+    // Independent of the hourly per-item flow below (which only ever handles singles/news) - runs its own
+    // internal eligibility check (Friday, past the configured hour, not already posted today) and is a
+    // no-op most hours. Placed before every early-return path so it always gets a chance to run.
+    await postWeeklyRoundup(ctx);
+
+    const unposted = getUnpostedIndividualItems(db);
     const eligiblePool = rankMusicItems(unposted, MAX_ELIGIBLE_ITEMS);
     const topScore = eligiblePool.reduce<number | null>((max, r) => (max === null || r.importanceScore > max ? r.importanceScore : max), null);
     const quietDecision = resolveQuietHoursOutcome(editorialFocus, now, topScore);
@@ -257,6 +264,7 @@ function toWritingItem(ranked: RankedMusicItem): WritingItem {
     musicItemId: item.id,
     artistName: item.artist_name,
     itemType: item.item_type,
+    releaseFormat: item.release_format,
     headline: item.headline,
     facts: JSON.parse(item.facts_json),
   };

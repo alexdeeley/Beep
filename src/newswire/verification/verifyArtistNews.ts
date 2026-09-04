@@ -47,6 +47,7 @@ export async function verifyArtistNews(ctx: NewsRunContext, candidates: MusicNew
         watchedArtistId: candidate.watchedArtistId,
         artistName: candidate.artistName,
         itemType: candidate.itemType,
+        releaseFormat: candidate.releaseFormat,
         headline: candidate.headline,
         facts: response.data.facts,
         meetsSourceBar: response.data.facts.length > 0 && distinctDomains.size >= 2,

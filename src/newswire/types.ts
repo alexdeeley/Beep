@@ -1,6 +1,8 @@
 export type FactLabel = "FACT" | "ANALYSIS" | "UNCONFIRMED" | "BACKGROUND" | "PREDICTION";
 export type QuietHoursOutcome = "normal" | "slow" | "silent";
 export type MusicItemType = "release" | "news";
+/** Only set when itemType is "release" - what kind of release it is. Singles post immediately (with a "NEW SINGLE ALERT" label); albums/EPs/compilations are held and batched into the Friday WEEKLY NEW RELEASES roundup instead of posting individually. */
+export type ReleaseFormat = "single" | "album" | "ep" | "compilation";
 
 /** A single "here's a URL I found via web search" claim from the model - unverified until an independent stage re-checks it. */
 export interface ReportedSource {
@@ -14,6 +16,7 @@ export interface MusicNewsCandidate {
   watchedArtistId: number;
   artistName: string;
   itemType: MusicItemType;
+  releaseFormat: ReleaseFormat | null;
   headline: string;
   summary: string;
   eventTimeIso: string | null;
@@ -35,6 +38,7 @@ export interface VerifiedMusicItem {
   watchedArtistId: number;
   artistName: string;
   itemType: MusicItemType;
+  releaseFormat: ReleaseFormat | null;
   headline: string;
   facts: VerifiedFact[];
   /** False if fewer than 2 independent domains corroborate the core claim - caller should reject it. */

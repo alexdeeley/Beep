@@ -217,4 +217,24 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_music_items_unposted ON music_items(posted_in_run_id, discovered_in_run_id);
     `,
   },
+  {
+    // Adds release-format classification (single vs. album/EP/compilation) so the two can be posted
+    // differently: singles post immediately with a "NEW SINGLE ALERT" label, while album/EP/compilation
+    // releases are held back and batched into a once-a-week Friday "WEEKLY NEW RELEASES" roundup instead
+    // of posting individually. This migration IS additive against a live-deployed 0002 (unlike 0002 itself,
+    // which was safe to edit in place - 0002 has since actually run in production), so it uses ALTER TABLE
+    // rather than redefining music_items.
+    id: "0003_release_format_and_weekly_roundup",
+    sql: `
+      ALTER TABLE music_items ADD COLUMN release_format TEXT CHECK (release_format IN ('single', 'album', 'ep', 'compilation'));
+
+      CREATE TABLE IF NOT EXISTS weekly_roundup_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        roundup_date TEXT NOT NULL UNIQUE,
+        posted_in_run_id INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `,
+  },
 ];

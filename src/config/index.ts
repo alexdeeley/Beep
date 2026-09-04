@@ -124,6 +124,8 @@ export interface AppConfig {
     artistListPath: string;
     /** How many watchlist artists to check (rotation, oldest-checked-first) per cycle. With a large watchlist, full coverage takes many cycles - that's expected. */
     artistBatchSize: number;
+    /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Friday cycle posts the WEEKLY NEW RELEASES roundup. */
+    weeklyRoundupHourLocal: number;
   };
 
   storage: {
@@ -232,6 +234,7 @@ export function loadConfig(): AppConfig {
       editorialFocusPath: envStr("EDITORIAL_FOCUS_PATH", "editorial-focus.json")!,
       artistListPath: envStr("NEWS_ARTIST_LIST_PATH", "watched-artists.txt")!,
       artistBatchSize: envInt("NEWS_ARTIST_BATCH_SIZE", 40),
+      weeklyRoundupHourLocal: envInt("NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL", 8),
     },
 
     storage: {
