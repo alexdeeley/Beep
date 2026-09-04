@@ -173,5 +173,40 @@
     "description": "A harsh noise wall synthesizer — six modules, three step sequencers, and chaos/glitch controls.",
     "category": "Music Tools",
     "path": "MerzbowMachine.html"
+  },
+  {
+    "id": "checkerboard-dissolve",
+    "name": "Checkerboard Dissolve",
+    "description": "Swipe to warp and dissolve a stretchy, pliable checkerboard into fizzling pixels.",
+    "category": "Art",
+    "path": "CheckerboardDissolve.html"
+  },
+  {
+    "id": "checkerboard-phenomena",
+    "name": "Checkerboard Phenomena",
+    "description": "Seven checkerboard illusions — swirl, spiral, café wall, moiré, and more — with live controls.",
+    "category": "Art",
+    "path": "CheckerboardPhenomena.html"
+  },
+  {
+    "id": "artsy-v3",
+    "name": "Artsy v3",
+    "description": "A seeded generative painter — type a seed to get a unique abstract piece, save it as a PNG.",
+    "category": "Art",
+    "path": "ArtsyV3.html"
+  },
+  {
+    "id": "checker-morphs",
+    "name": "Checker Morphs",
+    "description": "A checkerboard-filled shape that slowly morphs between circles, polygons, and rhombi.",
+    "category": "Art",
+    "path": "CheckerMorphs.html"
+  },
+  {
+    "id": "art-toy-clay-cube",
+    "name": "Art Toy — Clay Cube",
+    "description": "Spin and fling a voxel clay cube — it sheds wet clay blobs that pile up and dry on the ground.",
+    "category": "Art",
+    "path": "ArtToyClayCube.html"
   }
 ]
