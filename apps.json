@@ -1,12 +1,5 @@
 [
   {
-    "id": "symphonic-noise",
-    "name": "Symphonic Noise",
-    "description": "A generative wall of orchestral sound that never loops.",
-    "category": "Music Tools",
-    "path": "symphonic-noise/index.html"
-  },
-  {
     "id": "drum-machine",
     "name": "Drum Machine",
     "description": "A 16-step drum sequencer with built-in distortion.",
@@ -187,5 +180,12 @@
     "description": "Guess the emoji through glitchy scrambled effects.",
     "category": "Games",
     "path": "EmojiScramble.html"
+  },
+  {
+    "id": "neon-blade-xenowave",
+    "name": "Neon Blade: Xenowave",
+    "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
+    "category": "Games",
+    "path": "NeonBladeXenowave.html"
   }
 ]
