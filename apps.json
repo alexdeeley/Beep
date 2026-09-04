@@ -1,19 +1,5 @@
 [
   {
-    "id": "drum-machine",
-    "name": "Drum Machine",
-    "description": "A 16-step drum sequencer with built-in distortion.",
-    "category": "Music Tools",
-    "path": "DrumMachine.html"
-  },
-  {
-    "id": "dss1",
-    "name": "DSS1",
-    "description": "A full digital sound studio — drums, synths, and effects.",
-    "category": "Music Tools",
-    "path": "DSS1.html"
-  },
-  {
     "id": "bitcrusher-worklet-demo",
     "name": "BitCrusher Worklet Demo",
     "description": "A real-time bitcrusher built as an AudioWorklet.",
@@ -49,13 +35,6 @@
     "path": "OscillateScrollBars.html"
   },
   {
-    "id": "checkerboard-swirl",
-    "name": "Checkerboard Swirl",
-    "description": "A checkerboard that bursts into color when you tap.",
-    "category": "Art",
-    "path": "CheckerboardSwirl.html"
-  },
-  {
     "id": "heavy-spin-morph",
     "name": "Heavy Spin Morph",
     "description": "A wireframe shape you spin and morph between forms.",
@@ -82,20 +61,6 @@
     "description": "Drive and steer with just your thumb.",
     "category": "Games",
     "path": "OneThumbRacer.html"
-  },
-  {
-    "id": "tilt-pipe-quest",
-    "name": "Tilt Pipe Quest",
-    "description": "Tilt your device to guide balls through neon pipes.",
-    "category": "Games",
-    "path": "TiltPipeQuest.html"
-  },
-  {
-    "id": "threes-minimal",
-    "name": "Threes Minimal",
-    "description": "A minimalist sliding-tile merge puzzle.",
-    "category": "Games",
-    "path": "ThreesMinimal.html"
   },
   {
     "id": "maisie-eats-everything",
@@ -145,13 +110,6 @@
     "description": "An expanded Ricochet 8-Bit with giant balls and homing shots.",
     "category": "Games",
     "path": "Sequence11.html"
-  },
-  {
-    "id": "spinner-drop",
-    "name": "Spinner Drop",
-    "description": "Drop balls through spinners into a moving bucket.",
-    "category": "Games",
-    "path": "SpinnerDrop.html"
   },
   {
     "id": "maisies-kitty-cat-adventure",
