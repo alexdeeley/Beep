@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ballz Game</title>
+  <style>
+    :root{
+      --bg1:#1b1460;
+      --bg2:#240f3a;
+      --ink:rgba(255,255,255,.92);
+      --ink2:rgba(255,255,255,.68);
+      --gold:#e6d06b;
+      --panel:rgba(6,6,12,.42);
+      --border:rgba(255,255,255,.24);
+      --border2:rgba(255,255,255,.14);
+      --shadow:rgba(0,0,0,.25);
+      --px: 2px; /* subtle pixel border */
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%}
+    body{
+      font-family: ui-monospace, "Courier New", monospace;
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #stage{ position:fixed; inset:0; }
+
+    canvas{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      background:#070711;
+      touch-action:none;
+      image-rendering: pixelated;
+    }
+
+    /* Subtle 16-bit HUD */
+    #hud{
+      position:absolute;
+      top: calc(env(safe-area-inset-top) + 8px);
+      left: 8px;
+      right: 8px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:6px 8px;
+      background: var(--panel);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 6px 0 var(--shadow);
+      border-radius: 0;
+      pointer-events:none;
+    }
+    .hud-item{
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-shadow: 1px 1px 0 rgba(0,0,0,.45);
+      white-space: nowrap;
+    }
+    .hud-item span{
+      color: var(--gold);
+      font-size: 13px;
+      margin-left: 6px;
+      font-weight: 900;
+    }
+
+    /* Controls overlay (more subtle) */
+    #controls{
+      position:absolute;
+      left: 10px;
+      right: 10px;
+      bottom: calc(env(safe-area-inset-bottom) + 10px);
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:10px;
+      pointer-events:none;
+    }
+
+    #aimPanel{
+      flex:1;
+      background: var(--panel);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 6px 0 var(--shadow);
+      padding:8px 8px 10px;
+      pointer-events:auto;
+    }
+    #aimLabel{
+      color: var(--ink2);
+      font-weight: 800;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align:center;
+      margin-bottom: 7px;
+      user-select:none;
+    }
+    #aimSlider{
+      width:100%;
+      height: 12px;
+      -webkit-appearance:none;
+      appearance:none;
+      background: rgba(255,255,255,.08);
+      outline:none;
+      cursor:pointer;
+      border: 2px solid var(--border2);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+    #aimSlider::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      appearance:none;
+      width: 22px; height: 22px;
+      background: rgba(230,208,107,.95);
+      border: 2px solid rgba(0,0,0,.55);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+    #aimSlider::-moz-range-thumb{
+      width: 22px; height: 22px;
+      background: rgba(230,208,107,.95);
+      border: 2px solid rgba(0,0,0,.55);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+
+    /* Fire button: smaller + muted */
+    #fireBtn{
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      border: var(--px) solid var(--border);
+      background: rgba(230,208,107,.20);
+      box-shadow: 0 6px 0 var(--shadow);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:auto;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    #fireBtn:active{
+      transform: translateY(1px);
+      background: rgba(230,208,107,.26);
+      box-shadow: 0 5px 0 var(--shadow);
+    }
+    #fireIcon{
+      width: 0; height: 0;
+      border-left: 14px solid rgba(255,255,255,.65);
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      margin-left: 2px;
+      filter: drop-shadow(1px 1px 0 rgba(0,0,0,.55));
+      opacity: .9;
+    }
+
+    /* Game over overlay */
+    #gameOver{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.86);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 20px;
+      z-index: 5;
+    }
+    #gameOver.show{display:flex}
+    #gameOverCard{
+      width:min(520px, 100%);
+      background: rgba(10,10,20,.86);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 10px 0 rgba(0,0,0,.35);
+      padding: 18px 16px;
+      text-align:center;
+    }
+    #gameOverCard h2{
+      color:#fff;
+      font-size:22px;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 0 rgba(0,0,0,.6);
+    }
+    #gameOverCard p{
+      color: rgba(255,255,255,.70);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    #restartBtn{
+      background: rgba(255,255,255,.14);
+      color: rgba(255,255,255,.86);
+      border: var(--px) solid var(--border);
+      padding: 9px 16px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+      cursor:pointer;
+    }
+    #restartBtn:active{ transform: translateY(1px); }
+
+    button{all:unset}
+  </style>
+</head>
+
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="stage">
+    <canvas id="gameCanvas" width="400" height="600" aria-label="Ballz Game"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">SCORE <span id="score">0</span></div>
+      <div class="hud-item">BALLS <span id="balls">1</span></div>
+    </div>
+
+    <div id="controls">
+      <div id="aimPanel">
+        <div id="aimLabel">AIM</div>
+        <input type="range" id="aimSlider" min="0" max="240" value="120" />
+      </div>
+
+      <div id="fireBtn" role="button" aria-label="Fire">
+        <div id="fireIcon"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOver">
+    <div id="gameOverCard">
+      <h2>Game Over</h2>
+      <p>FINAL SCORE: <span id="finalScore" style="color:var(--gold);font-weight:900">0</span></p>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  const scoreEl = document.getElementById('score');
+  const ballsEl = document.getElementById('balls');
+  const finalScoreEl = document.getElementById('finalScore');
+  const gameOverEl = document.getElementById('gameOver');
+  document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+  let W = 400, H = 600, DPR = 1;
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    W = Math.max(320, Math.floor(rect.width));
+    H = Math.max(480, Math.floor(rect.height));
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  requestAnimationFrame(resize);
+  window.addEventListener('resize', resize);
+
+  let score = 0;
+  let ballCount = 1;
+
+  // Aim: slider 0..240 => -45°..195° (240° span)
+  let sliderAngle = -Math.PI/2;
+
+  const ballRadius = 6;
+  const ballSpeed = 8;
+  let balls = [];
+  let shootingBalls = false;
+  let ballsToShoot = 0;
+  let shootTimer = 0;
+
+  let launchX = 200;
+  let launchY = 570;
+
+  let bricks = [];
+  const brickWidth = 50;
+  const brickHeight = 50;
+  const brickGap = 5;
+  let cols = 7;
+
+  let addDots = []; // {x,y,r}
+
+  let flashT = 0, flashX = 0, flashY = 0;
+
+  class Ball{
+    constructor(x,y,vx,vy){
+      this.x=x; this.y=y;
+      this.vx=vx; this.vy=vy;
+      this.radius=ballRadius;
+      this.returned=false;
+    }
+    update(){
+      this.x += this.vx;
+      this.y += this.vy;
+
+      if (this.x - this.radius < 0 || this.x + this.radius > W){
+        this.vx = -this.vx;
+        this.x = Math.max(this.radius, Math.min(W - this.radius, this.x));
+      }
+      if (this.y - this.radius < 0){
+        this.vy = Math.abs(this.vy);
+      }
+      if (this.y + this.radius > H - 20 && !this.returned){
+        this.returned = true;
+        if (!shootingBalls) launchX = this.x;
+        return true;
+      }
+      return false;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00ff88';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  class Brick{
+    constructor(x,y,health,type='normal'){
+      this.x=x; this.y=y;
+      this.width=brickWidth;
+      this.height=brickHeight;
+      this.health=health;
+      this.maxHealth=health;
+      this.type=type; // 'normal' | 'bomb'
+    }
+    hit(){ this.health--; return this.health <= 0; }
+    center(){ return { cx: this.x + this.width/2, cy: this.y + this.height/2 }; }
+    draw(){
+      if (this.type === 'bomb'){
+        // subtle bomb brick: muted, readable
+        ctx.fillStyle = '#1e1e33';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        ctx.strokeStyle = 'rgba(230,208,107,.85)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+        const cx = this.x + this.width/2;
+        const cy = this.y + this.height/2;
+
+        ctx.fillStyle = 'rgba(0,0,0,.85)';
+        ctx.beginPath();
+        ctx.arc(cx, cy+2, 11, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(230,208,107,.9)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx-6, cy-12);
+        ctx.quadraticCurveTo(cx-14, cy-18, cx-6, cy-23);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(230,208,107,.95)';
+        ctx.font = '900 14px ui-monospace, "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('B', cx, cy+22);
+        return;
+      }
+
+      const hue = Math.max(0, 120 - (this.health/this.maxHealth)*120);
+      ctx.fillStyle = `hsl(${hue}, 70%, 48%)`;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      ctx.strokeStyle = `hsla(${hue}, 70%, 38%, .95)`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.font = '900 16px ui-monospace, "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.health, this.x + this.width/2, this.y + this.height/2);
+    }
+  }
+
+  function recalcLayout(){
+    launchY = H - 30;
+    if (!shootingBalls) launchX = Math.min(W - 20, Math.max(20, launchX));
+    cols = Math.max(5, Math.floor(W / (brickWidth + brickGap)));
+  }
+
+  function calculateTrajectory(startX, startY, angle){
+    const pts = [];
+    let vx = Math.cos(angle) * ballSpeed;
+    let vy = Math.sin(angle) * ballSpeed;
+
+    let x = startX, y = startY;
+    for (let i=0;i<120;i++){
+      x += vx; y += vy;
+
+      if (x - ballRadius < 0 || x + ballRadius > W){
+        vx = -vx;
+        x = Math.max(ballRadius, Math.min(W - ballRadius, x));
+      }
+      if (y - ballRadius < 0){
+        vy = Math.abs(vy);
+      }
+
+      let hit = false;
+      for (const b of bricks){
+        if (x > b.x && x < b.x + b.width && y > b.y && y < b.y + b.height){
+          hit = true; break;
+        }
+      }
+      pts.push({x,y,isBounce:hit});
+      if (hit) break;
+      if (y > H - 20) break;
+    }
+    return pts;
+  }
+
+  function drawTrajectory(){
+    if (shootingBalls) return;
+    const t = calculateTrajectory(launchX, launchY, sliderAngle);
+    ctx.globalAlpha = 0.75; // subtler
+    for (let i=0;i<t.length-1;i++){
+      const p=t[i], n=t[i+1];
+      const prog = i / Math.min(t.length, 50);
+      const lw = Math.max(2, 7 - prog*5);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(n.x,n.y);
+      ctx.strokeStyle = 'rgba(230,208,107,.9)';
+      ctx.lineWidth = lw;
+      ctx.shadowBlur = 10 - prog*6;
+      ctx.shadowColor = 'rgba(230,208,107,.9)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce || n.isBounce) break;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function cellCenterX(col){
+    return col*(brickWidth+brickGap) + brickGap + brickWidth/2;
+  }
+  function rowCenterY(){
+    return brickGap + brickHeight/2;
+  }
+
+  function explodeAt(cx, cy){
+    const dxMax = (brickWidth + brickGap) * 1.05;
+    const dyMax = (brickHeight + brickGap) * 1.05;
+
+    let removed = 0;
+    for (let i = bricks.length - 1; i >= 0; i--){
+      const b = bricks[i];
+      const c = b.center();
+      if (Math.abs(c.cx - cx) <= dxMax && Math.abs(c.cy - cy) <= dyMax){
+        bricks.splice(i, 1);
+        removed++;
+      }
+    }
+    if (removed > 0){
+      score += removed;
+      scoreEl.textContent = score;
+    }
+    flashT = 9;
+    flashX = cx;
+    flashY = cy;
+  }
+
+  function spawnRow(){
+    const stepDown = brickHeight + brickGap;
+
+    for (const b of bricks) b.y += stepDown;
+    for (const d of addDots) d.y += stepDown;
+    addDots = addDots.filter(d => d.y < H + 40);
+
+    bricks = bricks.filter(b => {
+      if (b.y + b.height >= H - 50){
+        gameOver();
+        return false;
+      }
+      return true;
+    });
+
+    const numBricks = Math.floor(Math.random()*3)+2;
+    const used = new Set();
+
+    const bombChance = 0.16; // occasional
+    const willBomb = Math.random() < bombChance;
+    const bombIndex = willBomb ? Math.floor(Math.random()*numBricks) : -1;
+
+    for (let i=0;i<numBricks;i++){
+      let col;
+      do { col = Math.floor(Math.random()*cols); } while (used.has(col));
+      used.add(col);
+
+      const x = col*(brickWidth+brickGap) + brickGap;
+      const y = brickGap;
+
+      if (i === bombIndex){
+        bricks.push(new Brick(x, y, 1, 'bomb'));
+      } else {
+        const health = score + Math.floor(Math.random()*5) + 1;
+        bricks.push(new Brick(x, y, health, 'normal'));
+      }
+    }
+
+    const openCols = [];
+    for (let c=0;c<cols;c++) if (!used.has(c)) openCols.push(c);
+    const dotCol = openCols.length ? openCols[Math.floor(Math.random()*openCols.length)] : Math.floor(Math.random()*cols);
+    addDots.push({ x: cellCenterX(dotCol), y: rowCenterY(), r: 7 });
+  }
+
+  function checkCollisions(){
+    for (const ball of balls){
+      for (let i=bricks.length-1;i>=0;i--){
+        const b = bricks[i];
+        if (ball.x + ball.radius > b.x &&
+            ball.x - ball.radius < b.x + b.width &&
+            ball.y + ball.radius > b.y &&
+            ball.y - ball.radius < b.y + b.height){
+
+          const overlapLeft = (ball.x + ball.radius) - b.x;
+          const overlapRight = (b.x + b.width) - (ball.x - ball.radius);
+          const overlapTop = (ball.y + ball.radius) - b.y;
+          const overlapBottom = (b.y + b.height) - (ball.y - ball.radius);
+          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+          if (minOverlap === overlapLeft || minOverlap === overlapRight) ball.vx = -ball.vx;
+          else ball.vy = -ball.vy;
+
+          const destroyed = b.hit();
+          if (destroyed){
+            const c = b.center();
+            const wasBomb = (b.type === 'bomb');
+            bricks.splice(i, 1);
+
+            if (wasBomb){
+              explodeAt(c.cx, c.cy);
+            } else {
+              score++;
+              scoreEl.textContent = score;
+            }
+          }
+        }
+      }
+
+      for (let i=addDots.length-1;i>=0;i--){
+        const d = addDots[i];
+        if (Math.hypot(ball.x - d.x, ball.y - d.y) < ball.radius + d.r){
+          addDots.splice(i,1);
+          ballCount++;
+          ballsEl.textContent = ballCount;
+        }
+      }
+    }
+  }
+
+  function shootTick(){
+    if (ballsToShoot > 0){
+      shootTimer++;
+      if (shootTimer >= 3){
+        const vx = Math.cos(sliderAngle)*ballSpeed;
+        const vy = Math.sin(sliderAngle)*ballSpeed;
+        balls.push(new Ball(launchX, launchY, vx, vy));
+        ballsToShoot--;
+        shootTimer = 0;
+      }
+    } else if (balls.length === 0){
+      shootingBalls = false;
+      spawnRow();
+    }
+  }
+
+  function update(){
+    recalcLayout();
+    if (flashT > 0) flashT--;
+
+    for (let i=balls.length-1;i>=0;i--){
+      if (balls[i].update()) balls.splice(i,1);
+    }
+    checkCollisions();
+    if (shootingBalls) shootTick();
+  }
+
+  function drawAddDots(){
+    for (const d of addDots){
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(230,208,107,.95)';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(230,208,107,.85)';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(7,7,17,.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(d.x - 4, d.y); ctx.lineTo(d.x + 4, d.y);
+      ctx.moveTo(d.x, d.y - 4); ctx.lineTo(d.x, d.y + 4);
+      ctx.stroke();
+    }
+  }
+
+  function drawFlash(){
+    if (flashT <= 0) return;
+    const a = flashT / 9;
+    ctx.save();
+    ctx.globalAlpha = 0.22 * a;
+    ctx.fillStyle = '#e6d06b';
+    ctx.beginPath();
+    ctx.arc(flashX, flashY, 55 + (1-a)*25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    drawTrajectory();
+
+    for (const b of bricks) b.draw();
+    drawAddDots();
+    for (const ball of balls) ball.draw();
+
+    if (!shootingBalls){
+      ctx.beginPath();
+      ctx.arc(launchX, launchY, ballRadius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.fill();
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const len = 48;
+      ctx.beginPath();
+      ctx.moveTo(launchX, launchY);
+      ctx.lineTo(launchX + Math.cos(sliderAngle)*len, launchY + Math.sin(sliderAngle)*len);
+      ctx.strokeStyle = 'rgba(230,208,107,.92)';
+      ctx.lineWidth = 6;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(230,208,107,.75)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    drawFlash();
+  }
+
+  function loop(){
+    if (!gameOverEl.classList.contains('show')){
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function gameOver(){
+    finalScoreEl.textContent = score;
+    gameOverEl.classList.add('show');
+  }
+
+  function fire(){
+    if (shootingBalls || gameOverEl.classList.contains('show')) return;
+
+    // allow aiming lower, but avoid totally vertical down
+    const maxDown = Math.PI/2.4;
+    let a = sliderAngle;
+    while (a > Math.PI) a -= Math.PI*2;
+    while (a < -Math.PI) a += Math.PI*2;
+    if (a > maxDown) a = maxDown;
+    if (a < -Math.PI - maxDown) a = -Math.PI - maxDown;
+    sliderAngle = a;
+
+    shootingBalls = true;
+    ballsToShoot = ballCount;
+    shootTimer = 0;
+  }
+
+  document.getElementById('fireBtn').addEventListener('click', fire);
+  document.getElementById('fireBtn').addEventListener('touchstart', (e) => { e.preventDefault(); fire(); }, { passive:false });
+
+  const slider = document.getElementById('aimSlider');
+  function setAim(deg){
+    const start = -Math.PI/4;           // -45°
+    const end = (195 * Math.PI/180);    // 195°
+    sliderAngle = start + (deg/240) * (end - start);
+  }
+  slider.addEventListener('input', (e) => setAim(parseFloat(e.target.value)));
+  setAim(parseFloat(slider.value));
+
+  setTimeout(() => {
+    resize();
+    recalcLayout();
+    spawnRow();
+    loop();
+  }, 0);
+})();
+</script>
+</body>
+</html>

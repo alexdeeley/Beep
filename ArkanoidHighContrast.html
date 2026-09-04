@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Arkanoid HC</title>
+<style>
+  :root{
+    color-scheme: dark;
+  }
+  html,body{
+    margin:0;
+    height:100%;
+    background:#000;
+    color:#fff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  #wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+    gap:8px;
+    touch-action:none; /* allow custom gestures */
+  }
+  canvas{
+    background:#000;
+    outline:2px solid #fff;
+    border-radius:12px;
+    /* Prevent blurriness on iOS when transforming */
+    image-rendering: auto;
+  }
+  #hud{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    font-weight:600;
+    letter-spacing:0.5px;
+    user-select:none;
+  }
+  .btn{
+    border:2px solid #fff;
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    background:#000;
+  }
+  .pill{
+    border:2px solid #fff;
+    padding:4px 10px;
+    border-radius:999px;
+    font-size:12px;
+    opacity:0.9;
+  }
+  #msg{
+    font-size:14px;
+    opacity:0.8;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <canvas id="game" width="900" height="1400" aria-label="Arkanoid style game"></canvas>
+  <div id="hud">
+    <span id="score" class="pill">Score: 0</span>
+    <span id="lives" class="pill">Lives: 3</span>
+    <span id="level" class="pill">Level: 1</span>
+    <button id="pauseBtn" class="btn" aria-label="Pause or resume">Pause</button>
+    <button id="restartBtn" class="btn" aria-label="Restart">Restart</button>
+    <span id="msg" aria-live="polite"></span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  const hud = {
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    level: document.getElementById('level'),
+    msg: document.getElementById('msg'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    restartBtn: document.getElementById('restartBtn'),
+  };
+
+  // Fit canvas to screen while preserving aspect ratio
+  function fit() {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const maxW = Math.min(window.innerWidth - 12, 900);
+    const maxH = Math.min(window.innerHeight - 90, 1400);
+    // keep a tall portrait ratio that works well on phones
+    let targetW = maxW;
+    let targetH = maxH;
+    const baseRatio = 900/1400;
+    if (targetW/targetH > baseRatio) targetW = targetH*baseRatio;
+    else targetH = targetW/baseRatio;
+    canvas.style.width = Math.round(targetW) + 'px';
+    canvas.style.height = Math.round(targetH) + 'px';
+    // keep internal buffer constant (900x1400) for simplicity, but scale crisp using DPR
+    // We already set fixed width/height attributes to 900x1400.
+  }
+  window.addEventListener('resize', fit, { passive:true });
+  fit();
+
+  // Simple PRNG for consistent levels
+  let seed = 123456;
+  function rand(){
+    // xorshift32
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return Math.abs(seed) / 0x7fffffff;
+  }
+
+  // Audio (minimal, initialized on first interaction)
+  let audioCtx = null;
+  function boop(freq=440, dur=0.05, type='square', vol=0.03){
+    if (!audioCtx) return;
+    const ctxA = audioCtx;
+    const o = ctxA.createOscillator();
+    const g = ctxA.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g).connect(ctxA.destination);
+    o.start();
+    g.gain.setValueAtTime(vol, ctxA.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctxA.currentTime + dur);
+    o.stop(ctxA.currentTime + dur);
+  }
+
+  // Game state
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const state = {
+    running: true,
+    level: 1,
+    lives: 3,
+    score: 0,
+    balls: [],
+    paddle: { x: W*0.5, y: H-80, w: 160, h: 18, vx:0, sticky:false, laser:false },
+    bricks: [],
+    powerups: [],
+    lastTime: performance.now(),
+    nextBallSticky: false,
+  };
+
+  const COLORS = {
+    fg:'#fff',
+    bg:'#000',
+    faint:'rgba(255,255,255,0.2)',
+    mid:'rgba(255,255,255,0.6)',
+  };
+
+  const POWERUPS = {
+    E: { name:'Expand Paddle', apply:()=>{ state.paddle.w = Math.min(state.paddle.w*1.4, 280); flashMsg('Expand'); } },
+    S: { name:'Sticky Paddle', apply:()=>{ state.paddle.sticky = true; state.nextBallSticky = false; flashMsg('Sticky'); } },
+    M: { name:'Multiball', apply:()=>{ spawnMultiball(); flashMsg('Multiball'); } },
+    L: { name:'Slow Motion', apply:()=>{ slowMo(6000); flashMsg('Slow Mo'); } },
+  };
+  const POWER_KEYS = Object.keys(POWERUPS);
+
+  function flashMsg(text){
+    hud.msg.textContent = text;
+    setTimeout(()=>{ if(hud.msg.textContent===text) hud.msg.textContent=''; }, 1200);
+  }
+
+  function resetLevel(level=1){
+    state.level = level;
+    state.balls.length = 0;
+    state.powerups.length = 0;
+    seed = 1000 + level*1337;
+    // Grid config
+    const cols = 10;
+    const rows = Math.min(6 + level, 12);
+    const pad = 12;
+    const top = 120;
+    const brickW = (W - pad*(cols+1)) / cols;
+    const brickH = 40;
+    state.bricks = [];
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const x = pad + c*(brickW+pad);
+        const y = top + r*(brickH+pad);
+        const hp = 1 + Math.floor(rand()*Math.min(1+Math.floor(level/2), 3)); // tougher later
+        const hasPower = rand() < Math.min(0.08 + level*0.01, 0.18);
+        const powerKey = hasPower ? POWER_KEYS[Math.floor(rand()*POWER_KEYS.length)] : null;
+        state.bricks.push({ x,y,w:brickW,h:brickH,hp, power:powerKey, alive:true });
+      }
+    }
+    // Paddle reset
+    state.paddle.x = W*0.5;
+    state.paddle.y = H-80;
+    state.paddle.w = 160;
+    state.paddle.sticky = false;
+    // Ball spawn
+    spawnBall(true);
+  }
+
+  function spawnBall(sticky=false){
+    const angle = (-Math.PI/3) + rand()* (Math.PI/6); // upward range
+    const speed = 520;
+    const b = {
+      x: state.paddle.x,
+      y: state.paddle.y - 30,
+      r: 10,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      stuck: sticky || state.paddle.sticky || state.nextBallSticky,
+      speed,
+    };
+    state.nextBallSticky = false;
+    state.balls.push(b);
+  }
+  function spawnMultiball(){
+    const origin = state.balls[0] || { x: state.paddle.x, y:state.paddle.y-30, vx:320, vy:-420, r:10, speed:520 };
+    for(let i=0;i<2;i++){
+      const ang = (-Math.PI/2) + (i? -0.3:0.3);
+      const speed = origin.speed*0.95;
+      state.balls.push({ x:origin.x, y:origin.y, r:10, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, stuck:false, speed });
+    }
+  }
+
+  let slowFactor = 1;
+  let slowUntil = 0;
+  function slowMo(ms){
+    slowFactor = 0.6;
+    slowUntil = performance.now() + ms;
+  }
+
+  // Input
+  const input = { left:false, right:false, dx:0, active:false, lastX: null };
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === 'ArrowLeft' || e.key === 'a') input.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') input.right = true;
+    if (e.key === ' ' || e.key === 'Enter') releaseSticky();
+  });
+  window.addEventListener('keyup', (e)=>{
+    if (e.key === 'ArrowLeft' || e.key === 'a') input.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') input.right = false;
+  });
+
+  function pointerX(e){
+    if (e.touches && e.touches[0]) return e.touches[0].clientX;
+    return e.clientX;
+  }
+  function pointerY(e){
+    if (e.touches && e.touches[0]) return e.touches[0].clientY;
+    return e.clientY;
+  }
+
+  function canvasToLocal(px, py){
+    const rect = canvas.getBoundingClientRect();
+    const sx = (px - rect.left) / rect.width;
+    const sy = (py - rect.top) / rect.height;
+    return { x: sx * W, y: sy * H };
+  }
+
+  function releaseSticky(){
+    // release all stuck balls straight up
+    for (const b of state.balls){
+      if (b.stuck){
+        b.stuck = false;
+        b.vy = -Math.abs(b.speed*0.9);
+        b.vx = (Math.random()*2-1)*b.speed*0.3;
+      }
+    }
+    state.paddle.sticky = false;
+  }
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    input.active = true;
+    input.lastX = pointerX(e);
+    // initialize audio on first user interaction
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+    }
+    // tap to release sticky
+    releaseSticky();
+  }, { passive: true });
+  canvas.addEventListener('pointermove', (e)=>{
+    if (!input.active) return;
+    const px = pointerX(e);
+    const rect = canvas.getBoundingClientRect();
+    const sx = (px - rect.left) / rect.width;
+    const target = sx * W;
+    state.paddle.x = target;
+  }, { passive: true });
+  window.addEventListener('pointerup', ()=>{ input.active = false; }, { passive:true });
+
+  hud.pauseBtn.addEventListener('click', ()=>{
+    state.running = !state.running;
+    hud.pauseBtn.textContent = state.running ? 'Pause' : 'Resume';
+  });
+  hud.restartBtn.addEventListener('click', ()=>{
+    state.lives = 3;
+    state.score = 0;
+    resetLevel(1);
+  });
+
+  // Collisions helpers
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+  function circleRectIntersect(cx,cy, r, rx,ry,rw,rh){
+    // Closest point
+    const nx = clamp(cx, rx, rx+rw);
+    const ny = clamp(cy, ry, ry+rh);
+    const dx = cx - nx;
+    const dy = cy - ny;
+    return dx*dx + dy*dy <= r*r;
+  }
+
+  function reflectBallFromPaddle(b){
+    // position-based reflection; angle depends on hit position
+    const rel = (b.x - state.paddle.x) / (state.paddle.w/2);
+    const maxAngle = Math.PI*0.7/2; // ~63 degrees
+    const ang = (-Math.PI/2) + rel * maxAngle;
+    const sp = b.speed;
+    b.vx = Math.cos(ang)*sp;
+    b.vy = Math.sin(ang)*sp;
+    // small kick to avoid vertical traps
+    if (Math.abs(b.vx) < 50) b.vx = 50 * Math.sign(b.vx || (Math.random()<0.5?-1:1));
+  }
+
+  function addScore(n){
+    state.score += n;
+    hud.score.textContent = 'Score: ' + state.score;
+  }
+
+  function loseLife(){
+    state.lives--;
+    hud.lives.textContent = 'Lives: ' + state.lives;
+    boop(160, 0.15, 'sawtooth', 0.05);
+    if (state.lives < 0){
+      gameOver();
+    } else {
+      // respawn single sticky ball
+      state.balls = [];
+      state.paddle.sticky = true;
+      state.nextBallSticky = true;
+      spawnBall(true);
+    }
+  }
+
+  function gameOver(){
+    flashMsg('Game Over — Restart');
+    state.lives = 0;
+    state.running = false;
+  }
+
+  function nextLevel(){
+    addScore(200);
+    flashMsg('Level ' + (state.level+1));
+    resetLevel(state.level+1);
+    hud.level.textContent = 'Level: ' + state.level;
+  }
+
+  // Power-up drop
+  function dropPower(x,y, key){
+    state.powerups.push({ x, y, vy: 180, r: 16, key, alive:true });
+  }
+
+  // Main update/draw
+  function update(dt){
+    // slow mo decay
+    if (slowUntil && performance.now() > slowUntil){
+      slowFactor = 1;
+      slowUntil = 0;
+    }
+    dt *= slowFactor;
+
+    // Paddle movement (keyboard)
+    const paddleSpeed = 900;
+    if (input.left) state.paddle.x -= paddleSpeed*dt;
+    if (input.right) state.paddle.x += paddleSpeed*dt;
+    state.paddle.x = clamp(state.paddle.x, state.paddle.w/2 + 8, W - state.paddle.w/2 - 8);
+
+    // Balls update
+    for (const b of state.balls){
+      if (b.stuck){
+        b.x = clamp(state.paddle.x, state.paddle.w/2, W - state.paddle.w/2);
+        b.y = state.paddle.y - 30;
+        continue;
+      }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      // wall collisions
+      if (b.x - b.r < 6){ b.x = 6 + b.r; b.vx = Math.abs(b.vx); boop(800,0.02); }
+      if (b.x + b.r > W-6){ b.x = W-6 - b.r; b.vx = -Math.abs(b.vx); boop(800,0.02); }
+      if (b.y - b.r < 6){ b.y = 6 + b.r; b.vy = Math.abs(b.vy); boop(700,0.02); }
+      if (b.y - b.r > H+60){
+        b.dead = true;
+      }
+
+      // paddle collision (only if moving downwards)
+      if (b.vy > 0 && circleRectIntersect(b.x,b.y,b.r, state.paddle.x - state.paddle.w/2, state.paddle.y - state.paddle.h/2, state.paddle.w, state.paddle.h)){
+        b.y = state.paddle.y - state.paddle.h/2 - b.r - 0.1;
+        reflectBallFromPaddle(b);
+        boop(500,0.03,'square',0.03);
+        if (state.paddle.sticky){
+          b.stuck = true;
+        }
+      }
+
+      // bricks
+      for (const br of state.bricks){
+        if (!br.alive) continue;
+        if (circleRectIntersect(b.x,b.y,b.r, br.x, br.y, br.w, br.h)){
+          // Determine side hit
+          const prevX = b.x - b.vx*dt;
+          const prevY = b.y - b.vy*dt;
+          const wasInsideX = prevX >= br.x && prevX <= br.x + br.w;
+          const wasInsideY = prevY >= br.y && prevY <= br.y + br.h;
+          if (!wasInsideX) b.vx *= -1;
+          if (!wasInsideY) b.vy *= -1;
+          br.hp--;
+          addScore(10);
+          boop(1000,0.02,'square',0.02);
+          // little nudge to reduce tunneling
+          b.x += b.vx * 0.004;
+          b.y += b.vy * 0.004;
+          if (br.hp<=0){
+            br.alive = false;
+            addScore(30);
+            if (br.power){
+              dropPower(br.x + br.w/2, br.y + br.h/2, br.power);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // remove dead balls
+    state.balls = state.balls.filter(b => !b.dead);
+
+    // if all balls lost, lose life
+    if (state.balls.length === 0){
+      loseLife();
+    }
+
+    // power-ups update
+    for (const p of state.powerups){
+      p.y += p.vy * dt;
+      // paddle catch
+      if (circleRectIntersect(p.x,p.y,p.r, state.paddle.x - state.paddle.w/2, state.paddle.y - state.paddle.h/2, state.paddle.w, state.paddle.h)){
+        const def = POWERUPS[p.key];
+        if (def) def.apply();
+        p.alive = false;
+        boop(300,0.04,'triangle',0.05);
+      }
+      // out of bounds
+      if (p.y - p.r > H + 50) p.alive = false;
+    }
+    state.powerups = state.powerups.filter(p => p.alive);
+
+    // level cleared?
+    if (state.bricks.every(b=>!b.alive)){
+      nextLevel();
+    }
+  }
+
+  function draw(){
+    // Clear
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0,0,W,H);
+
+    // Glow grid backdrop
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = COLORS.fg;
+    ctx.lineWidth = 1;
+    const step = 40;
+    for (let x=6; x<=W-6; x+=step){
+      ctx.beginPath();
+      ctx.moveTo(x, 6);
+      ctx.lineTo(x, H-6);
+      ctx.stroke();
+    }
+    for (let y=6; y<=H-6; y+=step){
+      ctx.beginPath();
+      ctx.moveTo(6, y);
+      ctx.lineTo(W-6, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Border
+    ctx.strokeStyle = COLORS.fg;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3,3,W-6,H-6);
+
+    // Bricks
+    for (const br of state.bricks){
+      if (!br.alive) continue;
+      const intensity = Math.min(1, 0.5 + 0.25*br.hp);
+      ctx.fillStyle = 'rgba(255,255,255,' + intensity + ')';
+      ctx.strokeStyle = COLORS.fg;
+      ctx.lineWidth = 2;
+      // rounded rect
+      roundRect(ctx, br.x, br.y, br.w, br.h, 10, true, true);
+      // inner shine
+      const g = ctx.createLinearGradient(br.x, br.y, br.x, br.y+br.h);
+      g.addColorStop(0, 'rgba(255,255,255,0.7)');
+      g.addColorStop(1, 'rgba(255,255,255,0.1)');
+      ctx.fillStyle = g;
+      roundRect(ctx, br.x+2, br.y+2, br.w-4, br.h-4, 8, true, false);
+
+      if (br.power){
+        // small power icon
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = '#000';
+        ctx.fillStyle = '#000';
+        ctx.lineWidth = 3;
+        drawPowerIcon(br.x+br.w/2, br.y+br.h/2, br.power, 12);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Paddle
+    const p = state.paddle;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = COLORS.fg;
+    ctx.strokeStyle = COLORS.fg;
+    ctx.lineWidth = 2;
+    roundRect(ctx, -p.w/2, -p.h/2, p.w, p.h, 10, true, true);
+    // shine
+    const gg = ctx.createLinearGradient(-p.w/2, -p.h/2, -p.w/2, p.h/2);
+    gg.addColorStop(0,'rgba(255,255,255,0.8)');
+    gg.addColorStop(1,'rgba(255,255,255,0.15)');
+    ctx.fillStyle = gg;
+    roundRect(ctx, -p.w/2+2, -p.h/2+2, p.w-4, p.h-4, 8, true, false);
+    // sticky indicator
+    if (p.sticky){
+      ctx.strokeStyle = COLORS.fg;
+      ctx.beginPath();
+      ctx.arc(0, -p.h/2 - 8, 6, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Balls
+    for (const b of state.balls){
+      ctx.beginPath();
+      ctx.fillStyle = COLORS.fg;
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+      // halo
+      const r2 = b.r*2.2;
+      const grad = ctx.createRadialGradient(b.x, b.y, b.r*0.2, b.x, b.y, r2);
+      grad.addColorStop(0, 'rgba(255,255,255,0.6)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Power-ups
+    for (const pu of state.powerups){
+      ctx.save();
+      ctx.translate(pu.x, pu.y);
+      ctx.strokeStyle = COLORS.fg;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0,0, pu.r, 0, Math.PI*2);
+      ctx.stroke();
+      drawPowerIcon(0,0, pu.key, 10);
+      ctx.restore();
+    }
+
+    // Heads-up hints
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '28px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    if (state.balls.some(b=>b.stuck)){
+      ctx.fillText('Tap to launch', W/2, H-24);
+    }
+    ctx.restore();
+  }
+
+  function drawPowerIcon(cx,cy,key,size){
+    const c = ctx;
+    c.save();
+    c.translate(cx,cy);
+    c.strokeStyle = '#fff';
+    c.fillStyle = '#fff';
+    c.lineWidth = 2.5;
+    if (key==='E'){ // expand
+      c.beginPath();
+      c.moveTo(-size,0); c.lineTo(size,0);
+      c.moveTo(size-6,-6); c.lineTo(size,0); c.lineTo(size-6,6);
+      c.moveTo(-size+6,-6); c.lineTo(-size,0); c.lineTo(-size+6,6);
+      c.stroke();
+    } else if (key==='S'){ // sticky
+      c.beginPath();
+      c.arc(0,0,size*0.8,0,Math.PI*2);
+      c.globalAlpha = 0.8;
+      c.fill();
+      c.globalAlpha = 1;
+    } else if (key==='M'){ // multiball
+      c.beginPath();
+      c.arc(-6,-4,4,0,Math.PI*2);
+      c.arc(6,4,4,0,Math.PI*2);
+      c.arc(0,0,4,0,Math.PI*2);
+      c.fill();
+    } else if (key==='L'){ // slow mo (hourglass-ish)
+      c.beginPath();
+      c.moveTo(-size, -size);
+      c.lineTo(size, -size);
+      c.lineTo(-size, size);
+      c.lineTo(size, size);
+      c.stroke();
+    } else {
+      c.beginPath(); c.arc(0,0,4,0,Math.PI*2); c.fill();
+    }
+    c.restore();
+  }
+
+  function roundRect(ctx,x,y,w,h,r,fill,stroke){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.lineTo(x+w-rr, y);
+    ctx.arcTo(x+w, y, x+w, y+rr, rr);
+    ctx.lineTo(x+w, y+h-rr);
+    ctx.arcTo(x+w, y+h, x+w-rr, y+h, rr);
+    ctx.lineTo(x+rr, y+h);
+    ctx.arcTo(x, y+h, x, y+h-rr, rr);
+    ctx.lineTo(x, y+rr);
+    ctx.arcTo(x, y, x+rr, y, rr);
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+
+  // Main loop
+  function loop(t){
+    const now = t || performance.now();
+    const dt = Math.min(0.033, (now - state.lastTime)/1000);
+    state.lastTime = now;
+    if (state.running) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Start
+  resetLevel(1);
+  hud.level.textContent = 'Level: ' + state.level;
+  hud.lives.textContent = 'Lives: ' + state.lives;
+  hud.score.textContent = 'Score: ' + state.score;
+  loop(performance.now());
+
+})();
+</script>
+</body>
+</html>

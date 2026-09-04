@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Maizey's Magic Spell Academy</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #241540;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    font-family: "Chalkboard SE", "Comic Sans MS", "Marker Felt", sans-serif;
+  }
+  #c { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+"use strict";
+
+// ============================================================
+// MAIZEY'S MAGIC SPELL ACADEMY
+// A two-wizard, one-screen co-op puzzle game.
+// Drag the right magic ingredients into the cauldron together!
+// ============================================================
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------------- Palette ----------------
+const SKY_TOP = "#1A0F33", SKY_BOT = "#3A2364";
+const COLORS = {
+  pink:   "#FF4D8D",
+  blue:   "#4DA6FF",
+  green:  "#3DE08A",
+  gold:   "#FFD84D",
+  purple: "#C07BFF"
+};
+const COLOR_NAMES = { pink:"pink", blue:"blue", green:"green", gold:"gold", purple:"purple" };
+const RAINBOW = ["#FF4D6D","#FF9E4D","#FFD84D","#3DE08A","#4DA6FF","#C07BFF"];
+
+// ---------------- Audio (procedural, starts on first touch) ----------------
+let AC = null;
+function audio() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tone(freq, t0, dur, type, vol, slide) {
+  const ac = audio();
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type || "sine";
+  o.frequency.setValueAtTime(freq, ac.currentTime + t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, ac.currentTime + t0 + dur);
+  g.gain.setValueAtTime(0.0001, ac.currentTime + t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.2, ac.currentTime + t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(ac.currentTime + t0); o.stop(ac.currentTime + t0 + dur + 0.05);
+}
+function sfxPickup()   { tone(660, 0, 0.12, "sine", 0.12, 880); }
+function sfxPlop()     { tone(440, 0, 0.25, "sine", 0.25, 180); tone(880, 0, 0.15, "triangle", 0.08); }
+function sfxSparkle()  { [1318, 1568, 2093].forEach((f,i)=>tone(f, i*0.06, 0.3, "sine", 0.10)); }
+function sfxBoop()     { tone(220, 0, 0.18, "sine", 0.15, 160); }
+function sfxFanfare() {
+  const notes = [523, 659, 784, 1047, 1319, 1568];
+  notes.forEach((f,i)=>{ tone(f, i*0.10, 0.5, "triangle", 0.16); tone(f/2, i*0.10, 0.5, "sine", 0.10); });
+  [2093, 2637, 3136].forEach((f,i)=>tone(f, 0.65+i*0.05, 0.8, "sine", 0.06));
+}
+function sfxMega() {
+  sfxFanfare();
+  setTimeout(()=>{ const n=[784,988,1175,1568]; n.forEach((f,i)=>tone(f,i*0.12,0.7,"triangle",0.15)); }, 800);
+}
+
+// ---------------- Shapes ----------------
+function drawGem(x, y, r, color) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r*0.85, y - r*0.2);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r*0.85, y - r*0.2);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3; ctx.stroke();
+  // facet shine
+  ctx.beginPath();
+  ctx.moveTo(x - r*0.3, y - r*0.45);
+  ctx.lineTo(x + r*0.05, y - r*0.65);
+  ctx.lineTo(x + r*0.25, y - r*0.3);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.fill();
+}
+function drawStar(x, y, r, color) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const ang = -Math.PI/2 + i * Math.PI/5;
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const px = x + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3;
+  ctx.lineJoin = "round"; ctx.stroke();
+}
+function drawHeart(x, y, r, color) {
+  ctx.beginPath();
+  const s = r * 1.1;
+  ctx.moveTo(x, y + s*0.75);
+  ctx.bezierCurveTo(x - s*1.1, y - s*0.1, x - s*0.55, y - s*0.95, x, y - s*0.35);
+  ctx.bezierCurveTo(x + s*0.55, y - s*0.95, x + s*1.1, y - s*0.1, x, y + s*0.75);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3; ctx.stroke();
+}
+function drawMoon(x, y, r, color) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, r*0.9, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.arc(x + r*0.45, y - r*0.25, r*0.72, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  // redraw outline edge
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r*0.9, 0, Math.PI*2); ctx.clip();
+  ctx.beginPath(); ctx.arc(x + r*0.45, y - r*0.25, r*0.72, 0, Math.PI*2);
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.restore();
+}
+const SHAPE_DRAW = { gem: drawGem, star: drawStar, heart: drawHeart, moon: drawMoon };
+const SHAPE_LABEL = { gem: "gem", star: "star", heart: "heart", moon: "moon" };
+
+// ---------------- Levels ----------------
+// Each level: recipe = list of {shape, color, count}. Decoys added automatically.
+const LEVELS = [
+  { recipe: [{shape:"star", color:"gold", count:2}], decoys: 2 },
+  { recipe: [{shape:"heart", color:"pink", count:3}], decoys: 3 },
+  { recipe: [{shape:"gem", color:"blue", count:2}, {shape:"star", color:"gold", count:1}], decoys: 3 },
+  { recipe: [{shape:"moon", color:"purple", count:2}, {shape:"heart", color:"pink", count:2}], decoys: 4 },
+  { recipe: [{shape:"gem", color:"green", count:3}, {shape:"star", color:"pink", count:2}], decoys: 4 },
+  { recipe: [{shape:"star", color:"blue", count:2}, {shape:"moon", color:"gold", count:2}, {shape:"heart", color:"purple", count:1}], decoys: 5 },
+  { recipe: [{shape:"gem", color:"pink", count:3}, {shape:"gem", color:"blue", count:2}], decoys: 5 },
+  { recipe: [{shape:"heart", color:"green", count:2}, {shape:"star", color:"purple", count:2}, {shape:"moon", color:"blue", count:2}], decoys: 6 },
+  { recipe: [{shape:"star", color:"gold", count:3}, {shape:"heart", color:"pink", count:3}], decoys: 6 },
+  { recipe: [{shape:"gem", color:"purple", count:3}, {shape:"moon", color:"green", count:2}, {shape:"star", color:"pink", count:2}], decoys: 7 }
+];
+const SHAPES = ["gem","star","heart","moon"];
+const COLOR_KEYS = Object.keys(COLORS);
+
+// ---------------- Game state ----------------
+let state = "title"; // title | play | celebrate | finale
+let levelIndex = 0;
+let items = [];       // draggable ingredients
+let recipe = [];      // [{shape,color,count,filled}]
+let drags = new Map(); // pointerId -> item
+let particles = [];
+let stars = [];
+let unicorns = [];    // celebration flybys
+let banner = null;    // {text, sub, t}
+let celebrateT = 0;
+let cauldron = { x: 0, y: 0, r: 0, bubbleT: 0, glow: 0 };
+let shakeT = 0;
+let time = 0;
+
+// starfield
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 70; i++) {
+    stars.push({ x: Math.random()*W, y: Math.random()*H*0.9, r: Math.random()*1.8+0.6, tw: Math.random()*Math.PI*2 });
+  }
+}
+makeStars();
+
+function itemRadius() { return Math.max(30, Math.min(W, H) * 0.045); }
+
+function layoutCauldron() {
+  cauldron.x = W/2;
+  cauldron.y = H*0.62;
+  cauldron.r = Math.min(W, H) * 0.16;
+}
+
+function startLevel(idx) {
+  levelIndex = idx;
+  const lvl = LEVELS[idx];
+  recipe = lvl.recipe.map(r => ({ ...r, filled: 0 }));
+  items = [];
+  layoutCauldron();
+  const r = itemRadius();
+
+  // Build the pool: needed items + decoys (decoys never match a recipe entry)
+  const pool = [];
+  lvl.recipe.forEach(req => {
+    for (let i = 0; i < req.count; i++) pool.push({ shape: req.shape, color: req.color, needed: true });
+  });
+  let guard = 0;
+  while (pool.filter(p=>!p.needed).length < lvl.decoys && guard++ < 200) {
+    const shape = SHAPES[Math.floor(Math.random()*SHAPES.length)];
+    const color = COLOR_KEYS[Math.floor(Math.random()*COLOR_KEYS.length)];
+    if (!lvl.recipe.some(req => req.shape === shape && req.color === color)) {
+      pool.push({ shape, color, needed: false });
+    }
+  }
+
+  // Scatter: alternate left half / right half so both wizards get pieces
+  const placed = [];
+  pool.sort(() => Math.random() - 0.5);
+  pool.forEach((p, i) => {
+    const side = i % 2 === 0 ? 0 : 1; // 0 left, 1 right
+    let x, y, ok = false, tries = 0;
+    while (!ok && tries++ < 120) {
+      x = side === 0 ? r*1.4 + Math.random()*(W/2 - cauldron.r - r*2.6)
+                     : W/2 + cauldron.r + r*1.2 + Math.random()*(W/2 - cauldron.r - r*2.6);
+      y = H*0.30 + Math.random()*(H*0.62);
+      const dC = Math.hypot(x - cauldron.x, y - cauldron.y);
+      ok = dC > cauldron.r + r*1.5 &&
+           placed.every(q => Math.hypot(x - q.x, y - q.y) > r*2.2);
+    }
+    const it = { ...p, x, y, hx: x, hy: y, r, held: false, gone: false, wob: Math.random()*Math.PI*2, back: null };
+    placed.push(it); items.push(it);
+  });
+
+  banner = { text: "Spell " + (idx+1), sub: "Work together!", t: 1.6 };
+  state = "play";
+}
+
+// ---------------- Particles ----------------
+function burst(x, y, n, colors, speed, grav) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*Math.PI*2, s = (0.3+Math.random())*speed;
+    particles.push({
+      x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - speed*0.4,
+      life: 1, decay: 0.4 + Math.random()*0.6,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      size: 3 + Math.random()*6, grav: grav || 300,
+      shape: Math.random() < 0.3 ? "star" : "dot"
+    });
+  }
+}
+function confettiRain(n) {
+  for (let i = 0; i < n; i++) {
+    particles.push({
+      x: Math.random()*W, y: -20 - Math.random()*H*0.5,
+      vx: (Math.random()-0.5)*60, vy: 120 + Math.random()*180,
+      life: 1, decay: 0.18 + Math.random()*0.1,
+      color: RAINBOW[Math.floor(Math.random()*RAINBOW.length)],
+      size: 5 + Math.random()*7, grav: 40,
+      shape: "confetti", rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*8
+    });
+  }
+}
+function launchUnicorns(big) {
+  unicorns = [];
+  const n = big ? 2 : 1;
+  for (let i = 0; i < n; i++) {
+    unicorns.push({
+      x: -120 - i*250,
+      y: H*0.22 + i*H*0.16,
+      vx: W * (0.45 + Math.random()*0.15),
+      bob: Math.random()*Math.PI*2,
+      trail: []
+    });
+  }
+}
+
+// ---------------- Win logic ----------------
+function recipeDone() { return recipe.every(r => r.filled >= r.count); }
+
+function dropInCauldron(item) {
+  const req = recipe.find(r => r.shape === item.shape && r.color === item.color && r.filled < r.count);
+  if (req) {
+    req.filled++;
+    item.gone = true;
+    sfxPlop(); sfxSparkle();
+    cauldron.glow = 1;
+    burst(cauldron.x, cauldron.y - cauldron.r*0.5, 26, [COLORS[item.color], "#FFFFFF", "#FFD84D"], 220, 350);
+    if (recipeDone()) winLevel();
+  } else {
+    // not needed — gentle bounce home, no punishment
+    sfxBoop();
+    item.back = { t: 0, fx: item.x, fy: item.y };
+    burst(item.x, item.y, 8, ["#9b8ec4"], 90, 250);
+  }
+}
+
+function winLevel() {
+  state = "celebrate";
+  celebrateT = 0;
+  shakeT = 0.6;
+  const last = levelIndex === LEVELS.length - 1;
+  banner = last
+    ? { text: "MASTER WIZARDS!", sub: "You finished EVERY spell! \u2b50\u2b50\u2b50", t: 9 }
+    : { text: "SPELL COMPLETE!", sub: pick(["Amazing teamwork!","You did it together!","Magic high five! \u270b","Maizey + Daddy = MAGIC!","Super spell casters!"]), t: 4.5 };
+  if (last) { state = "finale"; sfxMega(); confettiRain(220); launchUnicorns(true); }
+  else { sfxFanfare(); confettiRain(120); launchUnicorns(false); }
+  burst(cauldron.x, cauldron.y - cauldron.r, 90, RAINBOW, 380, 280);
+  setTimeout(()=>burst(cauldron.x, cauldron.y - cauldron.r, 60, RAINBOW, 300, 280), 350);
+}
+function pick(a) { return a[Math.floor(Math.random()*a.length)]; }
+
+// ---------------- Input (multitouch so both wizards play at once) ----------------
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  audio();
+  const p = getPos(e);
+  if (state === "title") { startLevel(0); return; }
+  if (state === "celebrate") {
+    if (celebrateT > 1.2) startLevel(levelIndex + 1);
+    return;
+  }
+  if (state === "finale") {
+    if (celebrateT > 2.5) { state = "title"; levelIndex = 0; }
+    return;
+  }
+  if (state !== "play") return;
+  // grab nearest free item under finger (generous radius for little fingers)
+  let best = null, bd = 1e9;
+  for (const it of items) {
+    if (it.gone || it.held) continue;
+    const d = Math.hypot(p.x - it.x, p.y - it.y);
+    if (d < it.r * 1.7 && d < bd) { bd = d; best = it; }
+  }
+  if (best) {
+    best.held = true; best.back = null;
+    drags.set(e.pointerId, best);
+    sfxPickup();
+    try { canvas.setPointerCapture(e.pointerId); } catch(_) {}
+  }
+}, { passive: false });
+
+canvas.addEventListener("pointermove", e => {
+  const it = drags.get(e.pointerId);
+  if (!it) return;
+  const p = getPos(e);
+  it.x = p.x; it.y = p.y;
+}, { passive: false });
+
+function release(e) {
+  const it = drags.get(e.pointerId);
+  if (!it) return;
+  drags.delete(e.pointerId);
+  it.held = false;
+  const d = Math.hypot(it.x - cauldron.x, it.y - cauldron.y);
+  if (d < cauldron.r * 1.15) dropInCauldron(it);
+}
+canvas.addEventListener("pointerup", release);
+canvas.addEventListener("pointercancel", release);
+
+// ---------------- Drawing ----------------
+function drawBackground(dt) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, SKY_TOP); g.addColorStop(1, SKY_BOT);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const s of stars) {
+    s.tw += dt * 2;
+    ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(s.tw));
+    ctx.fillStyle = "#FFF";
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // soft hills
+  ctx.fillStyle = "#1C1140";
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.quadraticCurveTo(W*0.25, H*0.82, W*0.5, H*0.9);
+  ctx.quadraticCurveTo(W*0.75, H*0.98, W, H*0.86);
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+}
+
+function drawCauldron(dt) {
+  const { x, y, r } = cauldron;
+  cauldron.bubbleT += dt;
+  cauldron.glow = Math.max(0, cauldron.glow - dt*1.5);
+
+  // glow halo
+  const glowR = r * (1.6 + cauldron.glow*0.8 + Math.sin(time*2)*0.05);
+  const gg = ctx.createRadialGradient(x, y, r*0.3, x, y, glowR);
+  gg.addColorStop(0, "rgba(192,123,255,"+(0.35+cauldron.glow*0.4)+")");
+  gg.addColorStop(1, "rgba(192,123,255,0)");
+  ctx.fillStyle = gg;
+  ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI*2); ctx.fill();
+
+  // pot body
+  ctx.fillStyle = "#171028";
+  ctx.beginPath();
+  ctx.ellipse(x, y + r*0.15, r, r*0.85, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "#3A2A5E"; ctx.lineWidth = 5; ctx.stroke();
+  // legs
+  ctx.strokeStyle = "#171028"; ctx.lineWidth = 9; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x - r*0.5, y + r*0.8); ctx.lineTo(x - r*0.7, y + r*1.05); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + r*0.5, y + r*0.8); ctx.lineTo(x + r*0.7, y + r*1.05); ctx.stroke();
+
+  // brew surface
+  const brew = ctx.createLinearGradient(x - r, y - r*0.4, x + r, y - r*0.1);
+  brew.addColorStop(0, "#C07BFF"); brew.addColorStop(0.5, "#FF7BD5"); brew.addColorStop(1, "#7BAFFF");
+  ctx.fillStyle = brew;
+  ctx.beginPath();
+  ctx.ellipse(x, y - r*0.28, r*0.82, r*0.3, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // bubbles
+  for (let i = 0; i < 5; i++) {
+    const bt = (cauldron.bubbleT*0.8 + i*0.73) % 1;
+    const bx = x + Math.sin(i*2.4 + cauldron.bubbleT)*r*0.5;
+    const by = y - r*0.28 - bt*r*0.55;
+    ctx.globalAlpha = (1 - bt) * 0.8;
+    ctx.strokeStyle = "#FFD2F4"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(bx, by, 4 + bt*7, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // rising sparkles
+  if (Math.random() < 0.3) {
+    particles.push({
+      x: x + (Math.random()-0.5)*r*1.2, y: y - r*0.3,
+      vx: (Math.random()-0.5)*30, vy: -60 - Math.random()*60,
+      life: 1, decay: 0.8, color: pick(["#FFD84D","#FF7BD5","#C07BFF","#FFFFFF"]),
+      size: 2 + Math.random()*3, grav: -20, shape: "dot"
+    });
+  }
+}
+
+function drawItem(it, dt) {
+  if (it.gone) return;
+  it.wob += dt * 2;
+  // bounce-back animation
+  if (it.back) {
+    it.back.t += dt * 2.2;
+    const t = Math.min(1, it.back.t);
+    const e = 1 - Math.pow(1 - t, 3);
+    it.x = it.back.fx + (it.hx - it.back.fx) * e;
+    it.y = it.back.fy + (it.hy - it.back.fy) * e - Math.sin(t*Math.PI)*40;
+    if (t >= 1) it.back = null;
+  }
+  const bob = it.held ? 0 : Math.sin(it.wob) * 4;
+  const scale = it.held ? 1.25 : 1;
+  ctx.save();
+  ctx.translate(it.x, it.y + bob);
+  ctx.scale(scale, scale);
+  if (it.held) {
+    ctx.shadowColor = COLORS[it.color]; ctx.shadowBlur = 30;
+  } else {
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8;
+  }
+  SHAPE_DRAW[it.shape](0, 0, it.r, COLORS[it.color]);
+  ctx.restore();
+}
+
+function drawRecipeBar() {
+  const r = Math.max(20, Math.min(W,H)*0.030);
+  const slotW = r * 2.8;
+  let totalSlots = recipe.reduce((s, q) => s + q.count, 0);
+  const barW = totalSlots * slotW + 40;
+  const bx = W/2 - barW/2, by = 14, bh = r*2 + 38;
+
+  ctx.fillStyle = "rgba(20,10,45,0.82)";
+  roundRect(bx, by, barW, bh, 22); ctx.fill();
+  ctx.strokeStyle = "#C07BFF"; ctx.lineWidth = 3;
+  roundRect(bx, by, barW, bh, 22); ctx.stroke();
+
+  ctx.fillStyle = "#E8D9FF";
+  ctx.font = "600 " + Math.round(r*0.75) + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("The spell needs:", W/2, by + 18);
+
+  let i = 0;
+  recipe.forEach(req => {
+    for (let k = 0; k < req.count; k++) {
+      const cx = bx + 20 + slotW*i + slotW/2;
+      const cy = by + 24 + r;
+      const filled = k < req.filled;
+      ctx.globalAlpha = filled ? 1 : 0.35;
+      SHAPE_DRAW[req.shape](cx, cy, r, COLORS[req.color]);
+      ctx.globalAlpha = 1;
+      if (filled) {
+        ctx.fillStyle = "#3DE08A";
+        ctx.font = "bold " + Math.round(r*0.9) + "px sans-serif";
+        ctx.fillText("\u2713", cx + r*0.8, cy - r*0.5);
+      }
+      i++;
+    }
+  });
+}
+
+function roundRect(x, y, w, h, rad) {
+  ctx.beginPath();
+  ctx.moveTo(x+rad, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rad);
+  ctx.arcTo(x+w, y+h, x, y+h, rad);
+  ctx.arcTo(x, y+h, x, y, rad);
+  ctx.arcTo(x, y, x+w, y, rad);
+  ctx.closePath();
+}
+
+function drawParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= p.decay * dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.vy += p.grav * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.rot !== undefined) p.rot += p.vr * dt;
+    ctx.globalAlpha = Math.min(1, p.life);
+    ctx.fillStyle = p.color;
+    if (p.shape === "confetti") {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+      ctx.restore();
+    } else if (p.shape === "star") {
+      drawTinyStar(p.x, p.y, p.size, p.color);
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size/2, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function drawTinyStar(x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const ang = i * Math.PI/4;
+    const rad = i % 2 === 0 ? r : r*0.4;
+    const px = x + Math.cos(ang)*rad, py = y + Math.sin(ang)*rad;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawUnicorns(dt) {
+  const size = Math.min(W,H)*0.12;
+  ctx.font = size + "px serif";
+  ctx.textAlign = "center";
+  for (const u of unicorns) {
+    u.x += u.vx * dt;
+    u.bob += dt * 6;
+    const y = u.y + Math.sin(u.bob) * 18;
+    u.trail.push({ x: u.x - size*0.45, y: y + size*0.1 });
+    if (u.trail.length > 26) u.trail.shift();
+    // rainbow trail
+    for (let i = 1; i < u.trail.length; i++) {
+      const a = i / u.trail.length;
+      ctx.globalAlpha = a * 0.8;
+      ctx.strokeStyle = RAINBOW[i % RAINBOW.length];
+      ctx.lineWidth = size * 0.16 * a + 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(u.trail[i-1].x, u.trail[i-1].y);
+      ctx.lineTo(u.trail[i].x, u.trail[i].y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.translate(u.x, y);
+    ctx.scale(-1, 1); // face direction of travel
+    ctx.fillText("\ud83e\udd84", 0, size*0.3);
+    ctx.restore();
+  }
+  unicorns = unicorns.filter(u => u.x < W + 300);
+}
+
+function drawBanner(dt) {
+  if (!banner) return;
+  banner.t -= dt;
+  if (banner.t <= 0 && state === "play") { banner = null; return; }
+  const age = banner.t;
+  const pop = Math.min(1, (state === "play" ? 1.6 - age : celebrateT) * 3);
+  const scale = 0.5 + 0.5 * easeOutBack(Math.min(1, pop));
+  const fs = Math.min(W*0.085, 64);
+  ctx.save();
+  ctx.translate(W/2, H*0.33);
+  ctx.scale(scale, scale);
+  ctx.textAlign = "center";
+  ctx.font = "bold " + fs + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.lineWidth = fs*0.18; ctx.lineJoin = "round";
+  ctx.strokeStyle = "#1A0F33";
+  ctx.strokeText(banner.text, 0, 0);
+  const grad = ctx.createLinearGradient(-W*0.3, 0, W*0.3, 0);
+  RAINBOW.forEach((c,i)=>grad.addColorStop(i/(RAINBOW.length-1), c));
+  ctx.fillStyle = (state === "celebrate" || state === "finale") ? grad : "#FFD84D";
+  ctx.fillText(banner.text, 0, 0);
+  if (banner.sub) {
+    ctx.font = "600 " + fs*0.45 + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+    ctx.strokeStyle = "#1A0F33"; ctx.lineWidth = fs*0.1;
+    ctx.strokeText(banner.sub, 0, fs*0.85);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(banner.sub, 0, fs*0.85);
+  }
+  ctx.restore();
+}
+function easeOutBack(t) { const c = 1.70158; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
+
+function drawTapPrompt(text, y) {
+  const pulse = 0.7 + 0.3*Math.sin(time*4);
+  ctx.globalAlpha = pulse;
+  ctx.textAlign = "center";
+  ctx.font = "600 " + Math.min(W*0.04, 26) + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillText(text, W/2, y);
+  ctx.globalAlpha = 1;
+}
+
+function drawTitle() {
+  ctx.textAlign = "center";
+  const fs = Math.min(W*0.075, 58);
+  ctx.font = "bold " + fs + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.lineWidth = fs*0.18; ctx.lineJoin = "round";
+  ctx.strokeStyle = "#1A0F33";
+  ctx.strokeText("Maizey's Magic", W/2, H*0.26);
+  ctx.strokeText("Spell Academy", W/2, H*0.26 + fs*1.15);
+  const grad = ctx.createLinearGradient(W*0.2, 0, W*0.8, 0);
+  RAINBOW.forEach((c,i)=>grad.addColorStop(i/(RAINBOW.length-1), c));
+  ctx.fillStyle = grad;
+  ctx.fillText("Maizey's Magic", W/2, H*0.26);
+  ctx.fillText("Spell Academy", W/2, H*0.26 + fs*1.15);
+
+  // two unicorns by the cauldron
+  const us = Math.min(W,H)*0.14;
+  ctx.font = us + "px serif";
+  ctx.save();
+  ctx.translate(cauldron.x - cauldron.r*1.9, cauldron.y - us*0.2 + Math.sin(time*2)*6);
+  ctx.scale(-1,1); ctx.fillText("\ud83e\udd84", 0, 0); ctx.restore();
+  ctx.fillText("\ud83e\udd84", cauldron.x + cauldron.r*1.9, cauldron.y - us*0.2 + Math.sin(time*2+1.5)*6);
+
+  ctx.font = "600 " + Math.min(W*0.035, 24) + "px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.fillStyle = "#E8D9FF";
+  ctx.fillText("A two-wizard team game", W/2, H*0.26 + fs*2.1);
+  ctx.fillText("Drag the right ingredients into the cauldron!", W/2, H*0.26 + fs*2.1 + 32);
+  drawTapPrompt("\u2728 Tap anywhere to start \u2728", H*0.9);
+}
+
+// ---------------- Main loop ----------------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last)/1000);
+  last = now;
+  time += dt;
+
+  ctx.save();
+  if (shakeT > 0) {
+    shakeT -= dt;
+    ctx.translate((Math.random()-0.5)*10*shakeT, (Math.random()-0.5)*10*shakeT);
+  }
+
+  drawBackground(dt);
+  drawCauldron(dt);
+
+  if (state === "title") {
+    drawTitle();
+  } else if (state === "play") {
+    for (const it of items) if (!it.held) drawItem(it, dt);
+    for (const it of items) if (it.held) drawItem(it, dt); // held on top
+    drawRecipeBar();
+    drawBanner(dt);
+    // level dots
+    ctx.textAlign = "left";
+    ctx.font = "600 16px 'Chalkboard SE','Comic Sans MS',sans-serif";
+    ctx.fillStyle = "#9b8ec4";
+    ctx.fillText("Spell " + (levelIndex+1) + " of " + LEVELS.length, 14, H - 16);
+  } else if (state === "celebrate" || state === "finale") {
+    celebrateT += dt;
+    drawRecipeBar();
+    drawUnicorns(dt);
+    drawBanner(dt);
+    if (state === "celebrate" && celebrateT > 1.2) drawTapPrompt("\u2728 Tap for the next spell! \u2728", H*0.9);
+    if (state === "finale") {
+      if (Math.random() < 0.06) confettiRain(10);
+      if (Math.random() < 0.02) burst(Math.random()*W, Math.random()*H*0.5, 30, RAINBOW, 300, 280);
+      if (unicorns.length === 0 && Math.random() < 0.012) launchUnicorns(true);
+      if (celebrateT > 2.5) drawTapPrompt("\u2728 Tap to play again \u2728", H*0.93);
+    }
+  }
+
+  drawParticles(dt);
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+layoutCauldron();
+window.addEventListener("resize", () => { layoutCauldron(); makeStars(); });
+</script>
+</body>
+</html>

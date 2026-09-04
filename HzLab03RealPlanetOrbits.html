@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Hz Lab 03.0 — Real Planet Orbits</title>
+  <style>
+    :root{ --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.65); --border:3px; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body{ margin:0; padding:0; width:100%; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
+    canvas{ display:block; width:100vw; height:100vh; }
+
+    #overlay{
+      position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.92);
+      display:flex; align-items:center; justify-content:center; padding:24px; cursor:pointer; user-select:none;
+    }
+    #overlay .box{
+      width:min(860px, 92vw);
+      border:var(--border) solid var(--fg);
+      border-radius:18px; padding:18px;
+    }
+    #overlay h1{ margin:0 0 10px 0; font-size:28px; letter-spacing:2px; text-transform:uppercase; }
+    #overlay p{ margin:8px 0; color:var(--dim); font-size:15px; line-height:1.35; }
+    #overlay .cta{
+      margin-top:14px; display:inline-block; border:var(--border) solid var(--fg);
+      padding:12px 14px; border-radius:14px; font-size:18px; font-weight:900; letter-spacing:1px; text-transform:uppercase;
+    }
+
+    #ui{
+      position:fixed; left:14px; top:14px; z-index:20;
+      display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;
+    }
+    .panel{
+      border:var(--border) solid var(--fg);
+      border-radius:16px;
+      padding:10px;
+      background:rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      min-width: 240px;
+    }
+    .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; }
+    .tiny{ font-size:12px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+    input[type="range"]{ width: 170px; accent-color:white; }
+    button{
+      background:var(--fg); color:var(--bg);
+      border:0; border-radius:14px;
+      padding:10px 12px; font-size:14px;
+      font-weight:900; letter-spacing:1px; text-transform:uppercase;
+      cursor:pointer;
+    }
+    button:active{ transform: translateY(1px); }
+    .btnGhost{ background:transparent; color:var(--fg); border:var(--border) solid var(--fg); }
+
+    #legend{
+      position:fixed; right:14px; top:14px; z-index:20;
+      border:var(--border) solid var(--fg);
+      border-radius:16px;
+      padding:10px 12px;
+      background:rgba(0,0,0,.35);
+      max-width:min(360px, 52vw);
+    }
+    .legRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:3px 0; }
+    .hz{ color:var(--dim); font-size:12px; text-align:right; }
+    .name{ display:flex; align-items:center; gap:8px; }
+    .dot{ width:10px; height:10px; border-radius:50%; background:#fff; display:inline-block; }
+    .kbd{
+      border:2px solid var(--fg); border-radius:10px; padding:1px 8px;
+      font-size:12px; color:var(--dim); text-transform:uppercase;
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="overlay" role="button" aria-label="Tap to start audio">
+    <div class="box">
+      <h1>Hz Lab — Real Planet Orbits</h1>
+      <p>This version is based on <b>real solar-system parameters</b> (approx.): each planet uses its <b>sidereal orbital period</b> and <b>semi‑major axis</b>.</p>
+      <p>We time-compress the solar system so the planets move fast enough to hear. Pitch is derived from each planet’s orbit angle, quantized to a scale.</p>
+      <p><b>Tap a planet</b> to mute/unmute its tone. Press <span class="kbd">P</span> for Panic mute.</p>
+      <p class="tiny">Note: this is not an ephemeris (no “where the planets are today”). It’s physically grounded ratios + simplified elliptical motion.</p>
+      <span class="cta">Tap to Begin</span>
+    </div>
+  </div>
+
+  <div id="ui">
+    <div class="panel">
+      <div class="row">
+        <div>
+          <div class="tiny">Master</div>
+          <input id="master" type="range" min="0" max="1" step="0.01" value="0.22" />
+        </div>
+        <button id="panic" title="Mute/unmute all tones">Panic</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div>
+          <div class="tiny">Time Scale</div>
+          <input id="timescale" type="range" min="20" max="2000" step="1" value="240" />
+        </div>
+        <div class="tiny" id="tsLabel" style="min-width:92px; text-align:right;">240×</div>
+      </div>
+      <div class="tiny" style="margin-top:8px;">Time Scale = how many real days per simulated second.</div>
+    </div>
+
+    <div class="panel">
+      <div class="tiny">Scale</div>
+      <div class="row" style="margin-top:6px; justify-content:flex-start; gap:8px; flex-wrap:wrap;">
+        <button class="scale" data-scale="minor">Minor</button>
+        <button class="scale" data-scale="major">Major</button>
+        <button class="scale" data-scale="pent">Pent</button>
+        <button class="scale" data-scale="chrom">Chrom</button>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <div class="tiny">Timbre</div>
+          <div class="row" style="gap:8px; justify-content:flex-start; flex-wrap:wrap; margin-top:6px;">
+            <button class="wave" data-wave="sine">Sine</button>
+            <button class="wave" data-wave="triangle">Tri</button>
+            <button class="wave" data-wave="square">Sq</button>
+            <button class="wave" data-wave="sawtooth">Saw</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <div class="tiny">Warmth (LPF)</div>
+          <input id="lpf" type="range" min="200" max="12000" step="10" value="2400" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tiny">Orbit View</div>
+      <div class="row" style="margin-top:6px;">
+        <div>
+          <div class="tiny">Distance Scale</div>
+          <input id="distScale" type="range" min="0.6" max="2.0" step="0.01" value="1.10" />
+        </div>
+        <button id="reseed" class="btnGhost" title="Reseed starting angles">Reseed</button>
+      </div>
+      <div class="tiny" style="margin-top:8px;">Distance uses real semi-major axis ratios (AU), log-compressed to fit.</div>
+    </div>
+  </div>
+
+  <div id="legend" aria-hidden="true">
+    <div class="tiny" style="margin-bottom:6px;">Eight Planet Tones</div>
+    <div id="legendRows"></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+<script>
+(() => {
+  // -------- Canvas ----------
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha:false });
+
+  function resize(){
+    const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
+  window.addEventListener('touchmove', (e) => e.preventDefault(), { passive:false });
+
+  // -------- UI ----------
+  const overlay = document.getElementById('overlay');
+  const masterSlider = document.getElementById('master');
+  const timeScaleSlider = document.getElementById('timescale');
+  const tsLabel = document.getElementById('tsLabel');
+  const panicBtn = document.getElementById('panic');
+  const lpfSlider = document.getElementById('lpf');
+  const distScaleSlider = document.getElementById('distScale');
+  const reseedBtn = document.getElementById('reseed');
+
+  const waveBtns = [...document.querySelectorAll('.wave')];
+  const scaleBtns = [...document.querySelectorAll('.scale')];
+
+  // -------- Audio ----------
+  let audioCtx=null, masterGain=null, limiter=null, globalFilter=null;
+  let currentWave='sine';
+  let currentScale='minor';
+  let running=false;
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    globalFilter = audioCtx.createBiquadFilter();
+    globalFilter.type = 'lowpass';
+    globalFilter.frequency.value = parseFloat(lpfSlider.value);
+    globalFilter.Q.value = 0.6;
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = parseFloat(masterSlider.value);
+
+    limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -18;
+    limiter.knee.value = 18;
+    limiter.ratio.value = 10;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.2;
+
+    globalFilter.connect(masterGain);
+    masterGain.connect(limiter);
+    limiter.connect(audioCtx.destination);
+  }
+
+  function now(){ return audioCtx ? audioCtx.currentTime : 0; }
+
+  function ramp(param, target, t=0.05){
+    const ct = now();
+    try{
+      param.cancelScheduledValues(ct);
+      param.setValueAtTime(param.value, ct);
+      param.linearRampToValueAtTime(target, ct + t);
+    }catch(e){}
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+  // -------- Scales ----------
+  const SCALES = {
+    minor: [0,2,3,5,7,8,10],
+    major: [0,2,4,5,7,9,11],
+    pent:  [0,3,5,7,10],
+    chrom: [0,1,2,3,4,5,6,7,8,9,10,11]
+  };
+
+  function nearestInScale(semi, scaleName){
+    const s = SCALES[scaleName] || SCALES.minor;
+    const oct = Math.floor(semi / 12);
+    const within = semi - oct*12;
+    let best = s[0], bestD=999;
+    for (const d of s){
+      const dist = Math.abs(d - within);
+      if (dist < bestD){ bestD = dist; best = d; }
+    }
+    return oct*12 + best;
+  }
+
+  function midiToHz(m){ return 440 * Math.pow(2, (m - 69)/12); }
+
+  // -------- Real-ish planet data (approx) ----------
+  // Semi-major axis (AU), eccentricity, orbital period (days, sidereal)
+  // Source values are standard astronomy references (rounded) — good enough for ratio-faithful motion.
+  const PLANET_DATA = [
+    { name:"Mercury", a:0.3871, e:0.2056, period:87.969,  baseMidi: 64 },
+    { name:"Venus",   a:0.7233, e:0.0068, period:224.701, baseMidi: 60 },
+    { name:"Earth",   a:1.0000, e:0.0167, period:365.256, baseMidi: 57 },
+    { name:"Mars",    a:1.5237, e:0.0934, period:686.980, baseMidi: 53 },
+    { name:"Jupiter", a:5.2028, e:0.0489, period:4332.589,baseMidi: 48 },
+    { name:"Saturn",  a:9.5388, e:0.0565, period:10759.22,baseMidi: 45 },
+    { name:"Uranus",  a:19.191, e:0.0472, period:30688.5, baseMidi: 41 },
+    { name:"Neptune", a:30.07,  e:0.0086, period:60182.0, baseMidi: 38 },
+  ];
+
+  // Visual sizes (not real)
+  const SIZES = [9,10,10,9,13,12,11,11];
+
+  const planets = [];
+
+  function makeVoice(){
+    ensureAudio();
+    const osc = audioCtx.createOscillator();
+    osc.type = currentWave;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.00001;
+
+    const pan = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+    osc.connect(gain);
+    if (pan){ gain.connect(pan); pan.connect(globalFilter); }
+    else { gain.connect(globalFilter); }
+
+    osc.start();
+    return { osc, gain, pan, muted:false };
+  }
+
+  function reseedAngles(){
+    planets.forEach(p => {
+      p.M = Math.random() * Math.PI*2; // mean anomaly (radians)
+    });
+  }
+
+  function initPlanets(){
+    planets.length = 0;
+    for (let i=0;i<PLANET_DATA.length;i++){
+      const d = PLANET_DATA[i];
+      planets.push({
+        ...d,
+        id:i,
+        r:SIZES[i],
+        M: Math.random()*Math.PI*2,
+        voice:null,
+        x:0,y:0,
+        freq:0
+      });
+    }
+  }
+  initPlanets();
+
+  // Kepler solver: mean anomaly M -> eccentric anomaly E (Newton-Raphson)
+  function solveKepler(M, e){
+    let E = (e < 0.8) ? M : Math.PI;
+    for (let k=0;k<6;k++){
+      const f = E - e*Math.sin(E) - M;
+      const fp = 1 - e*Math.cos(E);
+      E = E - f / fp;
+    }
+    return E;
+  }
+
+  function startAudio(){
+    ensureAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (running) return;
+    planets.forEach(p => {
+      p.voice = makeVoice();
+      ramp(p.voice.gain.gain, 0.06, 0.10);
+    });
+    running = true;
+  }
+
+  // -------- Legend ----------
+  const legendRows = document.getElementById('legendRows');
+  function buildLegend(){
+    legendRows.innerHTML = '';
+    for (let i=0;i<planets.length;i++){
+      const row = document.createElement('div');
+      row.className = 'legRow';
+      row.innerHTML = `
+        <div class="name"><span class="dot"></span><span>${planets[i].name}</span></div>
+        <div class="hz" id="hz_${i}">—</div>
+      `;
+      legendRows.appendChild(row);
+    }
+  }
+  buildLegend();
+
+  function updateLegend(){
+    for (let i=0;i<planets.length;i++){
+      const el = document.getElementById('hz_'+i);
+      const p = planets[i];
+      if (!el) continue;
+      const muted = p.voice ? p.voice.muted : false;
+      el.textContent = p.freq ? `${Math.round(p.freq)} Hz${muted ? ' (muted)' : ''}` : '—';
+      el.style.opacity = muted ? '0.5' : '1';
+    }
+  }
+
+  // -------- UI wiring ----------
+  overlay.addEventListener('pointerdown', () => {
+    startAudio();
+    overlay.style.display = 'none';
+  });
+
+  masterSlider.addEventListener('input', () => {
+    if (masterGain) masterGain.gain.value = parseFloat(masterSlider.value);
+  });
+
+  lpfSlider.addEventListener('input', () => {
+    if (globalFilter) globalFilter.frequency.value = parseFloat(lpfSlider.value);
+  });
+
+  function setWave(w){
+    currentWave = w;
+    waveBtns.forEach(b => b.style.opacity = (b.dataset.wave===w) ? '1' : '0.45');
+    planets.forEach(p => { if (p.voice) p.voice.osc.type = w; });
+  }
+  function setScale(s){
+    currentScale = s;
+    scaleBtns.forEach(b => b.style.opacity = (b.dataset.scale===s) ? '1' : '0.45');
+  }
+  waveBtns.forEach(b => b.addEventListener('click', () => setWave(b.dataset.wave)));
+  scaleBtns.forEach(b => b.addEventListener('click', () => setScale(b.dataset.scale)));
+  setWave('sine');
+  setScale('minor');
+
+  timeScaleSlider.addEventListener('input', () => {
+    tsLabel.textContent = `${parseInt(timeScaleSlider.value,10)}×`;
+  });
+  tsLabel.textContent = `${parseInt(timeScaleSlider.value,10)}×`;
+
+  reseedBtn.addEventListener('click', () => reseedAngles());
+
+  panicBtn.addEventListener('click', () => {
+    const anyOn = planets.some(p => p.voice && !p.voice.muted);
+    planets.forEach(p => {
+      if (!p.voice) return;
+      p.voice.muted = anyOn ? true : false;
+      ramp(p.voice.gain.gain, p.voice.muted ? 0.00001 : 0.06, 0.06);
+    });
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase()==='p') panicBtn.click();
+  });
+
+  // -------- Hit testing ----------
+  function hitPlanet(x,y){
+    for (let i=planets.length-1;i>=0;i--){
+      const p = planets[i];
+      const dx=x-p.x, dy=y-p.y;
+      const rr = (p.r+14);
+      if (dx*dx + dy*dy <= rr*rr) return p;
+    }
+    return null;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const p = hitPlanet(e.clientX, e.clientY);
+    if (!p || !p.voice) return;
+    p.voice.muted = !p.voice.muted;
+    ramp(p.voice.gain.gain, p.voice.muted ? 0.00001 : 0.06, 0.05);
+  });
+
+  // -------- Mapping: angle -> pitch ----------
+  // We'll keep a coherent "solar choir":
+  // Each planet gets a baseMidi (rough ordering from bright to deep), then angle adds melodic motion.
+  const angleSpan = 18; // semitone span added by angle
+  function freqFromAngle(p, theta){
+    // theta 0..2pi -> -1..1
+    const t = Math.sin(theta);
+    let midi = p.baseMidi + t * (angleSpan/2);
+    midi = nearestInScale(Math.round(midi), currentScale);
+    // tiny spread per-planet so stacked notes aren't identical
+    midi += (p.id - (planets.length-1)/2) * 0.15;
+    return midiToHz(midi);
+  }
+
+  // -------- Visual scaling using real AU ratios ----------
+  function orbitRadiusPx(aAU){
+    // Log compression so Neptune fits.
+    // map log(a) from Mercury..Neptune to a pixel range.
+    const aMin = 0.3871, aMax = 30.07;
+    const Lmin = Math.log(aMin), Lmax = Math.log(aMax);
+    const t = (Math.log(aAU) - Lmin) / (Lmax - Lmin); // 0..1
+    const minPx = 60;
+    const maxPx = Math.min(window.innerWidth, window.innerHeight) * 0.42;
+    return (minPx + t*(maxPx-minPx)) * parseFloat(distScaleSlider.value);
+  }
+
+  // -------- Main loop ----------
+  let last = performance.now();
+
+  function draw(){
+    const nowMs = performance.now();
+    const dt = Math.min(0.05, (nowMs - last)/1000);
+    last = nowMs;
+
+    const cx = window.innerWidth/2;
+    const cy = window.innerHeight/2;
+
+    const timeScale = parseFloat(timeScaleSlider.value); // real-days per simulated second
+    // Convert to "days advanced this frame"
+    const dDays = dt * timeScale;
+
+    // Background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+
+    // Sun
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Orbits
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 2;
+
+    // Draw orbits + update planets
+    for (const p of planets){
+      const R = orbitRadiusPx(p.a);
+      // ellipse visual approximation (from eccentricity)
+      // semi-major = R, semi-minor = R*sqrt(1-e^2)
+      const b = R * Math.sqrt(1 - p.e*p.e);
+      // Focus shift: in a real ellipse, the sun is at a focus; we offset center slightly along x
+      const c = R * p.e;
+
+      // Draw orbit ellipse
+      ctx.save();
+      ctx.translate(cx - c, cy); // shift so focus sits at (cx,cy)
+      ctx.beginPath();
+      // ellipse(x,y, radiusX, radiusY, rotation, startAngle, endAngle)
+      ctx.ellipse(0, 0, R, b, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Advance mean anomaly using real period
+      const n = (Math.PI*2) / p.period; // radians per day
+      p.M += n * dDays;
+
+      // Solve for eccentric anomaly E and true anomaly v
+      const M = p.M % (Math.PI*2);
+      const E = solveKepler(M, p.e);
+      const cosE = Math.cos(E), sinE = Math.sin(E);
+
+      // Position in orbital plane (scaled to pixels)
+      // x = a(cosE - e), y = a*sqrt(1-e^2)*sinE
+      const xOrb = R * (cosE - p.e);
+      const yOrb = b * sinE;
+
+      // Shift back so sun is at focus
+      p.x = (cx - c) + xOrb;
+      p.y = cy + yOrb;
+
+      // True anomaly theta (angle from focus) — use for sound
+      const theta = Math.atan2(Math.sqrt(1 - p.e*p.e) * sinE, cosE - p.e);
+
+      // Visual line sun->planet (brighter when closer to sun)
+      const dist = Math.hypot(p.x - cx, p.y - cy);
+      const closeness = 1 - clamp(dist / (Math.min(window.innerWidth,window.innerHeight)*0.48), 0, 1);
+      const aLine = 0.12 + closeness*0.55;
+
+      ctx.strokeStyle = `rgba(255,255,255,${aLine})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      // Planet
+      const muted = p.voice ? p.voice.muted : false;
+      ctx.fillStyle = muted ? 'rgba(255,255,255,0.25)' : '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = muted ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,1)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(2, p.r-4), 0, Math.PI*2);
+      ctx.stroke();
+
+      // Audio mapping
+      if (p.voice){
+        // Pitch from true anomaly (position along orbit)
+        const targetHz = freqFromAngle(p, theta);
+        p.freq = targetHz;
+
+        const ct = now();
+        try{ p.voice.osc.frequency.setTargetAtTime(targetHz, ct, 0.06); }
+        catch(e){ p.voice.osc.frequency.setValueAtTime(targetHz, ct); }
+
+        // Pan from x position
+        if (p.voice.pan){
+          const pan = clamp((p.x / window.innerWidth) * 2 - 1, -1, 1);
+          p.voice.pan.pan.setTargetAtTime(pan, ct, 0.10);
+        }
+
+        // Loudness from closeness + top-of-screen boost (subtle)
+        const y01 = clamp(p.y / window.innerHeight, 0, 1);
+        const loud = (0.20 + 0.80*closeness) * (0.85 + 0.3*(1 - y01));
+        const base = 0.010 + loud * 0.075; // keep conservative
+        const gTarget = p.voice.muted ? 0.00001 : base;
+        ramp(p.voice.gain.gain, gTarget, 0.06);
+      }
+    }
+
+    updateLegend();
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

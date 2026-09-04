@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pattern DNA — Growing Conveyor</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; color:#fff; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .hint {
+    position: fixed; left: 12px; right: 12px; bottom: 10px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12px; letter-spacing: .02em; color:#bbb; opacity:.8; user-select:none;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c" aria-label="Interactive canvas"></canvas>
+<div class="hint">Drag to draw a shape. Release to seed its DNA. It will grow along your path, accelerating. Double‑tap or press R to reset.</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  function resize(){
+    canvas.width  = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ---- State ----
+  let drawing = false;
+  let points = [];
+  let dna = null;        // resampled loop + helpers
+  let stampPath = null;  // Path2D of the user's normalized shape (as the repeated "tile")
+  let lastTS = 0;
+  let t = 0;
+
+  // Animation/growth params
+  let spacing = 36;          // px between stamps (screen px @ DPR=1)
+  let speed   = 90;          // px/s initial growth
+  let accel   = 22;          // px/s^2
+  let maxSpeed= 900;         // cap
+  let headLen = 0;           // how far the sequence has grown (px along infinite path)
+  let fadeTrail = 0.08;      // background fade
+  let glowMax = 16;
+
+  // Visual params for stamp rendering
+  let stampScale = 0.9;                 // base stamp scale
+  let stampPulse = 0.06;                // small breathing
+  let lineW = 2.5;                      // stroke width
+  let jitter = 0.015;                   // subtle random scale jitter
+
+  // Utils
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const mix = (a,b,k)=>a+(b-a)*k;
+
+  // RDP simplify
+  function simplifyRDP(pts, epsilon){
+    if (pts.length < 3) return pts.slice();
+    const first = 0, last = pts.length-1;
+    const stack = [[first,last]];
+    const keep = new Array(pts.length).fill(false);
+    keep[first] = keep[last] = true;
+    function perpDist(p,a,b){
+      const dx=b.x-a.x, dy=b.y-a.y;
+      if (dx===0 && dy===0) return Math.hypot(p.x-a.x, p.y-a.y);
+      const t = ((p.x-a.x)*dx + (p.y-a.y)*dy)/(dx*dx+dy*dy);
+      const px = a.x + t*dx, py = a.y + t*dy;
+      return Math.hypot(p.x-px, p.y-py);
+    }
+    while(stack.length){
+      const [i,j] = stack.pop();
+      let maxD=-1, idx=-1;
+      for (let k=i+1;k<j;k++){
+        const d = perpDist(pts[k], pts[i], pts[j]);
+        if (d>maxD){ maxD=d; idx=k; }
+      }
+      if (maxD > epsilon){
+        keep[idx] = true;
+        stack.push([i,idx],[idx,j]);
+      }
+    }
+    const out=[]; for (let i=0;i<pts.length;i++) if (keep[i]) out.push(pts[i]);
+    return out;
+  }
+
+  // Build the DNA: resample to even arc-length spacing and precompute segment lengths
+  function buildDNA(rawPts){
+    if (rawPts.length < 2) return null;
+    const simp = simplifyRDP(rawPts, 2.0 * DPR);
+
+    // center + normalize for stamp shape (Path2D of the user's drawing)
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity, sumX=0, sumY=0;
+    for (const p of simp){ minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); sumX+=p.x; sumY+=p.y; }
+    const cx=sumX/simp.length, cy=sumY/simp.length;
+    const size = Math.max(1, Math.max(maxX-minX, maxY-minY));
+    const target = 100 * DPR; // normalize size for stamp
+    const S = target / size;
+
+    const stamp = new Path2D();
+    stamp.moveTo((simp[0].x - cx)*S, (simp[0].y - cy)*S);
+    for (let i=1;i<simp.length;i++){
+      const p = simp[i];
+      stamp.lineTo((p.x - cx)*S, (p.y - cy)*S);
+    }
+
+    // Resample path to equal steps (for conveyor)
+    // We'll use the original coordinates (screen space) for the conveyor curve.
+    const step = 6 * DPR;
+    const resampled = [simp[0]];
+    let prev = simp[0];
+    let carry = 0;
+    for (let i=1;i<simp.length;i++){
+      const a = prev, b = simp[i];
+      const segLen = Math.hypot(b.x-a.x, b.y-a.y);
+      let u = (step - carry) / segLen;
+      while (u <= 1){
+        const x = a.x + (b.x-a.x)*u;
+        const y = a.y + (b.y-a.y)*u;
+        resampled.push({x,y});
+        u += step / segLen;
+      }
+      carry = (u-1) * segLen;
+      prev = b;
+    }
+    if (resampled.length < 2) resampled.push(simp[simp.length-1]);
+
+    // Precompute cumulative lengths
+    const cum = [0];
+    for (let i=1;i<resampled.length;i++){
+      const a = resampled[i-1], b = resampled[i];
+      cum.push(cum[i-1] + Math.hypot(b.x-a.x, b.y-a.y));
+    }
+    const totalLen = cum[cum.length-1];
+
+    // Sampling function at distance d (wrapped)
+    function sampleAt(d){
+      if (totalLen <= 0) return {x:resampled[0].x, y:resampled[0].y, ang:0};
+      d = ((d % totalLen) + totalLen) % totalLen;
+      // binary search
+      let lo=0, hi=cum.length-1;
+      while (lo < hi){
+        const mid = (lo+hi) >> 1;
+        if (cum[mid] < d) lo = mid+1;
+        else hi = mid;
+      }
+      const i = Math.max(1, lo);
+      const a = resampled[i-1], b = resampled[i];
+      const segLen = Math.max(1e-6, cum[i] - cum[i-1]);
+      const u = (d - cum[i-1]) / segLen;
+      const x = a.x + (b.x-a.x)*u;
+      const y = a.y + (b.y-a.y)*u;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      return {x,y,ang};
+    }
+
+    return { resampled, cum, totalLen, sampleAt, stamp };
+  }
+
+  // Pointer handling
+  const getXY = e => {
+    if (e.touches && e.touches.length){
+      return {x:e.touches[0].clientX * DPR, y:e.touches[0].clientY * DPR};
+    } else {
+      return {x:e.clientX * DPR, y:e.clientY * DPR};
+    }
+  };
+  let lastTap = 0;
+  function onDown(e){
+    const now = performance.now();
+    if (now - lastTap < 260){
+      // hard reset
+      dna = null; stampPath = null; points = []; headLen = 0; speed = 90;
+      return;
+    }
+    lastTap = now;
+
+    drawing = true;
+    points = [];
+    const p = getXY(e);
+    points.push(p);
+  }
+  function onMove(e){
+    if (!drawing) return;
+    const p = getXY(e);
+    points.push(p);
+    e.preventDefault();
+  }
+  function onUp(){
+    if (!drawing) return;
+    drawing = false;
+    dna = buildDNA(points);
+    stampPath = dna ? dna.stamp : null;
+    headLen = 0;
+    speed = 90; // reset growth speed
+  }
+
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove, {passive:false});
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', ()=> drawing=false);
+  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase()==='r'){ dna=null; stampPath=null; points=[]; headLen=0; speed=90; } });
+
+  // Render loop
+  function draw(ts){
+    const W = canvas.width, H = canvas.height;
+    const dt = ((ts - (lastTS||ts)) || 16) / 1000;
+    lastTS = ts;
+    t += dt;
+
+    // Background fade for trails
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${fadeTrail})`;
+    ctx.fillRect(0,0,W,H);
+
+    // While drawing: show live stroke
+    if (drawing && points.length){
+      ctx.lineWidth = 3 * DPR;
+      ctx.strokeStyle = '#fff';
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i=1;i<points.length;i++){ ctx.lineTo(points[i].x, points[i].y); }
+      ctx.stroke();
+      requestAnimationFrame(draw);
+      return;
+    }
+
+    // If we have DNA, grow along the conveyor forever
+    if (dna && stampPath){
+      // increase head length with acceleration
+      speed = Math.min(maxSpeed, speed + accel * dt);
+      headLen += speed * dt;
+
+      const glow = glowMax * (speed / maxSpeed) * DPR;
+      ctx.shadowColor = 'rgba(255,255,255,0.25)';
+      ctx.shadowBlur = glow;
+
+      const sPulse = stampScale + Math.sin(t*2.2)*stampPulse;
+      const baseLW = lineW * DPR;
+
+      // number of stamps to render based on how far we've grown
+      const count = Math.min(4000, Math.floor(headLen / (spacing * DPR)));
+      const startD = 0; // from the beginning outward
+      for (let i=0;i<count;i++){
+        const d = startD + i * spacing * DPR;
+        const sample = dna.sampleAt(d);
+        ctx.save();
+        ctx.translate(sample.x, sample.y);
+        ctx.rotate(sample.ang);
+        const j = 1 + (Math.random()-0.5)*jitter; // slight per-stamp size jitter
+        ctx.scale(sPulse*j, sPulse*j);
+
+        ctx.lineWidth = baseLW;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke(stampPath);
+        ctx.restore();
+      }
+
+      ctx.shadowBlur = 0;
+    } else {
+      // Idle crosshair
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1 * DPR;
+      ctx.beginPath();
+      const cx=W*0.5, cy=H*0.5;
+      ctx.moveTo(cx-40*DPR, cy); ctx.lineTo(cx+40*DPR, cy);
+      ctx.moveTo(cx, cy-40*DPR); ctx.lineTo(cx, cy+40*DPR);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

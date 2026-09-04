@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>LINES</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;1,400&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; width: 100vw; height: 100vh; touch-action: none; cursor: none; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #ui {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+    transition: opacity 0.8s; pointer-events: none;
+  }
+  #ui.fade { opacity: 0; }
+  .controls { pointer-events: all; display: flex; gap: 14px; align-items: center; }
+  .brand { font-family: 'EB Garamond', serif; font-style: italic; color: rgba(255,255,255,0.25); font-size: 13px; letter-spacing: 0.3em; }
+  button { background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.45); font-family: 'EB Garamond', serif; font-size: 11px; letter-spacing: 0.15em; padding: 5px 12px; cursor: pointer; transition: all 0.2s; text-transform: lowercase; }
+  button:hover, button.active { background: rgba(255,255,255,0.9); color: #000; border-color: #fff; }
+  .ctrl { display: flex; align-items: center; gap: 7px; }
+  .ctrl-label { color: rgba(255,255,255,0.28); font-family: 'EB Garamond', serif; font-size: 10px; letter-spacing: 0.15em; text-transform: lowercase; white-space: nowrap; }
+  input[type=range] { -webkit-appearance: none; width: 68px; height: 1px; background: rgba(255,255,255,0.18); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 7px; height: 7px; background: rgba(255,255,255,0.6); border-radius: 50%; cursor: pointer; }
+  .div { width: 1px; height: 14px; background: rgba(255,255,255,0.1); }
+  #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'EB Garamond', serif; font-style: italic; color: rgba(255,255,255,0); font-size: 14px; letter-spacing: 0.3em; pointer-events: none; transition: color 2s; }
+  #hint.show { color: rgba(255,255,255,0.22); }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div id="hint">drag to spin</div>
+<div id="ui">
+  <div class="brand">spin</div>
+  <div class="controls">
+    <div class="ctrl"><span class="ctrl-label">weight</span><input type="range" id="sl-weight" min="0.8" max="16" value="5.5" step="0.1"></div>
+    <div class="div"></div>
+    <div class="ctrl"><span class="ctrl-label">trail</span><input type="range" id="sl-trail" min="0.80" max="0.995" value="0.975" step="0.001"></div>
+    <button id="btn-save">save</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+let dpr = Math.min(2, window.devicePixelRatio || 1);
+let W, H, CX, CY, MIN;
+
+let LINE_WEIGHT = 5.5;
+let TRAIL_LEN = 0.975; // super long trails by default (0.80..0.995)
+
+const NUM_LAYERS = 13;
+const LINES_PER_LAYER = 7;
+const LINES_ANGLE_STEP = (Math.PI * 2) / LINES_PER_LAYER;
+
+const layerAngle = new Float64Array(NUM_LAYERS);
+const layerVel   = new Float64Array(NUM_LAYERS);
+
+// Slower overall cap
+const MAX_VEL = 0.08;
+
+// Inner rings heavy/slow, outer rings still gentle
+function inertia(li){
+  // inner ~0.95, outer ~0.18
+  return 0.18 + (1 - li / (NUM_LAYERS - 1)) * 0.77;
+}
+function friction(li){
+  // extremely long coast; outer slightly more damped
+  const heavy = 0.99988;
+  const light = 0.99910;
+  return heavy - (li / (NUM_LAYERS - 1)) * (heavy - light);
+}
+function baseMult(li){
+  // MUCH gentler spread between rings (was explosive)
+  return Math.pow(1.18, li);
+}
+
+// Drag
+let isDragging = false;
+let dragPrevA = 0, dragDeltaA = 0;
+let cursorX = 0, cursorY = 0;
+function angTo(x, y){ return Math.atan2(y - CY, x - CX); }
+
+let layerCanvases = [];
+let layerCtxs = [];
+
+function initLayerCanvases(){
+  layerCanvases = [];
+  layerCtxs = [];
+  for (let li = 0; li < NUM_LAYERS; li++){
+    const oc = document.createElement('canvas');
+    oc.width  = Math.floor(W * dpr);
+    oc.height = Math.floor(H * dpr);
+    const oc_ctx = oc.getContext('2d', { alpha: false });
+    oc_ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    oc_ctx.fillStyle = '#000';
+    oc_ctx.fillRect(0, 0, W, H);
+    layerCanvases.push(oc);
+    layerCtxs.push(oc_ctx);
+  }
+}
+
+function resize(){
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  CX = W / 2; CY = H / 2;
+  MIN = Math.min(W, H);
+
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+
+  // Reset transform so resize doesn't accumulate scaling
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  initLayerCanvases();
+}
+
+function tick(){
+  // Clear main canvas
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const maxR = MIN * 0.46;
+  const ringSpacing = maxR / NUM_LAYERS;
+
+  for (let li = 0; li < NUM_LAYERS; li++){
+    const lc = layerCtxs[li];
+
+    // Ultra-long trails: we fade *slowly*.
+    // TRAIL_LEN close to 1 => small fadeAlpha.
+    // Slight speed-based fade so fast motion doesn't completely smear.
+    const speed = Math.abs(layerVel[li]);
+    const speedFade = Math.min(speed * 10, 0.18);
+    const baseFade = (1 - TRAIL_LEN) * 0.80; // long persistence
+    const fadeAlpha = Math.max(0.004, baseFade + speedFade * (1 - TRAIL_LEN) * 4);
+
+    lc.globalCompositeOperation = 'source-over';
+    lc.fillStyle = `rgba(0,0,0,${Math.min(fadeAlpha, 1)})`;
+    lc.fillRect(0, 0, W, H);
+
+    // Draw this layer
+    const innerR = ringSpacing * li;
+    const outerR = ringSpacing * (li + 1);
+    const alpha = 0.42 + 0.48 * (li / (NUM_LAYERS - 1));
+
+    lc.lineCap = 'round';
+    lc.strokeStyle = `rgba(255,255,255,${alpha})`;
+    lc.lineWidth = LINE_WEIGHT;
+
+    for (let n = 0; n < LINES_PER_LAYER; n++){
+      const angle = layerAngle[li] + n * LINES_ANGLE_STEP;
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      lc.beginPath();
+      lc.moveTo(CX + cos * innerR, CY + sin * innerR);
+      lc.lineTo(CX + cos * outerR, CY + sin * outerR);
+      lc.stroke();
+    }
+
+    // Composite this layer
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(layerCanvases[li], 0, 0, W, H);
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Per-layer physics (slow + buttery)
+  if (!isDragging){
+    for (let li = 0; li < NUM_LAYERS; li++){
+      layerAngle[li] += layerVel[li];
+      layerVel[li] *= friction(li);
+      if (Math.abs(layerVel[li]) < 0.0000008) layerVel[li] = 0;
+    }
+  }
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(CX, CY, 2.6, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fill();
+
+  // Cursor
+  if (isDragging){
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+// Pointer
+function getPoint(e){
+  return e.touches ? {x:e.touches[0].clientX, y:e.touches[0].clientY} : {x:e.clientX, y:e.clientY};
+}
+
+function onDown(e){
+  isDragging = true;
+  const pt = getPoint(e);
+  cursorX = pt.x; cursorY = pt.y;
+  dragPrevA = angTo(pt.x, pt.y);
+  dragDeltaA = 0;
+  showUI();
+  document.getElementById('hint').classList.remove('show');
+}
+
+function onMove(e){
+  e.preventDefault();
+  const pt = getPoint(e);
+  cursorX = pt.x; cursorY = pt.y;
+  if (!isDragging) return;
+
+  const a = angTo(pt.x, pt.y);
+  let d = a - dragPrevA;
+  if (d >  Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+
+  // Gentle input shaping: compress big flicks, keep small drags expressive
+  const dSoft = Math.tanh(d * 1.4) * 0.22; // slows everything down a lot
+  dragDeltaA = dSoft;
+
+  for (let li = 0; li < NUM_LAYERS; li++){
+    const mult = baseMult(li);
+    const w = (1 - inertia(li) * 0.75); // inner resists more
+    const add = dSoft * mult * w;
+
+    layerAngle[li] += add;
+    layerVel[li] = add; // direct, smooth follow
+
+    // clamp
+    if (layerVel[li] >  MAX_VEL) layerVel[li] =  MAX_VEL;
+    if (layerVel[li] < -MAX_VEL) layerVel[li] = -MAX_VEL;
+  }
+
+  dragPrevA = a;
+}
+
+function onUp(){
+  if (!isDragging) return;
+  isDragging = false;
+
+  // Tiny, buttery release impulse (keeps it satisfying, never frantic)
+  for (let li = 0; li < NUM_LAYERS; li++){
+    const mult = baseMult(li);
+    const impulse = dragDeltaA * mult * 0.55;
+    const clamped = Math.max(-MAX_VEL, Math.min(MAX_VEL, impulse));
+    layerVel[li] += clamped * inertia(li);
+  }
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onUp);
+canvas.addEventListener('mouseleave', onUp);
+canvas.addEventListener('touchstart', onDown, {passive:false});
+canvas.addEventListener('touchmove', onMove, {passive:false});
+canvas.addEventListener('touchend', onUp);
+
+// Controls
+document.getElementById('sl-weight').addEventListener('input', e => { LINE_WEIGHT = +e.target.value; });
+document.getElementById('sl-trail').addEventListener('input', e => { TRAIL_LEN = +e.target.value; });
+document.getElementById('btn-save').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'spin.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+let hideTimer;
+function showUI(){
+  const ui = document.getElementById('ui');
+  ui.classList.remove('fade');
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => ui.classList.add('fade'), 4000);
+}
+document.addEventListener('mousemove', showUI);
+document.addEventListener('touchstart', showUI);
+showUI();
+
+setTimeout(() => {
+  const h = document.getElementById('hint');
+  h.classList.add('show');
+  setTimeout(() => h.classList.remove('show'), 3000);
+}, 700);
+
+resize();
+window.addEventListener('resize', resize, {passive:true});
+tick();
+</script>
+</body>
+</html>

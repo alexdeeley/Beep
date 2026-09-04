@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>MOTION SYNTH</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --pad:12px;
+    --gap:10px;
+    --stroke:4px;
+    --radius:12px;
+  }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;
+    position:fixed;
+  }
+  *{ box-sizing:border-box; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+
+  /* Start */
+  #start{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+  }
+  #playBtn{
+    width:min(56vmin, 340px);
+    aspect-ratio:1/1;
+    border: calc(var(--stroke) * 2) solid var(--fg);
+    border-radius: 24px;
+    background: var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    outline:none;
+  }
+  #playBtn:active{ transform:scale(0.995); }
+  #playIcon{
+    width:0; height:0;
+    border-top: 52px solid transparent;
+    border-bottom: 52px solid transparent;
+    border-left: 86px solid var(--fg);
+    transform: translateX(10px);
+  }
+  @media (max-width: 420px){
+    #playIcon{
+      border-top: 40px solid transparent;
+      border-bottom: 40px solid transparent;
+      border-left: 66px solid var(--fg);
+      transform: translateX(8px);
+    }
+  }
+
+  /* Main */
+  #wrap{
+    width:100vw; height:100vh;
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
+    padding:var(--pad);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 160ms linear;
+  }
+  #wrap.on{ opacity:1; pointer-events:auto; }
+
+  #top{
+    flex: 0 0 auto;
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:var(--gap);
+  }
+
+  .ctrl{
+    border:var(--stroke) solid var(--fg);
+    border-radius:var(--radius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    outline:none;
+    height: clamp(52px, 11vh, 110px);
+  }
+  .ctrl:active{ transform:scale(0.995); }
+  .fill{
+    position:absolute; left:0; bottom:0; width:100%;
+    height:50%;
+    background:var(--fg);
+  }
+  .ctrl.armed{ background:var(--fg); }
+  .ctrl.armed .fill{ background:var(--bg); }
+
+  /* Distinct patterns, no words */
+  .ctrl::after{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.14;
+    mix-blend-mode:difference;
+    pointer-events:none;
+    background: repeating-linear-gradient(45deg, var(--fg) 0 2px, transparent 2px 12px);
+  }
+  .ctrl[data-param="sense"]::after{ background:repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .ctrl[data-param="pitch"]::after{ background:repeating-linear-gradient(0deg, var(--fg) 0 2px, transparent 2px 10px); }
+  .ctrl[data-param="fuzz"]::after{ background:repeating-linear-gradient(25deg, var(--fg) 0 2px, transparent 2px 9px); opacity:0.18; }
+
+  #canvasWrap{
+    flex: 1 1 auto;
+    min-height:0;
+    border:var(--stroke) solid var(--fg);
+    border-radius: 16px;
+    overflow:hidden;
+    position:relative;
+    background:#000;
+  }
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    background:#000;
+  }
+
+  /* Motion meter (no words) */
+  #meter{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:10px;
+    background:transparent;
+  }
+  #meterFill{
+    height:100%;
+    width:0%;
+    background:var(--fg);
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="start" aria-label="Start">
+    <button id="playBtn" aria-label="Play">
+      <div id="playIcon" aria-hidden="true"></div>
+    </button>
+  </div>
+
+  <div id="wrap" aria-label="Motion synth">
+    <div id="top" aria-label="Controls">
+      <div class="ctrl" data-param="sense" role="button" aria-label="Control 1"><div class="fill"></div></div>
+      <div class="ctrl" data-param="pitch" role="button" aria-label="Control 2"><div class="fill"></div></div>
+      <div class="ctrl" data-param="fuzz" role="button" aria-label="Control 3"><div class="fill"></div></div>
+    </div>
+
+    <div id="canvasWrap" aria-label="View">
+      <canvas id="c"></canvas>
+      <div id="meter" aria-hidden="true"><div id="meterFill"></div></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== Elements =====
+  const startScreen = document.getElementById('start');
+  const playBtn = document.getElementById('playBtn');
+  const wrap = document.getElementById('wrap');
+
+  const canvas = document.getElementById('c');
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+
+  const meterFill = document.getElementById('meterFill');
+
+  const ctrlEls = Array.from(document.querySelectorAll('.ctrl'));
+  const ctrlState = new Map();
+
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function expMap(x, a=1.6){ return Math.pow(clamp01(x), a); }
+  function setFill(el, v){ el.querySelector('.fill').style.height = (clamp01(v)*100).toFixed(2) + '%'; }
+
+  // ===== Controls (0..1) =====
+  // sense: motion sensitivity (lower = more sensitive)
+  // pitch: pitch range bias
+  // fuzz: distortion + noise + filter grit
+  const C = {
+    sense: 0.55,
+    pitch: 0.55,
+    fuzz:  0.70
+  };
+  ctrlEls.forEach(el => setFill(el, C[el.dataset.param] ?? 0.5));
+
+  // ===== Video =====
+  const video = document.createElement('video');
+  video.playsInline = true;
+  video.muted = true;
+
+  let stream = null;
+  let prevFrame = null;
+
+  // ===== Audio =====
+  let ctx = null;
+  let osc = null;
+  let gain = null;
+  let shaper = null;
+  let pre = null;
+  let lp = null;
+  let hp = null;
+  let noise = null;
+  let noiseGain = null;
+  let master = null;
+
+  function makeShaperCurve(amount){
+    const k = 1 + amount * 320;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for(let i=0;i<n;i++){
+      const x = (i*2/(n-1)) - 1;
+      const y = (1+k)*x/(1+k*Math.abs(x));
+      curve[i] = Math.tanh(y * (1.3 + amount*3.0));
+    }
+    return curve;
+  }
+
+  function buildAudio(){
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+
+    osc = ctx.createOscillator();
+    gain = ctx.createGain();
+    pre = ctx.createGain();
+    shaper = ctx.createWaveShaper();
+    lp = ctx.createBiquadFilter();
+    hp = ctx.createBiquadFilter();
+    noise = ctx.createBufferSource();
+    noiseGain = ctx.createGain();
+    master = ctx.createGain();
+
+    osc.type = 'sine';
+
+    // noise bed
+    const sr = ctx.sampleRate;
+    const len = Math.floor(sr * 1.5);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    let rw = 0;
+    for(let i=0;i<len;i++){
+      const w = (Math.random()*2-1);
+      rw = 0.995*rw + 0.005*(Math.random()*2-1);
+      data[i] = 0.65*w + 0.55*rw;
+    }
+    noise.buffer = buf;
+    noise.loop = true;
+
+    gain.gain.value = 0.0001;
+
+    shaper.oversample = "4x";
+    lp.type = "lowpass";
+    hp.type = "highpass";
+
+    master.gain.value = 0.18;
+
+    osc.connect(gain);
+    gain.connect(pre);
+
+    noise.connect(noiseGain);
+    noiseGain.connect(pre);
+
+    pre.connect(shaper);
+    shaper.connect(hp);
+    hp.connect(lp);
+    lp.connect(master);
+    master.connect(ctx.destination);
+
+    osc.start();
+    noise.start();
+
+    applyAudio(true);
+  }
+
+  function applyAudio(immediate=false){
+    if(!ctx) return;
+    const t = ctx.currentTime;
+
+    const fuzz = expMap(C.fuzz, 1.15);
+
+    // Pre drive + distortion curve
+    const drive = 1.0 + fuzz * 18.0;
+    if(immediate) pre.gain.setValueAtTime(drive, t);
+    else pre.gain.setTargetAtTime(drive, t, 0.08);
+
+    shaper.curve = makeShaperCurve(0.12 + fuzz * 0.88);
+
+    // Noise level
+    const ng = fuzz * 0.24;
+    if(immediate) noiseGain.gain.setValueAtTime(ng, t);
+    else noiseGain.gain.setTargetAtTime(ng, t, 0.10);
+
+    // Filters get meaner
+    const lpHz = 18000 - fuzz * 13000; // darker with fuzz
+    const hpHz = 20 + fuzz * 220;      // thinner with fuzz
+
+    lp.frequency.setTargetAtTime(Math.max(600, lpHz), t, 0.08);
+    hp.frequency.setTargetAtTime(Math.min(500, hpHz), t, 0.08);
+  }
+
+  // ===== Motion to sound mapping =====
+  function sensitivity(){
+    // lower => more sensitive
+    // map 0..1 -> 180..2200 (bigger = less sensitive)
+    return 180 + expMap(1 - C.sense, 1.2) * 2020;
+  }
+
+  function pitchMap(motion){
+    // pitch control biases base and span
+    const p = expMap(C.pitch, 1.1);
+    const base = 70 + p * 330;        // 70..400
+    const span = 250 + p * 1650;      // 250..1900
+    const f = base + span * motion;
+    return Math.max(30, Math.min(2200, f));
+  }
+
+  function volMap(motion){
+    // keep it alive but not too loud
+    const fuzz = expMap(C.fuzz, 1.2);
+    const v = 0.02 + (0.22 + 0.35*fuzz) * Math.pow(motion, 0.85);
+    return Math.min(0.65, v);
+  }
+
+  // ===== Render loop =====
+  let lastCanvasW = 0, lastCanvasH = 0;
+
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    const w = Math.floor(rect.width * dpr);
+    const h = Math.floor(rect.height * dpr);
+    if(w !== lastCanvasW || h !== lastCanvasH){
+      canvas.width = w;
+      canvas.height = h;
+      lastCanvasW = w;
+      lastCanvasH = h;
+      prevFrame = null;
+    }
+  }
+
+  function processFrame(){
+    if(!video || video.readyState < 2){
+      requestAnimationFrame(processFrame);
+      return;
+    }
+    resizeCanvas();
+
+    // Downscale for motion analysis (fast)
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+
+    const down = 4; // performance
+    const w = Math.max(32, Math.floor(vw / down));
+    const h = Math.max(24, Math.floor(vh / down));
+
+    // draw small to an offscreen region: reuse main canvas by drawing scaled then reading
+    // (we render the stylized view from the small image too)
+    g.save();
+    g.imageSmoothingEnabled = false;
+    g.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
+    g.drawImage(video, 0, 0, w, h);
+    g.restore();
+
+    // read small frame from a tiny offscreen via getImageData scaling trick:
+    // We sample from the center area at the correct scale by drawing to a temp canvas.
+    // Instead: create a temp ImageData from a small region: cheaper to keep one offscreen.
+    // For simplicity & speed, use a dedicated offscreen canvas:
+    requestAnimationFrame(processFrame);
+  }
+
+  // Dedicated offscreen analysis canvas (faster + cleaner)
+  const off = document.createElement('canvas');
+  const og = off.getContext('2d', { willReadFrequently: true });
+
+  function tick(){
+    if(video.readyState >= video.HAVE_ENOUGH_DATA){
+      const vw = video.videoWidth || 640;
+      const vh = video.videoHeight || 480;
+
+      const down = 4;
+      const w = Math.max(32, Math.floor(vw / down));
+      const h = Math.max(24, Math.floor(vh / down));
+      if(off.width !== w || off.height !== h){
+        off.width = w; off.height = h;
+        prevFrame = null;
+      }
+
+      og.drawImage(video, 0, 0, w, h);
+      const cur = og.getImageData(0, 0, w, h);
+
+      // stylized view (chunky)
+      resizeCanvas();
+      g.save();
+      g.imageSmoothingEnabled = false;
+      g.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
+      g.drawImage(off, 0, 0);
+      g.restore();
+
+      let motion = 0;
+      if(prevFrame){
+        const a = cur.data;
+        const b = prevFrame.data;
+
+        // sample every N pixels to keep it fast
+        const stride = 16; // bytes -> 4 pixels
+        let count = 0;
+        let sum = 0;
+        for(let i=0;i<a.length;i+=stride){
+          // brightness compare (use red channel)
+          const diff = Math.abs(a[i] - b[i]);
+          // threshold
+          if(diff > 38) sum += diff;
+          count++;
+        }
+
+        // normalize
+        const sens = sensitivity();
+        motion = Math.max(0, Math.min(1, (sum / count) / sens));
+      }
+      prevFrame = cur;
+
+      // update sound
+      if(ctx && ctx.state === "running"){
+        const f = pitchMap(motion);
+        const v = volMap(motion);
+
+        osc.frequency.setTargetAtTime(f, ctx.currentTime, 0.08);
+        gain.gain.setTargetAtTime(v, ctx.currentTime, 0.10);
+
+        // meter (no words)
+        meterFill.style.width = (motion*100).toFixed(1) + "%";
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ===== Controls interaction (drag vertical) =====
+  function ctrlDown(e, el){
+    e.preventDefault();
+    if(!ctx) return;
+
+    const p = el.dataset.param;
+    const rect = el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    C[p] = clamp01(0.65*C[p] + 0.35*v);
+    setFill(el, C[p]);
+
+    el.classList.add('armed');
+    applyAudio(false);
+
+    ctrlState.set(e.pointerId, { el, p, lastMove: performance.now() });
+    el.setPointerCapture(e.pointerId);
+  }
+  function ctrlMove(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+
+    const rect = st.el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    const now = performance.now();
+    const dt = Math.max(1, now - st.lastMove);
+    st.lastMove = now;
+    const alpha = Math.min(1, dt / 32);
+
+    C[st.p] = clamp01((1-alpha)*C[st.p] + alpha*v);
+    setFill(st.el, C[st.p]);
+
+    applyAudio(false);
+  }
+  function ctrlUp(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+    st.el.classList.remove('armed');
+    ctrlState.delete(e.pointerId);
+    applyAudio(false);
+  }
+
+  ctrlEls.forEach(el => el.addEventListener('pointerdown', (e)=>ctrlDown(e, el), {passive:false}));
+  window.addEventListener('pointermove', ctrlMove, {passive:false});
+  window.addEventListener('pointerup', ctrlUp, {passive:false});
+  window.addEventListener('pointercancel', ctrlUp, {passive:false});
+
+  // ===== Start =====
+  async function start(){
+    if(!ctx) buildAudio();
+    try { await ctx.resume(); } catch(_){}
+
+    // camera
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+
+    startScreen.style.display = 'none';
+    wrap.classList.add('on');
+
+    tick();
+  }
+
+  playBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); start(); }, {passive:false});
+
+  // iOS keep-alive
+  document.addEventListener('pointerdown', async () => {
+    if(!ctx) return;
+    if(ctx.state === "suspended"){
+      try { await ctx.resume(); } catch(_){}
+    }
+  }, {passive:false});
+
+  document.addEventListener('visibilitychange', () => {
+    if(!ctx) return;
+    if(document.hidden) ctx.suspend();
+  });
+})();
+</script>
+</body>
+</html>

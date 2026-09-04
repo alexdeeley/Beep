@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Spin</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  canvas { display:block; width:100vw; height:100vh; background:#000; }
+  /* Splash: no text; just a glow button and tap-anywhere */
+  #splash {
+    position: fixed; inset: 0; background:#000; z-index: 10;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #startBtn {
+    width: 120px; height: 120px; border-radius: 50%; border:none; background:#fff;
+    box-shadow: 0 0 40px #fff;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div id="splash">
+  <button id="startBtn" aria-label=""></button>
+</div>
+<script>
+(function(){
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", {alpha:false, desynchronized:true});
+  let W, H, CX, CY;
+  function resize(){
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W; canvas.height = H; CX = W/2; CY = H/2;
+  }
+  window.addEventListener("resize", resize, {passive:true}); resize();
+
+  // ------- Permission helpers (sequential in one gesture for iOS) -------
+  let audioOn=false, audioCtx=null, analyser=null, dataArr=null;
+  async function enableMic(){
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") { await audioCtx.resume(); }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+      const src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      dataArr = new Uint8Array(analyser.frequencyBinCount);
+      src.connect(analyser);
+      audioOn = true;
+    }catch(e){ audioOn = false; }
+  }
+  let tiltX=0, tiltY=0, hasTilt=false;
+  async function enableMotion(){
+    try{
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+        const r = await DeviceMotionEvent.requestPermission();
+        if (r !== 'granted') { hasTilt=false; return; }
+      }
+      window.addEventListener('deviceorientation', (e)=>{
+        hasTilt = true;
+        tiltX = e.gamma || 0; // left-right
+        tiltY = e.beta  || 0; // front-back
+      }, true);
+    }catch(e){ hasTilt=false; }
+  }
+
+  // Start gesture: accept tap anywhere on splash OR button
+  const splash = document.getElementById("splash");
+  const startBtn = document.getElementById("startBtn");
+  async function startAll(){
+    // Request mic then motion within same gesture
+    await enableMic();
+    await enableMotion();
+    splash.style.display = "none";
+    if (audioCtx && audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch(e){} }
+  }
+  startBtn.addEventListener("click", startAll, {passive:false});
+  splash.addEventListener("click", (e)=>{
+    if (e.target === splash) { startAll(); }
+  }, {passive:false});
+  // Also handle first touch anywhere
+  splash.addEventListener("touchstart", (e)=>{ startAll(); e.preventDefault(); }, {passive:false});
+
+  // ------- Interaction (swipe/tap) -------
+  let tapPulse=0, swipeVX=0, swipeVY=0, lastTX=null, lastTY=null, touching=false;
+  window.addEventListener("touchstart", (e)=>{
+    const t = e.changedTouches[0];
+    lastTX = t.clientX; lastTY = t.clientY;
+    touching = true;
+    tapPulse = 1; // kick pulse
+    e.preventDefault();
+  }, {passive:false});
+  window.addEventListener("touchmove", (e)=>{
+    if (!touching) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - lastTX;
+    const dy = t.clientY - lastTY;
+    lastTX = t.clientX; lastTY = t.clientY;
+    swipeVX += dx * 0.003;
+    swipeVY += dy * 0.003;
+    e.preventDefault();
+  }, {passive:false});
+  window.addEventListener("touchend", ()=>{ touching=false; }, {passive:true});
+
+  // ------- Spiral params -------
+  let t=0, omega=1.0, tightness=0.12, wobble=0, trailFade=0.08;
+  function audioBoost(){
+    if (!audioOn || !analyser) return 0;
+    analyser.getByteFrequencyData(dataArr);
+    let sum=0; for (let i=2;i<60 && i<dataArr.length;i++) sum += dataArr[i];
+    return (sum / Math.max(1, Math.min(60, dataArr.length-2))) / 255;
+  }
+  function step(){
+    omega += swipeVX * 0.05;
+    tightness += swipeVY * 0.02;
+    swipeVX *= 0.9; swipeVY *= 0.9;
+    omega = Math.max(-3, Math.min(3, omega));
+    tightness = Math.max(0.03, Math.min(0.3, tightness));
+    wobble = wobble*0.9 + (tiltY/60)*0.1;
+    t += omega * (1 + Math.abs(tiltX)/45);
+    tapPulse *= 0.92;
+  }
+  function draw(){
+    // trail fade
+    ctx.fillStyle = `rgba(0,0,0,${trailFade})`;
+    ctx.fillRect(0,0,W,H);
+
+    // audio-reactive stroke
+    const ab = audioBoost();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+
+    const arms = 3, seg = 720;
+    const w = 1 + 3*ab + 2*tapPulse;
+    const a = 0.6 + 0.35*ab + 0.25*tapPulse;
+    ctx.lineWidth = w;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+
+    for (let k=0;k<arms;k++){
+      const phase = t + k*(Math.PI*2/arms);
+      ctx.beginPath();
+      for (let i=0;i<seg;i++){
+        const ang = phase + i*0.035;
+        const r = (i*tightness*3)*(1 + 0.2*Math.sin(t*0.5 + i*0.05 + wobble));
+        const x = CX + Math.cos(ang)*r;
+        const y = CY + Math.sin(ang)*r;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function loop(){ step(); draw(); requestAnimationFrame(loop); }
+  loop();
+
+})();</script>
+</body>
+</html>

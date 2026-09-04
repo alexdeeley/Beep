@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Goo Blob</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; height:100%; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  let W = 0, H = 0, DPR = Math.max(1, devicePixelRatio || 1);
+
+  function resize() {
+    W = Math.floor(window.innerWidth * DPR);
+    H = Math.floor(window.innerHeight * DPR);
+    canvas.width = W;
+    canvas.height = H;
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  const CENTER = { x: () => W*0.5, y: () => H*0.5 };
+  const POINTS = 40;
+  const BASE_R = Math.min(W, H) * 0.18;
+  const nodes = [];
+  const neighborK = 0.14;
+  const toCenterK = 0.07;
+  const damping = 0.88;
+  const pressure = 0.002;
+  const jitter = 0.08;
+
+  let pointer = {
+    active: false,
+    id: -1,
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    lastX: 0,
+    lastY: 0,
+    grabbed: -1,
+    radius: 140 * DPR
+  };
+
+  function makeNode(i) {
+    const a = (i / POINTS) * Math.PI * 2;
+    const r = BASE_R;
+    const x = CENTER.x() + Math.cos(a) * r;
+    const y = CENTER.y() + Math.sin(a) * r;
+    return { x, y, vx: 0, vy: 0, restAngle: a, restRadius: r };
+  }
+
+  function rebuildNodes() {
+    nodes.length = 0;
+    for (let i = 0; i < POINTS; i++) nodes.push(makeNode(i));
+  }
+  rebuildNodes();
+  addEventListener('resize', rebuildNodes);
+
+  function setPointerFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    let cx, cy;
+    if (e.touches && e.touches[0]) {
+      cx = e.touches[0].clientX - rect.left;
+      cy = e.touches[0].clientY - rect.top;
+    } else {
+      cx = e.clientX - rect.left;
+      cy = e.clientY - rect.top;
+    }
+    pointer.x = cx * DPR;
+    pointer.y = cy * DPR;
+  }
+
+  function onDown(e) {
+    e.preventDefault();
+    setPointerFromEvent(e);
+    pointer.active = true;
+    pointer.id = (e.pointerId !== undefined) ? e.pointerId : 1;
+    pointer.lastX = pointer.x;
+    pointer.lastY = pointer.y;
+
+    let best = -1, bestDist = Infinity;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      const dx = n.x - pointer.x, dy = n.y - pointer.y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestDist) { bestDist = d2; best = i; }
+    }
+    pointer.grabbed = best;
+  }
+
+  function onMove(e) {
+    if (!pointer.active) return;
+    setPointerFromEvent(e);
+    pointer.vx = pointer.x - pointer.lastX;
+    pointer.vy = pointer.y - pointer.lastY;
+    pointer.lastX = pointer.x;
+    pointer.lastY = pointer.y;
+  }
+
+  function onUp() {
+    pointer.active = false;
+    pointer.id = -1;
+    pointer.grabbed = -1;
+    pointer.vx = pointer.vy = 0;
+  }
+
+  canvas.addEventListener('pointerdown', onDown, { passive: false });
+  canvas.addEventListener('pointermove', onMove, { passive: false });
+  addEventListener('pointerup', onUp);
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  canvas.addEventListener('touchmove', onMove, { passive: false });
+  addEventListener('touchend', onUp);
+  canvas.addEventListener('mousedown', onDown, { passive: false });
+  addEventListener('mousemove', onMove, { passive: false });
+  addEventListener('mouseup', onUp);
+
+  function step() {
+    const cx = CENTER.x(), cy = CENTER.y();
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      const prev = nodes[(i - 1 + nodes.length) % nodes.length];
+      const next = nodes[(i + 1) % nodes.length];
+      const dx1 = prev.x - n.x, dy1 = prev.y - n.y;
+      const dx2 = next.x - n.x, dy2 = next.y - n.y;
+      n.vx += dx1 * neighborK + dx2 * neighborK;
+      n.vy += dy1 * neighborK + dy2 * neighborK;
+
+      const tx = cx + Math.cos(n.restAngle) * n.restRadius;
+      const ty = cy + Math.sin(n.restAngle) * n.restRadius;
+      const ddx = tx - n.x, ddy = ty - n.y;
+      n.vx += ddx * toCenterK;
+      n.vy += ddy * toCenterK;
+
+      const vx = n.x - cx, vy = n.y - cy;
+      const dist = Math.hypot(vx, vy) || 1;
+      const nx = vx / dist, ny = vy / dist;
+      n.vx += nx * pressure * n.restRadius;
+      n.vy += ny * pressure * n.restRadius;
+
+      n.vx += (Math.random() - 0.5) * jitter;
+      n.vy += (Math.random() - 0.5) * jitter;
+    }
+
+    if (pointer.active) {
+      const g = pointer.grabbed;
+      if (g >= 0) {
+        const n = nodes[g];
+        const pullK = 0.45;
+        n.vx += (pointer.x - n.x) * pullK + pointer.vx * 0.8;
+        n.vy += (pointer.y - n.y) * pullK + pointer.vy * 0.8;
+        const influence = 4;
+        for (let o = 1; o <= influence; o++) {
+          const falloff = Math.pow(1 - o/(influence+1), 2) * 0.35;
+          const n1 = nodes[(g + o) % nodes.length];
+          const n2 = nodes[(g - o + nodes.length) % nodes.length];
+          n1.vx += (pointer.x - n1.x) * falloff;
+          n1.vy += (pointer.y - n1.y) * falloff;
+          n2.vx += (pointer.x - n2.x) * falloff;
+          n2.vy += (pointer.y - n2.y) * falloff;
+        }
+      }
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      n.vx *= damping;
+      n.vy *= damping;
+      n.x += n.vx;
+      n.y += n.vy;
+    }
+  }
+
+  function drawBlobPath() {
+    ctx.beginPath();
+    const len = nodes.length;
+    for (let i = 0; i <= len; i++) {
+      const p0 = nodes[(i - 1 + len) % len];
+      const p1 = nodes[i % len];
+      const mx = (p0.x + p1.x) * 0.5;
+      const my = (p0.y + p1.y) * 0.5;
+      if (i === 0) ctx.moveTo(mx, my);
+      else ctx.quadraticCurveTo(p0.x, p0.y, mx, my);
+    }
+    ctx.closePath();
+  }
+
+  function blobVelocity() {
+    let vx = 0, vy = 0;
+    for (const n of nodes) { vx += n.vx; vy += n.vy; }
+    vx /= nodes.length; vy /= nodes.length;
+    const mag = Math.hypot(vx, vy) || 1;
+    return { x: vx / mag, y: vy / mag };
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    drawBlobPath();
+
+    const cx = CENTER.x(), cy = CENTER.y();
+    const approxR = BASE_R * 1.25 * DPR;
+    const grad = ctx.createRadialGradient(cx, cy, approxR * 0.1, cx, cy, approxR);
+    grad.addColorStop(0.0, '#ffffff');
+    grad.addColorStop(0.5, '#e9e9e9');
+    grad.addColorStop(1.0, '#cfcfcf');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.save();
+    ctx.clip();
+    const shadowBlur = 40 * DPR;
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = shadowBlur;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 10 * DPR;
+    ctx.beginPath();
+    ctx.arc(cx, cy + 10 * DPR, approxR * 0.9, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff0';
+    ctx.fill();
+    ctx.restore();
+
+    const vel = blobVelocity();
+    const hx = cx - vel.x * approxR * 0.35 - approxR * 0.2;
+    const hy = cy - vel.y * approxR * 0.35 - approxR * 0.25;
+    drawBlobPath();
+    ctx.save();
+    ctx.clip();
+    const hGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, approxR * 0.6);
+    hGrad.addColorStop(0.0, 'rgba(255,255,255,0.95)');
+    hGrad.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+    hGrad.addColorStop(0.6, 'rgba(255,255,255,0.05)');
+    hGrad.addColorStop(1.0, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hGrad;
+    ctx.fillRect(hx - approxR, hy - approxR, approxR*2, approxR*2);
+    ctx.restore();
+
+    drawBlobPath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2 * DPR;
+    ctx.stroke();
+  }
+
+  function loop() {
+    step();
+    render();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NOISE WALL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap');
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: 'Share Tech Mono', monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+  touch-action: none;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+header {
+  border-bottom: 3px solid #fff;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  line-height: 0.8;
+  margin: 0;
+  letter-spacing: 1px;
+  font-size: clamp(40px, 13vw, 72px);
+}
+
+.sub {
+  font-size: 11px;
+  letter-spacing: 3px;
+  opacity: 0.6;
+  text-align: right;
+  line-height: 1.6;
+}
+
+.viz {
+  width: 100%;
+  height: 90px;
+  background: #000;
+  border: 1px solid #333;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.transport {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+button {
+  font-family: 'Bebas Neue', sans-serif;
+  background: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 22px;
+  letter-spacing: 2px;
+  padding: 12px 0;
+  cursor: pointer;
+  flex: 1;
+  transition: background 0.08s, color 0.08s;
+}
+
+button:active { background: #fff; color: #000; }
+button.on { background: #fff; color: #000; }
+
+.section-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 13px;
+  letter-spacing: 4px;
+  opacity: 0.55;
+  margin: 26px 0 10px;
+  border-top: 1px solid #333;
+  padding-top: 14px;
+}
+
+.roots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.roots button { font-size: 16px; padding: 10px 0; }
+
+.knobgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px 6px;
+  margin-top: 6px;
+}
+
+.knob-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.knob-unit canvas { cursor: ns-resize; }
+
+.knob-label {
+  font-size: 9.5px;
+  letter-spacing: 1.2px;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.knob-value {
+  font-size: 10px;
+  opacity: 0.4;
+  letter-spacing: 1px;
+}
+
+.kickrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.kickrow button { flex: none; width: 110px; }
+
+footer {
+  margin-top: 40px;
+  border-top: 1px solid #333;
+  padding-top: 14px;
+  font-size: 10px;
+  opacity: 0.35;
+  letter-spacing: 1.5px;
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div class="wrap">
+  <header>
+    <h1>NOISE<br>WALL</h1>
+    <div class="sub">MAJ7 DRONE ENGINE<br>18 LIVE PARAMETERS</div>
+  </header>
+
+  <canvas class="viz" id="viz"></canvas>
+
+  <div class="transport">
+    <button id="playBtn">START</button>
+  </div>
+
+  <div class="section-label">ROOT</div>
+  <div class="roots" id="roots"></div>
+
+  <div class="section-label">WALL</div>
+  <div class="knobgrid" id="wallKnobs"></div>
+
+  <div class="section-label">TONE</div>
+  <div class="knobgrid" id="toneKnobs"></div>
+
+  <div class="section-label">SPACE</div>
+  <div class="knobgrid" id="spaceKnobs"></div>
+
+  <div class="section-label">MOTION</div>
+  <div class="knobgrid" id="motionKnobs"></div>
+
+  <div class="section-label">KICK</div>
+  <div class="kickrow">
+    <button id="kickBtn">KICK OFF</button>
+  </div>
+  <div class="knobgrid" id="kickKnobs" style="margin-top:16px;"></div>
+
+  <footer>
+    SINGLE OSCILLATOR CHORD VOICES // BANDPASS NOISE LAYERS<br>
+    WAVESHAPER DISTORTION // BITCRUSH // CONVOLUTION REVERB // STEREO FEEDBACK DELAY<br>
+    DRAG KNOBS VERTICALLY TO ADJUST
+  </footer>
+</div>
+
+<script>
+// ============ AUDIO ENGINE ============
+let ctx = null;
+let running = false;
+
+let masterGain, wallBus, distortionNode, postFilter, highpassFilter, bitcrushNode, splitter;
+let dryGain, delayNode, feedbackGain, delayNode2, feedbackGain2, pannerA, pannerB, delayWetGain, convolver, reverbWetGain, mixBus;
+let analyser, vizData;
+let kickGain;
+
+const NOTE_NAMES = ['C','D','E','F#','G','A','B'];
+const NOTE_MIDI  = [48,50,52,53,55,57,59];
+let currentRootIdx = 0;
+
+const params = {
+  distortion: 0.35,
+  reverb: 0.4,
+  delayTime: 0.32,
+  feedback: 0.35,
+  density: 0.45,
+  volume: 0.6,
+  kickRate: 96,
+  kickVol: 0.7,
+  cutoff: 5200,
+  resonance: 0.7,
+  highpass: 40,
+  bitcrush: 0,
+  stereoWidth: 0.3,
+  reverbSize: 3.2,
+  delaySpread: 0.25,
+  drift: 6,
+  swellTime: 0.4,
+  subLevel: 0.15
+};
+
+let voiceNodes = [];
+let voicePanners = [];
+let subGainNode = null;
+let driftGainNode = null;
+
+let kickOn = false;
+let schedulerInterval = null;
+let nextKickTime = 0;
+
+function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+function makeDistortionCurve(amount) {
+  const k = amount * 100;
+  const n = 8192;
+  const curve = new Float32Array(n);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+}
+
+function makeBitcrushCurve(steps) {
+  const n = 8192;
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.round(x * steps) / steps;
+  }
+  return curve;
+}
+
+function createImpulse(ctx, duration, decay) {
+  const sr = ctx.sampleRate;
+  const len = Math.max(1, Math.floor(sr * duration));
+  const impulse = ctx.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return impulse;
+}
+
+function whiteNoiseBuffer(ctx) {
+  const len = ctx.sampleRate * 2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function initAudio() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = ctx.createGain();
+  masterGain.gain.value = params.volume;
+
+  mixBus = ctx.createGain();
+  mixBus.gain.value = 1;
+
+  wallBus = ctx.createGain();
+  wallBus.gain.value = 0.9;
+
+  distortionNode = ctx.createWaveShaper();
+  distortionNode.curve = makeDistortionCurve(params.distortion);
+  distortionNode.oversample = '4x';
+
+  postFilter = ctx.createBiquadFilter();
+  postFilter.type = 'lowpass';
+  postFilter.frequency.value = params.cutoff;
+  postFilter.Q.value = params.resonance;
+
+  highpassFilter = ctx.createBiquadFilter();
+  highpassFilter.type = 'highpass';
+  highpassFilter.frequency.value = params.highpass;
+  highpassFilter.Q.value = 0.5;
+
+  bitcrushNode = ctx.createWaveShaper();
+  bitcrushNode.curve = makeBitcrushCurve(64);
+
+  splitter = ctx.createGain();
+  splitter.gain.value = 1;
+
+  dryGain = ctx.createGain();
+  dryGain.gain.value = 0.9;
+
+  delayNode = ctx.createDelay(2.5);
+  delayNode.delayTime.value = params.delayTime;
+  feedbackGain = ctx.createGain();
+  feedbackGain.gain.value = params.feedback;
+  pannerA = ctx.createStereoPanner();
+  pannerA.pan.value = -params.delaySpread;
+
+  delayNode2 = ctx.createDelay(2.5);
+  delayNode2.delayTime.value = params.delayTime * 1.5;
+  feedbackGain2 = ctx.createGain();
+  feedbackGain2.gain.value = params.feedback;
+  pannerB = ctx.createStereoPanner();
+  pannerB.pan.value = params.delaySpread;
+
+  delayWetGain = ctx.createGain();
+  delayWetGain.gain.value = 0.5;
+
+  convolver = ctx.createConvolver();
+  convolver.buffer = createImpulse(ctx, params.reverbSize, 2.2);
+  reverbWetGain = ctx.createGain();
+  reverbWetGain.gain.value = params.reverb;
+
+  kickGain = ctx.createGain();
+  kickGain.gain.value = params.kickVol;
+
+  wallBus.connect(distortionNode);
+  distortionNode.connect(postFilter);
+  postFilter.connect(highpassFilter);
+  highpassFilter.connect(bitcrushNode);
+  bitcrushNode.connect(splitter);
+
+  splitter.connect(dryGain);
+  dryGain.connect(mixBus);
+
+  splitter.connect(delayNode);
+  delayNode.connect(pannerA);
+  pannerA.connect(delayWetGain);
+  delayNode.connect(feedbackGain);
+  feedbackGain.connect(delayNode);
+
+  splitter.connect(delayNode2);
+  delayNode2.connect(pannerB);
+  pannerB.connect(delayWetGain);
+  delayNode2.connect(feedbackGain2);
+  feedbackGain2.connect(delayNode2);
+
+  delayWetGain.connect(mixBus);
+
+  splitter.connect(convolver);
+  convolver.connect(reverbWetGain);
+  reverbWetGain.connect(mixBus);
+
+  kickGain.connect(mixBus);
+
+  mixBus.connect(masterGain);
+  masterGain.connect(ctx.destination);
+
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  vizData = new Uint8Array(analyser.frequencyBinCount);
+  mixBus.connect(analyser);
+
+  buildChord();
+  drawViz();
+}
+
+function stopChord() {
+  voiceNodes.forEach(n => {
+    try { if (n.stop) n.stop(); n.disconnect && n.disconnect(); } catch (e) {}
+  });
+  voiceNodes = [];
+  voicePanners = [];
+  subGainNode = null;
+  driftGainNode = null;
+}
+
+function buildChord() {
+  stopChord();
+  const root = NOTE_MIDI[currentRootIdx];
+  const intervals = [0, 4, 7, 11, 12];
+  const spread = 5 + params.density * 45;
+  const now = ctx.currentTime;
+
+  const driftLFO = ctx.createOscillator();
+  driftLFO.type = 'sine';
+  driftLFO.frequency.value = 0.09 + Math.random() * 0.15;
+  driftGainNode = ctx.createGain();
+  driftGainNode.gain.value = params.drift;
+  driftLFO.connect(driftGainNode);
+  driftLFO.start();
+  voiceNodes.push(driftLFO);
+  voiceNodes.push(driftGainNode);
+
+  intervals.forEach((iv, idx) => {
+    const freq = midiToFreq(root + iv);
+    const voiceGain = ctx.createGain();
+    const target = idx === 4 ? 0.12 : 0.2;
+    voiceGain.gain.setValueAtTime(0.0001, now);
+    voiceGain.gain.linearRampToValueAtTime(target, now + params.swellTime);
+
+    const panner = ctx.createStereoPanner();
+    const sign = idx % 2 === 0 ? -1 : 1;
+    panner.pan.value = sign * params.stereoWidth;
+    voicePanners.push(panner);
+
+    voiceGain.connect(panner);
+    panner.connect(wallBus);
+
+    const waves = ['sawtooth', 'sawtooth', 'square'];
+    waves.forEach((w, j) => {
+      const osc = ctx.createOscillator();
+      osc.type = w;
+      osc.frequency.value = freq;
+      osc.detune.value = (j - 1) * spread;
+      driftGainNode.connect(osc.detune);
+      const og = ctx.createGain();
+      og.gain.value = 0.33;
+      osc.connect(og);
+      og.connect(voiceGain);
+      osc.start();
+      voiceNodes.push(osc);
+    });
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = whiteNoiseBuffer(ctx);
+    noise.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = freq;
+    bp.Q.value = 8 - params.density * 5;
+    const ng = ctx.createGain();
+    ng.gain.value = 0.05 + params.density * 0.18;
+    noise.connect(bp);
+    bp.connect(ng);
+    ng.connect(voiceGain);
+    noise.start();
+    voiceNodes.push(noise);
+    voiceNodes.push(voiceGain);
+  });
+
+  const subOsc = ctx.createOscillator();
+  subOsc.type = 'sine';
+  subOsc.frequency.value = midiToFreq(root - 12);
+  subGainNode = ctx.createGain();
+  subGainNode.gain.setValueAtTime(0.0001, now);
+  subGainNode.gain.linearRampToValueAtTime(params.subLevel, now + params.swellTime);
+  subOsc.connect(subGainNode);
+  subGainNode.connect(wallBus);
+  subOsc.start();
+  voiceNodes.push(subOsc);
+  voiceNodes.push(subGainNode);
+}
+
+function playKick(time) {
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(42, time + 0.09);
+  g.gain.setValueAtTime(params.kickVol, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+  osc.connect(g);
+  g.connect(kickGain);
+  osc.start(time);
+  osc.stop(time + 0.35);
+
+  const click = ctx.createBufferSource();
+  click.buffer = whiteNoiseBuffer(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 2000;
+  const cg = ctx.createGain();
+  cg.gain.setValueAtTime(params.kickVol * 0.4, time);
+  cg.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+  click.connect(hp);
+  hp.connect(cg);
+  cg.connect(kickGain);
+  click.start(time);
+  click.stop(time + 0.04);
+}
+
+function kickScheduler() {
+  const lookahead = 0.1;
+  while (nextKickTime < ctx.currentTime + lookahead) {
+    playKick(nextKickTime);
+    nextKickTime += 60 / params.kickRate;
+  }
+}
+function startKick() {
+  if (!ctx) return;
+  nextKickTime = ctx.currentTime + 0.1;
+  schedulerInterval = setInterval(kickScheduler, 25);
+}
+function stopKick() {
+  if (schedulerInterval) clearInterval(schedulerInterval);
+  schedulerInterval = null;
+}
+
+// ============ PARAM UPDATES ============
+function updateDistortion(v) {
+  params.distortion = v;
+  if (distortionNode) distortionNode.curve = makeDistortionCurve(v);
+}
+function updateReverb(v) {
+  params.reverb = v;
+  if (reverbWetGain) reverbWetGain.gain.setTargetAtTime(v, ctx.currentTime, 0.05);
+}
+function updateDelayTime(v) {
+  params.delayTime = 0.02 + v * 0.98;
+  if (delayNode) {
+    delayNode.delayTime.setTargetAtTime(params.delayTime, ctx.currentTime, 0.05);
+    delayNode2.delayTime.setTargetAtTime(params.delayTime * 1.5, ctx.currentTime, 0.05);
+  }
+}
+function updateFeedback(v) {
+  params.feedback = v * 0.88;
+  if (feedbackGain) {
+    feedbackGain.gain.setTargetAtTime(params.feedback, ctx.currentTime, 0.05);
+    feedbackGain2.gain.setTargetAtTime(params.feedback, ctx.currentTime, 0.05);
+  }
+}
+function updateDensity(v) {
+  params.density = v;
+  if (ctx && running) buildChord();
+}
+function updateVolume(v) {
+  params.volume = v;
+  if (masterGain) masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.05);
+}
+function updateKickRate(v) { params.kickRate = Math.round(50 + v * 130); }
+function updateKickVol(v) {
+  params.kickVol = v;
+  if (kickGain) kickGain.gain.setTargetAtTime(v, ctx.currentTime, 0.05);
+}
+
+function updateCutoff(v) {
+  params.cutoff = 200 * Math.pow(60, v);
+  if (postFilter) postFilter.frequency.setTargetAtTime(params.cutoff, ctx.currentTime, 0.03);
+}
+function updateResonance(v) {
+  params.resonance = 0.1 + v * 17.9;
+  if (postFilter) postFilter.Q.setTargetAtTime(params.resonance, ctx.currentTime, 0.03);
+}
+function updateHighpass(v) {
+  params.highpass = 20 + v * 880;
+  if (highpassFilter) highpassFilter.frequency.setTargetAtTime(params.highpass, ctx.currentTime, 0.03);
+}
+function updateBitcrush(v) {
+  params.bitcrush = v;
+  const steps = Math.round(64 - v * 62);
+  if (bitcrushNode) bitcrushNode.curve = makeBitcrushCurve(steps);
+}
+function updateStereoWidth(v) {
+  params.stereoWidth = v;
+  voicePanners.forEach((p, idx) => {
+    const sign = idx % 2 === 0 ? -1 : 1;
+    p.pan.setTargetAtTime(sign * v, ctx.currentTime, 0.03);
+  });
+}
+function updateReverbSize(v) {
+  params.reverbSize = 0.4 + v * 6.6;
+  if (convolver && ctx) convolver.buffer = createImpulse(ctx, params.reverbSize, 2.2);
+}
+function updateDelaySpread(v) {
+  params.delaySpread = v * 0.9;
+  if (pannerA) {
+    pannerA.pan.setTargetAtTime(-params.delaySpread, ctx.currentTime, 0.03);
+    pannerB.pan.setTargetAtTime(params.delaySpread, ctx.currentTime, 0.03);
+  }
+}
+function updateDrift(v) {
+  params.drift = v * 35;
+  if (driftGainNode) driftGainNode.gain.setTargetAtTime(params.drift, ctx.currentTime, 0.03);
+}
+function updateSwell(v) {
+  params.swellTime = 0.05 + v * 3.95;
+}
+function updateSubLevel(v) {
+  params.subLevel = v * 0.5;
+  if (subGainNode) subGainNode.gain.setTargetAtTime(params.subLevel, ctx.currentTime, 0.05);
+}
+
+// ============ VISUALIZER ============
+const vizCanvas = document.getElementById('viz');
+const vctx = vizCanvas.getContext('2d');
+function resizeViz() {
+  vizCanvas.width = vizCanvas.clientWidth * devicePixelRatio;
+  vizCanvas.height = vizCanvas.clientHeight * devicePixelRatio;
+}
+window.addEventListener('resize', resizeViz);
+resizeViz();
+
+function drawViz() {
+  requestAnimationFrame(drawViz);
+  const w = vizCanvas.width, h = vizCanvas.height;
+  vctx.fillStyle = '#000';
+  vctx.fillRect(0, 0, w, h);
+  if (!analyser || !running) {
+    vctx.strokeStyle = '#222';
+    vctx.beginPath();
+    vctx.moveTo(0, h / 2);
+    vctx.lineTo(w, h / 2);
+    vctx.stroke();
+    return;
+  }
+  analyser.getByteTimeDomainData(vizData);
+  vctx.strokeStyle = '#fff';
+  vctx.lineWidth = Math.max(1, w * 0.0015);
+  vctx.beginPath();
+  const slice = w / vizData.length;
+  let x = 0;
+  for (let i = 0; i < vizData.length; i++) {
+    const v = vizData[i] / 128.0;
+    const y = (v * h) / 2;
+    if (i === 0) vctx.moveTo(x, y); else vctx.lineTo(x, y);
+    x += slice;
+  }
+  vctx.stroke();
+}
+
+// ============ KNOB WIDGET ============
+function createKnob(container, label, initial, onChange, opts = {}) {
+  const unit = document.createElement('div');
+  unit.className = 'knob-unit';
+
+  const canvas = document.createElement('canvas');
+  const size = 54;
+  canvas.width = size * devicePixelRatio;
+  canvas.height = size * devicePixelRatio;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'knob-label';
+  lbl.textContent = label;
+
+  const val = document.createElement('div');
+  val.className = 'knob-value';
+
+  unit.appendChild(canvas);
+  unit.appendChild(lbl);
+  unit.appendChild(val);
+  container.appendChild(unit);
+
+  let value = initial;
+  const kctx = canvas.getContext('2d');
+  const dpr = devicePixelRatio;
+
+  function draw() {
+    const c = size * dpr;
+    kctx.clearRect(0, 0, c, c);
+    const cx = c / 2, cy = c / 2, r = c * 0.38;
+    const startAngle = Math.PI * 0.75;
+    const endAngle = Math.PI * 2.25;
+    const angle = startAngle + value * (endAngle - startAngle);
+
+    kctx.beginPath();
+    kctx.arc(cx, cy, r, startAngle, endAngle);
+    kctx.strokeStyle = '#333';
+    kctx.lineWidth = 3 * dpr;
+    kctx.stroke();
+
+    kctx.beginPath();
+    kctx.arc(cx, cy, r, startAngle, angle);
+    kctx.strokeStyle = '#fff';
+    kctx.lineWidth = 3 * dpr;
+    kctx.stroke();
+
+    kctx.beginPath();
+    kctx.moveTo(cx, cy);
+    kctx.lineTo(cx + Math.cos(angle) * r * 0.75, cy + Math.sin(angle) * r * 0.75);
+    kctx.strokeStyle = '#fff';
+    kctx.lineWidth = 2.5 * dpr;
+    kctx.stroke();
+
+    kctx.beginPath();
+    kctx.arc(cx, cy, 3 * dpr, 0, Math.PI * 2);
+    kctx.fillStyle = '#fff';
+    kctx.fill();
+
+    val.textContent = opts.format ? opts.format(value) : Math.round(value * 100);
+  }
+
+  function setValue(v) {
+    value = Math.min(1, Math.max(0, v));
+    draw();
+    onChange(value);
+  }
+
+  let dragging = false, startY = 0, startVal = 0;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; startY = e.clientY; startVal = value;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dy = startY - e.clientY;
+    setValue(startVal + dy / 150);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+
+  draw();
+  return { setValue, get value() { return value; } };
+}
+
+// ============ UI BUILD ============
+const wallKnobsEl = document.getElementById('wallKnobs');
+const toneKnobsEl = document.getElementById('toneKnobs');
+const spaceKnobsEl = document.getElementById('spaceKnobs');
+const motionKnobsEl = document.getElementById('motionKnobs');
+const kickKnobsEl = document.getElementById('kickKnobs');
+
+createKnob(wallKnobsEl, 'DISTORTION', params.distortion, updateDistortion, { format: v => Math.round(v * 100) });
+createKnob(wallKnobsEl, 'REVERB', params.reverb, updateReverb, { format: v => Math.round(v * 100) });
+createKnob(wallKnobsEl, 'DELAY TIME', 0.31, updateDelayTime, { format: v => (0.02 + v * 0.98).toFixed(2) + 's' });
+createKnob(wallKnobsEl, 'FEEDBACK', params.feedback / 0.88, updateFeedback, { format: v => Math.round(v * 100) });
+createKnob(wallKnobsEl, 'DENSITY', params.density, updateDensity, { format: v => Math.round(v * 100) });
+createKnob(wallKnobsEl, 'VOLUME', params.volume, updateVolume, { format: v => Math.round(v * 100) });
+
+createKnob(toneKnobsEl, 'CUTOFF', 0.62, updateCutoff, { format: () => Math.round(params.cutoff) + 'Hz' });
+createKnob(toneKnobsEl, 'RESONANCE', params.resonance / 18, updateResonance, { format: () => params.resonance.toFixed(1) });
+createKnob(toneKnobsEl, 'LOW CUT', 0.02, updateHighpass, { format: () => Math.round(params.highpass) + 'Hz' });
+createKnob(toneKnobsEl, 'BITCRUSH', params.bitcrush, updateBitcrush, { format: v => Math.round(v * 100) });
+
+createKnob(spaceKnobsEl, 'WIDTH', params.stereoWidth, updateStereoWidth, { format: v => Math.round(v * 100) });
+createKnob(spaceKnobsEl, 'REVERB SIZE', (params.reverbSize - 0.4) / 6.6, updateReverbSize, { format: () => params.reverbSize.toFixed(1) + 's' });
+createKnob(spaceKnobsEl, 'DELAY SPREAD', params.delaySpread / 0.9, updateDelaySpread, { format: v => Math.round(v * 100) });
+
+createKnob(motionKnobsEl, 'DRIFT', params.drift / 35, updateDrift, { format: () => Math.round(params.drift) + 'c' });
+createKnob(motionKnobsEl, 'SWELL', (params.swellTime - 0.05) / 3.95, updateSwell, { format: () => params.swellTime.toFixed(2) + 's' });
+createKnob(motionKnobsEl, 'SUB BASS', params.subLevel / 0.5, updateSubLevel, { format: v => Math.round(v * 100) });
+
+createKnob(kickKnobsEl, 'RATE', (params.kickRate - 50) / 130, updateKickRate, { format: () => params.kickRate + ' BPM' });
+createKnob(kickKnobsEl, 'KICK VOL', params.kickVol, updateKickVol, { format: v => Math.round(v * 100) });
+
+const rootsEl = document.getElementById('roots');
+NOTE_NAMES.forEach((name, idx) => {
+  const b = document.createElement('button');
+  b.textContent = name;
+  if (idx === 0) b.classList.add('on');
+  b.addEventListener('click', () => {
+    currentRootIdx = idx;
+    [...rootsEl.children].forEach(c => c.classList.remove('on'));
+    b.classList.add('on');
+    if (ctx && running) buildChord();
+  });
+  rootsEl.appendChild(b);
+});
+
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', async () => {
+  if (!ctx) initAudio();
+  if (ctx.state === 'suspended') await ctx.resume();
+
+  if (!running) {
+    running = true;
+    playBtn.textContent = 'STOP';
+    playBtn.classList.add('on');
+    buildChord();
+    if (kickOn) startKick();
+  } else {
+    running = false;
+    playBtn.textContent = 'START';
+    playBtn.classList.remove('on');
+    stopChord();
+    stopKick();
+  }
+});
+
+const kickBtn = document.getElementById('kickBtn');
+kickBtn.addEventListener('click', () => {
+  kickOn = !kickOn;
+  kickBtn.textContent = kickOn ? 'KICK ON' : 'KICK OFF';
+  kickBtn.classList.toggle('on', kickOn);
+  if (kickOn && running) startKick();
+  if (!kickOn) stopKick();
+});
+</script>
+</body>
+</html>

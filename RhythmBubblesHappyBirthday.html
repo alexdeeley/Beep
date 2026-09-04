@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Unicorn Rhythm Bubbles — Happy Birthday</title>
+<style>
+  :root{
+    --bg:#000;
+    --lane0:#00e5ff; /* cyan */
+    --lane1:#ff2bd6; /* pink */
+    --lane2:#a3ff00; /* lime */
+    --lane3:#ffc400; /* yellow */
+    --hit:#ffffff;
+  }
+  html, body { margin:0; height:100%; background:#000; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  #hud {
+    position: fixed; left:0; right:0; top:0; padding: 8px 12px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-weight: 800; letter-spacing:0.5px;
+  }
+  #score { font-size: 18px; }
+  #combo { font-size: 18px; opacity:0.9; }
+  #status { font-size: 14px; opacity:0.8; }
+  #canvas { display:block; width:100vw; height:100vh; }
+  #keys {
+    position: fixed; bottom: 10px; left:50%; transform: translateX(-50%);
+    display: flex; gap: 12px; font-weight: 900; letter-spacing:1px; user-select:none;
+  }
+  .keycap {
+    width: 64px; height: 64px; border: 3px solid #fff; border-radius: 12px;
+    display:flex; align-items:center; justify-content:center; font-size: 20px;
+    box-shadow: 0 0 16px rgba(255,255,255,0.25);
+  }
+  .k0{ border-color: var(--lane0); color: var(--lane0); }
+  .k1{ border-color: var(--lane1); color: var(--lane1); }
+  .k2{ border-color: var(--lane2); color: var(--lane2); }
+  .k3{ border-color: var(--lane3); color: var(--lane3); }
+  #endOverlay {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.08), rgba(0,0,0,0.92) 60%);
+    text-align:center;
+  }
+  #finalScore { font-size:min(12vw,72px); text-shadow: 0 0 24px rgba(255,255,255,0.6); }
+  button {
+    background:#111; color:#fff; border:2px solid #fff; padding:12px 18px; border-radius:999px; font-weight:800; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="hud">
+    <div id="status">Tap lane or press A S D F — Song: Happy Birthday</div>
+    <div id="combo">Combo: 0</div>
+    <div id="score">Score: 0</div>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <div id="keys" aria-hidden="true">
+    <div class="keycap k0">A</div>
+    <div class="keycap k1">S</div>
+    <div class="keycap k2">D</div>
+    <div class="keycap k3">F</div>
+  </div>
+
+  <div id="endOverlay" role="dialog" aria-modal="true">
+    <div id="finalScore">0</div>
+    <div style="margin:10px 0 18px; opacity:0.9;">Great job! Tap to play again.</div>
+    <button id="playAgain">Play Again</button>
+  </div>
+
+<script>
+(() => {
+  // Canvas
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  let W=0,H=0;
+  function resize(){
+    W = Math.floor(window.innerWidth); H = Math.floor(window.innerHeight);
+    canvas.width = W*DPR; canvas.height = H*DPR; canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true}); resize();
+
+  // Audio
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let ac, master, muted=false;
+  function ensureAC(){
+    if (!ac){
+      ac = new AudioCtx();
+      master = ac.createGain(); master.gain.value = 0.6; master.connect(ac.destination);
+    }
+  }
+  function tone(f, t0, dur, type='sine', gain=0.25){
+    try{
+      ensureAC();
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(master);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }catch{}
+  }
+  function popSound(t0){
+    if (!ac || muted) return;
+    const base = 260 + Math.random()*120;
+    // short chunky pop
+    tone(base*1.5, t0, 0.1, 'square', 0.35);
+    // noise burst
+    try{
+      const nbuf = ac.createBuffer(1, ac.sampleRate*0.08, ac.sampleRate);
+      const d = nbuf.getChannelData(0);
+      for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/400);
+      const src = ac.createBufferSource(); src.buffer = nbuf;
+      const g = ac.createGain(); g.gain.value = 0.25;
+      const hp = ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=700;
+      src.connect(hp); hp.connect(g); g.connect(master);
+      src.start(t0);
+    }catch{}
+  }
+
+  // Song: Happy Birthday (melody only), mapped to 4 lanes by pitch bucket
+  const BPM = 96; // gentle
+  const BEAT = 60/BPM;
+  // Frequencies
+  const notes = {
+    C4:261.63, Cs4:277.18, D4:293.66, Ds4:311.13, E4:329.63, F4:349.23, Fs4:369.99, G4:392.00, Gs4:415.30,
+    A4:440.00, As4:466.16, B4:493.88, C5:523.25, D5:587.33, E5:659.25, F5:698.46, G5:783.99
+  };
+  // Sequence (pitch, beats). Approx traditional phrasing.
+  const seq = [
+    ['G4',1], ['G4',1], ['A4',2], ['G4',2], ['C5',2], ['B4',4],
+    ['G4',1], ['G4',1], ['A4',2], ['G4',2], ['D5',2], ['C5',4],
+    ['G4',1], ['G4',1], ['G5',2], ['E5',2], ['C5',2], ['B4',2], ['A4',4],
+    ['F5',1], ['F5',1], ['E5',2], ['C5',2], ['D5',2], ['C5',4]
+  ];
+  // Map pitch to lane (0..3) by pitch range
+  function laneForFreq(f){
+    if (f < 340) return 0;      // low -> cyan (A/S)
+    if (f < 420) return 1;      // mid-low -> pink
+    if (f < 560) return 2;      // mid-high -> lime
+    return 3;                   // high -> yellow
+  }
+
+  // Visuals
+  const laneColors = [getCSS('--lane0'), getCSS('--lane1'), getCSS('--lane2'), getCSS('--lane3')];
+  function getCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  const lanes = 4;
+  let hitLineY; // y where you should tap
+  function layout(){
+    hitLineY = H - Math.min(180, H*0.18);
+  }
+  layout();
+
+  function drawLanes(t){
+    const w = W/lanes;
+    for (let i=0;i<lanes;i++){
+      // lane background (subtle)
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(i*w, 0, 2, H);
+      // glowing side strip near hit line
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      const g = ctx.createLinearGradient(i*w, hitLineY-10, i*w, hitLineY+10);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(0.5, laneColors[i]);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(i*w, hitLineY-10, w, 20);
+      ctx.restore();
+    }
+    // strong hit line
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, hitLineY, W, 3);
+  }
+
+  // Falling notes (bubbles)
+  const HIT_WINDOW = 0.15; // seconds +/-
+  const PRE_TIME = 2.5;    // seconds for bubble to fall from spawn to hit line
+  const BUBS = []; // {lane, atTime, y, hit, judged}
+  let songStart = 0, running=false, finished=false;
+  let score=0, combo=0, bestCombo=0;
+  const scoreEl = document.getElementById('score');
+  const comboEl = document.getElementById('combo');
+  const endOverlay = document.getElementById('endOverlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  document.getElementById('playAgain').addEventListener('click', start);
+
+  // Build schedule
+  function buildChart(){
+    BUBS.length = 0;
+    let t = 0;
+    for (const [name, beats] of seq){
+      const f = notes[name];
+      const lane = laneForFreq(f);
+      const dur = beats * BEAT;
+      BUBS.push({lane, atTime: t, freq: f, y: -100, hit:false, judged:false});
+      t += dur;
+    }
+    return t; // total length
+  }
+
+  // Start / Stop
+  function start(){
+    ensureAC();
+    endOverlay.style.display = 'none';
+    running = true; finished = false;
+    score=0; combo=0; bestCombo=0;
+    updateHUD();
+    const total = buildChart();
+    // schedule tones
+    const now = ac.currentTime + 0.3; // short lead-in
+    songStart = now + PRE_TIME;       // visuals sync so the first bubble hits on the first tone
+    let cur = songStart;
+    seq.forEach(([name, beats]) => {
+      const f = notes[name];
+      const dur = Math.max(0.25, beats*BEAT*0.9);
+      if (!muted) tone(f, cur, dur, 'triangle', 0.22);
+      cur += beats*BEAT;
+    });
+    // set visuals times
+    BUBS.forEach(b => b.atTime += songStart);
+  }
+
+  function end(){
+    running = false; finished = true;
+    finalScoreEl.textContent = `Score: ${score}  •  Best Combo: ${bestCombo}`;
+    endOverlay.style.display = 'flex';
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = `Score: ${score}`;
+    comboEl.textContent = `Combo: ${combo}`;
+  }
+
+  // Input
+  const keyToLane = { 'a':0, 's':1, 'd':2, 'f':3 };
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'm'){ muted = !muted; return; }
+    if (k === 'r'){ start(); return; }
+    if (keyToLane.hasOwnProperty(k)) judgeHit(keyToLane[k]);
+  });
+  canvas.addEventListener('pointerdown', (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX ?? (ev.touches && ev.touches[0].clientX) ?? 0) - rect.left;
+    const lane = Math.floor(x / (W/lanes));
+    judgeHit(lane);
+  }, {passive:true});
+
+  function nearestNoteIdx(lane, t){
+    let best=-1, bestDt=999;
+    for (let i=0;i<BUBS.length;i++){
+      const b = BUBS[i];
+      if (b.lane !== lane || b.hit || b.judged) continue;
+      const dt = Math.abs(b.atTime - t);
+      if (dt < bestDt){ bestDt = dt; best = i; }
+    }
+    return [best, bestDt];
+  }
+
+  function judgeHit(lane){
+    if (!ac) return;
+    const t = ac.currentTime;
+    const [idx, dt] = nearestNoteIdx(lane, t);
+    if (idx === -1) return; // nothing to hit
+    const b = BUBS[idx];
+    if (dt <= HIT_WINDOW){
+      // perfect / good tiers
+      const perfect = dt <= HIT_WINDOW*0.4;
+      score += perfect ? 300 : 150;
+      combo += 1; if (combo > bestCombo) bestCombo = combo;
+      b.hit = true; b.judged = true;
+      popSound(t);
+      if (navigator.vibrate) { try { navigator.vibrate(perfect ? 20 : 10); } catch {} }
+      flashLane(lane, perfect ? 0.85 : 0.55);
+      updateHUD();
+    } else {
+      // too early/late tap — ignore
+    }
+  }
+
+  // Lane flash feedback
+  const flashes = []; // {lane, a}
+  function flashLane(lane, a){ flashes.push({lane, a}); }
+
+  // Render
+  function drawBubble(x, y, r, color){
+    // thick rim + glow
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(4, r*0.18);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    // inner gloss
+    const g = ctx.createRadialGradient(x - r*0.35, y - r*0.45, r*0.1, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.6, color.replace('1)', '0.5)').replace('rgb', 'rgba'));
+    g.addColorStop(1, 'rgba(255,255,255,0.05)');
+    ctx.beginPath();
+    ctx.arc(x, y, r*0.92, 0, Math.PI*2);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // specular dot
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.arc(x - r*0.3, y - r*0.35, Math.max(2, r*0.14), 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function rgba(hex, a=1){
+    const v = hex.startsWith('#') ? hex.slice(1) : hex;
+    const r = parseInt(v.substring(0,2),16);
+    const g = parseInt(v.substring(2,4),16);
+    const b = parseInt(v.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    const laneW = W/lanes;
+    drawLanes(performance.now());
+
+    // draw unicorn corner badge (simple)
+    ctx.save();
+    ctx.font = '700 18px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('🦄 Rhythm Bubbles', 12, 26);
+    ctx.restore();
+
+    if (!ac){ requestAnimationFrame(loop); return; }
+    const t = ac.currentTime;
+
+    // draw bubbles
+    let allDone = true;
+    for (let i=0;i<BUBS.length;i++){
+      const b = BUBS[i];
+      const timeToHit = b.atTime - t; // seconds until hit
+      const y = hitLineY - timeToHit * (H / PRE_TIME); // linear mapping
+      b.y = y;
+      if (!b.judged && t - b.atTime > HIT_WINDOW){
+        // miss
+        b.judged = true;
+        combo = 0;
+        updateHUD();
+        flashLane(b.lane, 0.3);
+      }
+      if (!b.judged) allDone = false;
+      if (!b.hit){
+        const cx = b.lane * laneW + laneW/2;
+        const col = laneColors[b.lane];
+        drawBubble(cx, y, Math.min(56, laneW*0.35), rgba(colToHex(col), 1));
+      }
+    }
+
+    // flashes
+    for (let i=flashes.length-1;i>=0;i--){
+      const f = flashes[i];
+      const laneX = f.lane * laneW;
+      ctx.fillStyle = `rgba(255,255,255,${f.a*0.18})`;
+      ctx.fillRect(laneX, 0, laneW, H);
+      f.a *= 0.88;
+      if (f.a < 0.03) flashes.splice(i,1);
+    }
+
+    if (!finished && allDone) end();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // Helpers
+  function colToHex(c){
+    // c like 'rgb(0, 229, 255)' or '#rrggbb'
+    if (c.startsWith('#')) return c.replace('#','');
+    const m = c.match(/(\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) return 'ffffff';
+    const r = (+m[1]).toString(16).padStart(2,'0');
+    const g = (+m[2]).toString(16).padStart(2,'0');
+    const b = (+m[3]).toString(16).padStart(2,'0');
+    return r+g+b;
+  }
+
+  // Start after first pointer (to enable audio on iOS)
+  window.addEventListener('pointerdown', () => {
+    if (!running){ start(); }
+    ensureAC();
+  }, {once:false});
+
+})();</script>
+</body>
+</html>

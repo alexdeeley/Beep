@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>METROPOLIS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#000;--fg:#fff;--accent:#fff;--dim:#555;--mid:#888;
+  --panel:#0a0a0a;--border:#333;--highlight:#fff;
+  --green:#7fff7f;--red:#ff7f7f;--yellow:#ffff7f;--blue:#7fbfff;
+}
+html,body{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:'Share Tech Mono',monospace;
+  overflow:hidden;
+  width:100vw;
+  height:100vh;
+}
+body{display:flex;flex-direction:column;}
+
+/* HEADER */
+#header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--panel);height:48px;flex-shrink:0;}
+#header h1{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;letter-spacing:4px;}
+#stats-bar{display:flex;gap:14px;font-size:11px;}
+.stat{display:flex;flex-direction:column;align-items:center;}
+.stat-label{color:var(--dim);font-size:9px;letter-spacing:1px;}
+.stat-val{color:var(--fg);font-size:13px;font-weight:bold;}
+.stat-val.good{color:var(--green);}
+.stat-val.warn{color:var(--yellow);}
+.stat-val.bad{color:var(--red);}
+
+/* MAIN AREA */
+#main{display:flex;flex:1;overflow:hidden;min-height:0;}
+
+/* TOOLBAR */
+#toolbar{width:60px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:2px;padding:4px;overflow-y:auto;flex-shrink:0;}
+.tool-btn{width:52px;height:52px;background:var(--bg);border:1px solid var(--border);color:var(--fg);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;border-radius:3px;transition:all 0.1s;position:relative;user-select:none;}
+.tool-btn:active,.tool-btn.active{background:var(--fg);color:var(--bg);border-color:var(--fg);}
+.tool-btn span{font-size:7px;letter-spacing:0.5px;font-family:'Share Tech Mono',monospace;}
+.tool-sep{height:1px;background:var(--border);margin:2px 0;}
+.tool-cost{position:absolute;top:2px;right:2px;font-size:7px;color:var(--yellow);}
+
+/* MAP */
+#map-wrap{flex:1;overflow:hidden;position:relative;background:#000;min-width:0;min-height:0;}
+#map-canvas{position:absolute;top:0;left:0;cursor:crosshair;touch-action:none;}
+
+/* BOTTOM PANEL */
+#bottom{height:110px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:0;flex-shrink:0;}
+#info-panel{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--border);}
+#info-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;color:var(--mid);}
+#info-desc{font-size:10px;color:var(--fg);line-height:1.4;}
+#indicators{width:240px;padding:6px 10px;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;}
+.ind{display:flex;flex-direction:column;gap:1px;}
+.ind-label{font-size:8px;color:var(--dim);letter-spacing:1px;}
+.ind-bar{height:6px;background:var(--border);border-radius:2px;overflow:hidden;}
+.ind-fill{height:100%;background:var(--fg);border-radius:2px;transition:width 0.5s;}
+.ind-fill.good{background:var(--green);}
+.ind-fill.warn{background:var(--yellow);}
+.ind-fill.bad{background:var(--red);}
+#budget-panel{width:180px;padding:6px 10px;border-left:1px solid var(--border);}
+#budget-title{font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;color:var(--dim);margin-bottom:4px;}
+.budget-row{display:flex;justify-content:space-between;font-size:10px;padding:1px 0;}
+.budget-row .pos{color:var(--green);}
+.budget-row .neg{color:var(--red);}
+
+/* SPEED CONTROLS */
+#speed-bar{display:flex;gap:4px;padding:4px;border-bottom:1px solid var(--border);background:var(--panel);}
+.spd-btn{flex:1;padding:4px;background:var(--bg);border:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;border-radius:2px;}
+.spd-btn.active{background:var(--fg);color:var(--bg);}
+
+/* MODAL */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:100;}
+#modal-overlay.show{display:flex;}
+#modal{background:var(--panel);border:1px solid var(--border);padding:24px;max-width:380px;width:90%;max-height:80vh;overflow-y:auto;}
+#modal h2{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;margin-bottom:16px;}
+.modal-btn{display:block;width:100%;padding:10px;margin:6px 0;background:var(--bg);border:1px solid var(--border);color:var(--fg);font-family:'Share Tech Mono',monospace;font-size:12px;cursor:pointer;text-align:left;letter-spacing:1px;}
+.modal-btn:hover{background:var(--fg);color:var(--bg);}
+.modal-close{float:right;background:none;border:none;color:var(--mid);font-size:20px;cursor:pointer;font-family:monospace;}
+#save-list{margin-top:10px;}
+.save-slot{display:flex;justify-content:space-between;align-items:center;padding:8px;border:1px solid var(--border);margin:4px 0;font-size:11px;gap:8px;}
+.save-slot button{background:none;border:1px solid var(--border);color:var(--fg);padding:4px 8px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:10px;white-space:nowrap;}
+.save-slot button:hover{background:var(--fg);color:var(--bg);}
+
+/* DISASTER FLASH */
+#disaster-flash{position:fixed;inset:0;pointer-events:none;z-index:50;display:none;}
+#disaster-flash.show{display:block;animation:flash 0.5s ease-out;}
+@keyframes flash{0%{background:rgba(255,50,50,0.4);}100%{background:transparent;}}
+
+/* NOTIFICATIONS */
+#notifs{position:fixed;bottom:120px;right:10px;display:flex;flex-direction:column;gap:4px;z-index:40;}
+.notif{background:var(--panel);border:1px solid var(--border);padding:6px 10px;font-size:10px;max-width:200px;animation:slideIn 0.2s ease-out;opacity:1;transition:opacity 0.3s;}
+.notif.fade{opacity:0;}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* MENU BTN */
+#menu-btn{background:none;border:1px solid var(--border);color:var(--fg);padding:4px 10px;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:2px;}
+#menu-btn:hover{background:var(--fg);color:var(--bg);}
+
+/* YEAR DISPLAY */
+#year-display{font-size:11px;color:var(--mid);}
+
+/* TAX SLIDER */
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:var(--border);outline:none;margin:4px 0;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--fg);cursor:pointer;}
+.slider-row{display:flex;align-items:center;gap:8px;font-size:10px;margin:4px 0;}
+.slider-row label{color:var(--dim);width:80px;}
+.slider-row .val{width:30px;text-align:right;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="header">
+  <h1>METROPOLIS</h1>
+  <div id="stats-bar">
+    <div class="stat"><span class="stat-label">FUNDS</span><span class="stat-val" id="s-funds">§20000</span></div>
+    <div class="stat"><span class="stat-label">POP</span><span class="stat-val" id="s-pop">0</span></div>
+    <div class="stat"><span class="stat-label">SCORE</span><span class="stat-val" id="s-score">0</span></div>
+  </div>
+  <div id="year-display">YEAR <span id="s-year">1</span></div>
+  <button id="menu-btn" onclick="openMenu()">MENU</button>
+</div>
+
+<div id="speed-bar">
+  <button class="spd-btn" onclick="setSpeed(0)">⏸ PAUSE</button>
+  <button class="spd-btn active" onclick="setSpeed(1)">▶ SLOW</button>
+  <button class="spd-btn" onclick="setSpeed(2)">▶▶ NORMAL</button>
+  <button class="spd-btn" onclick="setSpeed(3)">▶▶▶ FAST</button>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <button class="tool-btn active" onclick="setTool('query')" id="t-query">🔍<span>QUERY</span></button>
+    <button class="tool-btn" onclick="setTool('bulldoze')" id="t-bulldoze">💥<span>DOZE</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="setTool('road')" id="t-road">🛣️<span>ROAD</span><span class="tool-cost">§10</span></button>
+    <button class="tool-btn" onclick="setTool('rail')" id="t-rail">🚂<span>RAIL</span><span class="tool-cost">§20</span></button>
+    <button class="tool-btn" onclick="setTool('wire')" id="t-wire">⚡<span>WIRE</span><span class="tool-cost">§5</span></button>
+    <button class="tool-btn" onclick="setTool('pipe')" id="t-pipe">💧<span>PIPE</span><span class="tool-cost">§3</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="setTool('res')" id="t-res">🏠<span>RES</span><span class="tool-cost">§100</span></button>
+    <button class="tool-btn" onclick="setTool('com')" id="t-com">🏢<span>COM</span><span class="tool-cost">§100</span></button>
+    <button class="tool-btn" onclick="setTool('ind')" id="t-ind">🏭<span>IND</span><span class="tool-cost">§100</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="setTool('police')" id="t-police">🚔<span>POLICE</span><span class="tool-cost">§500</span></button>
+    <button class="tool-btn" onclick="setTool('fire')" id="t-fire">🚒<span>FIRE</span><span class="tool-cost">§500</span></button>
+    <button class="tool-btn" onclick="setTool('hospital')" id="t-hospital">🏥<span>HOSP</span><span class="tool-cost">§600</span></button>
+    <button class="tool-btn" onclick="setTool('school')" id="t-school">🏫<span>SCHOOL</span><span class="tool-cost">§400</span></button>
+    <button class="tool-btn" onclick="setTool('stadium')" id="t-stadium">🏟️<span>STAD</span><span class="tool-cost">§3000</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="setTool('park')" id="t-park">🌳<span>PARK</span><span class="tool-cost">§20</span></button>
+    <button class="tool-btn" onclick="setTool('seaport')" id="t-seaport">⚓<span>PORT</span><span class="tool-cost">§3000</span></button>
+    <button class="tool-btn" onclick="setTool('airport')" id="t-airport">✈️<span>AIRPT</span><span class="tool-cost">§10000</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="setTool('power_coal')" id="t-power_coal">🔋<span>COAL</span><span class="tool-cost">§3000</span></button>
+    <button class="tool-btn" onclick="setTool('power_nuclear')" id="t-power_nuclear">☢️<span>NUKE</span><span class="tool-cost">§5000</span></button>
+    <button class="tool-btn" onclick="setTool('power_wind')" id="t-power_wind">🌀<span>WIND</span><span class="tool-cost">§500</span></button>
+  </div>
+
+  <div id="map-wrap">
+    <canvas id="map-canvas"></canvas>
+  </div>
+</div>
+
+<div id="bottom">
+  <div id="info-panel">
+    <div id="info-title">SELECT A TOOL OR TAP THE MAP</div>
+    <div id="info-desc">Use the toolbar to place zones, roads, and services. Build power lines and pipes to connect them. Tax your citizens to fund the city.</div>
+  </div>
+  <div id="indicators">
+    <div class="ind"><div class="ind-label">POWER</div><div class="ind-bar"><div class="ind-fill" id="ind-power" style="width:0%"></div></div></div>
+    <div class="ind"><div class="ind-label">WATER</div><div class="ind-bar"><div class="ind-fill" id="ind-water" style="width:0%"></div></div></div>
+    <div class="ind"><div class="ind-label">RES DEMAND</div><div class="ind-bar"><div class="ind-fill" id="ind-res" style="width:60%"></div></div></div>
+    <div class="ind"><div class="ind-label">COM DEMAND</div><div class="ind-bar"><div class="ind-fill" id="ind-com" style="width:40%"></div></div></div>
+    <div class="ind"><div class="ind-label">IND DEMAND</div><div class="ind-bar"><div class="ind-fill" id="ind-ind" style="width:50%"></div></div></div>
+    <div class="ind"><div class="ind-label">CRIME</div><div class="ind-bar"><div class="ind-fill bad" id="ind-crime" style="width:0%"></div></div></div>
+    <div class="ind"><div class="ind-label">POLLUTION</div><div class="ind-bar"><div class="ind-fill bad" id="ind-poll" style="width:0%"></div></div></div>
+    <div class="ind"><div class="ind-label">LAND VAL</div><div class="ind-bar"><div class="ind-fill good" id="ind-land" style="width:20%"></div></div></div>
+  </div>
+  <div id="budget-panel">
+    <div id="budget-title">ANNUAL BUDGET</div>
+    <div class="budget-row"><span>Tax Revenue</span><span class="pos" id="b-tax">+0</span></div>
+    <div class="budget-row"><span>Police</span><span class="neg" id="b-police">-0</span></div>
+    <div class="budget-row"><span>Fire</span><span class="neg" id="b-fire">-0</span></div>
+    <div class="budget-row"><span>Road Maint.</span><span class="neg" id="b-road">-0</span></div>
+    <div class="budget-row"><span>Other</span><span class="neg" id="b-other">-0</span></div>
+    <div class="budget-row" style="border-top:1px solid var(--border);margin-top:2px;padding-top:3px;"><span>NET</span><span id="b-net">0</span></div>
+  </div>
+</div>
+
+<div id="notifs"></div>
+<div id="disaster-flash"></div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h2 id="modal-title">MENU</h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const TILE = 24;
+const GRID_W = 80;
+const GRID_H = 60;
+
+const TOOL_COSTS = {
+  road:10, rail:20, wire:5, pipe:3,
+  res:100, com:100, ind:100,
+  police:500, fire:500, hospital:600, school:400,
+  park:20, stadium:3000, seaport:3000, airport:10000,
+  power_coal:3000, power_nuclear:5000, power_wind:500,
+  bulldoze:1, query:0
+};
+
+const TOOL_SIZES = {
+  stadium:4, seaport:4, airport:6,
+  power_coal:2, power_nuclear:3,
+  hospital:2, school:2, police:1, fire:1,
+  park:1, res:1, com:1, ind:1,
+  road:1, rail:1, wire:1, pipe:1,
+  bulldoze:1, query:1, power_wind:1
+};
+
+const TILE_TYPES = {
+  EMPTY:0, ROAD:1, RAIL:2, WIRE:3, PIPE:4,
+  RES:5, COM:6, IND:7,
+  POLICE:8, FIRE:9, HOSPITAL:10, SCHOOL:11,
+  STADIUM:12, SEAPORT:13, AIRPORT:14,
+  POWER_COAL:15, POWER_NUCLEAR:16, POWER_WIND:17,
+  PARK:18, WATER:19, FOREST:20,
+  RES_LIT:25, COM_LIT:26, IND_LIT:27
+};
+
+const ANNUAL_COSTS = {
+  [TILE_TYPES.POLICE]:200, [TILE_TYPES.FIRE]:200,
+  [TILE_TYPES.HOSPITAL]:250, [TILE_TYPES.SCHOOL]:150,
+  [TILE_TYPES.STADIUM]:1000, [TILE_TYPES.SEAPORT]:500,
+  [TILE_TYPES.AIRPORT]:2000, [TILE_TYPES.POWER_COAL]:200,
+  [TILE_TYPES.POWER_NUCLEAR]:300, [TILE_TYPES.POWER_WIND]:20,
+  [TILE_TYPES.ROAD]:0.1, [TILE_TYPES.RAIL]:0.5
+};
+
+const SPEED_INTERVALS = [0, 3000, 1000, 300];
+
+let G = {
+  tiles: null,
+  population: 0,
+  funds: 20000,
+  year: 1,
+  month: 1,
+  score: 0,
+  taxRate: 0.08,
+  policeAlloc: 1.0,
+  fireAlloc: 1.0,
+  transportAlloc: 1.0,
+  speed: 1,
+  cityName: 'NEW CITY',
+  powerGrid: null,
+  waterGrid: null,
+  crimeMap: null,
+  pollMap: null,
+  landVal: null,
+  disasters: 0,
+  achievements: [],
+  budgetLog: { tax:0, police:0, fire:0, road:0, other:0 }
+};
+
+let cam = { x:0, y:0, zoom:1 };
+let tool = 'query';
+let painting = false;
+let lastTile = null;
+let canvas, ctx;
+let mapW, mapH;
+let tickTimer = null;
+let tickCount = 0;
+
+function init() {
+  canvas = document.getElementById('map-canvas');
+  ctx = canvas.getContext('2d');
+  window.addEventListener('resize', resizeCanvas);
+
+  G.tiles = new Uint8Array(GRID_W * GRID_H);
+  G.powerGrid = new Uint8Array(GRID_W * GRID_H);
+  G.waterGrid = new Uint8Array(GRID_W * GRID_H);
+  G.crimeMap = new Float32Array(GRID_W * GRID_H);
+  G.pollMap = new Float32Array(GRID_W * GRID_H);
+  G.landVal = new Float32Array(GRID_W * GRID_H);
+
+  resizeCanvas();
+  generateTerrain();
+  centerCamera();
+  setupInput();
+  render();
+  setSpeed(1);
+  updateStats();
+  notify('Welcome to METROPOLIS! Build roads, zones, and power.', 'good');
+}
+
+function resizeCanvas() {
+  const wrap = document.getElementById('map-wrap');
+  mapW = wrap.clientWidth;
+  mapH = wrap.clientHeight;
+  canvas.width = mapW;
+  canvas.height = mapH;
+  render();
+}
+
+function generateTerrain() {
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const n = noise2d(x*0.08, y*0.08);
+      if (n < -0.55) G.tiles[y*GRID_W+x] = TILE_TYPES.WATER;
+      else if (n > 0.6) G.tiles[y*GRID_W+x] = TILE_TYPES.FOREST;
+    }
+  }
+}
+
+function noise2d(x, y) {
+  const a = Math.sin(x*127.1 + y*311.7) * 43758.5453;
+  const b = Math.sin(x*269.5 + y*183.3) * 43758.5453;
+  const c = Math.sin(x*419.2 + y*371.9) * 43758.5453;
+  const v1 = (a - Math.floor(a))*2-1;
+  const v2 = (b - Math.floor(b))*2-1;
+  const v3 = (c - Math.floor(c))*2-1;
+  return (v1+v2+v3)/3;
+}
+
+function centerCamera() {
+  cam.x = (GRID_W * TILE - mapW) / 2;
+  cam.y = (GRID_H * TILE - mapH) / 2;
+}
+
+function setupInput() {
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', onUp);
+
+  let touches = [];
+  let lastDist = 0;
+  let panStart = null;
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    touches = [...e.touches];
+    if (touches.length === 1) {
+      panStart = { x: touches[0].clientX, y: touches[0].clientY, cx: cam.x, cy: cam.y };
+    } else if (touches.length === 2) {
+      lastDist = Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      );
+      panStart = null;
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    touches = [...e.touches];
+    if (touches.length === 2) {
+      const d = Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      );
+      if (lastDist > 0) {
+        const scale = d / lastDist;
+        const midX = (touches[0].clientX + touches[1].clientX) / 2;
+        const midY = (touches[0].clientY + touches[1].clientY) / 2;
+        zoomAt(midX, midY, scale);
+      }
+      lastDist = d;
+    } else if (touches.length === 1 && panStart && !painting) {
+      cam.x = panStart.cx + (panStart.x - touches[0].clientX);
+      cam.y = panStart.cy + (panStart.y - touches[0].clientY);
+      clampCam();
+      render();
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', e => {
+    touches = [...e.touches];
+    if (touches.length === 0) panStart = null;
+  }, {passive:false});
+}
+
+function zoomAt(mx, my, scale) {
+  const newZoom = Math.max(0.4, Math.min(3, cam.zoom * scale));
+  const factor = newZoom / cam.zoom;
+  cam.x = mx + (cam.x - mx) * factor;
+  cam.y = my + (cam.y - my) * factor;
+  cam.zoom = newZoom;
+  clampCam();
+  render();
+}
+
+function clampCam() {
+  const tw = GRID_W * TILE * cam.zoom;
+  const th = GRID_H * TILE * cam.zoom;
+  cam.x = Math.max(-(mapW*0.3), Math.min(tw - mapW*0.7, cam.x));
+  cam.y = Math.max(-(mapH*0.3), Math.min(th - mapH*0.7, cam.y));
+}
+
+function screenToTile(sx, sy) {
+  const wx = (sx + cam.x) / (TILE * cam.zoom);
+  const wy = (sy + cam.y) / (TILE * cam.zoom);
+  return { x: Math.floor(wx), y: Math.floor(wy) };
+}
+
+function onDown(e) {
+  if (e.pointerType === 'touch' && e.isPrimary === false) return;
+  painting = true;
+  lastTile = null;
+  const rect = canvas.getBoundingClientRect();
+  const t = screenToTile(e.clientX - rect.left, e.clientY - rect.top);
+  if (tool === 'query') { queryTile(t.x, t.y); return; }
+  applyTool(t.x, t.y);
+}
+
+function onMove(e) {
+  if (!painting) return;
+  if (e.pointerType === 'touch') return;
+  const rect = canvas.getBoundingClientRect();
+  const t = screenToTile(e.clientX - rect.left, e.clientY - rect.top);
+  if (lastTile && lastTile.x === t.x && lastTile.y === t.y) return;
+  if (tool === 'road' || tool === 'rail' || tool === 'wire' || tool === 'pipe' || tool === 'bulldoze') {
+    applyTool(t.x, t.y);
+  }
+}
+
+function onUp() { painting = false; lastTile = null; }
+
+function applyTool(tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= GRID_W || ty >= GRID_H) return;
+  if (lastTile && lastTile.x === tx && lastTile.y === ty) return;
+  lastTile = {x:tx, y:ty};
+
+  const cost = TOOL_COSTS[tool] || 0;
+  const size = TOOL_SIZES[tool] || 1;
+
+  if (tool === 'bulldoze') {
+    bulldozeTile(tx, ty);
+    return;
+  }
+  if (tool === 'query') return;
+
+  if (tx + size > GRID_W || ty + size > GRID_H) { notify('Not enough space here!', 'warn'); return; }
+
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      const t = G.tiles[(ty+dy)*GRID_W+(tx+dx)];
+      if (t === TILE_TYPES.WATER) { notify('Cannot build on water!', 'warn'); return; }
+      if (t !== TILE_TYPES.EMPTY && t !== TILE_TYPES.FOREST) {
+        if (tool !== 'road' && tool !== 'wire' && tool !== 'pipe' && tool !== 'rail') {
+          notify('Tile occupied! Bulldoze first.', 'warn'); return;
+        }
+      }
+    }
+  }
+
+  const totalCost = cost * (size * size);
+  if (G.funds < totalCost) { notify('Insufficient funds!', 'bad'); return; }
+
+  G.funds -= totalCost;
+
+  const typeMap = {
+    road: TILE_TYPES.ROAD, rail: TILE_TYPES.RAIL,
+    wire: TILE_TYPES.WIRE, pipe: TILE_TYPES.PIPE,
+    res: TILE_TYPES.RES, com: TILE_TYPES.COM, ind: TILE_TYPES.IND,
+    police: TILE_TYPES.POLICE, fire: TILE_TYPES.FIRE,
+    hospital: TILE_TYPES.HOSPITAL, school: TILE_TYPES.SCHOOL,
+    park: TILE_TYPES.PARK, stadium: TILE_TYPES.STADIUM,
+    seaport: TILE_TYPES.SEAPORT, airport: TILE_TYPES.AIRPORT,
+    power_coal: TILE_TYPES.POWER_COAL, power_nuclear: TILE_TYPES.POWER_NUCLEAR,
+    power_wind: TILE_TYPES.POWER_WIND
+  };
+
+  const tt = typeMap[tool];
+  if (tt === undefined) return;
+
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      G.tiles[(ty+dy)*GRID_W+(tx+dx)] = tt;
+    }
+  }
+
+  simulatePower();
+  simulateWater();
+  render();
+  updateStats();
+}
+
+function bulldozeTile(tx, ty) {
+  const t = G.tiles[ty*GRID_W+tx];
+  if (t === TILE_TYPES.EMPTY || t === TILE_TYPES.WATER) return;
+  if (G.funds < 1) { notify('No funds!', 'bad'); return; }
+  G.funds -= 1;
+  G.tiles[ty*GRID_W+tx] = TILE_TYPES.EMPTY;
+  simulatePower();
+  simulateWater();
+  render();
+  updateStats();
+}
+
+function queryTile(tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= GRID_W || ty >= GRID_H) return;
+  const t = G.tiles[ty*GRID_W+tx];
+  const names = ['Empty','Road','Rail','Power Wire','Water Pipe','Residential','Commercial','Industrial','Police Station','Fire Station','Hospital','School','Stadium','Seaport','Airport','Coal Plant','Nuclear Plant','Wind Turbine','Park','Water','Forest','','','','','Residential (lit)','Commercial (lit)','Industrial (lit)'];
+  const name = names[t] || 'Unknown';
+  const power = G.powerGrid[ty*GRID_W+tx] ? '✓' : '✗';
+  const water = G.waterGrid[ty*GRID_W+tx] ? '✓' : '✗';
+  const crime = Math.round(G.crimeMap[ty*GRID_W+tx]*100);
+  const poll = Math.round(G.pollMap[ty*GRID_W+tx]*100);
+  const lv = Math.round(G.landVal[ty*GRID_W+tx]*100);
+
+  document.getElementById('info-title').textContent = `TILE (${tx},${ty}) — ${name.toUpperCase()}`;
+  document.getElementById('info-desc').innerHTML =
+    `Power: ${power} &nbsp; Water: ${water} &nbsp; Crime: ${crime}% &nbsp; Pollution: ${poll}% &nbsp; Land Value: ${lv}%`;
+}
+
+function simulatePower() {
+  G.powerGrid.fill(0);
+  const sources = [];
+  for (let i = 0; i < GRID_W*GRID_H; i++) {
+    const t = G.tiles[i];
+    if (t === TILE_TYPES.POWER_COAL || t === TILE_TYPES.POWER_NUCLEAR || t === TILE_TYPES.POWER_WIND) {
+      sources.push(i);
+      G.powerGrid[i] = 1;
+    }
+  }
+  const q = [...sources];
+  const conductors = new Set([TILE_TYPES.WIRE, TILE_TYPES.ROAD, TILE_TYPES.RAIL, TILE_TYPES.RES, TILE_TYPES.COM, TILE_TYPES.IND, TILE_TYPES.POLICE, TILE_TYPES.FIRE, TILE_TYPES.HOSPITAL, TILE_TYPES.SCHOOL, TILE_TYPES.STADIUM, TILE_TYPES.SEAPORT, TILE_TYPES.AIRPORT, TILE_TYPES.POWER_COAL, TILE_TYPES.POWER_NUCLEAR, TILE_TYPES.POWER_WIND]);
+  while (q.length) {
+    const idx = q.pop();
+    const x = idx % GRID_W, y = Math.floor(idx / GRID_W);
+    for (const [nx,ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
+      if (nx<0||ny<0||nx>=GRID_W||ny>=GRID_H) continue;
+      const ni = ny*GRID_W+nx;
+      if (G.powerGrid[ni]) continue;
+      if (conductors.has(G.tiles[ni])) { G.powerGrid[ni]=1; q.push(ni); }
+    }
+  }
+}
+
+function simulateWater() {
+  G.waterGrid.fill(0);
+  const q = [];
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      if (G.tiles[y*GRID_W+x] === TILE_TYPES.PIPE) {
+        for (const [nx,ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
+          if (nx<0||ny<0||nx>=GRID_W||ny>=GRID_H) continue;
+          if (G.tiles[ny*GRID_W+nx] === TILE_TYPES.WATER) { G.waterGrid[y*GRID_W+x]=1; q.push(y*GRID_W+x); break; }
+        }
+      }
+    }
+  }
+  const conductors = new Set([TILE_TYPES.PIPE, TILE_TYPES.ROAD, TILE_TYPES.RAIL, TILE_TYPES.RES, TILE_TYPES.COM, TILE_TYPES.IND, TILE_TYPES.POLICE, TILE_TYPES.FIRE, TILE_TYPES.HOSPITAL, TILE_TYPES.SCHOOL]);
+  while (q.length) {
+    const idx = q.pop();
+    const x = idx % GRID_W, y = Math.floor(idx / GRID_W);
+    for (const [nx,ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
+      if (nx<0||ny<0||nx>=GRID_W||ny>=GRID_H) continue;
+      const ni = ny*GRID_W+nx;
+      if (G.waterGrid[ni]) continue;
+      if (conductors.has(G.tiles[ni])) { G.waterGrid[ni]=1; q.push(ni); }
+    }
+  }
+}
+
+function simulateCrime() {
+  G.crimeMap.fill(0);
+  let policeStations = [];
+  for (let i = 0; i < GRID_W*GRID_H; i++) {
+    if (G.tiles[i] === TILE_TYPES.POLICE) policeStations.push(i);
+  }
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const t = G.tiles[y*GRID_W+x];
+      if (t === TILE_TYPES.RES || t === TILE_TYPES.COM || t === TILE_TYPES.IND) {
+        let minDist = 999;
+        for (const p of policeStations) {
+          const px = p%GRID_W, py = Math.floor(p/GRID_W);
+          minDist = Math.min(minDist, Math.abs(x-px)+Math.abs(y-py));
+        }
+        G.crimeMap[y*GRID_W+x] = Math.min(1, minDist / 20);
+      }
+    }
+  }
+}
+
+function simulatePollution() {
+  G.pollMap.fill(0);
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const t = G.tiles[y*GRID_W+x];
+      if (t === TILE_TYPES.IND || t === TILE_TYPES.POWER_COAL) {
+        for (let dy = -4; dy <= 4; dy++) {
+          for (let dx = -4; dx <= 4; dx++) {
+            const nx = x+dx, ny = y+dy;
+            if (nx<0||ny<0||nx>=GRID_W||ny>=GRID_H) continue;
+            const d = Math.abs(dx)+Math.abs(dy);
+            G.pollMap[ny*GRID_W+nx] = Math.min(1, G.pollMap[ny*GRID_W+nx] + Math.max(0, (1-d/8)*0.4));
+          }
+        }
+      }
+    }
+  }
+}
+
+function simulateLandValue() {
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      let val = 0.3;
+      val -= G.crimeMap[y*GRID_W+x] * 0.4;
+      val -= G.pollMap[y*GRID_W+x] * 0.3;
+      for (let dy=-3;dy<=3;dy++) for (let dx=-3;dx<=3;dx++) {
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=GRID_W||ny>=GRID_H) continue;
+        if(G.tiles[ny*GRID_W+nx]===TILE_TYPES.PARK) val+=0.05;
+        if(G.tiles[ny*GRID_W+nx]===TILE_TYPES.FOREST) val+=0.02;
+      }
+      G.landVal[y*GRID_W+x] = Math.max(0, Math.min(1, val));
+    }
+  }
+}
+
+function simulatePopulation() {
+  let pop = 0;
+  for (let i = 0; i < GRID_W*GRID_H; i++) {
+    const t = G.tiles[i];
+    if (t === TILE_TYPES.RES) {
+      const p = G.powerGrid[i];
+      const w = G.waterGrid[i];
+      const lv = G.landVal[i];
+      const base = 4 + Math.floor(lv * 12);
+      pop += (p && w) ? base : (p || w) ? Math.floor(base*0.5) : 1;
+    }
+  }
+  G.population = pop;
+}
+
+function simulateDemand() {
+  let totRes=0,totCom=0,totInd=0;
+  for (let i = 0; i < GRID_W*GRID_H; i++) {
+    const t = G.tiles[i];
+    if(t===TILE_TYPES.RES) totRes++;
+    if(t===TILE_TYPES.COM) totCom++;
+    if(t===TILE_TYPES.IND) totInd++;
+  }
+
+  setBar('ind-res', Math.min(1, totRes < 5 ? 0.8 : 0.3 + (1-totRes/200)));
+  setBar('ind-com', Math.min(1, Math.max(0, (totRes - totCom*2) / 30)));
+  setBar('ind-ind', Math.min(1, Math.max(0, (totRes - totInd*3) / 40)));
+}
+
+function simulateBudget() {
+  let policeCount=0, fireCount=0, roadCount=0, otherCost=0;
+  for (let i = 0; i < GRID_W*GRID_H; i++) {
+    const t = G.tiles[i];
+    if(t===TILE_TYPES.POLICE) policeCount++;
+    if(t===TILE_TYPES.FIRE) fireCount++;
+    if(t===TILE_TYPES.ROAD||t===TILE_TYPES.RAIL) roadCount++;
+    const ac = ANNUAL_COSTS[t];
+    if(ac && t!==TILE_TYPES.POLICE && t!==TILE_TYPES.FIRE && t!==TILE_TYPES.ROAD && t!==TILE_TYPES.RAIL) otherCost += ac;
+  }
+  const taxRev = Math.floor(G.population * G.taxRate * 10);
+  const policeCost = policeCount * ANNUAL_COSTS[TILE_TYPES.POLICE] * G.policeAlloc;
+  const fireCost = fireCount * ANNUAL_COSTS[TILE_TYPES.FIRE] * G.fireAlloc;
+  const roadCost = Math.floor(roadCount * 0.5 * G.transportAlloc);
+  const net = taxRev - policeCost - fireCost - roadCost - otherCost;
+
+  G.budgetLog = { tax:taxRev, police:policeCost, fire:fireCost, road:roadCost, other:otherCost, net };
+
+  document.getElementById('b-tax').textContent = '+§'+taxRev;
+  document.getElementById('b-police').textContent = '-§'+Math.floor(policeCost);
+  document.getElementById('b-fire').textContent = '-§'+Math.floor(fireCost);
+  document.getElementById('b-road').textContent = '-§'+roadCost;
+  document.getElementById('b-other').textContent = '-§'+Math.floor(otherCost);
+  const netEl = document.getElementById('b-net');
+  netEl.textContent = (net >= 0 ? '+' : '') + '§'+Math.floor(net);
+  netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+function runAnnualBudget() {
+  const net = G.budgetLog.net || 0;
+  G.funds += Math.floor(net);
+  if (G.funds < 0) {
+    G.funds = 0;
+    notify('BANKRUPTCY RISK! Reduce spending or raise taxes!', 'bad');
+  }
+  if (net > 0) notify(`+§${Math.floor(net)} tax revenue collected`, 'good');
+  updateStats();
+}
+
+function simulateDisaster() {
+  if (Math.random() < 0.02 + G.disasters*0.001) {
+    const types = ['FIRE', 'FLOOD', 'TORNADO', 'MONSTER ATTACK'];
+    const dtype = types[Math.floor(Math.random()*types.length)];
+    notify(`⚠️ DISASTER: ${dtype}!`, 'bad');
+    document.getElementById('disaster-flash').className = 'show';
+    setTimeout(() => document.getElementById('disaster-flash').className = '', 600);
+    const cnt = 5 + Math.floor(Math.random()*10);
+    for (let i = 0; i < cnt; i++) {
+      const x = Math.floor(Math.random()*GRID_W);
+      const y = Math.floor(Math.random()*GRID_H);
+      if (G.tiles[y*GRID_W+x] !== TILE_TYPES.WATER) {
+        G.tiles[y*GRID_W+x] = TILE_TYPES.EMPTY;
+      }
+    }
+    G.disasters++;
+    simulatePower();
+    simulateWater();
+  }
+}
+
+function tick() {
+  tickCount++;
+  G.month++;
+  if (G.month > 12) { G.month = 1; G.year++; runAnnualBudget(); }
+
+  simulateCrime();
+  simulatePollution();
+  simulateLandValue();
+  simulatePopulation();
+  simulateDemand();
+  simulateBudget();
+
+  if (tickCount % 12 === 0) simulateDisaster();
+
+  let totalZones=0, poweredZones=0, wateredZones=0;
+  for (let i=0;i<GRID_W*GRID_H;i++) {
+    const t=G.tiles[i];
+    if(t===TILE_TYPES.RES||t===TILE_TYPES.COM||t===TILE_TYPES.IND){
+      totalZones++;
+      if(G.powerGrid[i]) poweredZones++;
+      if(G.waterGrid[i]) wateredZones++;
+    }
+  }
+  const pRatio = totalZones>0 ? poweredZones/totalZones : 0;
+  const wRatio = totalZones>0 ? wateredZones/totalZones : 0;
+  setBarColor('ind-power', pRatio, pRatio);
+  setBarColor('ind-water', wRatio, wRatio);
+
+  let avgCrime=0, avgPoll=0, n=0;
+  for(let i=0;i<GRID_W*GRID_H;i++){
+    if(G.tiles[i]===TILE_TYPES.RES||G.tiles[i]===TILE_TYPES.COM){
+      avgCrime+=G.crimeMap[i]; avgPoll+=G.pollMap[i]; n++;
+    }
+  }
+  if(n>0){avgCrime/=n;avgPoll/=n;}
+  setBar('ind-crime', avgCrime);
+  setBar('ind-poll', avgPoll);
+
+  let avgLV=0,nLV=0;
+  for(let i=0;i<GRID_W*GRID_H;i++){if(G.tiles[i]===TILE_TYPES.RES){avgLV+=G.landVal[i];nLV++;}}
+  if(nLV>0) avgLV/=nLV;
+  setBar('ind-land', avgLV);
+
+  G.score = Math.floor(G.population * (1 + (1-avgCrime) + (1-avgPoll) + avgLV) / 3);
+
+  checkAchievements();
+  updateStats();
+  render();
+}
+
+function checkAchievements() {
+  const ach = [
+    {id:'pop100', test: ()=>G.population>=100, msg:'🏙️ City Born! Population 100'},
+    {id:'pop1000', test: ()=>G.population>=1000, msg:'🌆 Town! Population 1000'},
+    {id:'pop10000', test: ()=>G.population>=10000, msg:'🌇 METROPOLIS! Population 10,000'},
+    {id:'rich', test: ()=>G.funds>=50000, msg:'💰 Treasury Full! §50,000'},
+  ];
+  for(const a of ach){
+    if(!G.achievements.includes(a.id) && a.test()){
+      G.achievements.push(a.id);
+      notify(a.msg, 'good');
+    }
+  }
+}
+
+const TILE_COLORS = {
+  [TILE_TYPES.EMPTY]: null,
+  [TILE_TYPES.ROAD]: '#444',
+  [TILE_TYPES.RAIL]: '#555',
+  [TILE_TYPES.WIRE]: '#886600',
+  [TILE_TYPES.PIPE]: '#005588',
+  [TILE_TYPES.RES]: '#113311',
+  [TILE_TYPES.COM]: '#111133',
+  [TILE_TYPES.IND]: '#332200',
+  [TILE_TYPES.POLICE]: '#002244',
+  [TILE_TYPES.FIRE]: '#440000',
+  [TILE_TYPES.HOSPITAL]: '#003322',
+  [TILE_TYPES.SCHOOL]: '#222200',
+  [TILE_TYPES.STADIUM]: '#111111',
+  [TILE_TYPES.SEAPORT]: '#001133',
+  [TILE_TYPES.AIRPORT]: '#111111',
+  [TILE_TYPES.POWER_COAL]: '#221100',
+  [TILE_TYPES.POWER_NUCLEAR]: '#002200',
+  [TILE_TYPES.POWER_WIND]: '#001122',
+  [TILE_TYPES.PARK]: '#001a00',
+  [TILE_TYPES.WATER]: '#001833',
+  [TILE_TYPES.FOREST]: '#001800',
+};
+
+const TILE_ICONS = {
+  [TILE_TYPES.ROAD]: null,
+  [TILE_TYPES.RAIL]: null,
+  [TILE_TYPES.WIRE]: '⚡',
+  [TILE_TYPES.PIPE]: '💧',
+  [TILE_TYPES.RES]: '🏠',
+  [TILE_TYPES.COM]: '🏢',
+  [TILE_TYPES.IND]: '🏭',
+  [TILE_TYPES.POLICE]: '🚔',
+  [TILE_TYPES.FIRE]: '🚒',
+  [TILE_TYPES.HOSPITAL]: '🏥',
+  [TILE_TYPES.SCHOOL]: '🏫',
+  [TILE_TYPES.STADIUM]: '🏟️',
+  [TILE_TYPES.SEAPORT]: '⚓',
+  [TILE_TYPES.AIRPORT]: '✈️',
+  [TILE_TYPES.POWER_COAL]: '🔋',
+  [TILE_TYPES.POWER_NUCLEAR]: '☢️',
+  [TILE_TYPES.POWER_WIND]: '🌀',
+  [TILE_TYPES.PARK]: '🌳',
+  [TILE_TYPES.WATER]: null,
+  [TILE_TYPES.FOREST]: '🌲',
+};
+
+function render() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, mapW, mapH);
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(0, 0, mapW, mapH);
+
+  const tz = TILE * cam.zoom;
+  const startX = Math.max(0, Math.floor(cam.x / tz));
+  const startY = Math.max(0, Math.floor(cam.y / tz));
+  const endX = Math.min(GRID_W, Math.ceil((cam.x + mapW) / tz) + 1);
+  const endY = Math.min(GRID_H, Math.ceil((cam.y + mapH) / tz) + 1);
+
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      const sx = Math.floor(x * tz - cam.x);
+      const sy = Math.floor(y * tz - cam.y);
+      const t = G.tiles[y*GRID_W+x];
+      const pw = G.powerGrid[y*GRID_W+x];
+
+      const bg = TILE_COLORS[t];
+      if (bg) {
+        ctx.fillStyle = bg;
+        ctx.fillRect(sx, sy, Math.ceil(tz), Math.ceil(tz));
+      }
+
+      if (t === TILE_TYPES.EMPTY) {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(sx + Math.floor(tz/2)-0.5, sy + Math.floor(tz/2)-0.5, 1, 1);
+      }
+
+      if (t === TILE_TYPES.ROAD) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(sx, sy, Math.ceil(tz), Math.ceil(tz));
+        ctx.fillStyle = '#555';
+        const lw = Math.max(1, tz*0.3);
+        ctx.fillRect(sx + (tz-lw)/2, sy, lw, Math.ceil(tz));
+        ctx.fillRect(sx, sy + (tz-lw)/2, Math.ceil(tz), lw);
+      }
+
+      if (t === TILE_TYPES.RAIL) {
+        ctx.fillStyle = '#444';
+        ctx.fillRect(sx, sy, Math.ceil(tz), Math.ceil(tz));
+        ctx.fillStyle = '#666';
+        const lw = Math.max(1, tz*0.15);
+        ctx.fillRect(sx + tz*0.2, sy, lw, Math.ceil(tz));
+        ctx.fillRect(sx + tz*0.65, sy, lw, Math.ceil(tz));
+        for (let i=0;i<4;i++) {
+          ctx.fillRect(sx, sy+tz*(i/4+0.1), Math.ceil(tz), Math.max(1,tz*0.08));
+        }
+      }
+
+      if (t === TILE_TYPES.WATER) {
+        ctx.fillStyle = '#001833';
+        ctx.fillRect(sx, sy, Math.ceil(tz), Math.ceil(tz));
+        ctx.strokeStyle = '#002855';
+        ctx.lineWidth = Math.max(0.5, tz*0.05);
+        const phase = (tickCount * 0.2 + x*0.3 + y*0.5) % (Math.PI*2);
+        ctx.beginPath();
+        ctx.arc(sx+tz/2, sy+tz/2, tz*0.2 + Math.sin(phase)*tz*0.05, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      const icon = TILE_ICONS[t];
+      if (icon && tz >= 14) {
+        ctx.font = `${Math.max(10, tz*0.55)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, sx + tz/2, sy + tz/2);
+      }
+
+      if ((t===TILE_TYPES.RES||t===TILE_TYPES.COM||t===TILE_TYPES.IND) && pw && tz>=8) {
+        ctx.fillStyle = 'rgba(255,255,150,0.12)';
+        ctx.fillRect(sx, sy, Math.ceil(tz), Math.ceil(tz));
+        if (tz >= 12) {
+          ctx.fillStyle = 'rgba(255,255,100,0.7)';
+          ctx.fillRect(sx+tz*0.75, sy+tz*0.05, Math.max(2,tz*0.15), Math.max(2,tz*0.15));
+        }
+      }
+
+      if ((t===TILE_TYPES.RES||t===TILE_TYPES.COM||t===TILE_TYPES.IND) && !pw && tz>=14) {
+        ctx.fillStyle = 'rgba(255,50,50,0.6)';
+        ctx.font = `${Math.max(8,tz*0.3)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('!', sx+tz*0.82, sy+tz*0.18);
+      }
+
+      if (t >= TILE_TYPES.RES && t <= TILE_TYPES.IND) {
+        const colors = ['#1a4a1a','#1a1a4a','#4a2a00'];
+        ctx.strokeStyle = colors[t - TILE_TYPES.RES] || '#fff';
+        ctx.lineWidth = Math.max(0.5, tz*0.05);
+        ctx.strokeRect(sx+0.5, sy+0.5, tz-1, tz-1);
+      }
+
+      if (t >= TILE_TYPES.POLICE && t <= TILE_TYPES.AIRPORT) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = Math.max(0.5, tz*0.06);
+        ctx.strokeRect(sx+0.5, sy+0.5, tz-1, tz-1);
+      }
+    }
+  }
+
+  if (tz > 10) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    for (let x = startX; x <= endX; x++) {
+      const sx = x * tz - cam.x;
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, mapH); ctx.stroke();
+    }
+    for (let y = startY; y <= endY; y++) {
+      const sy = y * tz - cam.y;
+      ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(mapW, sy); ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  const bx = -cam.x, by = -cam.y;
+  ctx.strokeRect(bx, by, GRID_W*tz, GRID_H*tz);
+}
+
+function setBar(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.width = Math.max(0, Math.min(100, Math.round(val*100))) + '%';
+}
+
+function setBarColor(id, val, goodness) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.width = Math.max(0, Math.min(100, Math.round(val*100))) + '%';
+  el.className = 'ind-fill ' + (goodness > 0.6 ? 'good' : goodness > 0.3 ? 'warn' : 'bad');
+}
+
+function updateStats() {
+  const fe = document.getElementById('s-funds');
+  fe.textContent = '§'+G.funds.toLocaleString();
+  fe.className = 'stat-val' + (G.funds>5000 ? ' good' : G.funds>1000 ? ' warn' : ' bad');
+  document.getElementById('s-pop').textContent = G.population.toLocaleString();
+  document.getElementById('s-score').textContent = G.score.toLocaleString();
+  document.getElementById('s-year').textContent = G.year;
+}
+
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('t-'+t);
+  if (btn) btn.classList.add('active');
+
+  const descs = {
+    query:'Tap any tile to inspect it.',
+    bulldoze:'Tap tiles to demolish them. Cost: §1/tile.',
+    road:'Drag to build roads. Zones need roads to grow.',
+    rail:'High-capacity mass transit.',
+    wire:'Connect power plants to zones.',
+    pipe:'Connect water to zones for growth bonus.',
+    res:'Residential zones — housing for citizens.',
+    com:'Commercial zones — shops and offices.',
+    ind:'Industrial zones — factories and warehouses.',
+    police:'Reduces crime in surrounding area.',
+    fire:'Reduces fire risk and disaster damage.',
+    hospital:'Improves public health and land value.',
+    school:'Improves education and land value.',
+    park:'Increases land value nearby.',
+    stadium:'Boosts happiness; requires large budget.',
+    seaport:'Boosts industrial and commercial demand.',
+    airport:'Massively boosts commercial demand.',
+    power_coal:'Produces power; causes pollution.',
+    power_nuclear:'High power output; meltdown risk.',
+    power_wind:'Clean power; low output.',
+  };
+  document.getElementById('info-title').textContent = t.toUpperCase().replace('_',' ');
+  document.getElementById('info-desc').textContent = descs[t] || '';
+}
+
+function setSpeed(s) {
+  G.speed = s;
+  document.querySelectorAll('.spd-btn').forEach((b,i)=>b.classList.toggle('active',i===s));
+  clearInterval(tickTimer);
+  if (s > 0) tickTimer = setInterval(tick, SPEED_INTERVALS[s]);
+}
+
+function notify(msg, type='') {
+  const n = document.createElement('div');
+  n.className = 'notif ' + type;
+  n.textContent = msg;
+  document.getElementById('notifs').appendChild(n);
+  setTimeout(()=>n.classList.add('fade'), 3000);
+  setTimeout(()=>n.remove(), 3500);
+}
+
+function openMenu() {
+  document.getElementById('modal-title').textContent = 'MENU';
+  document.getElementById('modal-body').innerHTML = `
+    <button class="modal-btn" onclick="openBudget()">📊 BUDGET & TAXES</button>
+    <button class="modal-btn" onclick="openSave()">💾 SAVE CITY</button>
+    <button class="modal-btn" onclick="openLoad()">📂 LOAD CITY</button>
+    <button class="modal-btn" onclick="openDisasters()">🌪️ DISASTERS</button>
+    <button class="modal-btn" onclick="openGoals()">🏆 GOALS & SCORE</button>
+    <button class="modal-btn" onclick="newGame()">🏙️ NEW CITY</button>
+  `;
+  document.getElementById('modal-overlay').className = 'show';
+}
+
+function closeModal() { document.getElementById('modal-overlay').className = ''; }
+
+function openBudget() {
+  document.getElementById('modal-title').textContent = 'BUDGET & TAXES';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="slider-row"><label>Tax Rate</label><input type="range" min="0" max="20" value="${Math.round(G.taxRate*100)}" oninput="G.taxRate=this.value/100;document.getElementById('tax-val').textContent=this.value+'%'"><span class="val" id="tax-val">${Math.round(G.taxRate*100)}%</span></div>
+    <div class="slider-row"><label>Police Fund</label><input type="range" min="0" max="150" value="${Math.round(G.policeAlloc*100)}" oninput="G.policeAlloc=this.value/100;document.getElementById('pol-val').textContent=this.value+'%'"><span class="val" id="pol-val">${Math.round(G.policeAlloc*100)}%</span></div>
+    <div class="slider-row"><label>Fire Fund</label><input type="range" min="0" max="150" value="${Math.round(G.fireAlloc*100)}" oninput="G.fireAlloc=this.value/100;document.getElementById('fir-val').textContent=this.value+'%'"><span class="val" id="fir-val">${Math.round(G.fireAlloc*100)}%</span></div>
+    <div class="slider-row"><label>Transit Fund</label><input type="range" min="0" max="150" value="${Math.round(G.transportAlloc*100)}" oninput="G.transportAlloc=this.value/100;document.getElementById('tra-val').textContent=this.value+'%'"><span class="val" id="tra-val">${Math.round(G.transportAlloc*100)}%</span></div>
+    <p style="font-size:10px;color:var(--dim);margin-top:10px;">High taxes slow growth. Low taxes reduce services and increase crime/fire risk.</p>
+  `;
+}
+
+function openSave() {
+  document.getElementById('modal-title').textContent = 'SAVE CITY';
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const s = localStorage.getItem('metropolis_save_'+i);
+    const info = s ? JSON.parse(s) : null;
+    html += `<div class="save-slot">
+      <span>SLOT ${i}: ${info ? info.cityName+' — Pop:'+info.population+' Yr:'+info.year : 'Empty'}</span>
+      <button onclick="saveGame(${i})">SAVE</button>
+    </div>`;
+  }
+  document.getElementById('modal-body').innerHTML = html;
+}
+
+function openLoad() {
+  document.getElementById('modal-title').textContent = 'LOAD CITY';
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const s = localStorage.getItem('metropolis_save_'+i);
+    const info = s ? JSON.parse(s) : null;
+    html += `<div class="save-slot">
+      <span>SLOT ${i}: ${info ? info.cityName+' — Pop:'+info.population+' Yr:'+info.year : 'Empty'}</span>
+      ${info ? `<button onclick="loadGame(${i})">LOAD</button>` : '<span style="color:var(--dim)">—</span>'}
+    </div>`;
+  }
+  document.getElementById('modal-body').innerHTML = html;
+}
+
+function saveGame(slot) {
+  const save = {
+    tiles: Array.from(G.tiles),
+    population: G.population,
+    funds: G.funds,
+    year: G.year,
+    month: G.month,
+    score: G.score,
+    taxRate: G.taxRate,
+    policeAlloc: G.policeAlloc,
+    fireAlloc: G.fireAlloc,
+    transportAlloc: G.transportAlloc,
+    cityName: G.cityName,
+    disasters: G.disasters,
+    achievements: G.achievements,
+    cam: {...cam},
+    savedAt: new Date().toLocaleString()
+  };
+  localStorage.setItem('metropolis_save_'+slot, JSON.stringify(save));
+  notify('Game saved to slot '+slot, 'good');
+  closeModal();
+}
+
+function loadGame(slot) {
+  const s = localStorage.getItem('metropolis_save_'+slot);
+  if (!s) return;
+  const save = JSON.parse(s);
+  G.tiles = new Uint8Array(save.tiles);
+  G.population = save.population;
+  G.funds = save.funds;
+  G.year = save.year;
+  G.month = save.month || 1;
+  G.score = save.score;
+  G.taxRate = save.taxRate;
+  G.policeAlloc = save.policeAlloc;
+  G.fireAlloc = save.fireAlloc;
+  G.transportAlloc = save.transportAlloc;
+  G.cityName = save.cityName;
+  G.disasters = save.disasters || 0;
+  G.achievements = save.achievements || [];
+  cam = {...save.cam};
+  G.powerGrid = new Uint8Array(GRID_W*GRID_H);
+  G.waterGrid = new Uint8Array(GRID_W*GRID_H);
+  G.crimeMap = new Float32Array(GRID_W*GRID_H);
+  G.pollMap = new Float32Array(GRID_W*GRID_H);
+  G.landVal = new Float32Array(GRID_W*GRID_H);
+  simulatePower(); simulateWater();
+  simulateCrime(); simulatePollution(); simulateLandValue();
+  simulatePopulation(); simulateBudget();
+  updateStats(); render();
+  notify('Loaded: '+G.cityName, 'good');
+  closeModal();
+}
+
+function openDisasters() {
+  document.getElementById('modal-title').textContent = 'DISASTERS';
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:11px;color:var(--mid);margin-bottom:10px;">Trigger a disaster manually or let them occur naturally over time. Disasters increase in frequency as your city ages.</p>
+    <button class="modal-btn" onclick="triggerDisaster('FIRE STORM')">🔥 Fire Storm</button>
+    <button class="modal-btn" onclick="triggerDisaster('FLOOD')">💧 Flood</button>
+    <button class="modal-btn" onclick="triggerDisaster('TORNADO')">🌪️ Tornado</button>
+    <button class="modal-btn" onclick="triggerDisaster('MONSTER ATTACK')">👾 Monster Attack</button>
+    <button class="modal-btn" onclick="triggerDisaster('EARTHQUAKE')">💥 Earthquake</button>
+    <p style="font-size:10px;color:var(--dim);margin-top:8px;">Disasters occurred: ${G.disasters}</p>
+  `;
+}
+
+function triggerDisaster(type) {
+  notify(`⚠️ DISASTER: ${type}!`, 'bad');
+  document.getElementById('disaster-flash').className = 'show';
+  setTimeout(()=>document.getElementById('disaster-flash').className='', 600);
+  const cnt = 8 + Math.floor(Math.random()*15);
+  for(let i=0;i<cnt;i++){
+    const x=Math.floor(Math.random()*GRID_W), y=Math.floor(Math.random()*GRID_H);
+    if(G.tiles[y*GRID_W+x]!==TILE_TYPES.WATER) G.tiles[y*GRID_W+x]=TILE_TYPES.EMPTY;
+  }
+  G.disasters++;
+  simulatePower(); simulateWater(); render();
+  closeModal();
+}
+
+function openGoals() {
+  const goals = [
+    {name:'Town of 1,000',done:G.population>=1000,desc:'Reach population 1,000'},
+    {name:'City of 10,000',done:G.population>=10000,desc:'Reach population 10,000'},
+    {name:'Metropolis 50,000',done:G.population>=50000,desc:'Reach population 50,000'},
+    {name:'Full Power',done:false,desc:'Power all zones simultaneously'},
+    {name:'Treasury §50K',done:G.funds>=50000,desc:'Accumulate §50,000 in treasury'},
+    {name:'Stable Budget',done:G.budgetLog.net>0,desc:'Maintain positive annual budget'},
+    {name:'Low Crime',done:false,desc:'Reduce crime below 10% citywide'},
+    {name:'Build Airport',done:[...G.tiles].includes(TILE_TYPES.AIRPORT),desc:'Build an international airport'},
+  ];
+  let html = `<p style="font-size:10px;color:var(--mid);margin-bottom:10px;">Score: ${G.score.toLocaleString()} | Year: ${G.year} | Pop: ${G.population.toLocaleString()}</p>`;
+  for (const g of goals) {
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:11px;">
+      <span style="color:${g.done?'var(--green)':'var(--dim)'}">${g.done?'✓':'○'}</span>
+      <div><div style="color:${g.done?'var(--green)':'var(--fg)'}">${g.name}</div><div style="color:var(--dim);font-size:9px">${g.desc}</div></div>
+    </div>`;
+  }
+  document.getElementById('modal-title').textContent = 'GOALS & SCORE';
+  document.getElementById('modal-body').innerHTML = html;
+}
+
+function newGame() {
+  if (!confirm('Start a new city? Current progress will be lost.')) return;
+  G.tiles = new Uint8Array(GRID_W*GRID_H);
+  G.powerGrid = new Uint8Array(GRID_W*GRID_H);
+  G.waterGrid = new Uint8Array(GRID_W*GRID_H);
+  G.crimeMap = new Float32Array(GRID_W*GRID_H);
+  G.pollMap = new Float32Array(GRID_W*GRID_H);
+  G.landVal = new Float32Array(GRID_W*GRID_H);
+  G.population=0; G.funds=20000; G.year=1; G.month=1; G.score=0;
+  G.taxRate=0.08; G.disasters=0; G.achievements=[];
+  G.policeAlloc=1; G.fireAlloc=1; G.transportAlloc=1;
+  generateTerrain();
+  centerCamera();
+  render(); updateStats();
+  closeModal();
+  notify('New city started! Good luck, Mayor.', 'good');
+}
+
+setInterval(() => {
+  saveGame('auto');
+}, 60000);
+
+window.addEventListener('load', () => {
+  init();
+  const auto = localStorage.getItem('metropolis_save_auto');
+  if (auto) {
+    try {
+      const s = JSON.parse(auto);
+      if (confirm(`Resume "${s.cityName}"? (Year ${s.year}, Pop ${s.population})`)) {
+        loadGame('auto');
+      }
+    } catch(e) {}
+  }
+});
+</script>
+</body>
+</html>

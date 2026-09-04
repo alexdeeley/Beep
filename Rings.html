@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rings</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #000; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, t = 0;
+
+function resize() {
+W = canvas.width = window.innerWidth;
+H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const RINGS = 40;
+const SEGMENTS = 180;
+
+// Each ghost: {x, y, strength, born}
+// strength decays from 1 → 0 very slowly
+// echoes ripple outward like reverb: multiple copies at increasing radii
+let ghosts = [];
+const GHOST_DECAY = 0.00018;   // per ms — very slow fade
+const MAX_GHOSTS = 24;
+const ECHO_LAYERS = 5;          // number of echo rings per ghost
+const ECHO_SPREAD = 38;         // px between echo layers
+
+// Live pointers
+let pointers = [];
+
+canvas.addEventListener('mousedown', e => { addPointer('mouse', e.clientX, e.clientY); spawnGhost(e.clientX, e.clientY); });
+canvas.addEventListener('mousemove', e => {
+if (pointers.find(p => p.id === 'mouse')) {
+updatePointer('mouse', e.clientX, e.clientY);
+if (Math.random() < 0.18) spawnGhost(e.clientX, e.clientY, 0.45);
+}
+});
+canvas.addEventListener('mouseup',    () => removePointer('mouse'));
+canvas.addEventListener('mouseleave', () => removePointer('mouse'));
+
+canvas.addEventListener('touchstart',  e => { e.preventDefault(); syncTouches(e, true);  }, { passive: false });
+canvas.addEventListener('touchmove',   e => { e.preventDefault(); syncTouches(e, false); }, { passive: false });
+canvas.addEventListener('touchend',    e => { e.preventDefault(); syncTouches(e, false); }, { passive: false });
+canvas.addEventListener('touchcancel', e => { e.preventDefault(); syncTouches(e, false); }, { passive: false });
+
+function addPointer(id, x, y)    { if (!pointers.find(p => p.id === id)) pointers.push({ id, x, y }); }
+function updatePointer(id, x, y) { const p = pointers.find(p => p.id === id); if (p) { p.x = x; p.y = y; } }
+function removePointer(id)       { pointers = pointers.filter(p => p.id !== id); }
+
+let lastTouchPos = {};
+function syncTouches(e, spawn) {
+pointers = pointers.filter(p => p.id === 'mouse');
+for (const t of e.touches) {
+pointers.push({ id: `t${t.identifier}`, x: t.clientX, y: t.clientY });
+if (spawn) {
+spawnGhost(t.clientX, t.clientY);
+} else {
+const last = lastTouchPos[t.identifier];
+if (last) {
+const dx = t.clientX - last.x, dy = t.clientY - last.y;
+if (dx*dx + dy*dy > 400 && Math.random() < 0.22) spawnGhost(t.clientX, t.clientY, 0.45);
+}
+}
+lastTouchPos[t.identifier] = { x: t.clientX, y: t.clientY };
+}
+for (const t of e.changedTouches) {
+if (e.type === 'touchend' || e.type === 'touchcancel') delete lastTouchPos[t.identifier];
+}
+}
+
+function spawnGhost(x, y, strength = 1.0) {
+ghosts.push({ x, y, strength, born: performance.now() });
+if (ghosts.length > MAX_GHOSTS) ghosts.shift();
+}
+
+function distortPoint(px, py, now) {
+let fx = px, fy = py;
+
+// Live pointers — strong, immediate
+for (const ptr of pointers) {
+fx += pushFrom(px, py, ptr.x, ptr.y, 90, 180);
+fy += pushFrom(px, py, ptr.x, ptr.y, 90, 180, true);
+}
+
+// Ghosts — echoing ripples, each ghost spawns ECHO_LAYERS rings
+for (const g of ghosts) {
+const age = now - g.born;
+const str = g.strength * Math.max(0, 1 - age * GHOST_DECAY);
+if (str < 0.001) continue;
+
+for (let e = 0; e < ECHO_LAYERS; e++) {
+  const echoDelay  = e * 320;
+  const echoAge    = Math.max(0, age - echoDelay);
+  const echoStr    = str * Math.pow(0.62, e);
+  const echoInfl   = 140 + e * ECHO_SPREAD + echoAge * 0.04;
+  const echoMag    = 75 * echoStr * Math.pow(0.7, e);
+
+  if (echoMag < 0.5) continue;
+
+  const dx = px - g.x, dy = py - g.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < echoInfl && dist > 0) {
+    const k = (1 - dist / echoInfl);
+    const envelope = k * k;
+    const push = envelope * echoMag;
+    fx += (dx / dist) * push;
+    fy += (dy / dist) * push;
+  }
+}
+
+}
+
+return [fx, fy];
+}
+
+function pushFrom(px, py, ox, oy, mag, infl, getY = false) {
+const dx = px - ox, dy = py - oy;
+const dist2 = dx * dx + dy * dy;
+if (dist2 < infl * infl && dist2 > 0) {
+const dist = Math.sqrt(dist2);
+const k = 1 - dist / infl;
+const push = k * k * mag;
+return getY ? (dy / dist) * push : (dx / dist) * push;
+}
+return 0;
+}
+
+function draw() {
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, W, H);
+
+const now = performance.now();
+
+ghosts = ghosts.filter(g => {
+const age = now - g.born;
+return g.strength * (1 - age * GHOST_DECAY) > 0.001;
+});
+
+const cx = W / 2;
+const cy = H / 2;
+const maxR = Math.min(W, H) * 0.46;
+
+const tiltAxis = t * 0.12;
+const axCos = Math.cos(tiltAxis);
+const axSin = Math.sin(tiltAxis);
+
+const spin    = t * 0.14;
+const cosSpin = Math.cos(spin);
+const sinSpin = Math.sin(spin);
+
+const hasDistortion = pointers.length > 0 || ghosts.length > 0;
+
+for (let i = 0; i < RINGS; i++) {
+const frac = (i + 1) / RINGS;
+const R = frac * maxR;
+
+const tiltAmt = Math.sin(t * 0.22 + frac * Math.PI * 1.5) * 0.32;
+const cosT = Math.cos(tiltAmt);
+const sinT = Math.sin(tiltAmt);
+
+ctx.beginPath();
+for (let s = 0; s <= SEGMENTS; s++) {
+  const theta = (s / SEGMENTS) * Math.PI * 2;
+
+  let x = Math.cos(theta) * R;
+  let y = Math.sin(theta) * R;
+
+  const dot  = axCos * x + axSin * y;
+  const cross = axCos * y - axSin * x;
+  const rx2  = x * cosT + (-axSin) * cross * sinT + axCos * dot * (1 - cosT);
+  const ry2  = y * cosT + ( axCos) * cross * sinT + axSin * dot * (1 - cosT);
+
+  let px = cx + rx2 * cosSpin - ry2 * sinSpin;
+  let py = cy + rx2 * sinSpin + ry2 * cosSpin;
+
+  if (hasDistortion) {
+    [px, py] = distortPoint(px, py, now);
+  }
+
+  s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+}
+ctx.closePath();
+
+const alpha = 0.15 + 0.8 * frac;
+ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+ctx.lineWidth = 1;
+ctx.stroke();
+
+}
+
+for (const g of ghosts) {
+const age = now - g.born;
+const str = g.strength * Math.max(0, 1 - age * GHOST_DECAY);
+if (str < 0.005) continue;
+
+for (let e = 0; e < ECHO_LAYERS; e++) {
+  const echoDelay = e * 320;
+  const echoAge   = Math.max(0, age - echoDelay);
+  if (echoAge <= 0) continue;
+  const echoStr   = str * Math.pow(0.62, e);
+  const r         = 18 + e * 22 + echoAge * 0.045;
+  const alpha     = echoStr * 0.22 * Math.max(0, 1 - echoAge * 0.001);
+  if (alpha < 0.003) continue;
+
+  ctx.beginPath();
+  ctx.arc(g.x, g.y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(4)})`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+}
+
+t += 0.01;
+requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+</body>
+</html>

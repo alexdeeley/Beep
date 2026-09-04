@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>VORTEX// Pattern Lab</title>
+<style>
+:root{
+  --bg:#000; --fg:#fff; --accent:#ff2b2b;
+  --border:2px; --gap:14px;
+  --font-size:16px; --btn-size:48px;
+}
+body.vision{ --font-size:22px; --btn-size:64px; --border:4px; --gap:20px; }
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:#000;color:#fff;height:100%;overflow:hidden;
+  font-family:Arial,Helvetica,"Segoe UI",sans-serif; font-size:var(--font-size);}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#000;}
+#banner{position:fixed;top:0;left:0;right:0;background:#fff;color:#000;font-weight:900;
+  padding:10px 14px;z-index:999;display:none;font-size:1rem;border-bottom:4px solid #000;}
+#banner.show{display:block;}
+#hud{position:fixed;top:10px;left:10px;z-index:50;pointer-events:none;font-weight:900;letter-spacing:1px;
+  text-shadow:0 0 6px #000,0 0 2px #000;}
+#hud .name{font-size:1.3rem;}
+#hud .seed{font-size:.8rem;opacity:.75;}
+#fps{position:fixed;top:10px;right:10px;z-index:50;font-weight:900;background:#000;
+  border:2px solid #fff;padding:4px 8px;pointer-events:none;display:none;}
+#fps.show{display:block;}
+#quickbar{position:fixed;bottom:14px;right:14px;z-index:60;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;max-width:70vw;}
+.qbtn{min-width:var(--btn-size);min-height:var(--btn-size);background:#000;color:#fff;border:var(--border) solid #fff;
+  font-weight:900;font-size:1rem;padding:8px 14px;cursor:pointer;}
+.qbtn:active{background:#fff;color:#000;}
+.qbtn.on{background:#fff;color:#000;}
+.qbtn:focus-visible{outline:4px solid var(--accent);outline-offset:2px;}
+#drawer{position:fixed;top:0;right:0;height:100%;width:min(420px,92vw);background:#000;border-left:var(--border) solid #fff;
+  transform:translateX(100%);transition:transform .18s ease;z-index:80;overflow-y:auto;overscroll-behavior:contain;
+  padding:14px;padding-bottom:120px;}
+#drawer.open{transform:translateX(0);}
+#drawer h1{font-size:1.1rem;letter-spacing:2px;border-bottom:var(--border) solid #fff;padding-bottom:8px;margin:0 0 12px;}
+.searchbox{width:100%;padding:12px;background:#000;color:#fff;border:var(--border) solid #fff;font-size:1rem;margin-bottom:10px;font-weight:700;}
+.modebar{display:flex;gap:8px;margin-bottom:12px;}
+.modebar button{flex:1;padding:10px;background:#000;color:#fff;border:2px solid #fff;font-weight:900;cursor:pointer;}
+.modebar button.active{background:#fff;color:#000;}
+details.group{border:2px solid #fff;margin-bottom:10px;}
+details.group[open] summary{border-bottom:2px solid #fff;}
+details.group summary{padding:12px;font-weight:900;letter-spacing:1px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;font-size:1rem;}
+details.group summary::-webkit-details-marker{display:none;}
+details.group summary::after{content:"+";font-size:1.3rem;}
+details.group[open] summary::after{content:"\2212";}
+.group-body{padding:12px;display:flex;flex-direction:column;gap:16px;}
+.ctrl label{display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px;font-size:.92rem;}
+.ctrl .val{opacity:.7;font-weight:400;}
+.ctrl input[type=range]{width:100%;height:calc(var(--btn-size)/2);accent-color:#fff;background:#000;}
+.ctrl select{width:100%;padding:10px;background:#000;color:#fff;border:2px solid #fff;font-weight:700;font-size:.95rem;}
+.ctrl input[type=color]{width:100%;height:44px;border:2px solid #fff;background:#000;padding:0;}
+.ctrl input[type=checkbox]{width:28px;height:28px;}
+.ctrl.row{flex-direction:row;align-items:center;justify-content:space-between;}
+.hidden-level{display:none !important;}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;}
+.btnrow button{flex:1 1 auto;min-height:44px;padding:8px 10px;background:#000;color:#fff;border:2px solid #fff;font-weight:900;cursor:pointer;}
+.btnrow button:active{background:#fff;color:#000;}
+.bigbtn{width:100%;min-height:var(--btn-size);background:#000;color:#fff;border:var(--border) solid #fff;font-weight:900;
+  font-size:1.05rem;letter-spacing:1px;margin-bottom:8px;cursor:pointer;}
+.bigbtn:active{background:#fff;color:#000;}
+.presetlist{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
+.presetlist button{text-align:left;padding:10px;background:#000;color:#fff;border:2px solid #fff;font-weight:800;cursor:pointer;}
+.presetlist button:hover,.presetlist button:focus-visible{background:#fff;color:#000;}
+.hint{font-size:.8rem;opacity:.65;line-height:1.4;}
+#seedRow{display:flex;gap:8px;align-items:center;}
+#seedRow input{flex:1;padding:10px;background:#000;color:#fff;border:2px solid #fff;font-weight:700;font-family:monospace;}
+#imgPreview{width:100%;max-height:100px;object-fit:contain;border:2px solid #fff;display:none;margin-bottom:8px;background:#111;}
+.meter{height:14px;border:2px solid #fff;position:relative;overflow:hidden;background:#000;}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:#fff;width:0%;}
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-thumb{background:#fff;}
+::-webkit-scrollbar-track{background:#000;}
+#shortcutsModal ul{padding-left:20px;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c" aria-hidden="true"></canvas>
+<div id="banner" role="alert"></div>
+<div id="hud"><div class="name" id="hudName">BLACK HOLE CHECKERBOARD</div><div class="seed" id="hudSeed">SEED 00000000</div></div>
+<div id="fps">60 FPS</div>
+
+<div id="quickbar">
+  <button class="qbtn" id="btnPlay" aria-label="Play or pause animation" title="Play/Pause (Space)">&#10074;&#10074;</button>
+  <button class="qbtn" id="btnSurprise" aria-label="Randomize pattern" title="Surprise Me (R)">&#127922; SURPRISE</button>
+  <button class="qbtn" id="btnFull" aria-label="Toggle fullscreen" title="Fullscreen (F)">&#9974;</button>
+  <button class="qbtn" id="btnHide" aria-label="Show or hide controls" title="Hide/Show controls (H)">&#9776; CONTROLS</button>
+</div>
+
+<aside id="drawer" aria-label="Pattern controls">
+  <h1>VORTEX// PATTERN LAB</h1>
+  <input class="searchbox" id="search" type="text" placeholder="SEARCH CONTROLS..." aria-label="Search controls">
+  <div class="modebar" role="tablist" aria-label="Interface complexity">
+    <button data-mode="basic" class="active">BASIC</button>
+    <button data-mode="advanced">ADVANCED</button>
+    <button data-mode="expert">EXPERT</button>
+  </div>
+
+  <details class="group" open data-name="pattern"><summary>1. PATTERN</summary><div class="group-body" id="grpPattern"></div></details>
+  <details class="group" data-name="geometry"><summary>2. GEOMETRY</summary><div class="group-body" id="grpGeometry"></div></details>
+  <details class="group" data-name="distortion"><summary>3. DISTORTION</summary><div class="group-body" id="grpDistortion"></div></details>
+  <details class="group" data-name="motion"><summary>4. MOTION</summary><div class="group-body" id="grpMotion"></div></details>
+  <details class="group" data-name="symmetry"><summary>5. SYMMETRY</summary><div class="group-body" id="grpSymmetry"></div></details>
+  <details class="group" data-name="color"><summary>6. COLOR</summary><div class="group-body" id="grpColor"></div></details>
+  <details class="group" data-name="effects"><summary>7. EFFECTS</summary><div class="group-body" id="grpEffects"></div></details>
+
+  <details class="group" data-name="audio"><summary>8. AUDIO REACTIVITY</summary><div class="group-body">
+    <div class="btnrow">
+      <button id="btnMic">&#127908; ENABLE MICROPHONE</button>
+      <button id="btnPulse">SYNTHETIC PULSE TEST</button>
+    </div>
+    <div class="meter" aria-label="Audio level"><i id="audioMeter"></i></div>
+    <div class="ctrl"><label>REACTIVE TARGET</label>
+      <select id="audioTarget"><option value="0">NONE</option><option value="1">VORTEX</option><option value="2">SCALE</option><option value="3">GLOW</option><option value="4">COLOR</option></select>
+    </div>
+    <div id="grpAudio"></div>
+  </div></details>
+
+  <details class="group" data-name="image"><summary>9. IMAGE INPUT</summary><div class="group-body">
+    <img id="imgPreview" alt="Uploaded image preview">
+    <div class="btnrow">
+      <button id="btnUpload">UPLOAD IMAGE</button>
+      <button id="btnRemoveImg">REMOVE</button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div class="ctrl"><label>IMAGE MODE</label>
+      <select id="imageMode"><option value="0">BLEND</option><option value="1">LUMINANCE MASK</option><option value="2">DISPLACE</option></select>
+    </div>
+    <div id="grpImage"></div>
+  </div></details>
+
+  <details class="group" data-name="randomization"><summary>10. RANDOMIZATION &amp; SEED</summary><div class="group-body">
+    <div id="seedRow"><input id="seedInput" aria-label="Seed" value="00000000"><button id="btnSeedGo">GO</button></div>
+    <div class="btnrow">
+      <button id="btnRandAll">RANDOMIZE ALL</button>
+      <button id="btnRandPattern">PATTERN ONLY</button>
+      <button id="btnRandColor">COLOR ONLY</button>
+      <button id="btnMutate">MUTATE CURRENT</button>
+    </div>
+    <div class="btnrow">
+      <button id="btnUndo">&#8630; UNDO</button>
+      <button id="btnRedo">&#8631; REDO</button>
+    </div>
+    <div class="ctrl"><label>MUTATION AMOUNT <span class="val" id="mutAmtVal">0.20</span></label>
+      <input type="range" id="mutAmt" min="0.02" max="1" step="0.01" value="0.2"></div>
+  </div></details>
+
+  <details class="group" data-name="presets"><summary>11. PRESETS</summary><div class="group-body">
+    <div class="presetlist" id="presetList"></div>
+    <div class="btnrow">
+      <button id="btnSavePreset">SAVE CUSTOM PRESET</button>
+      <button id="btnExportJSON">EXPORT JSON</button>
+      <button id="btnImportJSON">IMPORT JSON</button>
+      <button id="btnResetFactory">RESET</button>
+    </div>
+    <input type="file" id="importInput" accept="application/json" style="display:none">
+  </div></details>
+
+  <details class="group" data-name="export"><summary>12. EXPORT</summary><div class="group-body">
+    <div class="ctrl"><label>IMAGE SIZE</label>
+      <select id="exportSize">
+        <option value="screen">CURRENT SCREEN</option>
+        <option value="1080x1080">1080 x 1080</option>
+        <option value="1920x1080">1920 x 1080</option>
+        <option value="2048x2048">2048 x 2048</option>
+        <option value="4096x4096">4096 x 4096 (device dependent)</option>
+        <option value="custom">CUSTOM...</option>
+      </select>
+    </div>
+    <div class="btnrow" id="customSizeRow" style="display:none">
+      <input id="customW" type="number" placeholder="Width" style="flex:1;padding:8px;background:#000;color:#fff;border:2px solid #fff;">
+      <input id="customH" type="number" placeholder="Height" style="flex:1;padding:8px;background:#000;color:#fff;border:2px solid #fff;">
+    </div>
+    <div class="btnrow">
+      <button id="btnExportPNG">EXPORT PNG</button>
+      <button id="btnExportTransparent">TRANSPARENT PNG</button>
+    </div>
+    <p class="hint">Export resolution determines print size at a given DPI. Very large sizes depend on your device's GPU limits and fail gracefully with a message on older phones.</p>
+    <hr style="border-color:#333">
+    <div class="ctrl"><label>RECORDING DURATION (s) <span class="val" id="recDurVal">6</span></label>
+      <input type="range" id="recDur" min="2" max="20" step="1" value="6"></div>
+    <div class="ctrl"><label>RECORDING FPS <span class="val" id="recFpsVal">30</span></label>
+      <input type="range" id="recFps" min="15" max="60" step="1" value="30"></div>
+    <div class="btnrow">
+      <button id="btnRecStart">&#9679; START RECORDING (WebM)</button>
+      <button id="btnRecStop">&#9632; STOP</button>
+    </div>
+    <p class="hint">Recording uses the browser's native WebM recorder. MP4/GIF aren't generated locally without external libraries, so they're intentionally left out rather than faked.</p>
+  </div></details>
+
+  <details class="group" data-name="performance"><summary>13. PERFORMANCE</summary><div class="group-body">
+    <div class="ctrl"><label>QUALITY</label>
+      <select id="quality"><option value="auto">AUTO</option><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high" selected>HIGH</option><option value="ultra">ULTRA</option></select>
+    </div>
+    <div class="ctrl row"><label>PAUSE WHEN TAB HIDDEN</label><input type="checkbox" id="pauseHidden" checked></div>
+    <div class="ctrl row"><label>BATTERY SAVER</label><input type="checkbox" id="batterySaver"></div>
+    <div class="ctrl row"><label>SHOW FPS READOUT</label><input type="checkbox" id="showFps"></div>
+  </div></details>
+
+  <details class="group" data-name="accessibility"><summary>14. ACCESSIBILITY</summary><div class="group-body">
+    <div class="ctrl row"><label>VISION ACCESS MODE</label><input type="checkbox" id="visionMode"></div>
+    <div class="ctrl row"><label>REDUCED MOTION</label><input type="checkbox" id="reducedMotion"></div>
+    <div class="ctrl row"><label>DISABLE FLASHING EFFECTS</label><input type="checkbox" id="noFlash" checked></div>
+    <div class="ctrl row"><label>SPOKEN FEEDBACK (speech)</label><input type="checkbox" id="speechFeedback"></div>
+    <div class="ctrl row"><label>UI SOUND CUES</label><input type="checkbox" id="soundCues"></div>
+    <div class="ctrl"><label>SOUND VOLUME <span class="val" id="volVal">0.30</span></label>
+      <input type="range" id="volume" min="0" max="1" step="0.01" value="0.3"></div>
+    <div class="btnrow">
+      <button id="btnTextUp">A+ TEXT SIZE</button>
+      <button id="btnTextDown">A- TEXT SIZE</button>
+    </div>
+    <button class="bigbtn" id="btnShortcuts">&#9000; KEYBOARD SHORTCUTS</button>
+  </div></details>
+
+  <p class="hint" style="margin-top:16px;">Drag on canvas: reposition vortex. Pinch: zoom. Two-finger rotate: spin. Double-tap: randomize. Long-press: freeze/unfreeze.</p>
+</aside>
+
+<div id="shortcutsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:200;padding:20px;overflow:auto;">
+  <div style="max-width:520px;margin:40px auto;border:2px solid #fff;padding:20px;">
+    <h2>KEYBOARD SHORTCUTS</h2>
+    <ul style="line-height:1.9;font-size:1rem;">
+      <li><b>Space</b> - Play / Pause</li>
+      <li><b>R</b> - Randomize</li>
+      <li><b>M</b> - Mutate</li>
+      <li><b>I</b> - Invert</li>
+      <li><b>F</b> - Fullscreen</li>
+      <li><b>H</b> - Hide / Show controls</li>
+      <li><b>S</b> - Save preset</li>
+      <li><b>E</b> - Open Export panel</li>
+      <li><b>1-9</b> - Load preset slot</li>
+      <li><b>Arrow keys</b> - Move pattern center</li>
+      <li><b>+ / -</b> - Zoom</li>
+      <li><b>[ / ]</b> - Change animation speed</li>
+      <li><b>Esc</b> - Close panels / exit fullscreen</li>
+    </ul>
+    <button class="bigbtn" id="btnCloseShortcuts">CLOSE</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===================== CONSTANTS ===================== */
+const TAU = Math.PI*2;
+const PATTERN_NAMES = ['Checkerboard','Diamond Checkerboard','Radial Checkerboard','Spiral Checkerboard',
+  'Tunnel Checkerboard','Concentric Rings','Radial Spokes','Sine Wave Stripes','Moire Circles',
+  'Halftone Dot Grid','Hex-ish Grid','Noise Field','Recursive Fractal Squares'];
+const COLOR_MODE_NAMES = ['Pure Black & White','Grayscale','Duotone','Gradient Cycle'];
+
+/* group, id, label, type, min, max, step, def, level */
+const CONTROLS = [
+ ['pattern','pattern','PATTERN TYPE','select-pattern',0,12,1,0,'basic'],
+ ['pattern','rows','ROWS','range',2,60,1,16,'basic'],
+ ['pattern','cols','COLUMNS','range',2,60,1,16,'basic'],
+ ['pattern','phase','CHECKER PHASE','range',0,1,0.01,0,'advanced'],
+ ['geometry','scale','PATTERN SCALE','range',0.15,4,0.01,1.0,'basic'],
+ ['geometry','rotation','GLOBAL ROTATION','range',-180,180,1,0,'basic'],
+ ['geometry','centerX','CENTER X','range',-1.5,1.5,0.01,0,'advanced'],
+ ['geometry','centerY','CENTER Y','range',-1.5,1.5,0.01,0,'advanced'],
+ ['distortion','vortexAmt','VORTEX STRENGTH','range',0,6,0.01,1.4,'basic'],
+ ['distortion','vortexRadius','VORTEX RADIUS','range',0.05,2,0.01,0.6,'advanced'],
+ ['distortion','spiralAmt','SPIRAL AMOUNT','range',-3,3,0.01,0.5,'basic'],
+ ['distortion','pinchAmt','PINCH / BULGE','range',-1.5,1.5,0.01,0,'advanced'],
+ ['distortion','rippleAmt','RIPPLE AMOUNT','range',0,1,0.01,0,'advanced'],
+ ['distortion','rippleFreq','RIPPLE FREQUENCY','range',1,40,1,10,'expert'],
+ ['distortion','waveAmt','WAVE AMOUNT','range',0,1,0.01,0,'advanced'],
+ ['distortion','waveFreq','WAVE FREQUENCY','range',1,40,1,6,'expert'],
+ ['distortion','noiseWarpAmt','NOISE DOMAIN WARP','range',0,1,0.01,0,'expert'],
+ ['motion','speed','ANIMATION SPEED','range',-3,3,0.01,0.6,'basic'],
+ ['motion','pulseAmt','RADIAL PULSE','range',0,1,0.01,0.18,'basic'],
+ ['motion','zoomAmt','BREATHING ZOOM','range',-1,1,0.01,0.08,'advanced'],
+ ['symmetry','symSegments','SYMMETRY SEGMENTS','range',1,16,1,8,'basic'],
+ ['symmetry','symMirror','MIRROR SEGMENTS','checkbox',0,1,1,1,'basic'],
+ ['symmetry','symRotation','SYMMETRY ROTATION','range',-180,180,1,0,'advanced'],
+ ['color','colorMode','COLOR MODE','select-color',0,3,1,0,'basic'],
+ ['color','threshold','THRESHOLD','range',0,1,0.01,0.5,'basic'],
+ ['color','contrast','CONTRAST','range',0.2,3,0.01,1.0,'advanced'],
+ ['color','gamma','GAMMA','range',0.3,3,0.01,1.0,'expert'],
+ ['color','posterize','POSTERIZE LEVELS (0=off)','range',0,16,1,0,'expert'],
+ ['color','invert','INVERT BLACK/WHITE','checkbox',0,1,1,0,'basic'],
+ ['color','fgColor','FOREGROUND COLOR','color',0,0,0,'#ffffff','advanced'],
+ ['color','bgColor','BACKGROUND COLOR','color',0,0,0,'#000000','advanced'],
+ ['color','hueSpeed','GRADIENT CYCLE SPEED','range',0,2,0.01,0.3,'advanced'],
+ ['effects','vignette','VIGNETTE','range',0,1,0.01,0.35,'basic'],
+ ['effects','glow','GLOW','range',0,1,0.01,0.15,'advanced'],
+ ['effects','chromAb','CHROMATIC ABERRATION','range',0,0.05,0.001,0,'advanced'],
+ ['effects','grain','FILM GRAIN','range',0,1,0.01,0.05,'advanced'],
+ ['effects','scanlines','SCANLINES','range',0,1,0.01,0,'expert'],
+];
+const AUDIO_CONTROLS = [
+ ['audioSens','SENSITIVITY',0,3,0.01,1.0],
+ ['audioSmooth','SMOOTHING',0,0.95,0.01,0.6],
+ ['audioGate','NOISE GATE',0,0.5,0.01,0.04],
+];
+const IMAGE_CONTROLS = [
+ ['imageMix','IMAGE MIX / OPACITY',0,1,0.01,0.6],
+ ['imageScale','IMAGE SCALE',0.2,4,0.01,1.0],
+];
+const LEVEL_RANK = {basic:0,advanced:1,expert:2};
+
+/* ===================== DEFAULT SETTINGS / STATE ===================== */
+function buildDefaultState(){
+  const s = {};
+  CONTROLS.forEach(c=>{ s[c[1]] = (c[3]==='checkbox') ? !!c[7] : c[7]; });
+  AUDIO_CONTROLS.forEach(c=>{ s[c[0]] = c[5]; });
+  IMAGE_CONTROLS.forEach(c=>{ s[c[0]] = c[5]; });
+  s.audioTarget = 0;
+  s.imageMode = 0;
+  return s;
+}
+let state = buildDefaultState();
+let seed = 1;
+let playing = true;
+let timeAccum = 0;
+let lastFrameTs = 0;
+let currentPresetName = 'BLACK HOLE CHECKERBOARD';
+let useImage = false;
+let imageTex = null, imageEl = null;
+let audioEnabled = false, syntheticPulse = false;
+let audioCtx=null, analyser=null, audioData=null;
+let audioBass=0, audioMid=0, audioTreble=0;
+let mediaRecorder=null, recChunks=[];
+let historyStack = [], historyIdx = -1;
+let qualityScale = 1.0;
+let interfaceLevel = 'basic';
+let reducedMotionEffective = false;
+
+/* ===================== SEEDED RANDOM ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let rng = mulberry32(1);
+function seedFromString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = Math.imul(31,h) + str.charCodeAt(i) | 0; }
+  return h>>>0;
+}
+function setSeed(n){
+  seed = n>>>0;
+  rng = mulberry32(seed);
+  document.getElementById('seedInput').value = seed.toString(16).padStart(8,'0').toUpperCase();
+  document.getElementById('hudSeed').textContent = 'SEED ' + seed.toString(16).padStart(8,'0').toUpperCase();
+}
+
+/* ===================== SAFE STORAGE ===================== */
+function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function safeSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ showBanner('Local storage unavailable - settings will not persist this session.'); return false; } }
+
+/* ===================== BANNER / SPEECH / SOUND ===================== */
+function showBanner(msg, ms){
+  const b = document.getElementById('banner');
+  b.textContent = msg; b.classList.add('show');
+  clearTimeout(showBanner._t);
+  showBanner._t = setTimeout(()=>b.classList.remove('show'), ms||4500);
+}
+function speak(text){
+  if(!document.getElementById('speechFeedback').checked) return;
+  try{
+    if(!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.05;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+let uiAudioCtx=null;
+function uiBeep(freq){
+  if(!document.getElementById('soundCues').checked) return;
+  try{
+    if(!uiAudioCtx) uiAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const vol = parseFloat(document.getElementById('volume').value)||0;
+    const osc = uiAudioCtx.createOscillator();
+    const g = uiAudioCtx.createGain();
+    osc.frequency.value = freq||440;
+    osc.type = 'square';
+    g.gain.value = 0.0001;
+    osc.connect(g); g.connect(uiAudioCtx.destination);
+    const t0 = uiAudioCtx.currentTime;
+    g.gain.exponentialRampToValueAtTime(Math.max(vol*0.25,0.0001), t0+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.18);
+    osc.start(t0); osc.stop(t0+0.2);
+  }catch(e){}
+}
+
+/* ===================== SHADER SOURCE ===================== */
+const VERT_SRC = `
+attribute vec2 aPos;
+void main(){ gl_Position = vec4(aPos,0.0,1.0); }
+`;
+const FRAG_SRC = `
+precision highp float;
+#define TAU 6.28318530718
+uniform vec2 uResolution;
+uniform float uTime;
+uniform float uPattern, uRows, uCols, uPhase;
+uniform float uScale, uRotation, uCenterX, uCenterY;
+uniform float uVortexAmt, uVortexRadius, uSpiralAmt, uPinchAmt, uRippleAmt, uRippleFreq, uWaveAmt, uWaveFreq, uNoiseWarpAmt;
+uniform float uSpeed, uPulseAmt, uZoomAmt;
+uniform float uSymSegments, uSymMirror, uSymRotation;
+uniform float uColorMode, uThreshold, uContrast, uGamma, uPosterize, uInvert;
+uniform vec3 uFgColor, uBgColor;
+uniform float uHueSpeed;
+uniform float uVignette, uGlow, uChromAb, uGrain, uScanlines;
+uniform float uAudioBass, uAudioMid, uAudioTreble, uAudioTarget, uAudioSens;
+uniform float uImageMode, uImageMix, uImageScale, uUseImage;
+uniform sampler2D uImage;
+uniform float uNoFlash;
+uniform float uAlphaExport;
+
+vec2 rot(vec2 p, float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c)*p; }
+float hash21(vec2 p){ p = fract(p*vec2(234.34,435.345)); p += dot(p,p+34.23); return fract(p.x*p.y); }
+float noise2(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  float a = hash21(i), b = hash21(i+vec2(1.0,0.0)), c = hash21(i+vec2(0.0,1.0)), d = hash21(i+vec2(1.0,1.0));
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+}
+float fbm(vec2 p){
+  float v=0.0, amp=0.5;
+  for(int i=0;i<5;i++){ v += amp*noise2(p); p *= 2.02; amp *= 0.5; }
+  return v;
+}
+vec3 hsv2rgb(vec3 c){
+  vec4 K = vec4(1.0,2.0/3.0,1.0/3.0,3.0);
+  vec3 p = abs(fract(c.xxx+K.xyz)*6.0-K.www);
+  return c.z*mix(K.xxx, clamp(p-K.xxx,0.0,1.0), c.y);
+}
+
+float patternValue(vec2 p, float type, float rows, float cols, float phase, float t){
+  vec2 grid;
+  float v = 0.0;
+  if(type < 0.5){
+    grid = floor(p*vec2(cols,rows)*0.5+phase);
+    v = mod(grid.x+grid.y,2.0);
+  } else if(type < 1.5){
+    vec2 pr = rot(p,0.785398);
+    grid = floor(pr*vec2(cols,rows)*0.5+phase);
+    v = mod(grid.x+grid.y,2.0);
+  } else if(type < 2.5){
+    float r=length(p); float a=atan(p.y,p.x);
+    grid = floor(vec2(a/(TAU/cols), r*rows*0.5)+phase);
+    v = mod(grid.x+grid.y,2.0);
+  } else if(type < 3.5){
+    float r=length(p); float a=atan(p.y,p.x)+r*3.0;
+    grid = floor(vec2(a/(TAU/cols), r*rows*0.5)+phase);
+    v = mod(grid.x+grid.y,2.0);
+  } else if(type < 4.5){
+    float r=length(p)+0.001; float a=atan(p.y,p.x);
+    float lr = log(r);
+    grid = floor(vec2(a/(TAU/cols), lr*rows*0.5+phase));
+    v = mod(grid.x+grid.y,2.0);
+  } else if(type < 5.5){
+    float r=length(p);
+    v = step(0.5, fract(r*rows*0.5+phase));
+  } else if(type < 6.5){
+    float a=atan(p.y,p.x);
+    v = step(0.5, fract(a/TAU*cols+phase));
+  } else if(type < 7.5){
+    v = step(0.5, fract(p.x*cols*0.5 + sin(p.y*rows*0.3)*0.3 + phase));
+  } else if(type < 8.5){
+    float r1=length(p); float r2=length(p-vec2(0.15,0.0));
+    float a1=step(0.5,fract(r1*rows*0.5)); float a2=step(0.5,fract(r2*rows*0.5));
+    v = abs(a1-a2);
+  } else if(type < 9.5){
+    vec2 gp = fract(p*vec2(cols,rows)*0.5)-0.5;
+    v = 1.0-step(0.32,length(gp));
+  } else if(type < 10.5){
+    vec2 hp = p*vec2(cols,rows)*0.5;
+    vec2 gv = fract(hp)-0.5;
+    v = step(0.36,length(gv));
+  } else if(type < 11.5){
+    v = step(0.5, fbm(p*cols*0.3+phase*3.0+t*0.05));
+  } else {
+    vec2 q = p; float acc=0.0;
+    for(int i=0;i<4;i++){ q = abs(fract(q*1.8)-0.5); acc += 1.0/pow(2.0,float(i+1)); }
+    grid = floor(q*vec2(cols,rows));
+    v = mod(grid.x+grid.y,2.0);
+  }
+  return v;
+}
+
+float field(vec2 rawUV, float t){
+  vec2 uv = rawUV;
+  uv -= vec2(uCenterX,uCenterY);
+  uv = rot(uv, radians(uRotation));
+
+  float vortexAmtEff = uVortexAmt + ((abs(uAudioTarget-1.0)<0.5) ? uAudioBass*uAudioSens*3.0 : 0.0);
+  float scaleEff = uScale * (1.0 + ((abs(uAudioTarget-2.0)<0.5) ? uAudioMid*uAudioSens*0.6 : 0.0));
+  scaleEff *= (1.0 + uPulseAmt*sin(t*uSpeed*2.0));
+  scaleEff *= (1.0 + uZoomAmt*sin(t*0.25));
+  uv /= max(abs(scaleEff),0.0001);
+
+  float r = length(uv);
+  float a = atan(uv.y,uv.x);
+
+  if(uSymSegments > 1.5){
+    float seg = TAU/uSymSegments;
+    a = mod(a,seg);
+    if(uSymMirror > 0.5){ a = abs(a-seg*0.5); }
+  }
+  a += radians(uSymRotation);
+  a += t*uSpeed*0.35;
+  a += vortexAmtEff*exp(-r/max(uVortexRadius,0.001));
+  a += uSpiralAmt*log(r+0.15);
+
+  float rr = pow(max(r,0.0001), 1.0+uPinchAmt);
+  rr += uRippleAmt*sin(rr*uRippleFreq - t*uSpeed*2.0);
+
+  vec2 p = vec2(cos(a),sin(a))*rr;
+  p.x += uWaveAmt*sin(p.y*uWaveFreq + t*uSpeed);
+  p.y += uWaveAmt*sin(p.x*uWaveFreq - t*uSpeed);
+  if(uNoiseWarpAmt > 0.001){
+    vec2 n = vec2(fbm(p*1.5+t*0.15), fbm(p*1.5+vec2(11.3,4.7)-t*0.15));
+    p += (n-0.5)*2.0*uNoiseWarpAmt;
+  }
+
+  float val = patternValue(p, uPattern, uRows, uCols, uPhase, t);
+
+  if(uUseImage > 0.5){
+    vec2 iuv = p/max(uImageScale,0.001)*0.5+0.5;
+    if(iuv.x>=0.0 && iuv.x<=1.0 && iuv.y>=0.0 && iuv.y<=1.0){
+      vec3 tex = texture2D(uImage, vec2(iuv.x,1.0-iuv.y)).rgb;
+      float lum = dot(tex, vec3(0.299,0.587,0.114));
+      if(uImageMode < 0.5){ val = mix(val, lum, uImageMix); }
+      else if(uImageMode < 1.5){ val = val*mix(1.0,lum,uImageMix); }
+      else { val = fract(val + (lum-0.5)*uImageMix*2.0); }
+    }
+  }
+
+  val = clamp((val-0.5)*uContrast+0.5, 0.0, 1.0);
+  val = pow(val, 1.0/max(uGamma,0.05));
+  if(uPosterize > 0.5){ val = floor(val*uPosterize)/uPosterize; }
+  if(abs(uAudioTarget-4.0) < 0.5){ val = fract(val + uAudioTreble*uAudioSens*0.3); }
+  if(uInvert > 0.5){ val = 1.0-val; }
+  return clamp(val,0.0,1.0);
+}
+
+void main(){
+  vec2 fc = gl_FragCoord.xy;
+  vec2 uv = (fc - 0.5*uResolution) / uResolution.y * 2.0;
+  float t = uTime;
+
+  float ab = uChromAb;
+  float vr = field(uv+vec2(ab,0.0), t);
+  float vg = field(uv, t);
+  float vb = field(uv-vec2(ab,0.0), t);
+
+  vec3 col;
+  if(uColorMode < 0.5){
+    col = vec3(step(uThreshold,vr), step(uThreshold,vg), step(uThreshold,vb));
+  } else if(uColorMode < 1.5){
+    col = vec3(vr,vg,vb);
+  } else if(uColorMode < 2.5){
+    col = vec3(mix(uBgColor.r,uFgColor.r,vr), mix(uBgColor.g,uFgColor.g,vg), mix(uBgColor.b,uFgColor.b,vb));
+  } else {
+    float hue = fract(vg + t*uHueSpeed*0.1);
+    col = hsv2rgb(vec3(hue,0.75,vg*0.55+0.45));
+  }
+
+  float glowEff = uGlow + ((abs(uAudioTarget-3.0)<0.5) ? uAudioTreble*uAudioSens*0.5 : 0.0);
+  col += glowEff*0.18;
+
+  float vig = 1.0-uVignette*smoothstep(0.15,1.35,length(uv));
+  col *= vig;
+
+  if(uScanlines > 0.001){ col *= 1.0-uScanlines*0.5*(0.5+0.5*sin(fc.y*3.14159)); }
+
+  if(uGrain > 0.001){
+    float g = uNoFlash > 0.5 ? hash21(fc) : hash21(fc + t*60.0);
+    col += (g-0.5)*uGrain*(uNoFlash>0.5?0.18:0.35);
+  }
+
+  float outA = 1.0;
+  if(uAlphaExport > 0.5 && uColorMode < 0.5){ outA = step(uThreshold,vg); }
+  gl_FragColor = vec4(clamp(col,0.0,1.0), outA);
+}
+`;
+
+/* ===================== WEBGL INIT ===================== */
+const canvas = document.getElementById('c');
+let gl = null, prog = null, uniforms = {}, useWebGL = true;
+let ctx2d = null; // fallback
+
+function compileShader(glc, type, src){
+  const sh = glc.createShader(type);
+  glc.shaderSource(sh, src);
+  glc.compileShader(sh);
+  if(!glc.getShaderParameter(sh, glc.COMPILE_STATUS)){
+    const log = glc.getShaderInfoLog(sh);
+    glc.deleteShader(sh);
+    throw new Error('Shader compile error: ' + log);
+  }
+  return sh;
+}
+function buildProgram(glc){
+  const vs = compileShader(glc, glc.VERTEX_SHADER, VERT_SRC);
+  const fs = compileShader(glc, glc.FRAGMENT_SHADER, FRAG_SRC);
+  const p = glc.createProgram();
+  glc.attachShader(p, vs); glc.attachShader(p, fs);
+  glc.linkProgram(p);
+  if(!glc.getProgramParameter(p, glc.LINK_STATUS)){
+    throw new Error('Program link error: ' + glc.getProgramInfoLog(p));
+  }
+  return p;
+}
+const UNIFORM_LIST = ['uResolution','uTime','uPattern','uRows','uCols','uPhase','uScale','uRotation','uCenterX','uCenterY',
+  'uVortexAmt','uVortexRadius','uSpiralAmt','uPinchAmt','uRippleAmt','uRippleFreq','uWaveAmt','uWaveFreq','uNoiseWarpAmt',
+  'uSpeed','uPulseAmt','uZoomAmt','uSymSegments','uSymMirror','uSymRotation','uColorMode','uThreshold','uContrast','uGamma',
+  'uPosterize','uInvert','uFgColor','uBgColor','uHueSpeed','uVignette','uGlow','uChromAb','uGrain','uScanlines',
+  'uAudioBass','uAudioMid','uAudioTreble','uAudioTarget','uAudioSens','uImageMode','uImageMix','uImageScale','uUseImage',
+  'uImage','uNoFlash','uAlphaExport'];
+
+function initGL(){
+  try{
+    gl = canvas.getContext('webgl',{antialias:true, preserveDrawingBuffer:true, alpha:false}) ||
+         canvas.getContext('experimental-webgl',{antialias:true, preserveDrawingBuffer:true, alpha:false});
+    if(!gl) throw new Error('WebGL not supported');
+    prog = buildProgram(gl);
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog,'aPos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    UNIFORM_LIST.forEach(u=>{ uniforms[u] = gl.getUniformLocation(prog,u); });
+    imageTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, imageTex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    useWebGL = true;
+  }catch(e){
+    console.error(e);
+    useWebGL = false;
+    showBanner('WebGL unavailable (' + e.message + ') - running a simplified fallback renderer.', 8000);
+    ctx2d = canvas.getContext('2d');
+  }
+}
+
+function hexToRgb01(hex){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16)/255, g = parseInt(h.substring(2,4),16)/255, b = parseInt(h.substring(4,6),16)/255;
+  return [r,g,b];
+}
+
+function resizeCanvas(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2) * qualityScale;
+  const w = Math.max(1,Math.floor(canvas.clientWidth*dpr));
+  const h = Math.max(1,Math.floor(canvas.clientHeight*dpr));
+  if(canvas.width!==w || canvas.height!==h){ canvas.width=w; canvas.height=h; }
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
+
+/* ===================== RENDER (WebGL) ===================== */
+function setUniformsAndDraw(glc, targetW, targetH, exportAlpha, timeOverride){
+  glc.viewport(0,0,targetW,targetH);
+  glc.useProgram(prog);
+  glc.uniform2f(uniforms.uResolution, targetW, targetH);
+  const t = (timeOverride!==undefined) ? timeOverride : timeAccum;
+  glc.uniform1f(uniforms.uTime, t);
+
+  let batterySaver = document.getElementById('batterySaver').checked;
+
+  glc.uniform1f(uniforms.uPattern, state.pattern);
+  glc.uniform1f(uniforms.uRows, state.rows);
+  glc.uniform1f(uniforms.uCols, state.cols);
+  glc.uniform1f(uniforms.uPhase, state.phase);
+  glc.uniform1f(uniforms.uScale, state.scale);
+  glc.uniform1f(uniforms.uRotation, state.rotation);
+  glc.uniform1f(uniforms.uCenterX, state.centerX);
+  glc.uniform1f(uniforms.uCenterY, state.centerY);
+  glc.uniform1f(uniforms.uVortexAmt, state.vortexAmt);
+  glc.uniform1f(uniforms.uVortexRadius, state.vortexRadius);
+  glc.uniform1f(uniforms.uSpiralAmt, state.spiralAmt);
+  glc.uniform1f(uniforms.uPinchAmt, state.pinchAmt);
+  glc.uniform1f(uniforms.uRippleAmt, state.rippleAmt);
+  glc.uniform1f(uniforms.uRippleFreq, state.rippleFreq);
+  glc.uniform1f(uniforms.uWaveAmt, state.waveAmt);
+  glc.uniform1f(uniforms.uWaveFreq, state.waveFreq);
+  glc.uniform1f(uniforms.uNoiseWarpAmt, state.noiseWarpAmt);
+  glc.uniform1f(uniforms.uSpeed, reducedMotionEffective ? state.speed*0.08 : (batterySaver? state.speed*0.5:state.speed));
+  glc.uniform1f(uniforms.uPulseAmt, state.pulseAmt);
+  glc.uniform1f(uniforms.uZoomAmt, state.zoomAmt);
+  glc.uniform1f(uniforms.uSymSegments, state.symSegments);
+  glc.uniform1f(uniforms.uSymMirror, state.symMirror?1:0);
+  glc.uniform1f(uniforms.uSymRotation, state.symRotation);
+  glc.uniform1f(uniforms.uColorMode, state.colorMode);
+  glc.uniform1f(uniforms.uThreshold, state.threshold);
+  glc.uniform1f(uniforms.uContrast, state.contrast);
+  glc.uniform1f(uniforms.uGamma, state.gamma);
+  glc.uniform1f(uniforms.uPosterize, state.posterize);
+  glc.uniform1f(uniforms.uInvert, state.invert?1:0);
+  const fg = hexToRgb01(state.fgColor), bg = hexToRgb01(state.bgColor);
+  glc.uniform3f(uniforms.uFgColor, fg[0],fg[1],fg[2]);
+  glc.uniform3f(uniforms.uBgColor, bg[0],bg[1],bg[2]);
+  glc.uniform1f(uniforms.uHueSpeed, state.hueSpeed);
+  glc.uniform1f(uniforms.uVignette, state.vignette);
+  glc.uniform1f(uniforms.uGlow, batterySaver?0:state.glow);
+  glc.uniform1f(uniforms.uChromAb, batterySaver?0:state.chromAb);
+  glc.uniform1f(uniforms.uGrain, batterySaver?0:state.grain);
+  glc.uniform1f(uniforms.uScanlines, batterySaver?0:state.scanlines);
+  glc.uniform1f(uniforms.uAudioBass, audioBass);
+  glc.uniform1f(uniforms.uAudioMid, audioMid);
+  glc.uniform1f(uniforms.uAudioTreble, audioTreble);
+  glc.uniform1f(uniforms.uAudioTarget, state.audioTarget);
+  glc.uniform1f(uniforms.uAudioSens, state.audioSens);
+  glc.uniform1f(uniforms.uImageMode, state.imageMode);
+  glc.uniform1f(uniforms.uImageMix, state.imageMix);
+  glc.uniform1f(uniforms.uImageScale, state.imageScale);
+  glc.uniform1f(uniforms.uUseImage, useImage?1:0);
+  glc.uniform1f(uniforms.uNoFlash, document.getElementById('noFlash').checked?1:0);
+  glc.uniform1f(uniforms.uAlphaExport, exportAlpha?1:0);
+  glc.activeTexture(glc.TEXTURE0);
+  glc.bindTexture(glc.TEXTURE_2D, imageTex);
+  glc.uniform1i(uniforms.uImage, 0);
+
+  glc.drawArrays(glc.TRIANGLES,0,3);
+}
+
+/* ===================== FALLBACK CANVAS2D RENDERER ===================== */
+function render2DFallback(){
+  const w = canvas.width, h = canvas.height;
+  if(canvas.width!==Math.floor(canvas.clientWidth) ) resizeCanvas();
+  ctx2d.fillStyle = state.invert ? '#fff' : '#000';
+  ctx2d.fillRect(0,0,w,h);
+  ctx2d.fillStyle = state.invert ? '#000' : '#fff';
+  const cell = Math.max(8, Math.min(w,h)/Math.max(state.rows,4));
+  const rot = (state.rotation*Math.PI/180) + timeAccum*state.speed*0.3;
+  ctx2d.save();
+  ctx2d.translate(w/2,h/2);
+  ctx2d.rotate(rot);
+  const n = Math.ceil(Math.max(w,h)/cell)+4;
+  for(let i=-n;i<n;i++){
+    for(let j=-n;j<n;j++){
+      if(((i+j)%2+2)%2===0){
+        ctx2d.fillRect(i*cell-w, j*cell-h, cell, cell);
+      }
+    }
+  }
+  ctx2d.restore();
+}
+
+/* ===================== MAIN LOOP ===================== */
+let fpsHist = [];
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(document.getElementById('pauseHidden').checked && document.hidden) return;
+  if(!lastFrameTs) lastFrameTs = ts;
+  const dt = Math.min((ts-lastFrameTs)/1000, 0.05);
+  lastFrameTs = ts;
+  if(playing) timeAccum += dt;
+
+  updateAudio();
+
+  const fps = 1/Math.max(dt,0.0001);
+  fpsHist.push(fps); if(fpsHist.length>30) fpsHist.shift();
+  const avgFps = fpsHist.reduce((a,b)=>a+b,0)/fpsHist.length;
+  autoQuality(avgFps);
+  if(document.getElementById('showFps').checked){
+    const el=document.getElementById('fps'); el.classList.add('show'); el.textContent = Math.round(avgFps)+' FPS';
+  } else { document.getElementById('fps').classList.remove('show'); }
+
+  resizeCanvas();
+  if(useWebGL && gl){
+    setUniformsAndDraw(gl, canvas.width, canvas.height, false);
+  } else if(ctx2d){
+    render2DFallback();
+  }
+}
+
+function autoQuality(avgFps){
+  const q = document.getElementById('quality').value;
+  const battery = document.getElementById('batterySaver').checked;
+  if(battery){ qualityScale = 0.5; return; }
+  if(q==='low'){ qualityScale = 0.5; return; }
+  if(q==='medium'){ qualityScale = 0.75; return; }
+  if(q==='high'){ qualityScale = 1.0; return; }
+  if(q==='ultra'){ qualityScale = 1.0; return; }
+  // auto
+  if(avgFps < 42 && qualityScale > 0.4) qualityScale = Math.max(0.4, qualityScale - 0.02);
+  else if(avgFps > 58 && qualityScale < 1.0) qualityScale = Math.min(1.0, qualityScale + 0.01);
+}
+
+/* ===================== UI GENERATION ===================== */
+const GROUP_ELS = {
+  pattern: document.getElementById('grpPattern'),
+  geometry: document.getElementById('grpGeometry'),
+  distortion: document.getElementById('grpDistortion'),
+  motion: document.getElementById('grpMotion'),
+  symmetry: document.getElementById('grpSymmetry'),
+  color: document.getElementById('grpColor'),
+  effects: document.getElementById('grpEffects'),
+};
+const controlEls = {}; // id -> {wrap, input, valEl, level}
+
+function fmtNum(n, step){
+  if(step && step>=1) return String(Math.round(n));
+  return Number(n).toFixed(2);
+}
+
+function makeControl(def){
+  const [group,id,label,type,min,max,step,defVal,level] = def;
+  const wrap = document.createElement('div');
+  wrap.className = 'ctrl' + (type==='checkbox' ? ' row':'');
+  wrap.dataset.level = level;
+  wrap.dataset.label = label.toLowerCase();
+  let input, valEl=null;
+
+  if(type==='range'){
+    const lab = document.createElement('label');
+    lab.innerHTML = label + ' <span class="val"></span>';
+    wrap.appendChild(lab);
+    valEl = lab.querySelector('.val');
+    input = document.createElement('input');
+    input.type='range'; input.min=min; input.max=max; input.step=step; input.value=state[id];
+    valEl.textContent = fmtNum(state[id], step);
+    input.addEventListener('input', ()=>{
+      state[id] = parseFloat(input.value);
+      valEl.textContent = fmtNum(state[id], step);
+    });
+    wrap.appendChild(input);
+  } else if(type==='checkbox'){
+    const lab = document.createElement('label'); lab.textContent = label;
+    wrap.appendChild(lab);
+    input = document.createElement('input');
+    input.type='checkbox'; input.checked = !!state[id];
+    input.addEventListener('change', ()=>{ state[id] = input.checked; });
+    wrap.appendChild(input);
+  } else if(type==='color'){
+    const lab = document.createElement('label'); lab.textContent = label;
+    wrap.appendChild(lab);
+    input = document.createElement('input');
+    input.type='color'; input.value = state[id];
+    input.addEventListener('input', ()=>{ state[id] = input.value; });
+    wrap.appendChild(input);
+  } else if(type==='select-pattern' || type==='select-color'){
+    const lab = document.createElement('label'); lab.textContent = label;
+    wrap.appendChild(lab);
+    input = document.createElement('select');
+    const names = type==='select-pattern' ? PATTERN_NAMES : COLOR_MODE_NAMES;
+    names.forEach((n,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=n.toUpperCase(); input.appendChild(o); });
+    input.value = state[id];
+    input.addEventListener('change', ()=>{
+      state[id] = parseInt(input.value,10);
+      if(type==='select-pattern'){ updateHudName(); speak(PATTERN_NAMES[state[id]]); }
+    });
+    wrap.appendChild(input);
+  }
+  GROUP_ELS[group].appendChild(wrap);
+  controlEls[id] = {wrap, input, valEl, level, type, step};
+}
+CONTROLS.forEach(makeControl);
+
+function makeSimpleRange(container, id, label, min, max, step, val, onInput){
+  const wrap = document.createElement('div'); wrap.className='ctrl';
+  const lab = document.createElement('label'); lab.innerHTML = label + ' <span class="val"></span>';
+  wrap.appendChild(lab);
+  const valEl = lab.querySelector('.val');
+  const input = document.createElement('input');
+  input.type='range'; input.min=min; input.max=max; input.step=step; input.value=val;
+  valEl.textContent = fmtNum(val, step);
+  input.addEventListener('input', ()=>{ onInput(parseFloat(input.value)); valEl.textContent = fmtNum(parseFloat(input.value), step); });
+  wrap.appendChild(input);
+  container.appendChild(wrap);
+  return input;
+}
+const audioInputEls = {};
+AUDIO_CONTROLS.forEach(([id,label,min,max,step,def])=>{
+  audioInputEls[id] = makeSimpleRange(document.getElementById('grpAudio'), id, label, min,max,step, state[id], v=>state[id]=v);
+});
+const imageInputEls = {};
+IMAGE_CONTROLS.forEach(([id,label,min,max,step,def])=>{
+  imageInputEls[id] = makeSimpleRange(document.getElementById('grpImage'), id, label, min,max,step, state[id], v=>state[id]=v);
+});
+
+function syncUIFromState(){
+  CONTROLS.forEach(def=>{
+    const [group,id,label,type] = def;
+    const c = controlEls[id]; if(!c) return;
+    if(type==='checkbox') c.input.checked = !!state[id];
+    else if(type==='color') c.input.value = state[id];
+    else { c.input.value = state[id]; if(c.valEl) c.valEl.textContent = fmtNum(state[id], c.step); }
+  });
+  AUDIO_CONTROLS.forEach(([id,label,min,max,step])=>{
+    audioInputEls[id].value = state[id];
+    audioInputEls[id].previousSibling.querySelector('.val').textContent = fmtNum(state[id],step);
+  });
+  IMAGE_CONTROLS.forEach(([id,label,min,max,step])=>{
+    imageInputEls[id].value = state[id];
+    imageInputEls[id].previousSibling.querySelector('.val').textContent = fmtNum(state[id],step);
+  });
+  document.getElementById('audioTarget').value = state.audioTarget;
+  document.getElementById('imageMode').value = state.imageMode;
+  updateHudName();
+}
+function updateHudName(){
+  document.getElementById('hudName').textContent = currentPresetName;
+}
+
+/* interface level (basic/advanced/expert) */
+function applyInterfaceLevel(){
+  const rank = LEVEL_RANK[interfaceLevel];
+  Object.values(controlEls).forEach(c=>{
+    c.wrap.classList.toggle('hidden-level', LEVEL_RANK[c.level] > rank);
+  });
+}
+document.querySelectorAll('.modebar button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.modebar button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    interfaceLevel = btn.dataset.mode;
+    applyInterfaceLevel();
+  });
+});
+applyInterfaceLevel();
+
+/* search filter */
+document.getElementById('search').addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  Object.values(controlEls).forEach(c=>{
+    const matches = !q || c.wrap.dataset.label.includes(q);
+    c.wrap.style.display = matches ? '' : 'none';
+    if(q && matches) c.wrap.closest('details').open = true;
+  });
+});
+
+document.getElementById('audioTarget').addEventListener('change', e=>{ state.audioTarget = parseInt(e.target.value,10); });
+document.getElementById('imageMode').addEventListener('change', e=>{ state.imageMode = parseInt(e.target.value,10); });
+
+/* ===================== DRAWER / QUICKBAR ===================== */
+const drawer = document.getElementById('drawer');
+function toggleDrawer(force){
+  const open = force!==undefined ? force : !drawer.classList.contains('open');
+  drawer.classList.toggle('open', open);
+}
+document.getElementById('btnHide').addEventListener('click', ()=>toggleDrawer());
+document.getElementById('btnPlay').addEventListener('click', togglePlay);
+function togglePlay(){
+  playing = !playing;
+  document.getElementById('btnPlay').textContent = playing ? '\u2759\u2759' : '\u25B6';
+  document.getElementById('btnPlay').classList.toggle('on', !playing);
+  uiBeep(playing?520:340);
+}
+document.getElementById('btnFull').addEventListener('click', toggleFullscreen);
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.().catch(()=>{}); }
+  else { document.exitFullscreen?.().catch(()=>{}); }
+}
+
+/* ===================== HISTORY (UNDO/REDO) ===================== */
+function pushHistory(){
+  historyStack = historyStack.slice(0, historyIdx+1);
+  historyStack.push(JSON.stringify({state, seed, currentPresetName}));
+  if(historyStack.length>30) historyStack.shift();
+  historyIdx = historyStack.length-1;
+}
+function applySnapshot(snap){
+  const o = JSON.parse(snap);
+  state = o.state; seed = o.seed; currentPresetName = o.currentPresetName;
+  syncUIFromState();
+  document.getElementById('hudSeed').textContent = 'SEED ' + (seed>>>0).toString(16).padStart(8,'0').toUpperCase();
+  document.getElementById('seedInput').value = (seed>>>0).toString(16).padStart(8,'0').toUpperCase();
+}
+document.getElementById('btnUndo').addEventListener('click', ()=>{
+  if(historyIdx>0){ historyIdx--; applySnapshot(historyStack[historyIdx]); speak('Undo'); }
+});
+document.getElementById('btnRedo').addEventListener('click', ()=>{
+  if(historyIdx<historyStack.length-1){ historyIdx++; applySnapshot(historyStack[historyIdx]); speak('Redo'); }
+});
+pushHistory();
+
+/* ===================== RANDOMIZATION ===================== */
+function randRange(min,max){ return min + rng()*(max-min); }
+function coherentRandomize(scope, mutateAmt){
+  const isMutate = !!mutateAmt;
+  CONTROLS.forEach(def=>{
+    const [group,id,label,type,min,max,step,defVal] = def;
+    if(scope==='pattern' && !(group==='pattern'||group==='geometry'||group==='distortion'||group==='symmetry')) return;
+    if(scope==='color' && group!=='color') return;
+    if(scope==='motion' && group!=='motion') return;
+    if(scope==='effects' && group!=='effects') return;
+    if(type==='range'){
+      const span = max-min;
+      if(isMutate){
+        let v = state[id] + randRange(-1,1)*span*mutateAmt*0.4;
+        state[id] = Math.max(min, Math.min(max, v));
+      } else {
+        // biased toward moderate values for visual coherence
+        const lo = min + span*0.12, hi = max - span*0.12;
+        state[id] = Math.round((randRange(lo,hi))/step)*step;
+      }
+    } else if(type==='checkbox'){
+      if(!isMutate || rng()<mutateAmt) state[id] = rng()<0.65;
+    } else if(type==='select-pattern' || type==='select-color'){
+      if(!isMutate || rng()<mutateAmt*0.7) state[id] = Math.floor(rng()*(max+1));
+    } else if(type==='color'){
+      if(!isMutate || rng()<mutateAmt){
+        const h = Math.floor(rng()*360);
+        state[id] = hslToHex(h, id==='fgColor'?90:0, id==='fgColor'?92:4);
+      }
+    }
+  });
+  syncUIFromState();
+}
+function hslToHex(h,s,l){
+  s/=100; l/=100;
+  const k = n => (n+h/30)%12;
+  const a = s*Math.min(l,1-l);
+  const f = n => l - a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
+  return '#'+toHex(f(0))+toHex(f(8))+toHex(f(4));
+}
+document.getElementById('btnRandAll').addEventListener('click', ()=>{
+  setSeed(Math.floor(Math.random()*4294967295));
+  coherentRandomize('all', 0);
+  currentPresetName = 'RANDOM ' + seed.toString(16).slice(0,4).toUpperCase();
+  updateHudName();
+  pushHistory(); uiBeep(660); speak('Randomized');
+});
+document.getElementById('btnSurprise').addEventListener('click', ()=>document.getElementById('btnRandAll').click());
+document.getElementById('btnRandPattern').addEventListener('click', ()=>{ coherentRandomize('pattern',0); pushHistory(); uiBeep(600); });
+document.getElementById('btnRandColor').addEventListener('click', ()=>{ coherentRandomize('color',0); pushHistory(); uiBeep(600); });
+document.getElementById('btnMutate').addEventListener('click', ()=>{
+  const amt = parseFloat(document.getElementById('mutAmt').value);
+  coherentRandomize('all', amt);
+  pushHistory(); uiBeep(720); speak('Mutated');
+});
+document.getElementById('mutAmt').addEventListener('input', e=>{
+  document.getElementById('mutAmtVal').textContent = parseFloat(e.target.value).toFixed(2);
+});
+
+/* ===================== SEED ===================== */
+document.getElementById('btnSeedGo').addEventListener('click', ()=>{
+  const v = document.getElementById('seedInput').value.trim();
+  const n = /^[0-9a-fA-F]+$/.test(v) ? parseInt(v,16) : seedFromString(v);
+  setSeed(n>>>0);
+});
+setSeed(1);
+
+/* ===================== PRESETS ===================== */
+function P(overrides){ return Object.assign({}, buildDefaultState(), overrides); }
+const FACTORY_PRESETS = {
+  'BLACK HOLE CHECKERBOARD': P({pattern:0,vortexAmt:2.2,vortexRadius:0.5,symSegments:8,spiralAmt:0.8,scale:1.1}),
+  'LIQUID CHESS': P({pattern:0,waveAmt:0.4,waveFreq:8,rippleAmt:0.3,rippleFreq:12,symSegments:1,vortexAmt:0.3}),
+  'HYPNOTIC TUNNEL': P({pattern:4,vortexAmt:1.5,spiralAmt:1.4,symSegments:1,speed:0.9}),
+  'OP-ART STORM': P({pattern:11,noiseWarpAmt:0.5,symSegments:6,vortexAmt:1.2,grain:0.15}),
+  'KALEIDOSCOPE GRID': P({pattern:0,symSegments:12,symMirror:true,vortexAmt:0.6,rotation:20}),
+  'MERCURY RIPPLE': P({pattern:5,rippleAmt:0.6,rippleFreq:14,colorMode:1,vignette:0.5,glow:0.35}),
+  'FRACTAL CHESSBOARD': P({pattern:12,symSegments:4,vortexAmt:0.4,scale:1.4}),
+  'MELTING FLOOR': P({pattern:0,waveAmt:0.6,waveFreq:5,pinchAmt:0.4,speed:0.4}),
+  'GRAVITY WELL': P({pattern:2,vortexAmt:3.5,vortexRadius:0.35,pinchAmt:-0.5,symSegments:1}),
+  'MOIRE SUN': P({pattern:8,symSegments:1,rippleFreq:20,colorMode:0,vignette:0.2}),
+  'WARPED TV': P({pattern:9,scanlines:0.35,chromAb:0.01,grain:0.2,noiseWarpAmt:0.2}),
+  'SPIRAL MAZE': P({pattern:3,spiralAmt:1.8,symSegments:6,vortexAmt:0.8}),
+  'INFINITE HALLWAY': P({pattern:4,zoomAmt:0.6,speed:1.0,symSegments:1,vortexAmt:0.2}),
+  'DIGITAL TORNADO': P({pattern:3,vortexAmt:4.0,noiseWarpAmt:0.3,symSegments:1,speed:1.4}),
+  'CHECKERBOARD PLANET': P({pattern:2,symSegments:1,pinchAmt:0.6,vortexAmt:0.5,scale:0.8}),
+  'WOVEN DIMENSION': P({pattern:10,symSegments:4,rotation:15,waveAmt:0.15}),
+  'RECURSIVE WINDOW': P({pattern:12,symSegments:2,zoomAmt:0.4,vortexAmt:0.3}),
+  'SHATTERED MIRROR': P({pattern:1,symSegments:10,symMirror:true,chromAb:0.015,grain:0.1}),
+  'AUDIO VORTEX': P({pattern:0,vortexAmt:1.0,audioTarget:1,symSegments:8}),
+  'HIGH-CONTRAST DREAM': P({pattern:6,symSegments:16,vignette:0.5,glow:0.3,speed:0.3}),
+};
+let customPresets = {};
+function loadCustomPresetsFromStorage(){
+  const raw = safeGet('vortex_custom_presets');
+  if(raw){ try{ customPresets = JSON.parse(raw); }catch(e){ customPresets = {}; } }
+}
+function saveCustomPresetsToStorage(){ safeSet('vortex_custom_presets', JSON.stringify(customPresets)); }
+loadCustomPresetsFromStorage();
+
+function renderPresetList(){
+  const list = document.getElementById('presetList');
+  list.innerHTML = '';
+  Object.keys(FACTORY_PRESETS).forEach(name=>{
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.addEventListener('click', ()=>loadPreset(name, FACTORY_PRESETS[name]));
+    list.appendChild(b);
+  });
+  Object.keys(customPresets).forEach(name=>{
+    const b = document.createElement('button');
+    b.textContent = '\u2605 ' + name;
+    b.addEventListener('click', ()=>loadPreset(name, customPresets[name]));
+    list.appendChild(b);
+  });
+}
+function loadPreset(name, data){
+  state = Object.assign(buildDefaultState(), data);
+  currentPresetName = name;
+  syncUIFromState();
+  pushHistory();
+  uiBeep(500);
+  speak('Preset ' + name);
+}
+renderPresetList();
+
+document.getElementById('btnSavePreset').addEventListener('click', ()=>{
+  const name = prompt('Preset name:', 'MY PRESET ' + (Object.keys(customPresets).length+1));
+  if(!name) return;
+  customPresets[name] = Object.assign({}, state);
+  saveCustomPresetsToStorage();
+  renderPresetList();
+  showBanner('Preset "'+name+'" saved.');
+});
+document.getElementById('btnExportJSON').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify({state, seed, presetName: currentPresetName}, null, 2)], {type:'application/json'});
+  downloadBlob(blob, 'vortex-settings.json');
+});
+document.getElementById('btnImportJSON').addEventListener('click', ()=>document.getElementById('importInput').click());
+document.getElementById('importInput').addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const o = JSON.parse(reader.result);
+      if(!o.state) throw new Error('missing state');
+      state = Object.assign(buildDefaultState(), o.state);
+      if(o.seed) setSeed(o.seed);
+      currentPresetName = o.presetName || 'IMPORTED';
+      syncUIFromState(); pushHistory();
+      showBanner('Settings imported.');
+    }catch(err){ showBanner('Invalid settings file - could not import.'); }
+  };
+  reader.onerror = () => showBanner('Could not read that file.');
+  reader.readAsText(f);
+});
+document.getElementById('btnResetFactory').addEventListener('click', ()=>{
+  if(!confirm('Reset to factory defaults? Custom presets are kept.')) return;
+  state = buildDefaultState();
+  currentPresetName = 'BLACK HOLE CHECKERBOARD';
+  syncUIFromState(); pushHistory();
+});
+
+/* ===================== EXPORT PNG ===================== */
+function downloadBlob(blob, filename){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+document.getElementById('exportSize').addEventListener('change', e=>{
+  document.getElementById('customSizeRow').style.display = e.target.value==='custom' ? 'flex':'none';
+});
+function getExportDims(){
+  const v = document.getElementById('exportSize').value;
+  if(v==='screen') return [canvas.width, canvas.height];
+  if(v==='custom'){
+    const w = parseInt(document.getElementById('customW').value,10)||1024;
+    const h = parseInt(document.getElementById('customH').value,10)||1024;
+    return [w,h];
+  }
+  return v.split('x').map(Number);
+}
+function exportPNG(transparent){
+  if(!useWebGL){ showBanner('Export requires WebGL, which is unavailable in this browser.'); return; }
+  let [w,h] = getExportDims();
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+  if(w>maxTex || h>maxTex){
+    showBanner('Requested size exceeds this device maximum texture size ('+maxTex+'px). Clamping.');
+    w = Math.min(w,maxTex); h = Math.min(h,maxTex);
+  }
+  try{
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const glc = off.getContext('webgl',{antialias:true, preserveDrawingBuffer:true, alpha:transparent}) ||
+                off.getContext('experimental-webgl',{antialias:true, preserveDrawingBuffer:true, alpha:transparent});
+    if(!glc) throw new Error('WebGL context failed');
+    const p2 = buildProgram(glc);
+    glc.useProgram(p2);
+    const buf = glc.createBuffer();
+    glc.bindBuffer(glc.ARRAY_BUFFER, buf);
+    glc.bufferData(glc.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), glc.STATIC_DRAW);
+    const loc = glc.getAttribLocation(p2,'aPos');
+    glc.enableVertexAttribArray(loc);
+    glc.vertexAttribPointer(loc,2,glc.FLOAT,false,0,0);
+    const u2 = {}; UNIFORM_LIST.forEach(u=>{ u2[u] = glc.getUniformLocation(p2,u); });
+    const tex2 = glc.createTexture();
+    glc.bindTexture(glc.TEXTURE_2D, tex2);
+    if(useImage && imageEl){
+      glc.texImage2D(glc.TEXTURE_2D,0,glc.RGBA,glc.RGBA,glc.UNSIGNED_BYTE, imageEl);
+    } else {
+      glc.texImage2D(glc.TEXTURE_2D,0,glc.RGBA,1,1,0,glc.RGBA,glc.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+    }
+    glc.texParameteri(glc.TEXTURE_2D, glc.TEXTURE_WRAP_S, glc.CLAMP_TO_EDGE);
+    glc.texParameteri(glc.TEXTURE_2D, glc.TEXTURE_WRAP_T, glc.CLAMP_TO_EDGE);
+    glc.texParameteri(glc.TEXTURE_2D, glc.TEXTURE_MIN_FILTER, glc.LINEAR);
+    const savedProg = prog, savedU = uniforms;
+    prog = p2; uniforms = u2;
+    setUniformsAndDraw(glc, w, h, !!transparent, timeAccum);
+    prog = savedProg; uniforms = savedU;
+    off.toBlob(blob=>{
+      if(!blob){ showBanner('Export failed - image too large for this device.'); return; }
+      downloadBlob(blob, 'vortex-'+w+'x'+h+(transparent?'-transparent':'')+'.png');
+      uiBeep(800);
+    }, 'image/png');
+  }catch(err){
+    console.error(err);
+    showBanner('Export failed: ' + err.message);
+  }
+}
+document.getElementById('btnExportPNG').addEventListener('click', ()=>exportPNG(false));
+document.getElementById('btnExportTransparent').addEventListener('click', ()=>exportPNG(true));
+
+/* ===================== RECORDING ===================== */
+document.getElementById('recDur').addEventListener('input', e=>document.getElementById('recDurVal').textContent=e.target.value);
+document.getElementById('recFps').addEventListener('input', e=>document.getElementById('recFpsVal').textContent=e.target.value);
+document.getElementById('btnRecStart').addEventListener('click', ()=>{
+  if(typeof MediaRecorder==='undefined'){ showBanner('This browser does not support native video recording.'); return; }
+  if(!useWebGL){ showBanner('Recording requires WebGL.'); return; }
+  try{
+    const fps = parseInt(document.getElementById('recFps').value,10);
+    const dur = parseInt(document.getElementById('recDur').value,10);
+    const stream = canvas.captureStream(fps);
+    let mime = 'video/webm;codecs=vp9';
+    if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8';
+    if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+    mediaRecorder = new MediaRecorder(stream, {mimeType:mime});
+    recChunks = [];
+    mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) recChunks.push(e.data); };
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(recChunks, {type:'video/webm'});
+      downloadBlob(blob, 'vortex-recording.webm');
+      showBanner('Recording saved.');
+    };
+    mediaRecorder.start();
+    showBanner('Recording... ('+dur+'s)');
+    setTimeout(()=>{ if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop(); }, dur*1000);
+  }catch(err){ showBanner('Recording failed: ' + err.message); }
+});
+document.getElementById('btnRecStop').addEventListener('click', ()=>{
+  if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop();
+});
+
+/* ===================== AUDIO REACTIVITY ===================== */
+function updateAudio(){
+  const gate = state.audioGate;
+  if(audioEnabled && analyser && audioData){
+    analyser.getByteFrequencyData(audioData);
+    const n = audioData.length;
+    const bassEnd = Math.floor(n*0.12), midEnd = Math.floor(n*0.5);
+    let bass=0, mid=0, treb=0;
+    for(let i=0;i<bassEnd;i++) bass += audioData[i];
+    for(let i=bassEnd;i<midEnd;i++) mid += audioData[i];
+    for(let i=midEnd;i<n;i++) treb += audioData[i];
+    bass = bass/(bassEnd||1)/255; mid = mid/((midEnd-bassEnd)||1)/255; treb = treb/((n-midEnd)||1)/255;
+    const sm = state.audioSmooth;
+    audioBass = Math.max(0, sm*audioBass + (1-sm)*bass - gate);
+    audioMid = Math.max(0, sm*audioMid + (1-sm)*mid - gate);
+    audioTreble = Math.max(0, sm*audioTreble + (1-sm)*treb - gate);
+  } else if(syntheticPulse){
+    const t = timeAccum;
+    audioBass = Math.max(0,(0.5+0.5*Math.sin(t*2.4))-gate);
+    audioMid = Math.max(0,(0.5+0.5*Math.sin(t*3.7+1.0))-gate);
+    audioTreble = Math.max(0,(0.5+0.5*Math.sin(t*5.3+2.0))-gate);
+  } else {
+    audioBass*=0.9; audioMid*=0.9; audioTreble*=0.9;
+  }
+  const level = Math.min(1,(audioBass+audioMid+audioTreble)/3);
+  document.getElementById('audioMeter').style.width = (level*100).toFixed(0)+'%';
+}
+document.getElementById('btnMic').addEventListener('click', async ()=>{
+  if(audioEnabled){
+    audioEnabled = false;
+    document.getElementById('btnMic').classList.remove('on');
+    document.getElementById('btnMic').textContent = '\u{1F399} ENABLE MICROPHONE';
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    audioData = new Uint8Array(analyser.frequencyBinCount);
+    src.connect(analyser);
+    audioEnabled = true; syntheticPulse = false;
+    document.getElementById('btnPulse').classList.remove('on');
+    document.getElementById('btnMic').classList.add('on');
+    document.getElementById('btnMic').textContent = '\u{1F399} MIC ON';
+    showBanner('Microphone enabled.');
+  }catch(err){
+    showBanner('Microphone permission denied or unavailable.');
+  }
+});
+document.getElementById('btnPulse').addEventListener('click', ()=>{
+  syntheticPulse = !syntheticPulse;
+  if(syntheticPulse){ audioEnabled=false; document.getElementById('btnMic').classList.remove('on'); }
+  document.getElementById('btnPulse').classList.toggle('on', syntheticPulse);
+});
+
+/* ===================== IMAGE INPUT ===================== */
+document.getElementById('btnUpload').addEventListener('click', ()=>document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  if(!f.type.startsWith('image/')){ showBanner('That file is not a supported image.'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      imageEl = img;
+      useImage = true;
+      if(gl){
+        gl.bindTexture(gl.TEXTURE_2D, imageTex);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE, img);
+      }
+      const prev = document.getElementById('imgPreview');
+      prev.src = reader.result; prev.style.display='block';
+      showBanner('Image loaded.');
+    };
+    img.onerror = () => showBanner('Could not decode that image file.');
+    img.src = reader.result;
+  };
+  reader.onerror = () => showBanner('Could not read that file.');
+  reader.readAsDataURL(f);
+});
+document.getElementById('btnRemoveImg').addEventListener('click', ()=>{
+  useImage = false; imageEl = null;
+  document.getElementById('imgPreview').style.display='none';
+  document.getElementById('fileInput').value='';
+});
+
+/* ===================== KEYBOARD SHORTCUTS ===================== */
+const shortcutsModal = document.getElementById('shortcutsModal');
+document.getElementById('btnShortcuts').addEventListener('click', ()=>shortcutsModal.style.display='block');
+document.getElementById('btnCloseShortcuts').addEventListener('click', ()=>shortcutsModal.style.display='none');
+
+window.addEventListener('keydown', (e)=>{
+  if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.tagName==='TEXTAREA') return;
+  switch(e.key){
+    case ' ': e.preventDefault(); togglePlay(); break;
+    case 'r': case 'R': document.getElementById('btnRandAll').click(); break;
+    case 'm': case 'M': document.getElementById('btnMutate').click(); break;
+    case 'i': case 'I': state.invert = !state.invert; syncUIFromState(); break;
+    case 'f': case 'F': toggleFullscreen(); break;
+    case 'h': case 'H': toggleDrawer(); break;
+    case 's': case 'S': document.getElementById('btnSavePreset').click(); break;
+    case 'e': case 'E': toggleDrawer(true); document.querySelector('details[data-name="export"]').open = true; break;
+    case 'ArrowUp': state.centerY -= 0.05; syncUIFromState(); break;
+    case 'ArrowDown': state.centerY += 0.05; syncUIFromState(); break;
+    case 'ArrowLeft': state.centerX -= 0.05; syncUIFromState(); break;
+    case 'ArrowRight': state.centerX += 0.05; syncUIFromState(); break;
+    case '+': case '=': state.scale = Math.max(0.15, state.scale*0.92); syncUIFromState(); break;
+    case '-': case '_': state.scale = Math.min(4, state.scale*1.08); syncUIFromState(); break;
+    case '[': state.speed -= 0.1; syncUIFromState(); break;
+    case ']': state.speed += 0.1; syncUIFromState(); break;
+    case 'Escape':
+      if(document.fullscreenElement) document.exitFullscreen?.();
+      else if(shortcutsModal.style.display==='block') shortcutsModal.style.display='none';
+      else toggleDrawer(false);
+      break;
+    default:
+      if(/^[1-9]$/.test(e.key)){
+        const names = Object.keys(FACTORY_PRESETS);
+        const idx = parseInt(e.key,10)-1;
+        if(names[idx]) loadPreset(names[idx], FACTORY_PRESETS[names[idx]]);
+      }
+  }
+});
+
+/* ===================== ACCESSIBILITY ===================== */
+document.getElementById('visionMode').addEventListener('change', e=>{
+  document.body.classList.toggle('vision', e.target.checked);
+});
+document.getElementById('reducedMotion').addEventListener('change', e=>{
+  reducedMotionEffective = e.target.checked;
+});
+let textScale = 1;
+document.getElementById('btnTextUp').addEventListener('click', ()=>{
+  textScale = Math.min(1.8, textScale+0.1);
+  document.documentElement.style.setProperty('--font-size', (16*textScale)+'px');
+});
+document.getElementById('btnTextDown').addEventListener('click', ()=>{
+  textScale = Math.max(0.8, textScale-0.1);
+  document.documentElement.style.setProperty('--font-size', (16*textScale)+'px');
+});
+document.getElementById('volume').addEventListener('input', e=>{
+  document.getElementById('volVal').textContent = parseFloat(e.target.value).toFixed(2);
+});
+
+/* ===================== POINTER / TOUCH GESTURES ===================== */
+const pointers = new Map();
+let gestureStart = null;
+let longPressTimer = null;
+let lastTapTime = 0;
+let dragMoved = false;
+
+function pinchState(){
+  const pts = [...pointers.values()];
+  if(pts.length<2) return null;
+  const dx = pts[0].x-pts[1].x, dy = pts[0].y-pts[1].y;
+  return { dist: Math.hypot(dx,dy), angle: Math.atan2(dy,dx) };
+}
+
+canvas.addEventListener('pointerdown', (e)=>{
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  dragMoved = false;
+  if(pointers.size===1){
+    gestureStart = { x:e.clientX, y:e.clientY, centerX:state.centerX, centerY:state.centerY, t:performance.now() };
+    longPressTimer = setTimeout(()=>{
+      if(!dragMoved){ togglePlay(); speak(playing?'Resumed':'Frozen'); }
+    }, 650);
+  } else if(pointers.size===2){
+    clearTimeout(longPressTimer);
+    const ps = pinchState();
+    gestureStart = { dist: ps.dist, angle: ps.angle, scale: state.scale, rotation: state.rotation };
+  }
+}, {passive:true});
+
+canvas.addEventListener('pointermove', (e)=>{
+  if(!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(pointers.size===1 && gestureStart){
+    const dx = e.clientX-gestureStart.x, dy = e.clientY-gestureStart.y;
+    if(Math.hypot(dx,dy)>6){ dragMoved = true; clearTimeout(longPressTimer); }
+    if(dragMoved){
+      state.centerX = gestureStart.centerX - dx/canvas.clientHeight*2/state.scale;
+      state.centerY = gestureStart.centerY - dy/canvas.clientHeight*2/state.scale;
+      syncUIFromState();
+    }
+  } else if(pointers.size===2 && gestureStart){
+    const ps = pinchState();
+    if(ps && gestureStart.dist){
+      state.scale = Math.max(0.15, Math.min(4, gestureStart.scale * (ps.dist/gestureStart.dist)));
+      state.rotation = gestureStart.rotation + (ps.angle-gestureStart.angle)*180/Math.PI;
+      syncUIFromState();
+    }
+  }
+}, {passive:true});
+
+function handlePointerEnd(e){
+  clearTimeout(longPressTimer);
+  const wasSingle = pointers.size===1;
+  pointers.delete(e.pointerId);
+  if(wasSingle && !dragMoved){
+    const now = performance.now();
+    if(now-lastTapTime < 320){
+      document.getElementById('btnRandAll').click();
+      lastTapTime = 0;
+    } else {
+      lastTapTime = now;
+      state.rippleAmt = Math.min(1, state.rippleAmt + 0.3);
+      syncUIFromState();
+      setTimeout(()=>{ state.rippleAmt = Math.max(0,state.rippleAmt-0.3); syncUIFromState(); }, 500);
+    }
+  }
+  gestureStart = pointers.size ? gestureStart : null;
+}
+canvas.addEventListener('pointerup', handlePointerEnd);
+canvas.addEventListener('pointercancel', handlePointerEnd);
+
+/* ===================== VISIBILITY / FULLSCREEN UI SYNC ===================== */
+document.addEventListener('fullscreenchange', ()=>{
+  document.getElementById('btnFull').classList.toggle('on', !!document.fullscreenElement);
+});
+
+/* ===================== INIT ===================== */
+initGL();
+resizeCanvas();
+loadPreset('BLACK HOLE CHECKERBOARD', FACTORY_PRESETS['BLACK HOLE CHECKERBOARD']);
+setSeed(seedFromString('BLACKHOLE'));
+document.getElementById('btnPlay').textContent = '\u2759\u2759';
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

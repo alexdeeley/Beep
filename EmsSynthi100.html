@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMS SYNTHI 100</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --cream: #d4c9a8;
+    --dark-cream: #b8a88a;
+    --panel: #2a2318;
+    --panel-light: #3d3526;
+    --panel-mid: #322b1e;
+    --metal: #8a7f6e;
+    --metal-light: #a8a090;
+    --metal-dark: #5a5244;
+    --green: #4a7a3a;
+    --green-glow: #6dbc54;
+    --orange: #d4660a;
+    --orange-glow: #ff8822;
+    --red: #c43020;
+    --red-glow: #ff4422;
+    --blue: #1a5080;
+    --blue-glow: #44aaff;
+    --yellow: #c4a020;
+    --yellow-glow: #ffcc44;
+    --white-glow: #e8e8e8;
+    --scope-bg: #0a140a;
+    --scope-green: #44ff44;
+    --knob-body: #1a1510;
+    --knob-ring: #5a5040;
+    --text-label: #c4b898;
+    --text-dim: #8a7a60;
+    --accent-line: #6a5a40;
+  }
+
+  body {
+    background: #0f0c08;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    color: var(--text-label);
+    overflow-x: hidden;
+  }
+
+  .machine-wrapper {
+    width: 100%;
+    max-width: 1400px;
+  }
+
+  /* TOP BADGE */
+  .badge {
+    text-align: center;
+    padding: 12px 0 8px;
+    letter-spacing: 0.4em;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .badge h1 {
+    font-size: 28px;
+    letter-spacing: 0.25em;
+    color: var(--cream);
+    font-weight: normal;
+    text-shadow: 0 0 30px rgba(212,201,168,0.3);
+  }
+
+  .badge span {
+    font-size: 9px;
+    letter-spacing: 0.5em;
+    color: var(--text-dim);
+  }
+
+  /* MAIN CABINET */
+  .cabinet {
+    background: linear-gradient(180deg, #3d3526 0%, #2a2318 20%, #201a10 100%);
+    border: 1px solid var(--accent-line);
+    border-radius: 6px 6px 2px 2px;
+    padding: 16px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      0 0 60px rgba(0,0,0,0.8),
+      0 20px 60px rgba(0,0,0,0.6);
+    position: relative;
+  }
+
+  .cabinet::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-line), var(--cream), var(--accent-line), transparent);
+    opacity: 0.4;
+  }
+
+  /* SECTION PANELS */
+  .section-row {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .row-top { grid-template-columns: 1fr 1fr 1fr 200px; }
+  .row-mid { grid-template-columns: 1fr 1fr 280px; }
+  .row-bot { grid-template-columns: 1fr 1fr; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--accent-line);
+    border-radius: 3px;
+    padding: 10px;
+    position: relative;
+  }
+
+  .panel-title {
+    font-size: 7px;
+    letter-spacing: 0.35em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--accent-line);
+    padding-bottom: 5px;
+  }
+
+  /* OSCILLATORS */
+  .osc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .osc-strip {
+    background: var(--panel-light);
+    border: 1px solid var(--accent-line);
+    border-radius: 2px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .osc-num {
+    font-size: 7px;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+  }
+
+  /* KNOBS */
+  .knob-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .knob-wrap label {
+    font-size: 6px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .knob {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #2e2820, var(--knob-body));
+    border: 2px solid var(--knob-ring);
+    position: relative;
+    cursor: pointer;
+    box-shadow:
+      0 2px 6px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: box-shadow 0.1s;
+  }
+
+  .knob.sm { width: 24px; height: 24px; }
+  .knob.lg { width: 42px; height: 42px; }
+  .knob.xl { width: 52px; height: 52px; }
+
+  .knob:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 8px rgba(212,201,168,0.15);
+  }
+
+  .knob::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 40%;
+    background: var(--cream);
+    transform-origin: bottom center;
+    transform: translateX(-50%) translateY(-100%) rotate(0deg);
+    border-radius: 1px;
+  }
+
+  .knob.orange::after { background: var(--orange-glow); }
+  .knob.green::after { background: var(--green-glow); }
+  .knob.blue::after { background: var(--blue-glow); }
+  .knob.red::after { background: var(--red-glow); }
+  .knob.yellow::after { background: var(--yellow-glow); }
+
+  /* SCOPE */
+  .scope {
+    background: var(--scope-bg);
+    border: 2px solid var(--metal-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 6px rgba(68,255,68,0.1);
+  }
+
+  canvas.scope-canvas {
+    display: block;
+  }
+
+  /* PATCH MATRIX */
+  .matrix-grid {
+    display: grid;
+    gap: 3px;
+  }
+
+  .matrix-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .matrix-label {
+    font-size: 5px;
+    color: var(--text-dim);
+    width: 30px;
+    text-align: right;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .patch-point {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--panel-mid);
+    border: 1px solid var(--accent-line);
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+  }
+
+  .patch-point:hover {
+    border-color: var(--cream);
+    background: var(--panel-light);
+  }
+
+  .patch-point.active {
+    background: var(--orange);
+    border-color: var(--orange-glow);
+    box-shadow: 0 0 4px var(--orange-glow);
+  }
+
+  .patch-point.active.green {
+    background: var(--green);
+    border-color: var(--green-glow);
+    box-shadow: 0 0 4px var(--green-glow);
+  }
+
+  .patch-point.active.blue {
+    background: var(--blue);
+    border-color: var(--blue-glow);
+    box-shadow: 0 0 4px var(--blue-glow);
+  }
+
+  /* SWITCHES & BUTTONS */
+  .toggle-btn {
+    background: var(--knob-body);
+    border: 1px solid var(--accent-line);
+    color: var(--text-dim);
+    font-family: 'Courier New', monospace;
+    font-size: 6px;
+    letter-spacing: 0.1em;
+    padding: 3px 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    border-radius: 1px;
+    transition: all 0.15s;
+  }
+
+  .toggle-btn:hover { border-color: var(--cream); color: var(--cream); }
+  .toggle-btn.on {
+    background: var(--green);
+    border-color: var(--green-glow);
+    color: #fff;
+    box-shadow: 0 0 6px var(--green-glow);
+  }
+  .toggle-btn.on.orange {
+    background: var(--orange);
+    border-color: var(--orange-glow);
+    box-shadow: 0 0 6px var(--orange-glow);
+  }
+
+  /* LED */
+  .led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 3px var(--red-glow);
+    transition: all 0.1s;
+    flex-shrink: 0;
+  }
+  .led.green { background: var(--green); box-shadow: 0 0 3px var(--green-glow); }
+  .led.orange { background: var(--orange); box-shadow: 0 0 3px var(--orange-glow); }
+  .led.off { background: #1a1510; box-shadow: none; }
+
+  /* SLIDER */
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--panel-mid);
+    border: 1px solid var(--accent-line);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a3020, var(--knob-body));
+    border: 2px solid var(--knob-ring);
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+
+  input[type=range].orange::-webkit-slider-thumb { border-color: var(--orange); }
+  input[type=range].green::-webkit-slider-thumb { border-color: var(--green); }
+  input[type=range].blue::-webkit-slider-thumb { border-color: var(--blue-glow); }
+
+  .slider-label {
+    font-size: 6px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* KEYBOARD */
+  .keyboard {
+    display: flex;
+    gap: 2px;
+    padding: 8px 0 4px;
+    position: relative;
+    justify-content: center;
+  }
+
+  .key {
+    width: 28px;
+    height: 100px;
+    background: linear-gradient(180deg, #f0ece0 0%, #e0dcc8 70%, #c8c4b0 100%);
+    border: 1px solid #a0947a;
+    border-radius: 0 0 3px 3px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.05s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 -2px 0 rgba(0,0,0,0.15);
+  }
+
+  .key:active, .key.pressed {
+    background: linear-gradient(180deg, #e0dcc8 0%, #d0ccb8 70%, #b8b4a0 100%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(0,0,0,0.15);
+    transform: translateY(2px);
+  }
+
+  .key.black {
+    width: 18px;
+    height: 65px;
+    background: linear-gradient(180deg, #1a1510 0%, #0a0806 100%);
+    border: 1px solid #3a3020;
+    border-radius: 0 0 2px 2px;
+    z-index: 2;
+    margin-left: -10px;
+    margin-right: -10px;
+    transform: translateY(-35px);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.8), inset 0 -2px 0 rgba(0,0,0,0.5);
+  }
+
+  .key.black:active, .key.black.pressed {
+    background: linear-gradient(180deg, #2a2010 0%, #1a1005 100%);
+    transform: translateY(-33px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.8), inset 0 -1px 0 rgba(0,0,0,0.5);
+  }
+
+  .key-label {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 6px;
+    color: #8a7a60;
+    letter-spacing: 0.05em;
+  }
+
+  /* SEQUENCER */
+  .seq-steps {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .seq-step {
+    width: 18px;
+    height: 18px;
+    background: var(--panel-mid);
+    border: 1px solid var(--accent-line);
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .seq-step.active {
+    background: var(--orange);
+    border-color: var(--orange-glow);
+    box-shadow: 0 0 4px var(--orange-glow);
+  }
+
+  .seq-step.playing::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* VU METERS */
+  .vu-meter {
+    width: 14px;
+    height: 60px;
+    background: var(--panel-mid);
+    border: 1px solid var(--accent-line);
+    border-radius: 1px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .vu-bar {
+    width: 100%;
+    background: linear-gradient(0deg, var(--green) 0%, var(--yellow-glow) 70%, var(--red) 100%);
+    transition: height 0.05s;
+  }
+
+  /* FILTER */
+  .filter-section {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  /* LABELS ROW */
+  .row-labels {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 2px;
+  }
+
+  .col-label {
+    font-size: 5px;
+    color: var(--text-dim);
+    width: 10px;
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  /* BOTTOM KEYBOARD PANEL */
+  .keyboard-panel {
+    background: #1e1a12;
+    border: 1px solid var(--accent-line);
+    border-radius: 0 0 4px 4px;
+    padding: 8px 16px 12px;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .kbd-label {
+    font-size: 7px;
+    letter-spacing: 0.4em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* FLEX UTILS */
+  .flex { display: flex; }
+  .flex-col { display: flex; flex-direction: column; }
+  .gap-2 { gap: 2px; }
+  .gap-4 { gap: 4px; }
+  .gap-6 { gap: 6px; }
+  .gap-8 { gap: 8px; }
+  .items-center { align-items: center; }
+  .justify-center { justify-content: center; }
+  .justify-between { justify-content: space-between; }
+  .wrap { flex-wrap: wrap; }
+  .mt-4 { margin-top: 4px; }
+  .mt-6 { margin-top: 6px; }
+  .mt-8 { margin-top: 8px; }
+  .text-center { text-align: center; }
+
+  .divider {
+    width: 1px;
+    background: var(--accent-line);
+    align-self: stretch;
+    margin: 0 4px;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    background: var(--panel-mid);
+    border-top: 1px solid var(--accent-line);
+    margin-top: 8px;
+    border-radius: 0 0 3px 3px;
+    font-size: 7px;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+  }
+
+  #status-text { color: var(--green-glow); }
+
+  /* WAVEFORM SELECTOR */
+  .wave-btns { display: flex; gap: 3px; }
+  .wave-btn {
+    background: var(--knob-body);
+    border: 1px solid var(--accent-line);
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .wave-btn.on {
+    border-color: var(--orange-glow);
+    color: var(--orange-glow);
+    box-shadow: 0 0 4px var(--orange-glow);
+  }
+
+  /* ENVELOPES */
+  .env-grid { display: flex; gap: 6px; align-items: flex-end; }
+  .env-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .env-col label { font-size: 6px; color: var(--text-dim); letter-spacing: 0.1em; }
+
+  input[type=range].vertical {
+    -webkit-appearance: slider-vertical;
+    writing-mode: bt-lr;
+    width: 18px;
+    height: 60px;
+    padding: 0;
+  }
+
+  /* RING MOD etc */
+  .sub-panel {
+    background: var(--panel-mid);
+    border: 1px solid var(--accent-line);
+    border-radius: 2px;
+    padding: 6px;
+  }
+
+  .sub-title {
+    font-size: 6px;
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 5px;
+  }
+
+  /* NOISE */
+  .noise-types { display: flex; gap: 3px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div class="machine-wrapper">
+  <div class="badge">
+    <div style="font-size:8px;letter-spacing:0.5em;color:var(--text-dim);margin-bottom:4px">ELECTRONIC MUSIC STUDIOS · LONDON</div>
+    <h1>SYNTHI 100</h1>
+    <div style="margin-top:4px">ANALOGUE VOLTAGE CONTROLLED SYNTHESISER · 1971</div>
+  </div>
+
+  <div class="cabinet">
+
+    <!-- ROW 1: OSC banks + scope + controls -->
+    <div class="section-row row-top">
+
+      <!-- OSC BANK A (1-4) -->
+      <div class="panel">
+        <div class="panel-title">OSCILLATORS I – IV</div>
+        <div class="osc-grid" id="osc-bank-a"></div>
+      </div>
+
+      <!-- OSC BANK B (5-8) + FILTER/ENV -->
+      <div class="panel">
+        <div class="panel-title">OSCILLATORS V – VIII · FILTERS</div>
+        <div class="osc-grid" id="osc-bank-b"></div>
+        <div class="mt-8">
+          <div class="filter-section" id="filter-section"></div>
+        </div>
+      </div>
+
+      <!-- ENVELOPE / NOISE / RING -->
+      <div class="panel flex-col gap-4">
+        <div class="panel-title">ENVELOPE SHAPER · NOISE · RING MOD</div>
+
+        <div class="sub-panel">
+          <div class="sub-title">ENV · ADSR</div>
+          <div class="env-grid" id="env-section"></div>
+        </div>
+
+        <div class="sub-panel">
+          <div class="sub-title">NOISE SOURCE</div>
+          <div class="noise-types" id="noise-section"></div>
+        </div>
+
+        <div class="sub-panel">
+          <div class="sub-title">RING MOD · EXT INPUT</div>
+          <div class="flex gap-6 justify-center mt-4">
+            <div class="knob-wrap">
+              <div class="knob sm yellow" id="ringmod-knob" data-val="0.5"></div>
+              <label>DEPTH</label>
+            </div>
+            <div class="knob-wrap">
+              <div class="knob sm" id="extgain-knob" data-val="0"></div>
+              <label>EXT GAIN</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCOPE + MASTER -->
+      <div class="panel flex-col gap-6">
+        <div class="panel-title">MONITORING</div>
+        <div class="scope">
+          <canvas class="scope-canvas" id="scope" width="180" height="100"></canvas>
+        </div>
+
+        <div class="sub-panel">
+          <div class="sub-title">MASTER OUTPUT</div>
+          <div class="flex gap-4 items-center justify-center mt-4">
+            <div class="vu-meter"><div class="vu-bar" id="vu-l" style="height:0%"></div></div>
+            <div class="vu-meter"><div class="vu-bar" id="vu-r" style="height:0%"></div></div>
+            <div class="knob-wrap">
+              <div class="knob lg orange" id="master-vol" data-val="0.7"></div>
+              <label>MASTER</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-panel">
+          <div class="sub-title">REVERB · SPACE</div>
+          <div class="flex gap-4 justify-center mt-4">
+            <div class="knob-wrap">
+              <div class="knob sm blue" id="reverb-knob" data-val="0.2"></div>
+              <label>DECAY</label>
+            </div>
+            <div class="knob-wrap">
+              <div class="knob sm blue" id="reverb-mix" data-val="0.15"></div>
+              <label>MIX</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 2: PATCH MATRIX + SEQUENCER -->
+    <div class="section-row row-mid">
+
+      <!-- PATCH MATRIX A (audio routing) -->
+      <div class="panel">
+        <div class="panel-title">PATCH MATRIX · SIGNAL ROUTING</div>
+        <div id="patch-matrix-a"></div>
+      </div>
+
+      <!-- PATCH MATRIX B (CV routing) -->
+      <div class="panel">
+        <div class="panel-title">PATCH MATRIX · CONTROL VOLTAGE</div>
+        <div id="patch-matrix-b"></div>
+      </div>
+
+      <!-- SEQUENCER -->
+      <div class="panel flex-col gap-4">
+        <div class="panel-title">DIGITAL SEQUENCER · 3 TRACK · 256 STEP</div>
+
+        <div class="flex gap-4 items-center">
+          <button class="toggle-btn" id="seq-play-btn">▶ PLAY</button>
+          <button class="toggle-btn" id="seq-stop-btn">■ STOP</button>
+          <button class="toggle-btn" id="seq-rec-btn">● REC</button>
+          <div class="led off" id="seq-led"></div>
+        </div>
+
+        <div>
+          <div style="font-size:6px;color:var(--text-dim);letter-spacing:0.2em;margin-bottom:3px">TRACK A</div>
+          <div class="seq-steps" id="seq-track-a"></div>
+        </div>
+        <div>
+          <div style="font-size:6px;color:var(--text-dim);letter-spacing:0.2em;margin-bottom:3px">TRACK B</div>
+          <div class="seq-steps" id="seq-track-b"></div>
+        </div>
+
+        <div class="flex gap-4 items-center">
+          <div class="knob-wrap">
+            <div class="knob sm" id="seq-tempo" data-val="0.4"></div>
+            <label>TEMPO</label>
+          </div>
+          <div class="knob-wrap">
+            <div class="knob sm yellow" id="seq-swing" data-val="0.5"></div>
+            <label>SWING</label>
+          </div>
+          <div class="knob-wrap">
+            <div class="knob sm green" id="seq-range" data-val="0.6"></div>
+            <label>RANGE</label>
+          </div>
+          <div class="flex-col gap-2">
+            <button class="toggle-btn" id="seq-loop-btn">LOOP</button>
+            <button class="toggle-btn" id="seq-rand-btn">RAND</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 3: KEYBOARD PANELS -->
+    <div class="keyboard-panel">
+      <div class="flex gap-8 items-center" style="width:100%">
+        <div class="flex-col gap-2">
+          <div class="kbd-label">KEYBOARD I</div>
+          <div class="flex gap-4 items-center">
+            <div class="knob-wrap"><div class="knob sm" id="kbd1-oct" data-val="0.5"></div><label>OCTAVE</label></div>
+            <div class="knob-wrap"><div class="knob sm orange" id="kbd1-glide" data-val="0"></div><label>GLIDE</label></div>
+            <div class="knob-wrap"><div class="knob sm green" id="kbd1-spread" data-val="0.5"></div><label>SPREAD</label></div>
+          </div>
+        </div>
+        <div class="keyboard" id="keyboard-1"></div>
+        <div class="flex-col gap-2">
+          <div class="kbd-label">KEYBOARD II</div>
+          <div class="flex gap-4 items-center">
+            <div class="knob-wrap"><div class="knob sm" id="kbd2-oct" data-val="0.5"></div><label>OCTAVE</label></div>
+            <div class="knob-wrap"><div class="knob sm orange" id="kbd2-glide" data-val="0"></div><label>GLIDE</label></div>
+            <div class="knob-wrap"><div class="knob sm green" id="kbd2-spread" data-val="0.5"></div><label>SPREAD</label></div>
+          </div>
+        </div>
+      </div>
+      <div class="keyboard" id="keyboard-2"></div>
+    </div>
+
+    <div class="status-bar">
+      <div>EMS SYNTHI 100 · DIGITAL REPLICA</div>
+      <div id="status-text">READY</div>
+      <div>WEB AUDIO ENGINE · ACTIVE</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let ctx = null;
+let masterGain, reverbGain, reverbDry, convolver, analyser;
+let oscNodes = [];
+let filterNodes = [];
+let envNode = null;
+let lfoNode = null;
+let isPlaying = false;
+
+// Synth state
+const state = {
+  oscs: Array.from({length:8}, (_,i) => ({
+    freq: 110 * Math.pow(2, i*0.5),
+    detune: 0,
+    waveform: 'sawtooth',
+    gain: i < 4 ? 0.3 : 0.0,
+    on: i < 2,
+    node: null,
+    gainNode: null
+  })),
+  filter: { freq: 2000, res: 5, type: 'lowpass' },
+  envelope: { attack: 0.05, decay: 0.1, sustain: 0.7, release: 0.3 },
+  master: { vol: 0.7, reverb: 0.2, reverbMix: 0.15 },
+  seq: {
+    playing: false,
+    step: 0,
+    bpm: 120,
+    trackA: Array(16).fill(false),
+    trackB: Array(16).fill(false)
+  },
+  noise: { type: 'white', on: false, gainNode: null, node: null },
+  ringmod: { depth: 0.5 },
+  activeNotes: new Set(),
+  octaveOffset: [0, 0]
+};
+
+// Patch matrix state
+const patchStateA = {};
+const patchStateB = {};
+
+function initAudio() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master chain
+  masterGain = ctx.createGain();
+  masterGain.gain.value = state.master.vol;
+
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+
+  // Simple reverb via delay network
+  reverbDry = ctx.createGain();
+  reverbDry.gain.value = 1 - state.master.reverbMix;
+  reverbGain = ctx.createGain();
+  reverbGain.gain.value = state.master.reverbMix;
+
+  const delay1 = ctx.createDelay(2);
+  const delay2 = ctx.createDelay(2);
+  delay1.delayTime.value = 0.23;
+  delay2.delayTime.value = 0.37;
+  const fbGain1 = ctx.createGain();
+  const fbGain2 = ctx.createGain();
+  fbGain1.gain.value = 0.4;
+  fbGain2.gain.value = 0.35;
+
+  masterGain.connect(reverbDry);
+  masterGain.connect(delay1);
+  masterGain.connect(delay2);
+  delay1.connect(fbGain1);
+  fbGain1.connect(delay1);
+  delay1.connect(reverbGain);
+  delay2.connect(fbGain2);
+  fbGain2.connect(delay2);
+  delay2.connect(reverbGain);
+
+  const outMix = ctx.createGain();
+  reverbDry.connect(outMix);
+  reverbGain.connect(outMix);
+  outMix.connect(analyser);
+  analyser.connect(ctx.destination);
+
+  // Filter
+  const filt = ctx.createBiquadFilter();
+  filt.type = state.filter.type;
+  filt.frequency.value = state.filter.freq;
+  filt.Q.value = state.filter.res;
+  filterNodes[0] = filt;
+  filt.connect(masterGain);
+
+  // LFO
+  lfoNode = ctx.createOscillator();
+  lfoNode.frequency.value = 0.5;
+  lfoNode.start();
+
+  // Build oscillators
+  state.oscs.forEach((o, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = o.waveform;
+    osc.frequency.value = o.freq;
+    osc.detune.value = o.detune;
+    const g = ctx.createGain();
+    g.gain.value = o.on ? o.gain : 0;
+    osc.connect(g);
+    g.connect(filt);
+    osc.start();
+    o.node = osc;
+    o.gainNode = g;
+  });
+
+  // Noise
+  const bufSize = ctx.sampleRate * 2;
+  const noiseBuffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const noiseNode = ctx.createBufferSource();
+  noiseNode.buffer = noiseBuffer;
+  noiseNode.loop = true;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0;
+  noiseNode.connect(noiseGain);
+  noiseGain.connect(filt);
+  noiseNode.start();
+  state.noise.node = noiseNode;
+  state.noise.gainNode = noiseGain;
+
+  setStatus('AUDIO ONLINE');
+  updateAllKnobs();
+  drawScope();
+  updateVU();
+}
+
+function setOscGain(i, val) {
+  if (!state.oscs[i].gainNode) return;
+  state.oscs[i].on = val > 0;
+  state.oscs[i].gain = val;
+  state.oscs[i].gainNode.gain.setTargetAtTime(val, ctx.currentTime, 0.01);
+}
+
+function setOscFreq(i, freq) {
+  state.oscs[i].freq = freq;
+  if (state.oscs[i].node) state.oscs[i].node.frequency.setTargetAtTime(freq, ctx.currentTime, 0.01);
+}
+
+function setOscDetune(i, cents) {
+  state.oscs[i].detune = cents;
+  if (state.oscs[i].node) state.oscs[i].node.detune.setTargetAtTime(cents, ctx.currentTime, 0.01);
+}
+
+function setOscWave(i, type) {
+  state.oscs[i].waveform = type;
+  if (state.oscs[i].node) state.oscs[i].node.type = type;
+}
+
+function setFilterFreq(f) {
+  state.filter.freq = f;
+  if (filterNodes[0]) filterNodes[0].frequency.setTargetAtTime(f, ctx.currentTime, 0.02);
+}
+
+function setFilterRes(q) {
+  state.filter.res = q;
+  if (filterNodes[0]) filterNodes[0].Q.setTargetAtTime(q, ctx.currentTime, 0.02);
+}
+
+function setMasterVol(v) {
+  state.master.vol = v;
+  if (masterGain) masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.02);
+}
+
+function setReverbMix(m) {
+  state.master.reverbMix = m;
+  if (reverbGain) {
+    reverbGain.gain.setTargetAtTime(m, ctx.currentTime, 0.05);
+    reverbDry.gain.setTargetAtTime(1 - m * 0.5, ctx.currentTime, 0.05);
+  }
+}
+
+// Note frequencies
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function noteOn(midi) {
+  if (!ctx || state.activeNotes.has(midi)) return;
+  state.activeNotes.add(midi);
+  const freq = midiToFreq(midi);
+  // Modulate first 2 oscs to this frequency
+  setOscFreq(0, freq);
+  setOscFreq(1, freq * 1.003); // slight detune
+  setOscFreq(2, freq * 0.5);
+  state.oscs.forEach((o, i) => {
+    if (i < 3) setOscGain(i, state.oscs[i].gain > 0 ? state.oscs[i].gain : 0.25);
+  });
+  // Envelope
+  if (masterGain) {
+    const g = masterGain.gain;
+    const t = ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(state.master.vol, t + state.envelope.attack);
+    g.linearRampToValueAtTime(state.master.vol * state.envelope.sustain, t + state.envelope.attack + state.envelope.decay);
+  }
+}
+
+function noteOff(midi) {
+  if (!state.activeNotes.has(midi)) return;
+  state.activeNotes.delete(midi);
+  if (state.activeNotes.size === 0 && masterGain) {
+    const g = masterGain.gain;
+    const t = ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0.001, t + state.envelope.release);
+    g.linearRampToValueAtTime(state.master.vol, t + state.envelope.release + 0.01);
+  }
+}
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function drawScope() {
+  const canvas = document.getElementById('scope');
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    requestAnimationFrame(draw);
+    c.fillStyle = 'rgba(10,20,10,0.3)';
+    c.fillRect(0,0,W,H);
+
+    // Grid
+    c.strokeStyle = 'rgba(68,255,68,0.08)';
+    c.lineWidth = 0.5;
+    for (let x = 0; x < W; x += W/6) { c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
+    for (let y = 0; y < H; y += H/4) { c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+
+    if (!analyser) {
+      // Static line
+      c.strokeStyle = 'rgba(68,255,68,0.5)';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(0, H/2); c.lineTo(W, H/2); c.stroke();
+      return;
+    }
+
+    const buf = new Float32Array(analyser.frequencyBinCount);
+    analyser.getFloatTimeDomainData(buf);
+
+    c.strokeStyle = '#44ff44';
+    c.lineWidth = 1.5;
+    c.shadowBlur = 4;
+    c.shadowColor = '#44ff44';
+    c.beginPath();
+    const slice = W / buf.length;
+    let x = 0;
+    for (let i = 0; i < buf.length; i++) {
+      const y = (buf[i] * 0.8 + 1) / 2 * H;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      x += slice;
+    }
+    c.stroke();
+    c.shadowBlur = 0;
+  }
+  draw();
+}
+
+// VU meters
+function updateVU() {
+  setInterval(() => {
+    if (!analyser) return;
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(buf);
+    const avg = buf.reduce((a,b) => a+b, 0) / buf.length;
+    const pct = Math.min(100, avg * 1.5) + '%';
+    document.getElementById('vu-l').style.height = pct;
+    document.getElementById('vu-r').style.height = Math.min(100, avg * 1.4 + Math.random() * 5) + '%';
+  }, 50);
+}
+
+// ============================================================
+// KNOB INTERACTION
+// ============================================================
+function initKnob(el, onChange) {
+  let startY, startVal;
+  const getVal = () => parseFloat(el.dataset.val || 0.5);
+  const setVal = (v) => {
+    v = Math.max(0, Math.min(1, v));
+    el.dataset.val = v;
+    const angle = -135 + v * 270;
+    el.style.setProperty('--angle', angle + 'deg');
+    el.querySelector('::after'); // force update
+    const marker = el;
+    // Rotate via transform on ::after via CSS custom property
+    // We use a data-angle attribute and update it via direct DOM
+    el.style.setProperty('transform', 'none');
+    // Actually we rotate the marker dot via pseudo-element - use wrapper div trick
+    updateKnobVisual(el, v);
+    if (onChange) onChange(v);
+  };
+
+  const onMouseDown = (e) => {
+    if (!ctx) initAudio();
+    startY = e.clientY || e.touches[0].clientY;
+    startVal = getVal();
+    const onMove = (e2) => {
+      const y = e2.clientY || (e2.touches && e2.touches[0].clientY) || startY;
+      const delta = (startY - y) / 150;
+      setVal(startVal + delta);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onUp);
+  };
+
+  el.addEventListener('mousedown', onMouseDown);
+  el.addEventListener('touchstart', onMouseDown, {passive: true});
+  updateKnobVisual(el, getVal());
+}
+
+function updateKnobVisual(el, val) {
+  const angle = -135 + val * 270;
+  // Use a canvas overlay or just use the ::after via injected style
+  el.setAttribute('data-angle', angle);
+  // We'll handle via a globally injected <style> — actually let's do it inline
+  // Since we can't easily style ::after from JS, use a child element
+  let dot = el.querySelector('.knob-dot');
+  if (!dot) {
+    dot = document.createElement('div');
+    dot.className = 'knob-dot';
+    dot.style.cssText = `
+      position:absolute;top:50%;left:50%;
+      width:2px;height:40%;
+      background:inherit;
+      transform-origin:bottom center;
+      border-radius:1px;
+      pointer-events:none;
+    `;
+    // Pick color from knob classes
+    const cc = el.classList;
+    if (cc.contains('orange')) dot.style.background = 'var(--orange-glow)';
+    else if (cc.contains('green')) dot.style.background = 'var(--green-glow)';
+    else if (cc.contains('blue')) dot.style.background = 'var(--blue-glow)';
+    else if (cc.contains('red')) dot.style.background = 'var(--red-glow)';
+    else if (cc.contains('yellow')) dot.style.background = 'var(--yellow-glow)';
+    else dot.style.background = 'var(--cream)';
+    el.appendChild(dot);
+  }
+  dot.style.transform = `translateX(-50%) translateY(-100%) rotate(${angle}deg)`;
+}
+
+function updateAllKnobs() {
+  document.querySelectorAll('.knob').forEach(k => {
+    updateKnobVisual(k, parseFloat(k.dataset.val || 0.5));
+  });
+}
+
+// ============================================================
+// BUILD UI
+// ============================================================
+
+// --- OSC STRIPS ---
+function buildOscStrip(idx, bank) {
+  const strip = document.createElement('div');
+  strip.className = 'osc-strip';
+
+  const freqKnob = document.createElement('div');
+  freqKnob.className = 'knob-wrap';
+  const fk = document.createElement('div');
+  fk.className = 'knob orange';
+  fk.dataset.val = 0.3 + idx * 0.05;
+  fk.id = `osc${idx}-freq`;
+  const fl = document.createElement('label');
+  fl.textContent = 'FREQ';
+  freqKnob.appendChild(fk); freqKnob.appendChild(fl);
+
+  const gainKnob = document.createElement('div');
+  gainKnob.className = 'knob-wrap';
+  const gk = document.createElement('div');
+  gk.className = 'knob green';
+  gk.dataset.val = idx < 2 ? 0.5 : 0.0;
+  gk.id = `osc${idx}-gain`;
+  const gl = document.createElement('label');
+  gl.textContent = 'LEVEL';
+  gainKnob.appendChild(gk); gainKnob.appendChild(gl);
+
+  const detuneKnob = document.createElement('div');
+  detuneKnob.className = 'knob-wrap';
+  const dk = document.createElement('div');
+  dk.className = 'knob sm';
+  dk.dataset.val = 0.5;
+  dk.id = `osc${idx}-detune`;
+  const dll = document.createElement('label');
+  dll.textContent = 'FINE';
+  detuneKnob.appendChild(dk); detuneKnob.appendChild(dll);
+
+  // Waveform buttons
+  const waves = document.createElement('div');
+  waves.className = 'wave-btns';
+  const waveTypes = [['∿','sawtooth'],['□','square'],['△','triangle'],['~','sine']];
+  waveTypes.forEach(([sym, type], wi) => {
+    const b = document.createElement('button');
+    b.className = 'wave-btn' + (wi === 0 ? ' on' : '');
+    b.textContent = sym;
+    b.title = type;
+    b.addEventListener('click', () => {
+      if (!ctx) initAudio();
+      waves.querySelectorAll('.wave-btn').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      setOscWave(idx, type);
+    });
+    waves.appendChild(b);
+  });
+
+  const num = document.createElement('div');
+  num.className = 'osc-num';
+  num.textContent = `OSC ${idx+1}`;
+
+  strip.appendChild(num);
+  strip.appendChild(freqKnob);
+  strip.appendChild(gainKnob);
+  strip.appendChild(detuneKnob);
+  strip.appendChild(waves);
+
+  // Bind knobs
+  setTimeout(() => {
+    initKnob(fk, v => {
+      if (!ctx) return;
+      const baseFreqs = [55,110,165,220,330,440,660,880];
+      const freq = baseFreqs[idx] * Math.pow(4, v - 0.5);
+      setOscFreq(idx, freq);
+    });
+    initKnob(gk, v => {
+      if (!ctx) return;
+      setOscGain(idx, v * v * 0.6);
+    });
+    initKnob(dk, v => {
+      if (!ctx) return;
+      setOscDetune(idx, (v - 0.5) * 200);
+    });
+  }, 100);
+
+  return strip;
+}
+
+// OSC banks
+const bankA = document.getElementById('osc-bank-a');
+const bankB = document.getElementById('osc-bank-b');
+for (let i = 0; i < 4; i++) bankA.appendChild(buildOscStrip(i));
+for (let i = 4; i < 8; i++) bankB.appendChild(buildOscStrip(i));
+
+// --- FILTER ---
+const filterSection = document.getElementById('filter-section');
+[
+  {id:'filt-freq', label:'CUTOFF', color:'orange', val:0.5},
+  {id:'filt-res', label:'RES', color:'red', val:0.2},
+  {id:'filt-env', label:'ENV AMT', color:'yellow', val:0.4},
+  {id:'filt-lfo', label:'LFO MOD', color:'blue', val:0.1}
+].forEach(({id, label, color, val}) => {
+  const w = document.createElement('div');
+  w.className = 'knob-wrap';
+  const k = document.createElement('div');
+  k.className = `knob ${color}`;
+  k.id = id;
+  k.dataset.val = val;
+  const l = document.createElement('label');
+  l.textContent = label;
+  w.appendChild(k); w.appendChild(l);
+  filterSection.appendChild(w);
+  setTimeout(() => {
+    initKnob(k, v => {
+      if (!ctx) return;
+      if (id === 'filt-freq') setFilterFreq(50 + v * v * 18000);
+      if (id === 'filt-res') setFilterRes(v * 25);
+    });
+  }, 100);
+});
+
+// --- ENVELOPE ---
+const envSection = document.getElementById('env-section');
+['ATK','DEC','SUS','REL'].forEach((param, pi) => {
+  const col = document.createElement('div');
+  col.className = 'env-col';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.className = 'vertical green';
+  slider.min = 0; slider.max = 100;
+  slider.value = [5,15,70,40][pi];
+  slider.addEventListener('input', () => {
+    if (!ctx) return;
+    const v = slider.value / 100;
+    if (param === 'ATK') state.envelope.attack = v * 2;
+    if (param === 'DEC') state.envelope.decay = v * 2;
+    if (param === 'SUS') state.envelope.sustain = v;
+    if (param === 'REL') state.envelope.release = v * 3;
+  });
+  const lbl = document.createElement('label');
+  lbl.textContent = param;
+  col.appendChild(slider);
+  col.appendChild(lbl);
+  envSection.appendChild(col);
+});
+
+// --- NOISE ---
+const noiseSection = document.getElementById('noise-section');
+['WHITE','PINK','OFF'].forEach((type, ti) => {
+  const btn = document.createElement('button');
+  btn.className = 'toggle-btn' + (ti === 2 ? ' on' : '');
+  btn.textContent = type;
+  btn.addEventListener('click', () => {
+    if (!ctx) initAudio();
+    noiseSection.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    if (type === 'OFF') {
+      state.noise.gainNode && (state.noise.gainNode.gain.value = 0);
+    } else {
+      state.noise.gainNode && (state.noise.gainNode.gain.value = 0.15);
+    }
+  });
+  noiseSection.appendChild(btn);
+});
+
+// --- MASTER / REVERB KNOBS ---
+setTimeout(() => {
+  initKnob(document.getElementById('master-vol'), v => {
+    state.master.vol = v;
+    setMasterVol(v);
+  });
+  initKnob(document.getElementById('reverb-knob'), v => {
+    state.master.reverb = v;
+    if (filterNodes[0]) filterNodes[0].frequency.value = 50 + v * v * 18000;
+  });
+  initKnob(document.getElementById('reverb-mix'), v => {
+    setReverbMix(v * 0.8);
+  });
+  initKnob(document.getElementById('ringmod-knob'), () => {});
+  initKnob(document.getElementById('extgain-knob'), () => {});
+  initKnob(document.getElementById('seq-tempo'), v => {
+    state.seq.bpm = 40 + v * 250;
+  });
+  initKnob(document.getElementById('seq-swing'), () => {});
+  initKnob(document.getElementById('seq-range'), () => {});
+  ['kbd1-oct','kbd1-glide','kbd1-spread','kbd2-oct','kbd2-glide','kbd2-spread'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) initKnob(el, () => {});
+  });
+}, 150);
+
+// --- PATCH MATRIX A ---
+const matrixRowLabels = ['OSC 1','OSC 2','OSC 3','OSC 4','OSC 5','OSC 6','FILT','NOISE'];
+const matrixColLabels = ['F1','F2','O1','O2','O3','MX','RM','OUT'];
+
+function buildMatrix(containerId, stateObj, colorClass) {
+  const container = document.getElementById(containerId);
+
+  // Column labels
+  const colRow = document.createElement('div');
+  colRow.className = 'row-labels';
+  colRow.style.paddingLeft = '33px';
+  matrixColLabels.forEach(l => {
+    const span = document.createElement('div');
+    span.className = 'col-label';
+    span.textContent = l;
+    colRow.appendChild(span);
+  });
+  container.appendChild(colRow);
+
+  matrixRowLabels.forEach((rowLabel, ri) => {
+    const row = document.createElement('div');
+    row.className = 'matrix-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'matrix-label';
+    lbl.textContent = rowLabel;
+    row.appendChild(lbl);
+    matrixColLabels.forEach((_, ci) => {
+      const pp = document.createElement('div');
+      pp.className = 'patch-point';
+      const key = `${ri}-${ci}`;
+      pp.addEventListener('click', () => {
+        if (!ctx) initAudio();
+        if (stateObj[key]) {
+          delete stateObj[key];
+          pp.classList.remove('active', 'green', 'blue');
+        } else {
+          stateObj[key] = true;
+          pp.classList.add('active');
+          if (colorClass) pp.classList.add(colorClass);
+          // Activate routing effects
+          handlePatch(ri, ci);
+        }
+      });
+      row.appendChild(pp);
+    });
+    container.appendChild(row);
+  });
+}
+
+function handlePatch(ri, ci) {
+  if (!ctx) return;
+  // Simple: patch OSC to output means turn on that osc
+  if (ci === 7) { // OUT column
+    setOscGain(ri, 0.3);
+  }
+}
+
+buildMatrix('patch-matrix-a', patchStateA, null);
+buildMatrix('patch-matrix-b', patchStateB, 'blue');
+
+// --- SEQUENCER ---
+function buildSeqTrack(containerId, trackArr, trackIdx) {
+  const container = document.getElementById(containerId);
+  for (let i = 0; i < 16; i++) {
+    const step = document.createElement('div');
+    step.className = 'seq-step';
+    step.id = `seq-${trackIdx}-${i}`;
+    step.addEventListener('click', () => {
+      if (!ctx) initAudio();
+      trackArr[i] = !trackArr[i];
+      step.classList.toggle('active', trackArr[i]);
+    });
+    container.appendChild(step);
+  }
+}
+
+buildSeqTrack('seq-track-a', state.seq.trackA, 'a');
+buildSeqTrack('seq-track-b', state.seq.trackB, 'b');
+
+let seqInterval = null;
+let seqStep = 0;
+
+document.getElementById('seq-play-btn').addEventListener('click', () => {
+  if (!ctx) initAudio();
+  if (seqInterval) return;
+  state.seq.playing = true;
+  document.getElementById('seq-led').className = 'led green';
+  document.getElementById('seq-play-btn').classList.add('on');
+  setStatus('SEQUENCER RUNNING');
+  const bpmFromKnob = () => 40 + parseFloat(document.getElementById('seq-tempo').dataset.val || 0.4) * 250;
+  seqInterval = setInterval(() => {
+    const step = seqStep % 16;
+    // Clear previous
+    const prev = (step + 15) % 16;
+    const prevA = document.getElementById(`seq-a-${prev}`);
+    const prevB = document.getElementById(`seq-b-${prev}`);
+    if (prevA) prevA.classList.remove('playing');
+    if (prevB) prevB.classList.remove('playing');
+
+    document.getElementById(`seq-a-${step}`)?.classList.add('playing');
+    document.getElementById(`seq-b-${step}`)?.classList.add('playing');
+
+    if (state.seq.trackA[step]) {
+      const notes = [60,62,64,65,67,69,71,72,74,60,63,65,67,70,72,60];
+      noteOn(notes[step]);
+      setTimeout(() => noteOff(notes[step]), 100);
+    }
+
+    seqStep++;
+    clearInterval(seqInterval);
+    seqInterval = setInterval(arguments.callee, 60000 / bpmFromKnob());
+  }, 60000 / bpmFromKnob());
+});
+
+document.getElementById('seq-stop-btn').addEventListener('click', () => {
+  if (seqInterval) { clearInterval(seqInterval); seqInterval = null; }
+  state.seq.playing = false;
+  document.getElementById('seq-led').className = 'led off';
+  document.getElementById('seq-play-btn').classList.remove('on');
+  seqStep = 0;
+  for (let i = 0; i < 16; i++) {
+    document.getElementById(`seq-a-${i}`)?.classList.remove('playing');
+    document.getElementById(`seq-b-${i}`)?.classList.remove('playing');
+  }
+  setStatus('SEQUENCER STOPPED');
+});
+
+document.getElementById('seq-rec-btn').addEventListener('click', function() {
+  this.classList.toggle('on orange');
+});
+
+document.getElementById('seq-loop-btn').addEventListener('click', function() {
+  this.classList.toggle('on');
+});
+
+document.getElementById('seq-rand-btn').addEventListener('click', () => {
+  if (!ctx) initAudio();
+  state.seq.trackA.forEach((_,i) => {
+    state.seq.trackA[i] = Math.random() > 0.65;
+    const el = document.getElementById(`seq-a-${i}`);
+    if (el) el.classList.toggle('active', state.seq.trackA[i]);
+  });
+  setStatus('RANDOM PATTERN');
+});
+
+// --- KEYBOARDS ---
+const KEYBOARD_LAYOUT = [
+  {note:0,black:false},{note:1,black:true},{note:2,black:false},{note:3,black:true},
+  {note:4,black:false},{note:5,black:false},{note:6,black:true},{note:7,black:false},
+  {note:8,black:true},{note:9,black:false},{note:10,black:true},{note:11,black:false},
+  {note:12,black:false},{note:13,black:true},{note:14,black:false},{note:15,black:true},
+  {note:16,black:false},{note:17,black:false},{note:18,black:true},{note:19,black:false},
+  {note:20,black:true},{note:21,black:false},{note:22,black:true},{note:23,black:false},
+];
+
+function buildKeyboard(containerId, octaveBase) {
+  const container = document.getElementById(containerId);
+  KEYBOARD_LAYOUT.forEach(({note, black}) => {
+    const key = document.createElement('div');
+    key.className = 'key' + (black ? ' black' : '');
+    const midi = octaveBase * 12 + note;
+
+    const onDown = (e) => {
+      e.preventDefault();
+      if (!ctx) initAudio();
+      key.classList.add('pressed');
+      noteOn(midi);
+      setStatus(`NOTE: ${NOTE_NAMES[note % 12]}${Math.floor(midi/12)-1}`);
+    };
+    const onUp = () => {
+      key.classList.remove('pressed');
+      noteOff(midi);
+    };
+
+    key.addEventListener('mousedown', onDown);
+    key.addEventListener('touchstart', onDown, {passive:false});
+    key.addEventListener('mouseup', onUp);
+    key.addEventListener('touchend', onUp);
+    key.addEventListener('mouseleave', onUp);
+
+    if (!black) {
+      const lbl = document.createElement('div');
+      lbl.className = 'key-label';
+      lbl.textContent = NOTE_NAMES[note % 12];
+      key.appendChild(lbl);
+    }
+
+    container.appendChild(key);
+  });
+}
+
+buildKeyboard('keyboard-1', 4); // C4-B5
+buildKeyboard('keyboard-2', 3); // C3-B4
+
+// Status
+function setStatus(msg) {
+  document.getElementById('status-text').textContent = msg;
+}
+
+// Keyboard (computer keyboard) shortcuts
+const KB_MAP = {
+  'a':60,'w':61,'s':62,'e':63,'d':64,'f':65,'t':66,'g':67,'y':68,'h':69,'u':70,'j':71,
+  'k':72,'o':73,'l':74,'p':75,';':76
+};
+
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const midi = KB_MAP[e.key];
+  if (midi !== undefined) {
+    if (!ctx) initAudio();
+    noteOn(midi);
+    const key = document.querySelector(`#keyboard-1 .key:nth-child(${midi-59})`);
+    if (key) key.classList.add('pressed');
+  }
+});
+
+window.addEventListener('keyup', e => {
+  const midi = KB_MAP[e.key];
+  if (midi !== undefined) {
+    noteOff(midi);
+    const key = document.querySelector(`#keyboard-1 .key:nth-child(${midi-59})`);
+    if (key) key.classList.remove('pressed');
+  }
+});
+
+// Init on first interaction
+document.querySelector('.cabinet').addEventListener('click', () => { if (!ctx) initAudio(); }, {once:true});
+document.querySelector('.cabinet').addEventListener('touchstart', () => { if (!ctx) initAudio(); }, {once:true, passive:true});
+
+setStatus('CLICK ANY CONTROL OR KEY TO ACTIVATE');
+</script>
+</body>
+</html>

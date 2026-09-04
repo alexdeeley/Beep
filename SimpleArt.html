@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>simple art</title>
+<style>
+  :root{
+    --bg:#000;
+    --ui:#111;
+    --accent:#fff;
+  }
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--bg);
+    overflow:hidden;
+  }
+  #wrap{
+    position:fixed;
+    inset:0;
+    display:grid;
+    place-items:center;
+  }
+  canvas{
+    width:100vw;
+    height:100vh;
+    display:block;
+    background:#f3f1ec; /* off‑white canvas like the reference */
+  }
+  /* Minimal controls, no labels */
+  #controls{
+    position:fixed;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:8px;
+    z-index:10;
+    background:rgba(0,0,0,0.6);
+    padding:8px;
+    border-radius:10px;
+    box-shadow:0 0 0 2px rgba(255,255,255,0.08) inset;
+  }
+  #seed{
+    width:200px;
+    background:#0b0b0b;
+    color:#fff;
+    border:1px solid #2a2a2a;
+    border-radius:8px;
+    padding:10px 12px;
+    font:16px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    outline:none;
+  }
+  #go{
+    width:44px;
+    height:44px;
+    border:1px solid #2a2a2a;
+    background:#0b0b0b;
+    color:#fff;
+    border-radius:10px;
+    cursor:pointer;
+    display:grid;
+    place-items:center;
+  }
+  #go:active{ transform:translateY(1px); }
+  /* Triangle icon with pure CSS so there's no extra text */
+  #go::before{
+    content:"";
+    display:block;
+    width:0;height:0;
+    border-left:14px solid #fff;
+    border-top:10px solid transparent;
+    border-bottom:10px solid transparent;
+    margin-left:4px;
+  }
+  /* Hide any accessibility text visually but keep for screen readers */
+  .sr-only{
+    position:absolute;
+    width:1px;height:1px;
+    padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="controls" role="group" aria-label="controls">
+    <label class="sr-only" for="seed">seed</label>
+    <input id="seed" type="text" value="seed" aria-label="seed">
+    <button id="go" aria-label="generate"><span class="sr-only">generate</span></button>
+  </div>
+  <div id="wrap"><canvas id="c"></canvas></div>
+
+<script>
+// ---- seeded RNG helpers ----
+function cyrb128(str) {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0, k; i < str.length; i++) {
+    k = str.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  return [(h1^h2^h3^h4)>>>0, h1>>>0, h2>>>0, h3>>>0];
+}
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+// ---- color helpers ----
+function mix3(a,b,c,wa,wb,wc){
+  const sum = wa+wb+wc || 1;
+  wa/=sum; wb/=sum; wc/=sum;
+  return [
+    Math.round(a[0]*wa + b[0]*wb + c[0]*wc),
+    Math.round(a[1]*wa + b[1]*wb + c[1]*wc),
+    Math.round(a[2]*wa + b[2]*wb + c[2]*wc)
+  ];
+}
+function lerpColor(p, q, t){
+  return [ 
+    Math.round(p[0] + (q[0]-p[0])*t),
+    Math.round(p[1] + (q[1]-p[1])*t),
+    Math.round(p[2] + (q[2]-p[2])*t)
+  ];
+}
+function rgbToStr(r){ return `rgb(${r[0]},${r[1]},${r[2]})`; }
+function dist(a,b){ return Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]); }
+
+// Anchor palette inspired by the reference
+const A_BLACK = [0,0,0];
+const B_OCHRE = [199,154,43];    // yellow-ochre
+const C_MAROON= [90,31,27];      // deep reddish-brown
+const BG      = [243,241,236];   // off-white background
+
+// triangulate an RGB against anchors: pull towards nearest anchor slightly
+function triangulateColor(rand){
+  // random barycentric weights (Dirichlet-like)
+  const wa = -Math.log(1-rand());
+  const wb = -Math.log(1-rand());
+  const wc = -Math.log(1-rand());
+  let col = mix3(A_BLACK, B_OCHRE, C_MAROON, wa, wb, wc);
+  // bias towards nearest anchor for clearer membership
+  const ds = [dist(col, A_BLACK), dist(col, B_OCHRE), dist(col, C_MAROON)];
+  const idx = ds.indexOf(Math.min(...ds));
+  const anchors = [A_BLACK, B_OCHRE, C_MAROON];
+  col = lerpColor(col, anchors[idx], 0.45); // pull ~45% towards the winner
+  // small random value/saturation jitter
+  const j = (rand()*0.2)-0.1;
+  col = col.map(v => Math.max(0, Math.min(255, Math.round(v + j*255))));
+  return col;
+}
+
+// ---- geometry helpers ----
+function randRange(rng, a, b){ return a + (b-a) * rng(); }
+function choice(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+
+// Draw routines
+function draw(seed){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  const W = canvas.width = Math.floor(innerWidth * dpr);
+  const H = canvas.height = Math.floor(innerHeight * dpr);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(dpr,dpr);
+
+  const rand = mulberry32(cyrb128(seed).reduce((a,b)=>a^b));
+  
+  // background
+  ctx.fillStyle = rgbToStr(BG);
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+
+  // number of shapes
+  const n = Math.floor(3 + rand()*5); // 3..7
+
+  // slight paper shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.10)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 4;
+
+  const centerX = innerWidth/2;
+  const centerY = innerHeight/2;
+  
+  for(let i=0;i<n;i++){
+    const col = triangulateColor(rand);
+    ctx.fillStyle = rgbToStr(col);
+    ctx.globalAlpha = 0.96;
+
+    const typ = choice(rand, ['rect','quad','bar']);
+    const angle = randRange(rand, -Math.PI/3, Math.PI/3);
+    ctx.save();
+    ctx.translate(centerX + randRange(rand, -innerWidth*0.18, innerWidth*0.18),
+                  centerY + randRange(rand, -innerHeight*0.18, innerHeight*0.18));
+    ctx.rotate(angle);
+
+    if(typ==='rect'){
+      const w = randRange(rand, innerWidth*0.18, innerWidth*0.36);
+      const h = randRange(rand, innerHeight*0.18, innerHeight*0.42);
+      ctx.fillRect(-w/2, -h/2, w, h);
+    }else if(typ==='bar'){
+      const w = randRange(rand, innerWidth*0.1, innerWidth*0.16);
+      const h = randRange(rand, innerHeight*0.42, innerHeight*0.66);
+      ctx.fillRect(-w/2, -h/2, w, h);
+    }else{
+      const w = randRange(rand, innerWidth*0.22, innerWidth*0.38);
+      const h = randRange(rand, innerHeight*0.18, innerHeight*0.34);
+      // skewed quad
+      ctx.beginPath();
+      ctx.moveTo(-w/2 + randRange(rand,-20,20), -h/2 + randRange(rand,-20,20));
+      ctx.lineTo( w/2 + randRange(rand,-20,20), -h/2 + randRange(rand,-20,20));
+      ctx.lineTo( w/2 + randRange(rand,-20,20),  h/2 + randRange(rand,-20,20));
+      ctx.lineTo(-w/2 + randRange(rand,-20,20),  h/2 + randRange(rand,-20,20));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // subtle surface noise to keep it painterly (no text)
+  const noise = ctx.createImageData( Math.floor(innerWidth), Math.floor(innerHeight) );
+  for(let i=0;i<noise.data.length;i+=4){
+    const v = 248 + Math.floor(rand()*7); // tiny noise on top
+    noise.data[i]=v; noise.data[i+1]=v; noise.data[i+2]=v; noise.data[i+3]=12;
+  }
+  ctx.putImageData(noise, 0, 0);
+}
+
+// wire up UI
+const input = document.getElementById('seed');
+const btn = document.getElementById('go');
+function go(){ draw(input.value.trim() || 'seed'); }
+btn.addEventListener('click', go);
+window.addEventListener('resize', ()=>go());
+// initial
+go();
+</script>
+</body>
+</html>

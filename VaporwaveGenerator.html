@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vaporwave Generator</title>
+<style>
+  :root{
+    --bg:#000; --fg:#fff; --accent:#a0f; --muted:#666; --good:#3fa; --warn:#fa3;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:20px;}
+  h1{font-weight:800;letter-spacing:.02em;margin:0 0 8px;font-size:32px;}
+  p.lead{color:#ccc;margin-top:0}
+  .panel{border:1px solid #333;border-radius:12px;padding:16px;margin:14px 0;background:#0a0a0a;}
+  label{display:block;margin:10px 0 6px;font-size:13px;color:#ddd;}
+  input[type=range]{width:100%}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;}
+  button{background:#111;border:1px solid #333;color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
+  button:hover{border-color:var(--accent);box-shadow:0 0 0 3px #a0f2 inset}
+  button.primary{background:linear-gradient(180deg,#1a0028,#0a0012);border-color:#5f2ab5}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap}
+  .toggle{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #333;border-radius:10px;background:#0b0b0b;}
+  .small{font-size:12px;color:#bbb}
+  .meter{height:10px;background:#111;border:1px solid #333;border-radius:8px;overflow:hidden}
+  .meter > div{height:100%;background:linear-gradient(90deg,#4af,#f0f);width:0%}
+  .footer{color:#999;font-size:12px;margin-top:10px}
+  a{color:#9bf}
+  .audio {margin-top:12px}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div class="wrap">
+  <h1>Vaporwave Generator</h1>
+  <p class="lead">One‑click dreamy pads, slowed‑down drums, woozy bass, and nostalgic melodies — rendered locally in your browser. High‑contrast, no tracking, no external files.</p>
+
+  <div class="panel">
+    <div class="btns">
+      <button id="btnGenerate" class="primary">Generate Track</button>
+      <button id="btnPlay">Play</button>
+      <button id="btnStop">Stop</button>
+      <button id="btnRandom">Randomize</button>
+      <a id="downloadLink" download="vaporwave.wav"><button>Download WAV</button></a>
+    </div>
+    <div class="toggles">
+      <div class="toggle"><input type="checkbox" id="chkMelody" checked><label for="chkMelody">Melody</label></div>
+      <div class="toggle"><input type="checkbox" id="chkPads" checked><label for="chkPads">Pads</label></div>
+      <div class="toggle"><input type="checkbox" id="chkBass" checked><label for="chkBass">Bass</label></div>
+      <div class="toggle"><input type="checkbox" id="chkDrums" checked><label for="chkDrums">Drums</label></div>
+      <div class="toggle"><input type="checkbox" id="chkSidechain" checked><label for="chkSidechain">Sidechain Pump</label></div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>BPM <span id="bpmVal" class="small"></span></label>
+        <input type="range" id="bpm" min="50" max="110" step="1" value="72">
+      </div>
+      <div>
+        <label>Key (semitone offset) <span id="keyVal" class="small"></span></label>
+        <input type="range" id="key" min="-12" max="12" step="1" value="0">
+      </div>
+      <div>
+        <label>Duration (seconds) <span id="durVal" class="small"></span></label>
+        <input type="range" id="dur" min="20" max="120" step="5" value="60">
+      </div>
+      <div>
+        <label>Pad Detune (cents) <span id="detVal" class="small"></span></label>
+        <input type="range" id="det" min="0" max="40" step="1" value="18">
+      </div>
+      <div>
+        <label>Reverb Size <span id="revVal" class="small"></span></label>
+        <input type="range" id="reverb" min="0" max="1" step="0.01" value="0.6">
+      </div>
+      <div>
+        <label>Tape Wow (depth) <span id="wowVal" class="small"></span></label>
+        <input type="range" id="wow" min="0" max="1" step="0.01" value="0.15">
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Render progress</label>
+      <div class="meter"><div id="progress"></div></div>
+    </div>
+
+    <audio id="player" class="audio" controls></audio>
+
+    <div class="footer">Tip: Click <b>Randomize</b> then <b>Generate Track</b>. Toggle parts on/off to taste. Download is a standard 44.1kHz WAV.</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const el = id => document.getElementById(id);
+  const bpm = el('bpm'); const bpmVal = el('bpmVal');
+  const key = el('key'); const keyVal = el('keyVal');
+  const dur = el('dur'); const durVal = el('durVal');
+  const det = el('det'); const detVal = el('detVal');
+  const reverb = el('reverb'); const revVal = el('revVal');
+  const wow = el('wow'); const wowVal = el('wowVal');
+  const chkMelody = el('chkMelody');
+  const chkPads = el('chkPads');
+  const chkBass = el('chkBass');
+  const chkDrums = el('chkDrums');
+  const chkSide = el('chkSidechain');
+  const progress = el('progress');
+  const player = el('player');
+  const dl = el('downloadLink');
+
+  const updateLabels = () => {
+    bpmVal.textContent = '('+bpm.value+' BPM)';
+    keyVal.textContent = '('+(+key.value >= 0 ? '+'+key.value : key.value)+' st)';
+    durVal.textContent = '('+dur.value+'s)';
+    detVal.textContent = '('+det.value+'¢)';
+    revVal.textContent = '('+Math.round(+reverb.value*100)+'%)';
+    wowVal.textContent = '('+Math.round(+wow.value*100)+'%)';
+  };
+  [bpm,key,dur,det,reverb,wow].forEach(inp=>inp.addEventListener('input', updateLabels));
+  updateLabels();
+
+  function seedRand(seed){
+    let s = seed>>>0 || (Math.random()*0x7fffffff)|0;
+    return () => (s = (s*1664525 + 1013904223) >>> 0) / 4294967296;
+  }
+
+  function midiToFreq(m){ return 440*Math.pow(2,(m-69)/12); }
+
+  // Simple WAV encoder for Float32Array [-1,1]
+  function floatsToWavBytes(floatBuf, numChannels=2, sampleRate=44100){
+    // interleaved floatBuf length must be frames*numChannels
+    const bytesPerSample = 2;
+    const frameCount = Math.floor(floatBuf.length / numChannels);
+    const dataSize = frameCount * numChannels * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeString(off, str){
+      for (let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i));
+    }
+    function write16(off,val){ view.setUint16(off, val, true); }
+    function write32(off,val){ view.setUint32(off, val, true); }
+
+    writeString(0, 'RIFF');
+    write32(4, 36 + dataSize);
+    writeString(8, 'WAVE');
+    writeString(12,'fmt ');
+    write32(16, 16);
+    write16(20, 1); // PCM
+    write16(22, numChannels);
+    write32(24, sampleRate);
+    write32(28, sampleRate * numChannels * bytesPerSample);
+    write16(32, numChannels * bytesPerSample);
+    write16(34, 8 * bytesPerSample);
+    writeString(36, 'data');
+    write32(40, dataSize);
+
+    // Float32 -> Int16
+    let offset = 44;
+    for (let i=0;i<floatBuf.length;i++){
+      const s = Math.max(-1, Math.min(1, floatBuf[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+    return new Blob([buffer], {type:'audio/wav'});
+  }
+
+  // Generate an exponential decay impulse response for reverb
+  function makeImpulse(sampleRate, seconds, decay){
+    const len = Math.floor(sampleRate * seconds);
+    const impulse = new Float32Array(len);
+    for (let i=0;i<len;i++){
+      impulse[i] = (Math.random()*2-1) * Math.pow(1 - i/len, decay);
+    }
+    return impulse;
+  }
+
+  function scheduleDrum(context, when, type, params={}){
+    const sr = context.sampleRate;
+    const dt = (t)=>Math.floor(t*sr);
+    // synth drum builders
+    if (type==='kick'){
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type='sine';
+      osc.frequency.setValueAtTime(140, when);
+      osc.frequency.exponentialRampToValueAtTime(40, when+0.15);
+      gain.gain.setValueAtTime(1, when);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when+0.16);
+      osc.connect(gain).connect(params.bus || context.destination);
+      osc.start(when); osc.stop(when+0.17);
+    } else if (type==='snare'){
+      const noise = context.createBufferSource();
+      const len = dt(0.2);
+      const buf = context.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for(let i=0;i<len;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 1.8);
+      noise.buffer = buf;
+      const bp = context.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=0.5;
+      const gain = context.createGain(); gain.gain.setValueAtTime(0.8, when); gain.gain.exponentialRampToValueAtTime(0.0001, when+0.2);
+      noise.connect(bp).connect(gain).connect(params.bus || context.destination);
+      noise.start(when); noise.stop(when+0.21);
+    } else if (type==='hat'){
+      const noise = context.createBufferSource();
+      const len = dt(0.05);
+      const buf = context.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for(let i=0;i<len;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 5);
+      noise.buffer = buf;
+      const hp = context.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+      const gain = context.createGain(); gain.gain.setValueAtTime(0.4, when); gain.gain.exponentialRampToValueAtTime(0.0001, when+0.05);
+      noise.connect(hp).connect(gain).connect(params.bus || context.destination);
+      noise.start(when); noise.stop(when+0.06);
+    }
+  }
+
+  function makeChord(midiRoot){
+    // minor 7th chord palette for vapor vibes
+    return [midiRoot, midiRoot+3, midiRoot+7, midiRoot+10];
+  }
+
+  function addPad(context, start, dur, midiRoot, detuneCents, outNode){
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(0.4, start+0.5);
+    gain.gain.linearRampToValueAtTime(0.35, start+dur-0.5);
+    gain.gain.linearRampToValueAtTime(0.0, start+dur);
+
+    const chord = makeChord(midiRoot);
+    const voices = [];
+    chord.forEach((m,i)=>{
+      const left = context.createOscillator();
+      const right = context.createOscillator();
+      left.type='sawtooth'; right.type='sawtooth';
+      left.frequency.value = midiToFreq(m);
+      right.frequency.value = midiToFreq(m);
+      left.detune.value = -detuneCents;
+      right.detune.value = detuneCents;
+      // gentle lowpass
+      const lpL = context.createBiquadFilter(); lpL.type='lowpass'; lpL.frequency.value=1500; lpL.Q.value=0.2;
+      const lpR = context.createBiquadFilter(); lpR.type='lowpass'; lpR.frequency.value=1500; lpR.Q.value=0.2;
+
+      // small chorus vibrato
+      const lfo = context.createOscillator(); lfo.frequency.value = 0.2 + Math.random()*0.2;
+      const lfoGainL = context.createGain(); lfoGainL.gain.value = 10; // cents
+      const lfoGainR = context.createGain(); lfoGainR.gain.value = 12;
+      lfo.connect(lfoGainL).connect(left.detune);
+      lfo.connect(lfoGainR).connect(right.detune);
+
+      const merger = context.createChannelMerger(2);
+      left.connect(lpL).connect(merger,0,0);
+      right.connect(lpR).connect(merger,0,1);
+      merger.connect(gain).connect(outNode);
+
+      left.start(start); right.start(start);
+      lfo.start(start);
+      left.stop(start+dur); right.stop(start+dur); lfo.stop(start+dur);
+      voices.push(left,right,lfo);
+    });
+  }
+
+  function addBass(context, start, noteDur, midiNote, outNode){
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    const lp = context.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=600; lp.Q.value=0.7;
+    osc.type='triangle'; osc.frequency.value = midiToFreq(midiNote);
+    gain.gain.setValueAtTime(0.0, start);
+    gain.gain.linearRampToValueAtTime(0.7, start+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, start+noteDur);
+    osc.connect(lp).connect(gain).connect(outNode);
+    osc.start(start); osc.stop(start+noteDur+0.01);
+  }
+
+  function addMelody(context, start, noteDur, midiNote, outNode){
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    const hp = context.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=300;
+    osc.type='sawtooth'; osc.frequency.value = midiToFreq(midiNote);
+    gain.gain.setValueAtTime(0.0, start);
+    gain.gain.linearRampToValueAtTime(0.6, start+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, start+noteDur*0.95);
+    // slight pitch glide in
+    osc.frequency.setValueAtTime(osc.frequency.value*0.98, start);
+    osc.frequency.exponentialRampToValueAtTime(midiToFreq(midiNote), start+0.02);
+    osc.connect(hp).connect(gain).connect(outNode);
+    osc.start(start); osc.stop(start+noteDur+0.01);
+  }
+
+  async function renderTrack(){
+    const tempo = +bpm.value;
+    const seconds = +dur.value;
+    const keyOff = +key.value;
+    const detuneCents = +det.value;
+    const revAmt = +reverb.value;
+    const wowAmt = +wow.value;
+    const include = {
+      melody: chkMelody.checked,
+      pads: chkPads.checked,
+      bass: chkBass.checked,
+      drums: chkDrums.checked,
+      sidechain: chkSide.checked
+    };
+
+    const sr = 44100;
+    const ctx = new OfflineAudioContext({numberOfChannels:2, length: Math.ceil(sr*seconds), sampleRate: sr});
+    const main = ctx.createGain(); main.gain.value = 0.9;
+    const busDrum = ctx.createGain(); busDrum.gain.value = 0.9;
+    const busMusic = ctx.createGain(); busMusic.gain.value = 0.9;
+
+    // Reverb
+    const convolver = ctx.createConvolver();
+    const impL = makeImpulse(sr, 2.5 + revAmt*3.5, 1.8 + revAmt*2);
+    const impR = makeImpulse(sr, 2.5 + revAmt*3.5, 1.8 + revAmt*2);
+    const irBuf = ctx.createBuffer(2, impL.length, sr);
+    irBuf.copyToChannel(impL,0); irBuf.copyToChannel(impR,1);
+    convolver.buffer = irBuf;
+    const revGain = ctx.createGain(); revGain.gain.value = 0.25 + revAmt*0.55;
+
+    // Tape wow/flutter: modulate master playback slightly using a vibrato-like allpass? 
+    // We approximate by modulating a short DelayNode.
+    const delay = ctx.createDelay(0.05);
+    delay.delayTime.value = 0.005;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.3;
+    const lfoGain = ctx.createGain(); lfoGain.gain.value = wowAmt*0.004 + 0.0005; // 0.5-4.5 ms
+    lfo.connect(lfoGain).connect(delay.delayTime);
+    lfo.start(0);
+
+    // Sidechain pump: gain duck triggered roughly on each kick
+    const side = ctx.createGain(); side.gain.value = 1.0;
+
+    busMusic.connect(convolver).connect(revGain).connect(side);
+    busMusic.connect(side);
+    busDrum.connect(side);
+    side.connect(delay).connect(main).connect(ctx.destination);
+
+    // Beat grid
+    const spb = 60/tempo;           // seconds per beat
+    const bar = spb * 4;            // 4/4
+    const bars = Math.floor(seconds / bar);
+
+    // Scale: minor pentatonic offsets
+    const scale = [0,3,5,7,10,12,15];
+    const base = 60 + keyOff;  // middle C offset for key
+
+    // Progression roots (in semitones relative to base): i - VI - VII - v (vapor cliché and lovely)
+    const progression = [0, -5, -3, 0];
+
+    // Build arrangement
+    for (let b=0;b<bars;b++){
+      const t = b*bar;
+      const root = base + progression[b % progression.length];
+
+      // PADS: one bar sustained
+      if (include.pads){
+        addPad(ctx, t, bar, root, detuneCents, busMusic);
+      }
+
+      // BASS: root or fifth on beats 1 & 3
+      if (include.bass){
+        addBass(ctx, t+0.001, spb*1.9, root-24, busMusic);
+        addBass(ctx, t+2*spb+0.001, spb*1.9, (Math.random()<0.4? root-17: root-24), busMusic);
+      }
+
+      // MELODY: two notes per bar chosen from pentatonic
+      if (include.melody){
+        const n1 = root + scale[(Math.random()*scale.length)|0] + 12;
+        const n2 = root + scale[(Math.random()*scale.length)|0] + 12;
+        addMelody(ctx, t + 0.25*spb, spb*1.6, n1, busMusic);
+        addMelody(ctx, t + 2.25*spb, spb*1.5, n2, busMusic);
+      }
+
+      // DRUMS
+      if (include.drums){
+        // Simple pattern; add mild swing
+        const swing = 0.06 * spb;
+        // Kicks
+        scheduleDrum(ctx, t + 0.00, 'kick', {bus: busDrum});
+        scheduleDrum(ctx, t + 1.5*spb, 'kick', {bus: busDrum});
+        if (Math.random()<0.5) scheduleDrum(ctx, t + 2.75*spb, 'kick', {bus: busDrum});
+        // Snares
+        scheduleDrum(ctx, t + 1*spb, 'snare', {bus: busDrum});
+        scheduleDrum(ctx, t + 3*spb, 'snare', {bus: busDrum});
+        // Hats 8ths with swing
+        for (let i=0;i<8;i++){
+          const isOff = i%2===1;
+          const hatT = t + (i/2)*spb + (isOff ? swing : 0);
+          scheduleDrum(ctx, hatT, 'hat', {bus: busDrum});
+        }
+      }
+
+      // Sidechain envelope per quarter (duck after kick)
+      if (include.sidechain){
+        const atk=0.005, rel=0.3*spb;
+        const t0=t, t1=t+spb, t2=t+2*spb, t3=t+3*spb;
+        [t0, t1, t2, t3].forEach(tt=>{
+          side.gain.setValueAtTime(0.6, tt+0.001);
+          side.gain.linearRampToValueAtTime(1.0, tt+rel);
+        });
+      }
+    }
+
+    // Reverb pre-delay small
+    revGain.gain.setValueAtTime(revGain.gain.value, 0);
+
+    // Progress UI (approx)
+    progress.style.width = '10%';
+    const rendered = await ctx.startRendering();
+    progress.style.width = '80%';
+
+    // Mixdown to WAV
+    const chL = rendered.getChannelData(0);
+    const chR = rendered.getChannelData(1);
+    // interleave
+    const inter = new Float32Array(chL.length*2);
+    for (let i=0,j=0;i<chL.length;i++){
+      inter[j++] = chL[i];
+      inter[j++] = chR[i];
+    }
+    const wav = floatsToWavBytes(inter, 2, rendered.sampleRate);
+    const url = URL.createObjectURL(wav);
+
+    // Hook to player and download
+    player.src = url;
+    dl.href = url;
+
+    progress.style.width = '100%';
+    setTimeout(()=>progress.style.width='0%', 700);
+  }
+
+  // Buttons
+  el('btnGenerate').addEventListener('click', () => {
+    renderTrack().catch(err => { console.error(err); alert('Render error: '+err.message); });
+  });
+
+  let liveCtx=null, liveSource=null;
+  el('btnPlay').addEventListener('click', () => {
+    if (!player.src){ alert('Generate a track first.'); return; }
+    player.play();
+  });
+  el('btnStop').addEventListener('click', () => {
+    player.pause(); player.currentTime = 0;
+  });
+
+  el('btnRandom').addEventListener('click', () => {
+    const r = Math.random;
+    bpm.value = Math.round(60 + r()*40);
+    key.value = Math.round(-7 + r()*14);
+    dur.value = [45,60,75,90][(r()*4)|0];
+    det.value = Math.round(10 + r()*24);
+    reverb.value = (0.4 + r()*0.55).toFixed(2);
+    wow.value = (0.05 + r()*0.25).toFixed(2);
+    chkMelody.checked = true; chkPads.checked = true; chkBass.checked = true; chkDrums.checked = true; chkSide.checked = true;
+    updateLabels();
+  });
+
+})();</script>
+</body>
+</html>

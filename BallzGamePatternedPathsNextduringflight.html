@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ballz Game</title>
+  <style>
+    :root{
+      --bg1:#1b1460;
+      --bg2:#240f3a;
+      --ink:rgba(255,255,255,.92);
+      --ink2:rgba(255,255,255,.68);
+      --gold:#e6d06b;
+      --panel:rgba(6,6,12,.42);
+      --border:rgba(255,255,255,.24);
+      --border2:rgba(255,255,255,.14);
+      --shadow:rgba(0,0,0,.25);
+      --px: 2px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%}
+    body{
+      font-family: ui-monospace, "Courier New", monospace;
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #stage{ position:fixed; inset:0; }
+    canvas{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      display:block;
+      background:#070711;
+      touch-action:none;
+      image-rendering: pixelated;
+    }
+
+    #hud{
+      position:absolute;
+      top: calc(env(safe-area-inset-top) + 8px);
+      left: 8px; right: 8px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:6px 8px;
+      background: var(--panel);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 6px 0 var(--shadow);
+      border-radius: 0;
+      pointer-events:none;
+    }
+    .hud-item{
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-shadow: 1px 1px 0 rgba(0,0,0,.45);
+      white-space: nowrap;
+    }
+    .hud-item span{
+      color: var(--gold);
+      font-size: 13px;
+      margin-left: 6px;
+      font-weight: 900;
+    }
+
+    #controls{
+      position:absolute;
+      left: 10px; right: 10px;
+      bottom: calc(env(safe-area-inset-bottom) + 10px);
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:10px;
+      pointer-events:none;
+    }
+    #aimPanel{
+      flex:1;
+      background: var(--panel);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 6px 0 var(--shadow);
+      padding:8px 8px 10px;
+      pointer-events:auto;
+    }
+    #aimLabel{
+      color: var(--ink2);
+      font-weight: 800;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align:center;
+      margin-bottom: 7px;
+      user-select:none;
+    }
+    #aimSlider{
+      width:100%;
+      height: 12px;
+      -webkit-appearance:none;
+      appearance:none;
+      background: rgba(255,255,255,.08);
+      outline:none;
+      cursor:pointer;
+      border: 2px solid var(--border2);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+    #aimSlider::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      appearance:none;
+      width: 22px; height: 22px;
+      background: rgba(230,208,107,.95);
+      border: 2px solid rgba(0,0,0,.55);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+    #aimSlider::-moz-range-thumb{
+      width: 22px; height: 22px;
+      background: rgba(230,208,107,.95);
+      border: 2px solid rgba(0,0,0,.55);
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+    }
+
+    #stackRight{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      pointer-events:auto;
+    }
+
+    /* Next turn button (hidden until needed) */
+    #nextBtn{
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      border: var(--px) solid var(--border);
+      background: rgba(255,255,255,.10);
+      box-shadow: 0 6px 0 var(--shadow);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    #nextBtn.show{ display:flex; }
+    #nextBtn:active{ transform: translateY(1px); box-shadow: 0 5px 0 var(--shadow); background: rgba(255,255,255,.14); }
+    #nextTxt{
+      color: rgba(255,255,255,.85);
+      font-weight: 900;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 1px 1px 0 rgba(0,0,0,.55);
+    }
+
+    #fireBtn{
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      border: var(--px) solid var(--border);
+      background: rgba(230,208,107,.20);
+      box-shadow: 0 6px 0 var(--shadow);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    #fireBtn.disabled{
+      opacity:.45;
+      filter: saturate(.6);
+    }
+    #fireBtn:active{ transform: translateY(1px); background: rgba(230,208,107,.26); box-shadow: 0 5px 0 var(--shadow); }
+    #fireIcon{
+      width: 0; height: 0;
+      border-left: 14px solid rgba(255,255,255,.65);
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      margin-left: 2px;
+      filter: drop-shadow(1px 1px 0 rgba(0,0,0,.55));
+      opacity: .9;
+    }
+
+    #gameOver{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.86);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 20px;
+      z-index: 5;
+    }
+    #gameOver.show{display:flex}
+    #gameOverCard{
+      width:min(520px, 100%);
+      background: rgba(10,10,20,.86);
+      border: var(--px) solid var(--border);
+      box-shadow: 0 10px 0 rgba(0,0,0,.35);
+      padding: 18px 16px;
+      text-align:center;
+    }
+    #gameOverCard h2{
+      color:#fff;
+      font-size:22px;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 0 rgba(0,0,0,.6);
+    }
+    #gameOverCard p{
+      color: rgba(255,255,255,.70);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    #restartBtn{
+      background: rgba(255,255,255,.14);
+      color: rgba(255,255,255,.86);
+      border: var(--px) solid var(--border);
+      padding: 9px 16px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+      cursor:pointer;
+    }
+    #restartBtn:active{ transform: translateY(1px); }
+
+    button{all:unset}
+  </style>
+</head>
+
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="stage">
+    <canvas id="gameCanvas" width="400" height="600" aria-label="Ballz Game"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">SCORE <span id="score">0</span></div>
+      <div class="hud-item">BALLS <span id="balls">1</span></div>
+    </div>
+
+    <div id="controls">
+      <div id="aimPanel">
+        <div id="aimLabel">AIM</div>
+        <input type="range" id="aimSlider" min="0" max="240" value="120" />
+      </div>
+
+      <div id="stackRight">
+        <div id="nextBtn" role="button" aria-label="Next turn">
+          <div id="nextTxt">NEXT</div>
+        </div>
+
+        <div id="fireBtn" role="button" aria-label="Fire">
+          <div id="fireIcon"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOver">
+    <div id="gameOverCard">
+      <h2>Game Over</h2>
+      <p>FINAL SCORE: <span id="finalScore" style="color:var(--gold);font-weight:900">0</span></p>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  const scoreEl = document.getElementById('score');
+  const ballsEl = document.getElementById('balls');
+  const finalScoreEl = document.getElementById('finalScore');
+  const gameOverEl = document.getElementById('gameOver');
+  document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+  const fireBtn = document.getElementById('fireBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  let W = 400, H = 600, DPR = 1;
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    W = Math.max(320, Math.floor(rect.width));
+    H = Math.max(480, Math.floor(rect.height));
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  requestAnimationFrame(resize);
+  window.addEventListener('resize', resize);
+
+  let score = 0;
+  let ballCount = 1;
+
+  // Aim: slider 0..240 => -45°..195°
+  let sliderAngle = -Math.PI/2;
+
+  const ballRadius = 6;
+  const ballSpeed = 8;
+  let balls = [];
+  let shootingBalls = false;
+  let ballsToShoot = 0;
+  let shootTimer = 0;
+
+  let launchX = 200;
+  let launchY = 570;
+
+  // Bricks
+  let bricks = [];
+  const brickWidth = 50;
+  const brickHeight = 50;
+  const brickGap = 5;
+  let cols = 7;
+
+  // Add-ball dots
+  let addDots = []; // {x,y,r}
+
+  // Spark particles
+  let sparks = []; // {x,y,vx,vy,life,max,r}
+
+  // Flash for bomb
+  let flashT = 0, flashX = 0, flashY = 0;
+
+  // Flow
+  let readyToFire = true;
+  let pendingNext = false;     // NEXT pressed during flight
+  let nextVisible = false;     // NEXT shown after shot
+
+  // First return tracking
+  let firstReturnRecorded = false;
+  let firstReturnX = 200;
+
+  // Patterning
+  let patternStep = 0;
+
+  // ---- math helpers ----
+  const DEG = Math.PI / 180;
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function toLocal(px, py, cx, cy, ang){
+    const s = Math.sin(-ang), c = Math.cos(-ang);
+    const x = px - cx, y = py - cy;
+    return { x: x*c - y*s, y: x*s + y*c };
+  }
+  function toWorld(nx, ny, ang){
+    const s = Math.sin(ang), c = Math.cos(ang);
+    return { x: nx*c - ny*s, y: nx*s + ny*c };
+  }
+  function reflect(vx, vy, nx, ny){
+    const dot = vx*nx + vy*ny;
+    return { vx: vx - 2*dot*nx, vy: vy - 2*dot*ny };
+  }
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  function spawnSparks(x,y,amount=10){
+    for(let i=0;i<amount;i++){
+      const ang = rand(0, Math.PI*2);
+      const sp = rand(1.0, 3.2);
+      sparks.push({
+        x, y,
+        vx: Math.cos(ang)*sp,
+        vy: Math.sin(ang)*sp,
+        life: 0,
+        max: rand(14, 26),
+        r: rand(1.2, 2.6)
+      });
+    }
+  }
+
+  class Ball{
+    constructor(x,y,vx,vy){
+      this.x=x; this.y=y;
+      this.vx=vx; this.vy=vy;
+      this.radius=ballRadius;
+      this.returned=false;
+    }
+    update(){
+      this.x += this.vx;
+      this.y += this.vy;
+
+      if (this.x - this.radius < 0 || this.x + this.radius > W){
+        this.vx = -this.vx;
+        this.x = Math.max(this.radius, Math.min(W - this.radius, this.x));
+      }
+      if (this.y - this.radius < 0){
+        this.vy = Math.abs(this.vy);
+      }
+      if (this.y + this.radius > H - 20 && !this.returned){
+        this.returned = true;
+
+        // record FIRST ball return position for next turn launcher
+        if (!firstReturnRecorded){
+          firstReturnRecorded = true;
+          firstReturnX = this.x;
+        }
+        return true;
+      }
+      return false;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00ff88';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  class Brick{
+    constructor(x,y,health,type='normal'){
+      this.x=x; this.y=y;
+      this.width=brickWidth;
+      this.height=brickHeight;
+      this.health=health;
+      this.maxHealth=health;
+      this.type=type; // 'normal' | 'bomb'
+      this.ang = 0;   // rotation radians
+    }
+    hit(){
+      // Rotate by RANDOM ±2° each hit
+      this.ang += (Math.random() < 0.5 ? -2 : 2) * DEG;
+      this.health--;
+      return this.health <= 0;
+    }
+    center(){ return { cx: this.x + this.width/2, cy: this.y + this.height/2 }; }
+    draw(){
+      const {cx, cy} = this.center();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(this.ang);
+      ctx.translate(-cx, -cy);
+
+      if (this.type === 'bomb'){
+        ctx.fillStyle = '#1e1e33';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.strokeStyle = 'rgba(230,208,107,.85)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+        const icx = this.x + this.width/2;
+        const icy = this.y + this.height/2;
+
+        ctx.fillStyle = 'rgba(0,0,0,.85)';
+        ctx.beginPath();
+        ctx.arc(icx, icy+2, 11, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(230,208,107,.9)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(icx-6, icy-12);
+        ctx.quadraticCurveTo(icx-14, icy-18, icx-6, icy-23);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(230,208,107,.95)';
+        ctx.font = '900 14px ui-monospace, "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('B', icx, icy+22);
+
+        ctx.restore();
+        return;
+      }
+
+      const hue = Math.max(0, 120 - (this.health/this.maxHealth)*120);
+      ctx.fillStyle = `hsl(${hue}, 70%, 48%)`;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      ctx.strokeStyle = `hsla(${hue}, 70%, 38%, .95)`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.font = '900 16px ui-monospace, "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.health, this.x + this.width/2, this.y + this.height/2);
+
+      ctx.restore();
+    }
+  }
+
+  class CircleBrick{
+    constructor(cx, cy, r, health){
+      this.cx=cx; this.cy=cy;
+      this.r=r;
+      this.health=health;
+      this.maxHealth=health;
+      this.ang = 0;
+      this.type='circle';
+    }
+    hit(){
+      this.ang += (Math.random() < 0.5 ? -2 : 2) * DEG;
+      this.health--;
+      return this.health <= 0;
+    }
+    draw(){
+      // subtle ring + fill; rotate just animates tiny notch
+      const hue = Math.max(0, 120 - (this.health/this.maxHealth)*120);
+      ctx.save();
+      ctx.translate(this.cx, this.cy);
+      ctx.rotate(this.ang);
+      ctx.translate(-this.cx, -this.cy);
+
+      ctx.beginPath();
+      ctx.arc(this.cx, this.cy, this.r, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${hue}, 55%, 30%, .95)`;
+      ctx.fill();
+
+      ctx.strokeStyle = `hsla(${hue}, 70%, 55%, .95)`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // small notch
+      ctx.strokeStyle = 'rgba(230,208,107,.75)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(this.cx + this.r*0.2, this.cy - this.r);
+      ctx.lineTo(this.cx + this.r*0.2, this.cy - this.r*0.55);
+      ctx.stroke();
+
+      // number
+      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.font = '900 16px ui-monospace, "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.health, this.cx, this.cy);
+
+      ctx.restore();
+    }
+  }
+
+  function recalcLayout(){
+    launchY = H - 30;
+    if (!shootingBalls) launchX = Math.min(W - 20, Math.max(20, launchX));
+    cols = Math.max(5, Math.floor(W / (brickWidth + brickGap)));
+  }
+
+  function calculateTrajectory(startX, startY, angle){
+    // preview line (cheap, not fully rotated-accurate)
+    const pts = [];
+    let vx = Math.cos(angle) * ballSpeed;
+    let vy = Math.sin(angle) * ballSpeed;
+
+    let x = startX, y = startY;
+    for (let i=0;i<120;i++){
+      x += vx; y += vy;
+
+      if (x - ballRadius < 0 || x + ballRadius > W){
+        vx = -vx;
+        x = Math.max(ballRadius, Math.min(W - ballRadius, x));
+      }
+      if (y - ballRadius < 0){
+        vy = Math.abs(vy);
+      }
+
+      let hit = false;
+      for (const b of bricks){
+        if (b.type === 'circle'){
+          const dx = x - b.cx, dy = y - b.cy;
+          if (dx*dx + dy*dy < (b.r + ballRadius)*(b.r + ballRadius)) { hit = true; break; }
+        } else {
+          if (x > b.x && x < b.x + b.width && y > b.y && y < b.y + b.height){
+            hit = true; break;
+          }
+        }
+      }
+      pts.push({x,y,isBounce:hit});
+      if (hit) break;
+      if (y > H - 20) break;
+    }
+    return pts;
+  }
+
+  function drawTrajectory(){
+    if (shootingBalls) return;
+    const t = calculateTrajectory(launchX, launchY, sliderAngle);
+    ctx.globalAlpha = 0.70;
+    for (let i=0;i<t.length-1;i++){
+      const p=t[i], n=t[i+1];
+      const prog = i / Math.min(t.length, 50);
+      const lw = Math.max(2, 7 - prog*5);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(n.x,n.y);
+      ctx.strokeStyle = 'rgba(230,208,107,.9)';
+      ctx.lineWidth = lw;
+      ctx.shadowBlur = 10 - prog*6;
+      ctx.shadowColor = 'rgba(230,208,107,.9)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (p.isBounce || n.isBounce) break;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function cellCenterX(col){
+    return col*(brickWidth+brickGap) + brickGap + brickWidth/2;
+  }
+  function rowCenterY(){
+    return brickGap + brickHeight/2;
+  }
+
+  function explodeAt(cx, cy){
+    const dxMax = (brickWidth + brickGap) * 1.05;
+    const dyMax = (brickHeight + brickGap) * 1.05;
+
+    let removed = 0;
+    for (let i = bricks.length - 1; i >= 0; i--){
+      const b = bricks[i];
+      if (b.type === 'circle'){
+        if (Math.abs(b.cx - cx) <= dxMax && Math.abs(b.cy - cy) <= dyMax){
+          bricks.splice(i, 1);
+          removed++;
+        }
+      } else {
+        const c = b.center();
+        if (Math.abs(c.cx - cx) <= dxMax && Math.abs(c.cy - cy) <= dyMax){
+          bricks.splice(i, 1);
+          removed++;
+        }
+      }
+    }
+    if (removed > 0){
+      score += removed;
+      scoreEl.textContent = score;
+    }
+    flashT = 9;
+    flashX = cx;
+    flashY = cy;
+    spawnSparks(cx, cy, 26);
+  }
+
+  function shiftDown(){
+    const stepDown = brickHeight + brickGap;
+    for (const b of bricks){
+      if (b.type === 'circle') b.cy += stepDown;
+      else b.y += stepDown;
+    }
+    for (const d of addDots) d.y += stepDown;
+    addDots = addDots.filter(d => d.y < H + 40);
+
+    // game over: any object reaches danger line
+    bricks = bricks.filter(b => {
+      const bottom = (b.type === 'circle') ? (b.cy + b.r) : (b.y + b.height);
+      if (bottom >= H - 50){
+        gameOver();
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function buildPatternRow(){
+    // A more linear, patterned layout with intentional "paths"
+    // We build an occupancy map across cols: true = block, false = gap (path)
+    const c = cols;
+    const occ = new Array(c).fill(true);
+
+    // Choose a path style (patterned, not random scatter)
+    const style = patternStep % 5;
+    patternStep++;
+
+    let gapCols = [];
+
+    if (style === 0){
+      // central corridor width 2
+      const mid = Math.floor(c/2);
+      gapCols = [mid, Math.min(c-1, mid+1)];
+    } else if (style === 1){
+      // left-to-right zig corridor (single)
+      const k = (patternStep % c);
+      gapCols = [k];
+    } else if (style === 2){
+      // two symmetric gaps
+      const a = Math.max(0, Math.floor(c/3));
+      const b = Math.min(c-1, c-1-a);
+      gapCols = [a, b];
+    } else if (style === 3){
+      // alternating gaps (every other col)
+      for(let i=0;i<c;i+=2) gapCols.push(i);
+    } else {
+      // diagonal-ish 2-wide moving window
+      const k = (patternStep % (c-1));
+      gapCols = [k, k+1];
+    }
+
+    // Apply gaps
+    for (const g of gapCols){
+      if (g>=0 && g<c) occ[g] = false;
+    }
+
+    // Build bricks from occ, with occasional "doorway" extra gaps for flow
+    const rowY = brickGap;
+    const row = [];
+
+    // Choose a couple of "soft blocks" to keep it from being too empty
+    for (let col=0; col<c; col++){
+      if (!occ[col]) continue;
+      const x = col*(brickWidth+brickGap) + brickGap;
+
+      // Bombs are rarer, and avoided directly blocking every path
+      const bombChance = 0.10;
+      const isBomb = Math.random() < bombChance;
+
+      if (isBomb){
+        row.push(new Brick(x, rowY, 1, 'bomb'));
+      } else {
+        const base = Math.max(1, score + 1);
+        const health = base + Math.floor(Math.random()*4);
+        row.push(new Brick(x, rowY, health, 'normal'));
+      }
+    }
+
+    // Add an occasional circle that sits within a path "lane" as a bumper
+    // (so balls can weave)
+    if (Math.random() < 0.35){
+      const pick = gapCols[Math.floor(Math.random()*gapCols.length)];
+      const cx = cellCenterX(pick);
+      const cy = rowCenterY();
+      const r = 18;
+      const health = Math.max(1, Math.floor((score+2)/2));
+      row.push(new CircleBrick(cx, cy, r, health));
+    }
+
+    // Add-dot should appear in a gap, if possible
+    const dotCol = gapCols.length ? gapCols[Math.floor(Math.random()*gapCols.length)] : Math.floor(Math.random()*c);
+    addDots.push({ x: cellCenterX(dotCol), y: rowCenterY(), r: 7 });
+
+    return row;
+  }
+
+  function spawnRow(){
+    shiftDown();
+    const newRow = buildPatternRow();
+    bricks.push(...newRow);
+  }
+
+  // ---- rotated collision: circle vs rotated rect ----
+  function collideBallWithBrick(ball, brick){
+    const c = brick.center();
+    const cx = c.cx, cy = c.cy;
+
+    const lp = toLocal(ball.x, ball.y, cx, cy, brick.ang);
+    const hx = brick.width/2;
+    const hy = brick.height/2;
+
+    const closestX = clamp(lp.x, -hx, hx);
+    const closestY = clamp(lp.y, -hy, hy);
+
+    const dx = lp.x - closestX;
+    const dy = lp.y - closestY;
+    const dist2 = dx*dx + dy*dy;
+
+    if (dist2 > ball.radius*ball.radius) return false;
+
+    let nx = 0, ny = 0;
+    if (dist2 < 1e-6){
+      const penX = hx - Math.abs(lp.x);
+      const penY = hy - Math.abs(lp.y);
+      if (penX < penY){
+        nx = (lp.x >= 0) ? 1 : -1; ny = 0;
+      } else {
+        nx = 0; ny = (lp.y >= 0) ? 1 : -1;
+      }
+    } else {
+      const invLen = 1 / Math.sqrt(dist2);
+      nx = dx * invLen;
+      ny = dy * invLen;
+    }
+
+    const wn = toWorld(nx, ny, brick.ang);
+    const nwx = wn.x, nwy = wn.y;
+
+    const r = reflect(ball.vx, ball.vy, nwx, nwy);
+    ball.vx = r.vx;
+    ball.vy = r.vy;
+
+    const push = (ball.radius - Math.sqrt(dist2) + 0.6);
+    ball.x += nwx * push;
+    ball.y += nwy * push;
+
+    return true;
+  }
+
+  function collideBallWithCircle(ball, circ){
+    const dx = ball.x - circ.cx;
+    const dy = ball.y - circ.cy;
+    const rr = circ.r + ball.radius;
+    const d2 = dx*dx + dy*dy;
+    if (d2 > rr*rr) return false;
+
+    const d = Math.sqrt(Math.max(1e-6, d2));
+    const nx = dx / d, ny = dy / d;
+
+    const r = reflect(ball.vx, ball.vy, nx, ny);
+    ball.vx = r.vx;
+    ball.vy = r.vy;
+
+    // push out
+    const push = (rr - d + 0.8);
+    ball.x += nx * push;
+    ball.y += ny * push;
+    return true;
+  }
+
+  function checkCollisions(){
+    for (const ball of balls){
+      for (let i=bricks.length-1;i>=0;i--){
+        const b = bricks[i];
+
+        // broad phase reject
+        if (b.type === 'circle'){
+          const rr = b.r + ball.radius + 10;
+          if (ball.x < b.cx - rr || ball.x > b.cx + rr || ball.y < b.cy - rr || ball.y > b.cy + rr) continue;
+
+          if (collideBallWithCircle(ball, b)){
+            spawnSparks(ball.x, ball.y, 10);
+            const destroyed = b.hit();
+            if (destroyed){
+              const cx = b.cx, cy = b.cy;
+              bricks.splice(i,1);
+              score++;
+              scoreEl.textContent = score;
+              spawnSparks(cx, cy, 12);
+            }
+          }
+        } else {
+          if (ball.x < b.x - ballRadius - 10 || ball.x > b.x + b.width + ballRadius + 10 ||
+              ball.y < b.y - ballRadius - 10 || ball.y > b.y + b.height + ballRadius + 10){
+            continue;
+          }
+
+          if (collideBallWithBrick(ball, b)){
+            spawnSparks(ball.x, ball.y, 10);
+            const destroyed = b.hit();
+
+            if (destroyed){
+              const c = b.center();
+              const wasBomb = (b.type === 'bomb');
+              bricks.splice(i, 1);
+
+              if (wasBomb){
+                explodeAt(c.cx, c.cy);
+              } else {
+                score++;
+                scoreEl.textContent = score;
+                spawnSparks(c.cx, c.cy, 8);
+              }
+            }
+          }
+        }
+      }
+
+      // add ball dots
+      for (let i=addDots.length-1;i>=0;i--){
+        const d = addDots[i];
+        if (Math.hypot(ball.x - d.x, ball.y - d.y) < ball.radius + d.r){
+          addDots.splice(i,1);
+          ballCount++;
+          ballsEl.textContent = ballCount;
+          spawnSparks(d.x, d.y, 14);
+        }
+      }
+    }
+  }
+
+  function showNextDuringFlight(){
+    if (nextVisible) return;
+    nextVisible = true;
+    nextBtn.classList.add('show');
+  }
+
+  function hideNext(){
+    nextVisible = false;
+    nextBtn.classList.remove('show');
+    pendingNext = false;
+  }
+
+  function finalizeTurn(){
+    // set launcher to first return x (requested)
+    launchX = firstReturnX;
+    firstReturnRecorded = false;
+
+    shootingBalls = false;
+    readyToFire = true;
+    fireBtn.classList.remove('disabled');
+
+    // If NEXT was pressed during flight, start next row immediately now
+    if (pendingNext){
+      spawnRow();
+    }
+    hideNext();
+  }
+
+  function shootTick(){
+    if (ballsToShoot > 0){
+      shootTimer++;
+      if (shootTimer >= 3){
+        const vx = Math.cos(sliderAngle)*ballSpeed;
+        const vy = Math.sin(sliderAngle)*ballSpeed;
+        balls.push(new Ball(launchX, launchY, vx, vy));
+        ballsToShoot--;
+        shootTimer = 0;
+      }
+    } else if (balls.length === 0){
+      finalizeTurn();
+    }
+  }
+
+  function updateSparks(){
+    for (let i=sparks.length-1;i>=0;i--){
+      const p = sparks[i];
+      p.life++;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.94;
+      p.vy *= 0.94;
+      p.vy += 0.03;
+      if (p.life >= p.max) sparks.splice(i,1);
+    }
+  }
+
+  function update(){
+    recalcLayout();
+    if (flashT > 0) flashT--;
+
+    for (let i=balls.length-1;i>=0;i--){
+      if (balls[i].update()) balls.splice(i,1);
+    }
+
+    checkCollisions();
+    updateSparks();
+
+    if (shootingBalls) shootTick();
+  }
+
+  function drawAddDots(){
+    for (const d of addDots){
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(230,208,107,.95)';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(230,208,107,.85)';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(7,7,17,.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(d.x - 4, d.y); ctx.lineTo(d.x + 4, d.y);
+      ctx.moveTo(d.x, d.y - 4); ctx.lineTo(d.x, d.y + 4);
+      ctx.stroke();
+    }
+  }
+
+  function drawSparks(){
+    for (const p of sparks){
+      const a = 1 - (p.life / p.max);
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(230,208,107,.95)';
+      ctx.shadowBlur = 10*a;
+      ctx.shadowColor = 'rgba(230,208,107,.9)';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawFlash(){
+    if (flashT <= 0) return;
+    const a = flashT / 9;
+    ctx.save();
+    ctx.globalAlpha = 0.22 * a;
+    ctx.fillStyle = '#e6d06b';
+    ctx.beginPath();
+    ctx.arc(flashX, flashY, 55 + (1-a)*25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    drawTrajectory();
+
+    for (const b of bricks) b.draw();
+    drawAddDots();
+    for (const ball of balls) ball.draw();
+
+    // launcher
+    if (!shootingBalls){
+      ctx.beginPath();
+      ctx.arc(launchX, launchY, ballRadius, 0, Math.PI*2);
+      ctx.fillStyle = '#00ff88';
+      ctx.fill();
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const len = 48;
+      ctx.beginPath();
+      ctx.moveTo(launchX, launchY);
+      ctx.lineTo(launchX + Math.cos(sliderAngle)*len, launchY + Math.sin(sliderAngle)*len);
+      ctx.strokeStyle = 'rgba(230,208,107,.92)';
+      ctx.lineWidth = 6;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(230,208,107,.75)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    drawSparks();
+    drawFlash();
+  }
+
+  function loop(){
+    if (!gameOverEl.classList.contains('show')){
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function gameOver(){
+    finalScoreEl.textContent = score;
+    gameOverEl.classList.add('show');
+  }
+
+  function fire(){
+    if (!readyToFire) return;
+    if (shootingBalls || gameOverEl.classList.contains('show')) return;
+
+    // allow aiming lower, but avoid totally vertical down
+    const maxDown = Math.PI/2.4;
+    let a = sliderAngle;
+    while (a > Math.PI) a -= Math.PI*2;
+    while (a < -Math.PI) a += Math.PI*2;
+    if (a > maxDown) a = maxDown;
+    if (a < -Math.PI - maxDown) a = -Math.PI - maxDown;
+    sliderAngle = a;
+
+    firstReturnRecorded = false;
+    firstReturnX = launchX;
+
+    shootingBalls = true;
+    ballsToShoot = ballCount;
+    shootTimer = 0;
+
+    // show NEXT immediately after shot is taken (during flight window)
+    showNextDuringFlight();
+
+    // you can't fire again until turn ends
+    readyToFire = false;
+    fireBtn.classList.add('disabled');
+  }
+
+  function pressNext(){
+    if (!nextVisible) return;
+    // NEXT can be pressed while balls are still flying:
+    // it will queue the next row to drop in as soon as balls finish.
+    pendingNext = true;
+    // tiny feedback sparkle
+    spawnSparks(W - 40, H - 40, 10);
+  }
+
+  function clickish(el, fn){
+    el.addEventListener('click', fn);
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); fn(); }, {passive:false});
+  }
+
+  clickish(fireBtn, fire);
+  clickish(nextBtn, pressNext);
+
+  const slider = document.getElementById('aimSlider');
+  function setAim(deg){
+    const start = -Math.PI/4;
+    const end = (195 * Math.PI/180);
+    sliderAngle = start + (deg/240) * (end - start);
+  }
+  slider.addEventListener('input', (e) => setAim(parseFloat(e.target.value)));
+  setAim(parseFloat(slider.value));
+
+  // Start: spawn first row, allow firing (NEXT hidden)
+  setTimeout(() => {
+    resize();
+    recalcLayout();
+    spawnRow();
+    readyToFire = true;
+    hideNext();
+    fireBtn.classList.remove('disabled');
+    loop();
+  }, 0);
+})();
+</script>
+</body>
+</html>

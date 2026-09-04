@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>HIVE MULTIPLIER — Timed + Zen Spelling Bee</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --muted: rgba(255,255,255,0.65);
+    --muted2: rgba(255,255,255,0.18);
+    --panel: rgba(255,255,255,0.07);
+    --panel2: rgba(255,255,255,0.10);
+    --danger: rgba(255,80,80,1);
+    --ok: rgba(140,255,160,1);
+    --focus: rgba(255,255,255,0.85);
+    --btn: rgba(255,255,255,0.12);
+    --btn2: rgba(255,255,255,0.18);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; overflow:hidden;}
+  body{display:flex; flex-direction:column;}
+  .top{
+    padding: 14px 14px 10px;
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  }
+  .top .left, .top .right{display:flex; align-items:center; gap:10px; min-width: 0;}
+  .pill{
+    border:1px solid var(--panel2);
+    background: var(--panel);
+    border-radius: 999px;
+    padding: 8px 10px;
+    display:flex; align-items:center; gap:8px;
+    user-select:none;
+  }
+  .pill strong{font-weight:800; letter-spacing:0.5px;}
+  .pill span{color:var(--muted); font-weight:650;}
+  .btn{
+    border:1px solid var(--panel2);
+    background: var(--btn);
+    color:var(--fg);
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight:800;
+    letter-spacing: 0.6px;
+    user-select:none;
+  }
+  .btn:active{transform: translateY(1px); background: var(--btn2);}
+  .select{
+    border:1px solid var(--panel2);
+    background: var(--btn);
+    color:var(--fg);
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight:800;
+    letter-spacing: 0.6px;
+    outline:none;
+  }
+
+  .mid{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    padding: 8px 14px 12px;
+    min-height: 0;
+  }
+
+  .wordbar{
+    border:1px solid var(--panel2);
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 12px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+  }
+  .word{
+    font-size: clamp(20px, 3.8vw, 34px);
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .subnote{
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .status{
+    display:flex; flex-direction:column; align-items:flex-end; gap: 4px; white-space:nowrap;
+  }
+  .status .flash{
+    font-weight:900;
+    letter-spacing:1px;
+    font-size: 13px;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+  .status .flash.show{opacity: 1; transform: translateY(0);}
+  .status .flash.ok{color: var(--ok);}
+  .status .flash.no{color: var(--danger);}
+  .status .flash.hint{color: rgba(255,255,255,0.85);}
+
+  .board{
+    flex:1;
+    display:flex;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .hexWrap{
+    flex: 1.05;
+    min-width: 0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--panel2);
+    background: rgba(255,255,255,0.03);
+    border-radius: 18px;
+    position: relative;
+    overflow:hidden;
+  }
+
+  .hex{
+    width: min(86vw, 420px);
+    height: min(86vw, 420px);
+    position: relative;
+    touch-action: none;
+    user-select:none;
+  }
+
+  .hx{
+    position:absolute;
+    width: 30.5%;
+    height: 30.5%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(22px, 6.4vw, 46px);
+    font-weight: 950;
+    letter-spacing: 1px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.8) inset;
+  }
+  .hx.center{
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.28);
+  }
+  .hx:active{ transform: translate(-50%,-50%) scale(0.98); background: rgba(255,255,255,0.18);}
+
+  /* Positions around center */
+  .p0{ transform: translate(-50%,-50%) translate(0, -110%); } /* top */
+  .p1{ transform: translate(-50%,-50%) translate(95%, -55%); } /* top-right */
+  .p2{ transform: translate(-50%,-50%) translate(95%, 55%); }  /* bottom-right */
+  .p3{ transform: translate(-50%,-50%) translate(0, 110%); }   /* bottom */
+  .p4{ transform: translate(-50%,-50%) translate(-95%, 55%); } /* bottom-left */
+  .p5{ transform: translate(-50%,-50%) translate(-95%, -55%);} /* top-left */
+
+  .controls{
+    position:absolute;
+    left: 10px; right:10px; bottom:10px;
+    display:flex; gap:10px;
+  }
+  .controls .btn{flex:1; border-radius: 16px; padding: 12px 12px; font-size: 14px;}
+  .controls .btn.small{flex:0.75;}
+  .controls .btn.big{flex:1.25;}
+
+  .listWrap{
+    flex: 0.95;
+    min-width: 0;
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+  }
+  .panel{
+    border:1px solid var(--panel2);
+    background: rgba(255,255,255,0.03);
+    border-radius: 18px;
+    overflow:hidden;
+    min-height: 0;
+    display:flex;
+    flex-direction:column;
+  }
+  .panelHead{
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap: 10px;
+  }
+  .panelHead .title{
+    font-weight: 950;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+  .panelHead .meta{
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .words{
+    padding: 10px 12px 12px;
+    overflow:auto;
+    -webkit-overflow-scrolling: touch;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+    align-content:start;
+    min-height: 0;
+  }
+  .chip{
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    padding: 8px 10px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-size: 12px;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chip.pangram{
+    border-color: rgba(255,255,255,0.28);
+    background: rgba(255,255,255,0.12);
+  }
+  .footer{
+    padding: 10px 14px 14px;
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(to top, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  }
+  .footer .tiny{
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 800;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .overlay{
+    position:fixed; inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 50;
+  }
+  .overlay.show{display:flex;}
+  .card{
+    width:min(92vw, 560px);
+    border:1px solid rgba(255,255,255,0.20);
+    background: rgba(0,0,0,0.92);
+    border-radius: 20px;
+    padding: 16px 14px;
+  }
+  .card h2{
+    margin:0 0 10px;
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .card p{
+    margin:0 0 10px;
+    color: var(--muted);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .grid2{display:grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+  .input{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: var(--fg);
+    border-radius: 14px;
+    padding: 12px 12px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    outline:none;
+    text-transform: uppercase;
+  }
+  .row{display:flex; gap:10px;}
+  .row .btn{flex:1;}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+  .shake{ animation: shake 280ms ease; }
+  @keyframes shake{
+    0%{ transform: translateX(0); }
+    25%{ transform: translateX(-6px); }
+    55%{ transform: translateX(6px); }
+    85%{ transform: translateX(-3px); }
+    100%{ transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div class="top">
+    <div class="left">
+      <select id="mode" class="select" aria-label="mode">
+        <option value="timed">TIMED (5:00)</option>
+        <option value="zen">ZEN</option>
+      </select>
+      <button id="newBtn" class="btn" title="New puzzle">NEW</button>
+      <button id="seedBtn" class="btn" title="Seed / Share">SEED</button>
+    </div>
+    <div class="right">
+      <div class="pill" title="Score">
+        <strong>SCORE</strong>
+        <span id="score" class="mono">0</span>
+      </div>
+      <div class="pill" title="Timer (Timed mode only)">
+        <strong>TIME</strong>
+        <span id="time" class="mono">5:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mid">
+    <div class="wordbar" id="wordbar">
+      <div style="min-width:0;">
+        <div id="word" class="word">&nbsp;</div>
+        <div id="req" class="subnote">CENTER LETTER REQUIRED • USE ONLY THESE 7 LETTERS</div>
+      </div>
+      <div class="status">
+        <div id="flash" class="flash">OK</div>
+        <div class="subnote mono" id="liveScore">WORD: 0</div>
+      </div>
+    </div>
+
+    <div class="board">
+      <div class="hexWrap">
+        <div class="hex" id="hex" aria-label="letter hive"></div>
+        <div class="controls">
+          <button id="delBtn" class="btn small" title="Delete last letter">DEL</button>
+          <button id="clearBtn" class="btn small" title="Clear word">CLEAR</button>
+          <button id="enterBtn" class="btn big" title="Submit word">ENTER</button>
+        </div>
+      </div>
+
+      <div class="listWrap">
+        <div class="panel">
+          <div class="panelHead">
+            <div class="title">FOUND</div>
+            <div class="meta"><span id="foundCt">0</span> WORDS • <span id="pangCt">0</span> PANGRAMS</div>
+          </div>
+          <div class="words" id="words"></div>
+        </div>
+        <div class="panel" style="flex:0.62;">
+          <div class="panelHead">
+            <div class="title">RANK</div>
+            <div class="meta" id="rank">LARVA</div>
+          </div>
+          <div style="padding: 10px 12px 12px; color: var(--muted); font-weight: 750; line-height:1.35; min-height:0; overflow:auto;">
+            Make words that include the <b>center</b> letter.<br>
+            <span style="opacity:0.92;">Scoring uses rarity (Q is huge, A is tiny) and a <b>length multiplier that explodes</b>.</span><br><br>
+            <span class="mono" style="opacity:0.9;">WORD SCORE = (sum of letter values) × (1×2×3×…×length)</span><br>
+            Pangrams get a bonus.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="tiny" id="puzzleLine">PUZZLE: <span class="mono" id="puzzleId">—</span> • CENTER: <span class="mono" id="centerLetter">—</span></div>
+    <button id="shareBtn" class="btn">SHARE</button>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="ovTitle">SEED</h2>
+      <p id="ovBody">Use a seed to play the same puzzle with friends. You can also paste a seed to load a puzzle.</p>
+
+      <div class="grid2">
+        <div>
+          <div class="subnote">SEED</div>
+          <input id="seedInput" class="input mono" placeholder="E.G. MAJORMETAL" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
+        </div>
+        <div>
+          <div class="subnote">LETTERS (7)</div>
+          <input id="lettersInput" class="input mono" placeholder="AUTO" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
+        </div>
+      </div>
+
+      <p class="mono" style="margin-top:10px; font-size:12px; opacity:0.92;">
+        Tip: You can force letters by typing exactly 7 letters in the LETTERS box (e.g. ABCDEFG).
+      </p>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="loadSeed" class="btn">LOAD</button>
+        <button id="randomSeed" class="btn">RANDOM</button>
+        <button id="closeOv" class="btn">CLOSE</button>
+      </div>
+
+      <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.10); padding-top:12px;">
+        <div class="subnote">SHARE CARD</div>
+        <div id="shareCard" class="mono" style="white-space:pre-wrap; font-size:12px; color:rgba(255,255,255,0.85); line-height:1.35; margin-top:8px;"></div>
+        <div class="row" style="margin-top:10px;">
+          <button id="copyShare" class="btn">COPY</button>
+          <button id="closeOv2" class="btn">DONE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ---- Letter values (Scrabble-ish rarity) ----
+  const LV = {
+    A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10
+  };
+  const VOWELS = new Set(["A","E","I","O","U"]);
+
+  // ---- Deterministic RNG (xmur3 + mulberry32) ----
+  function xmur3(str){
+    let h = 1779033703 ^ str.length;
+    for(let i=0;i<str.length;i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h<<13) | (h>>>19);
+    }
+    return function(){
+      h = Math.imul(h ^ (h>>>16), 2246822507);
+      h = Math.imul(h ^ (h>>>13), 3266489909);
+      return (h ^= (h>>>16)) >>> 0;
+    }
+  }
+  function mulberry32(a){
+    return function(){
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t>>>15), t | 1);
+      t ^= t + Math.imul(t ^ (t>>>7), t | 61);
+      return ((t ^ (t>>>14)) >>> 0) / 4294967296;
+    }
+  }
+  function rngFromSeed(seed){
+    const seedFn = xmur3(seed);
+    return mulberry32(seedFn());
+  }
+  function pick(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+
+  // ---- Weighted letter pools (simple, playable) ----
+  const common = "ETAOINSHRDLU".split("");
+  const mid    = "CMFWYPVBGKJXQZ".split(""); // includes rare
+  function randomLettersFromSeed(seed){
+    const rng = rngFromSeed(seed);
+    let letters = [];
+    // Ensure 2-3 vowels
+    const vowelBag = ["A","E","I","O","U","A","E","I","O","U","E","A"];
+    const vowelCount = 2 + Math.floor(rng()*2); // 2-3
+    for(let i=0;i<vowelCount;i++) letters.push(pick(rng, vowelBag));
+    // Fill remaining with consonants, mostly common
+    while(letters.length < 7){
+      const useCommon = rng() < 0.72;
+      const pool = useCommon ? common : mid;
+      const L = pick(rng, pool);
+      if(!VOWELS.has(L) || letters.filter(x=>VOWELS.has(x)).length < 4) letters.push(L);
+    }
+    // De-dup a bit (avoid too many repeats) by nudging
+    for(let tries=0; tries<20; tries++){
+      const uniq = new Set(letters);
+      if(uniq.size >= 6) break;
+      const idx = Math.floor(rng()*7);
+      const pool = (rng()<0.7) ? common : mid;
+      letters[idx] = pick(rng, pool);
+    }
+    return letters;
+  }
+
+  // ---- UI ----
+  const $ = (s)=>document.querySelector(s);
+  const hex = $("#hex");
+  const wordEl = $("#word");
+  const liveScoreEl = $("#liveScore");
+  const flashEl = $("#flash");
+  const scoreEl = $("#score");
+  const timeEl = $("#time");
+  const foundCtEl = $("#foundCt");
+  const pangCtEl = $("#pangCt");
+  const wordsEl = $("#words");
+  const rankEl = $("#rank");
+  const puzzleIdEl = $("#puzzleId");
+  const centerLetterEl = $("#centerLetter");
+  const overlay = $("#overlay");
+  const seedInput = $("#seedInput");
+  const lettersInput = $("#lettersInput");
+  const shareCardEl = $("#shareCard");
+  const modeSel = $("#mode");
+  const wordbar = $("#wordbar");
+
+  // ---- Game state ----
+  let letters = [];
+  let center = "";
+  let seed = "";
+  let current = "";
+  let startedAt = 0;
+  let remainingMs = 5*60*1000;
+  let timerHandle = null;
+  let gameOver = false;
+
+  // Local caches
+  const dictCache = new Map(); // word -> boolean
+  const found = new Map(); // word -> {score, pangram}
+  let totalScore = 0n;
+  let pangrams = 0;
+
+  // Factorials up to 30 (BigInt)
+  const FACT = [1n];
+  for(let i=1;i<=30;i++) FACT[i] = FACT[i-1] * BigInt(i);
+
+  function fmtBigInt(n){
+    // add commas
+    const s = n.toString();
+    let out = "";
+    for(let i=0;i<s.length;i++){
+      const j = s.length - i;
+      out += s[i];
+      if(j>1 && j%3===1) out += ",";
+    }
+    return out;
+  }
+
+  function flash(msg, kind="hint"){
+    flashEl.textContent = msg;
+    flashEl.className = "flash show " + kind;
+    setTimeout(()=>flashEl.className="flash "+kind, 380);
+  }
+
+  function normalizeWord(w){ return (w||"").toUpperCase().replace(/[^A-Z]/g,""); }
+
+  function usesOnlyLetters(w){
+    for(const ch of w){
+      if(!letters.includes(ch)) return false;
+    }
+    return true;
+  }
+  function hasCenter(w){
+    return w.includes(center);
+  }
+  function isPangram(w){
+    const set = new Set(w.split(""));
+    if(set.size < 7) return false;
+    for(const L of letters) if(!set.has(L)) return false;
+    return true;
+  }
+
+  function wordBaseValue(w){
+    let sum = 0;
+    for(const ch of w) sum += (LV[ch] || 1);
+    return BigInt(sum);
+  }
+
+  // Exploding multiplier: 1×2×…×length (factorial length)
+  function wordScore(w){
+    const len = Math.min(w.length, 30);
+    let s = wordBaseValue(w) * FACT[len];
+    if(isPangram(w)){
+      // Pangram bonus: + 50% of itself + 7777 (BigInt)
+      s = s + (s / 2n) + 7777n;
+    }
+    return s;
+  }
+
+  function updateLiveScore(){
+    const w = normalizeWord(current);
+    if(!w){
+      liveScoreEl.textContent = "WORD: 0";
+      return;
+    }
+    let note = "";
+    if(!hasCenter(w)) note = " • NEED CENTER";
+    else if(!usesOnlyLetters(w)) note = " • WRONG LETTER";
+    else if(w.length < 4) note = " • TOO SHORT";
+    else note = isPangram(w) ? " • PANGRAM!" : "";
+    const s = usesOnlyLetters(w) ? wordScore(w) : 0n;
+    liveScoreEl.textContent = "WORD: " + fmtBigInt(s) + note;
+  }
+
+  function renderHex(){
+    hex.innerHTML = "";
+    const order = [0,1,2,3,4,5];
+    // Put center first
+    const centerDiv = document.createElement("div");
+    centerDiv.className = "hx center";
+    centerDiv.textContent = center;
+    centerDiv.dataset.letter = center;
+    hex.appendChild(centerDiv);
+
+    let outer = letters.filter(x=>x!==center);
+    // stable shuffle for feel
+    for(let i=outer.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [outer[i],outer[j]]=[outer[j],outer[i]];
+    }
+
+    outer.forEach((L, i)=>{
+      const d = document.createElement("div");
+      d.className = "hx p"+order[i];
+      d.textContent = L;
+      d.dataset.letter = L;
+      hex.appendChild(d);
+    });
+
+    // Center stays at base position (no p class)
+    centerDiv.style.transform = "translate(-50%,-50%)";
+
+    // Tap
+    hex.querySelectorAll(".hx").forEach(el=>{
+      el.addEventListener("pointerdown", (e)=>{
+        e.preventDefault();
+        addLetter(el.dataset.letter);
+      }, {passive:false});
+    });
+
+    // Drag-to-spell
+    let dragging = false;
+    let last = null;
+    hex.addEventListener("pointerdown", (e)=>{
+      dragging = true;
+      last = null;
+      try{ hex.setPointerCapture(e.pointerId); }catch(_){}
+    }, {passive:true});
+    hex.addEventListener("pointermove", (e)=>{
+      if(!dragging) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if(!el || !el.classList || !el.classList.contains("hx")) return;
+      const L = el.dataset.letter;
+      if(L && L !== last){
+        last = L;
+        addLetter(L);
+      }
+    }, {passive:true});
+    function stopDrag(){ dragging = false; last = null; }
+    hex.addEventListener("pointerup", stopDrag, {passive:true});
+    hex.addEventListener("pointercancel", stopDrag, {passive:true});
+  }
+
+  function setWord(w){
+    current = w;
+    wordEl.textContent = current ? current.toUpperCase() : "\u00A0";
+    updateLiveScore();
+  }
+  function addLetter(L){
+    if(gameOver) return;
+    setWord(current + L);
+  }
+  function del(){
+    if(gameOver) return;
+    setWord(current.slice(0,-1));
+  }
+  function clearWord(){
+    if(gameOver) return;
+    setWord("");
+  }
+
+  function setScore(nBig){
+    scoreEl.textContent = fmtBigInt(nBig);
+  }
+
+  function setTime(ms){
+    if(modeSel.value !== "timed"){
+      timeEl.textContent = "—";
+      return;
+    }
+    const s = Math.max(0, Math.floor(ms/1000));
+    const m = Math.floor(s/60);
+    const r = s%60;
+    timeEl.textContent = m + ":" + (r<10?"0"+r:r);
+  }
+
+  function updateCounts(){
+    foundCtEl.textContent = String(found.size);
+    pangCtEl.textContent = String(pangrams);
+  }
+
+  function computeRank(){
+    // Based on percent of an arbitrary "goal" that scales with mode
+    // (works fine even with explosive scores)
+    const score = totalScore;
+    const thresholds = [
+      [0n, "LARVA"],
+      [2500n, "WORKER"],
+      [20000n, "GUARD"],
+      [120000n, "FORAGER"],
+      [600000n, "QUEEN"],
+      [2500000n, "MEGA QUEEN"],
+      [9000000n, "MAJORMETAL BEE"]
+    ];
+    let label = thresholds[0][1];
+    for(const [t,l] of thresholds){
+      if(score >= t) label = l;
+    }
+    rankEl.textContent = label;
+  }
+
+  function renderWords(){
+    wordsEl.innerHTML = "";
+    // Sort by score desc then alpha
+    const arr = Array.from(found.entries()).map(([w,meta])=>({w, ...meta}));
+    arr.sort((a,b)=>{
+      if(a.score === b.score) return a.w.localeCompare(b.w);
+      return (a.score > b.score) ? -1 : 1;
+    });
+    for(const it of arr){
+      const d = document.createElement("div");
+      d.className = "chip" + (it.pangram ? " pangram" : "");
+      d.textContent = it.w;
+      wordsEl.appendChild(d);
+    }
+  }
+
+  async function validateWordOnline(w){
+    // Cache
+    if(dictCache.has(w)) return dictCache.get(w);
+    try{
+      const url = "https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(w.toLowerCase());
+      const res = await fetch(url, {method:"GET"});
+      const ok = res.ok;
+      dictCache.set(w, ok);
+      return ok;
+    }catch(e){
+      // If offline, fall back to lenient acceptance (still enforces letter rules)
+      dictCache.set(w, true);
+      return true;
+    }
+  }
+
+  async function submit(){
+    if(gameOver) return;
+    const w = normalizeWord(current);
+    if(!w){ flash("EMPTY", "no"); return; }
+    if(w.length < 4){ flash("TOO SHORT", "no"); bump(); return; }
+    if(!usesOnlyLetters(w)){ flash("WRONG LETTER", "no"); bump(); return; }
+    if(!hasCenter(w)){ flash("NEED CENTER", "no"); bump(); return; }
+    if(found.has(w)){ flash("ALREADY", "no"); bump(); return; }
+
+    flash("CHECKING…", "hint");
+
+    const ok = await validateWordOnline(w);
+    if(!ok){
+      flash("NOT A WORD", "no");
+      bump();
+      return;
+    }
+
+    const pang = isPangram(w);
+    const sc = wordScore(w);
+    found.set(w, {score: sc, pangram: pang});
+    totalScore += sc;
+    if(pang) pangrams++;
+
+    setScore(totalScore);
+    updateCounts();
+    computeRank();
+    renderWords();
+
+    flash(pang ? "PANGRAM!" : "NICE", "ok");
+    clearWord();
+  }
+
+  function bump(){
+    wordbar.classList.remove("shake");
+    void wordbar.offsetWidth;
+    wordbar.classList.add("shake");
+  }
+
+  function defaultSeed(){
+    // Use date so friends on same day can match if desired, but still shareable
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return "HIVE-" + y + m + day;
+  }
+
+  function setPuzzle(newSeed, forcedLetters=null){
+    seed = (newSeed || "").trim().toUpperCase() || defaultSeed();
+    let Ls;
+    if(forcedLetters && /^[A-Z]{7}$/.test(forcedLetters)){
+      Ls = forcedLetters.split("");
+    }else{
+      Ls = randomLettersFromSeed(seed);
+    }
+    // Choose center: prefer a common vowel or common consonant for playability
+    const rng = rngFromSeed(seed + "-CENTER");
+    let candidates = Ls.slice();
+    // Bias toward vowels and common letters
+    candidates.sort((a,b)=>{
+      const av = VOWELS.has(a) ? 2 : 0;
+      const bv = VOWELS.has(b) ? 2 : 0;
+      const ac = common.includes(a) ? 1 : 0;
+      const bc = common.includes(b) ? 1 : 0;
+      return (bv+bc) - (av+ac);
+    });
+    center = candidates[Math.floor(rng()*Math.min(4,candidates.length))];
+    letters = Ls;
+
+    // Reset state for new puzzle
+    current = "";
+    dictCache.clear();
+    found.clear();
+    totalScore = 0n;
+    pangrams = 0;
+    gameOver = false;
+
+    setWord("");
+    setScore(totalScore);
+    updateCounts();
+    computeRank();
+    renderWords();
+    renderHex();
+
+    puzzleIdEl.textContent = seed;
+    centerLetterEl.textContent = center;
+
+    // Timer reset depending on mode
+    resetTimer();
+    updateShareCard();
+  }
+
+  function resetTimer(){
+    stopTimer();
+    if(modeSel.value === "timed"){
+      remainingMs = 5*60*1000;
+      startedAt = performance.now();
+      setTime(remainingMs);
+      startTimer();
+    }else{
+      remainingMs = 0;
+      setTime(0);
+    }
+  }
+
+  function startTimer(){
+    if(modeSel.value !== "timed") return;
+    gameOver = false;
+    const tick = () => {
+      if(modeSel.value !== "timed"){ stopTimer(); return; }
+      const now = performance.now();
+      const elapsed = now - startedAt;
+      const left = 5*60*1000 - elapsed;
+      remainingMs = left;
+      setTime(left);
+      if(left <= 0){
+        endGame();
+      }else{
+        timerHandle = requestAnimationFrame(tick);
+      }
+    };
+    timerHandle = requestAnimationFrame(tick);
+  }
+
+  function stopTimer(){
+    if(timerHandle){
+      cancelAnimationFrame(timerHandle);
+      timerHandle = null;
+    }
+  }
+
+  function endGame(){
+    gameOver = true;
+    stopTimer();
+    setTime(0);
+    flash("TIME!", "no");
+    openOverlay("RESULTS");
+  }
+
+  function updateShareCard(){
+    // Create a compact emoji-ish card (no fancy colors)
+    const mode = (modeSel.value === "timed") ? "TIMED 5:00" : "ZEN";
+    const words = found.size;
+    const pang = pangrams;
+
+    // Simple bar based on rank index
+    const rank = rankEl.textContent || "LARVA";
+    const ranks = ["LARVA","WORKER","GUARD","FORAGER","QUEEN","MEGA QUEEN","MAJORMETAL BEE"];
+    const idx = Math.max(0, ranks.indexOf(rank));
+    const bar = "█".repeat(idx+1) + "░".repeat(Math.max(0, 7-(idx+1)));
+
+    shareCardEl.textContent =
+`HIVE MULTIPLIER • ${mode}
+SEED: ${seed}
+LETTERS: ${letters.join("")} (CENTER ${center})
+SCORE: ${fmtBigInt(totalScore)}
+WORDS: ${words} • PANGRAMS: ${pang}
+RANK: ${rank}
+${bar}`;
+  }
+
+  function openOverlay(title){
+    $("#ovTitle").textContent = title || "SEED";
+    overlay.classList.add("show");
+    seedInput.value = seed;
+    lettersInput.value = "";
+    updateShareCard();
+  }
+  function closeOverlay(){
+    overlay.classList.remove("show");
+  }
+
+  // ---- Buttons ----
+  $("#delBtn").addEventListener("click", del);
+  $("#clearBtn").addEventListener("click", clearWord);
+  $("#enterBtn").addEventListener("click", submit);
+
+  $("#newBtn").addEventListener("click", ()=>{
+    const s = "HIVE-" + Math.random().toString(36).slice(2,9).toUpperCase();
+    setPuzzle(s);
+    flash("NEW", "ok");
+  });
+
+  $("#seedBtn").addEventListener("click", ()=>openOverlay("SEED"));
+  $("#shareBtn").addEventListener("click", ()=>openOverlay("SHARE"));
+
+  $("#closeOv").addEventListener("click", closeOverlay);
+  $("#closeOv2").addEventListener("click", closeOverlay);
+
+  $("#loadSeed").addEventListener("click", ()=>{
+    const s = seedInput.value.trim().toUpperCase();
+    const forced = lettersInput.value.trim().toUpperCase();
+    setPuzzle(s || defaultSeed(), forced || null);
+    flash("LOADED", "ok");
+  });
+
+  $("#randomSeed").addEventListener("click", ()=>{
+    const s = "BEE-" + Math.random().toString(36).slice(2,10).toUpperCase();
+    seedInput.value = s;
+    lettersInput.value = "";
+    setPuzzle(s);
+    flash("RANDOM", "ok");
+  });
+
+  $("#copyShare").addEventListener("click", async ()=>{
+    updateShareCard();
+    const text = shareCardEl.textContent;
+    try{
+      await navigator.clipboard.writeText(text);
+      flash("COPIED", "ok");
+    }catch(e){
+      // Fallback: select
+      flash("SELECTED", "hint");
+      // Create temp textarea
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position="fixed"; ta.style.left="-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand("copy"); }catch(_){}
+      document.body.removeChild(ta);
+    }
+  });
+
+  modeSel.addEventListener("change", ()=>{
+    resetTimer();
+    flash(modeSel.value === "timed" ? "TIMED" : "ZEN", "ok");
+    updateShareCard();
+  });
+
+  // Keyboard input (optional)
+  window.addEventListener("keydown", (e)=>{
+    if(overlay.classList.contains("show")) return;
+    if(gameOver && modeSel.value === "timed") return;
+
+    const k = e.key;
+    if(k === "Backspace"){ e.preventDefault(); del(); return; }
+    if(k === "Enter"){ e.preventDefault(); submit(); return; }
+    if(k === "Escape"){ e.preventDefault(); clearWord(); return; }
+
+    const ch = k.toUpperCase();
+    if(/^[A-Z]$/.test(ch)){
+      if(letters.includes(ch)) addLetter(ch);
+    }
+  });
+
+  // Touch-friendly: tap wordbar to clear quickly
+  wordbar.addEventListener("pointerdown", (e)=>{
+    if(e.pointerType !== "mouse") clearWord();
+  }, {passive:true});
+
+  // Keep share card updated
+  const shareObs = new MutationObserver(updateShareCard);
+  shareObs.observe(rankEl, {childList:true});
+  shareObs.observe(scoreEl, {childList:true});
+  shareObs.observe(foundCtEl, {childList:true});
+
+  // Start
+  setPuzzle(defaultSeed());
+  flash("READY", "ok");
+
+})();
+</script>
+</body>
+</html>

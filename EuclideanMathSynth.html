@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Euclidean Math Synth</title>
+  <style>
+    :root { --bg:#000; --fg:#fff; --dim: rgba(255,255,255,.45); }
+    * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin:0; width:100%; height:100%; background:var(--bg); color:var(--fg); overflow:hidden; touch-action:none; font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif; }
+    canvas { display:block; width:100vw; height:100vh; cursor:crosshair; }
+    #ui {
+      position: fixed; left: 16px; bottom: 16px; right: 16px;
+      pointer-events:none; text-transform:uppercase; letter-spacing:2px; font-weight:800;
+      font-size: 11px; line-height: 1.4; color: var(--fg);
+      text-shadow: 0 0 12px rgba(255,255,255,.15);
+      user-select:none;
+    }
+    #ui .dim { color: var(--dim); font-weight:700; }
+    #splash {
+      position: fixed; inset: 0; background: #000; z-index: 50;
+      display:flex; align-items:center; justify-content:center; flex-direction:column;
+      cursor:pointer; user-select:none;
+    }
+    #splash .box{
+      border: 6px solid #fff; padding: 18px 34px;
+      font-size: 34px; font-weight: 900; letter-spacing: 5px;
+    }
+    #splash .sub{
+      margin-top: 14px; letter-spacing: 2px; color: var(--dim); font-weight: 800; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="splash" aria-label="Start audio">
+    <div class="box">START</div>
+    <div class="sub">TAP / CLICK • HIT RINGS TO MUTATE</div>
+  </div>
+
+  <div id="ui">
+    <div>Tempo <span id="tempo">0.50</span> • Drag up/down anywhere to change speed</div>
+    <div class="dim">Tap a ring to randomize its (steps, pulses). Double-tap a ring to toggle mute.</div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  // ---------- AUDIO ----------
+  let audioCtx = null;
+  let master, comp, lp, delay, fb, wet, dry;
+  let started = false;
+
+  function initAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = audioCtx.createGain();
+    master.gain.value = 0.35;
+
+    comp = audioCtx.createDynamicsCompressor();
+    comp.threshold.value = -24;
+    comp.knee.value = 20;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.22;
+
+    lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 5200;
+
+    delay = audioCtx.createDelay(2.0);
+    delay.delayTime.value = 0.28;
+    fb = audioCtx.createGain();
+    fb.gain.value = 0.35;
+    wet = audioCtx.createGain();
+    wet.gain.value = 0.25;
+    dry = audioCtx.createGain();
+    dry.gain.value = 1.0;
+
+    delay.connect(fb);
+    fb.connect(delay);
+
+    master.connect(comp);
+    comp.connect(lp);
+    lp.connect(dry);
+    lp.connect(delay);
+    delay.connect(wet);
+
+    dry.connect(audioCtx.destination);
+    wet.connect(audioCtx.destination);
+  }
+
+  // ---------- EUCLIDEAN (BJORKLUND) ----------
+  function bjorklund(steps, pulses){
+    steps = Math.max(1, Math.floor(steps));
+    pulses = Math.max(0, Math.min(steps, Math.floor(pulses)));
+    if (pulses === 0) return new Array(steps).fill(0);
+    if (pulses === steps) return new Array(steps).fill(1);
+
+    let pattern = [];
+    let counts = [];
+    let remainders = [];
+    let divisor = steps - pulses;
+    remainders.push(pulses);
+    let level = 0;
+
+    while (true) {
+      counts.push(Math.floor(divisor / remainders[level]));
+      remainders.push(divisor % remainders[level]);
+      divisor = remainders[level];
+      level++;
+      if (remainders[level] <= 1) break;
+    }
+    counts.push(divisor);
+
+    function build(l){
+      if (l === -1) { pattern.push(0); return; }
+      if (l === -2) { pattern.push(1); return; }
+      for (let i=0;i<counts[l];i++) build(l-1);
+      if (remainders[l] !== 0) build(l-2);
+    }
+    build(level);
+
+    // Rotate to start with a hit
+    const firstHit = pattern.indexOf(1);
+    if (firstHit > 0) pattern = pattern.slice(firstHit).concat(pattern.slice(0, firstHit));
+    return pattern.slice(0, steps);
+  }
+
+  // ---------- VISUAL / SYNTH ----------
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  class Ring {
+    constructor(radius, steps, pulses, freq){
+      this.radius = radius;
+      this.steps = steps;
+      this.pulses = pulses;
+      this.freq = freq;
+      this.pattern = bjorklund(steps, pulses);
+      this.angle = 0;
+      this.lastStep = -1;
+      this.flash = 0;
+      this.muted = false;
+      this.phase = Math.random() * Math.PI * 2;
+    }
+
+    rebuild(){
+      this.steps = clamp(Math.floor(this.steps), 3, 24);
+      this.pulses = clamp(Math.floor(this.pulses), 0, this.steps);
+      this.pattern = bjorklund(this.steps, this.pulses);
+      this.lastStep = -1;
+    }
+
+    update(dt, speed){
+      // speed is global; smaller rings move faster
+      this.angle += (speed * dt) / (this.radius * 0.012);
+      // mild "breathing"
+      this.phase += dt * 0.6;
+
+      const currentStep = ((this.angle / (Math.PI*2)) * this.steps) | 0;
+      if (currentStep !== this.lastStep){
+        const stepIdx = ((currentStep % this.steps) + this.steps) % this.steps;
+        if (this.pattern[stepIdx] === 1) this.trigger();
+        this.lastStep = currentStep;
+      }
+      this.flash = Math.max(0, this.flash - dt * 2.2);
+    }
+
+    trigger(){
+      this.flash = 1;
+      if (!audioCtx || this.muted) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+
+      const det = (Math.random() - 0.5) * 12; // cents
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(this.freq, now);
+      osc.detune.setValueAtTime(det, now);
+
+      const a = 0.008;
+      const d = 0.28 + (this.radius / 260) * 0.22;
+      const peak = 0.16;
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(peak, now + a);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + a + d);
+
+      osc.connect(g);
+      g.connect(master);
+
+      osc.start(now);
+      osc.stop(now + a + d + 0.05);
+    }
+
+    draw(cx, cy){
+      const breathe = 1 + Math.sin(this.phase) * 0.01;
+      const r = this.radius * breathe;
+
+      const alpha = 0.18 + this.flash * 0.82;
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.lineWidth = this.flash > 0 ? 3 : 1;
+
+      // ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.stroke();
+
+      // steps
+      for (let i=0;i<this.steps;i++){
+        const a = (i / this.steps) * Math.PI*2;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+
+        if (this.pattern[i] === 1){
+          ctx.fillStyle = this.muted ? 'rgba(255,255,255,0.15)' : '#fff';
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      // playhead
+      const px = cx + Math.cos(this.angle) * r;
+      const py = cy + Math.sin(this.angle) * r;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(px, py, this.muted ? 4 : 6, 0, Math.PI*2);
+      ctx.fill();
+
+      // label
+      ctx.fillStyle = this.muted ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.55)';
+      ctx.font = '900 12px system-ui, -apple-system, Helvetica, Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${this.pulses}/${this.steps}`, cx, cy - r);
+    }
+
+    hitTest(cx, cy, x, y){
+      const dx = x - cx, dy = y - cy;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      return Math.abs(d - this.radius) < 18;
+    }
+
+    randomize(){
+      const s = (Math.random() * 16 + 4) | 0; // 4..19
+      const p = (Math.random() * (s+1)) | 0;
+      this.steps = s;
+      this.pulses = p;
+      this.rebuild();
+      this.freq = 160 + (s * 18);
+    }
+  }
+
+  const rings = [
+    new Ring(60,  8, 3, 220),
+    new Ring(100, 13, 5, 330),
+    new Ring(140, 5, 2, 440),
+    new Ring(180, 21, 8, 550),
+    new Ring(220, 3, 1, 660)
+  ];
+
+  // ---------- INTERACTION ----------
+  let speed = 0.50;
+  const tempoEl = document.getElementById('tempo');
+
+  function setSpeed(v){
+    speed = clamp(v, 0.08, 2.0);
+    tempoEl.textContent = speed.toFixed(2);
+    if (audioCtx){
+      const now = audioCtx.currentTime;
+      lp.frequency.setTargetAtTime(6200 - speed*1200, now, 0.08);
+      delay.delayTime.setTargetAtTime(0.20 + (1.2-speed)*0.08, now, 0.08);
+      fb.gain.setTargetAtTime(0.18 + speed*0.22, now, 0.08);
+      wet.gain.setTargetAtTime(0.18 + speed*0.12, now, 0.08);
+    }
+  }
+  setSpeed(speed);
+
+  let dragging = false;
+  let dragStartY = 0;
+  let dragStartSpeed = 0;
+
+  function pointerPos(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    return {x,y};
+  }
+
+  let lastTap = { t: 0, ring: -1 };
+
+  function onPointerDown(e){
+    if (!started){
+      started = true;
+      document.getElementById('splash').style.display = 'none';
+      initAudio();
+    }
+    const p = pointerPos(e);
+    const cx = canvas.width/2, cy = canvas.height/2;
+
+    let hit = -1;
+    for (let i=0;i<rings.length;i++){
+      if (rings[i].hitTest(cx, cy, p.x, p.y)){ hit = i; break; }
+    }
+
+    const now = performance.now();
+    if (hit !== -1){
+      const isDouble = (now - lastTap.t < 320) && (lastTap.ring === hit);
+      lastTap = { t: now, ring: hit };
+      if (isDouble){
+        rings[hit].muted = !rings[hit].muted;
+        rings[hit].flash = 1;
+      } else {
+        rings[hit].randomize();
+        rings[hit].flash = 1;
+      }
+    } else {
+      dragging = true;
+      dragStartY = p.y;
+      dragStartSpeed = speed;
+    }
+
+    try { canvas.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+  }
+
+  function onPointerMove(e){
+    if (!dragging) return;
+    const p = pointerPos(e);
+    const dy = dragStartY - p.y;
+    setSpeed(dragStartSpeed + dy / 300);
+    e.preventDefault();
+  }
+
+  function onPointerUp(e){
+    dragging = false;
+    try { canvas.releasePointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown, { passive:false });
+  canvas.addEventListener('pointermove', onPointerMove, { passive:false });
+  canvas.addEventListener('pointerup', onPointerUp, { passive:false });
+  canvas.addEventListener('pointercancel', onPointerUp, { passive:false });
+
+  document.getElementById('splash').addEventListener('click', () => {
+    if (!started){
+      started = true;
+      document.getElementById('splash').style.display = 'none';
+      initAudio();
+    }
+  });
+
+  // ---------- RENDER LOOP ----------
+  let lastT = performance.now();
+
+  function animate(t){
+    const dt = Math.min(0.05, (t - lastT) / 1000);
+    lastT = t;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cx = canvas.width/2, cy = canvas.height/2;
+
+    // background "math haze"
+    const haze = 0.06 + speed*0.02;
+    ctx.strokeStyle = `rgba(255,255,255,${haze})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const time = t * 0.001;
+    for (let x=0; x<canvas.width; x+=10){
+      const y = cy + Math.sin(x*0.01 + time) * (18 + speed*8) + Math.sin(x*0.004 - time*0.7) * 10;
+      if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    rings.forEach(r => { r.update(dt, speed); r.draw(cx, cy); });
+
+    requestAnimationFrame(animate);
+  }
+
+  function resize(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

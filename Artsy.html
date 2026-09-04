@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>artsy</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  * { box-sizing: border-box; }
+  #app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+  }
+  header {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+  }
+  /* Minimal text UI: one input with placeholder 'SEED' */
+  #seed {
+    width: min(700px, 90vw);
+    background: #000;
+    border: 2px solid #fff;
+    color: #fff;
+    font: 700 20px/1.2 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    padding: 10px 14px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  #seed::placeholder { color: #aaa; }
+  #canvasWrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  canvas#view {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+  }
+  /* Round share button */
+  #shareBtn {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #000;
+    color: #fff;
+    font: 700 14px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  #shareBtn:active {
+    transform: scale(0.98);
+  }
+  /* Hidden anchor for download fallback */
+  a#dl { display:none; }
+  /* Accessibility: focus rings */
+  #seed:focus, #shareBtn:focus { outline: 2px dashed #fff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="app">
+  <header>
+    <input id="seed" placeholder="SEED" aria-label="Seed">
+  </header>
+  <div id="canvasWrap">
+    <canvas id="view"></canvas>
+  </div>
+</div>
+<button id="shareBtn" aria-label="Share Artwork" title="Share">⤴︎</button>
+<a id="dl"></a>
+<script>
+// ===== Utilities: seeded RNG =====
+function xmur3(str){
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function() {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h = (h ^= h >>> 16) >>> 0;
+    return h >>> 0;
+  }
+}
+function sfc32(a,b,c,d){
+  return function() {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) | 0;
+    t = (t + d) | 0;
+    d = (d + 1) | 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11);
+    c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  }
+}
+function rngFromSeed(seedStr) {
+  const seed = xmur3(seedStr);
+  return sfc32(seed(), seed(), seed(), seed());
+}
+function pick(r, arr){ return arr[Math.floor(r() * arr.length)] }
+function randInt(r, a, b){ return Math.floor(r() * (b - a + 1)) + a }
+function randRange(r, a, b){ return r() * (b - a) + a }
+function shuffle(r, arr){ for(let i=arr.length-1;i>0;i--){ const j = Math.floor(r()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } return arr; }
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+function seededColor(r, alpha=1){
+  const palettes = [
+    // neon on black
+    ["#00F5D4","#F15BB5","#9B5DE5","#FEE440","#00BBF9"],
+    // bold primaries
+    ["#FF0033","#00A1FF","#00D26A","#FFD400","#FFFFFF"],
+    // cyber
+    ["#39FF14","#FF2079","#00F0FF","#FEE600","#FFFFFF"],
+    // retro
+    ["#F94144","#F3722C","#F8961E","#90BE6D","#577590"],
+    // icy
+    ["#C1F7FF","#7AE0FF","#3B9CFF","#FFFFFF","#B8F1FF"],
+    // magma
+    ["#FF7F11","#FF1B1C","#1B1B1E","#F5F3F4","#3A86FF"],
+  ];
+  const pal = pick(r, palettes);
+  const hex = pick(r, pal);
+  // convert to rgba string with alpha
+  const bigint = parseInt(hex.slice(1), 16);
+  const rC = (bigint >> 16) & 255;
+  const gC = (bigint >> 8) & 255;
+  const bC = bigint & 255;
+  return `rgba(${rC},${gC},${bC},${alpha})`;
+}
+function sanitizeFilename(str){
+  return str.toString().replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g,"");
+}
+
+// ===== Canvas setup =====
+const view = document.getElementById('view');
+const wrap = document.getElementById('canvasWrap');
+const seedInput = document.getElementById('seed');
+const shareBtn = document.getElementById('shareBtn');
+const dl = document.getElementById('dl');
+
+let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+function resizeCanvas(){
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  view.width = Math.floor(w * pixelRatio);
+  view.height = Math.floor(h * pixelRatio);
+  view.style.width = w + "px";
+  view.style.height = h + "px";
+}
+window.addEventListener('resize', () => { resizeCanvas(); if(currentSeed) render(currentSeed); });
+
+// ===== Modes =====
+const EMOJI = "🌟✨🔥💥💫🌀🌈🎈🎲🎮🎵🎶🎤🎧🎷🎸🎹🥁🎺🖤🤍💜💚💙💛🧡❤️🍀🍉🍋🍇🍓🍒🍎🍊🍌🍍🍑🥝🌶️🍩🍪🍰🧁🍭🍬🍿🎯🧩♟️♠️♥️♦️♣️⚙️⚡️☄️⛰️🌋🌌🌃🏁🖼️✒️✏️✂️".split("");
+const WORDS = ["FUTURE","NOISE","WAVE","ART","LOVE","CHAOS","ORDER","LIGHT","GLOW","ECHO","BLUR","PIXEL","SHIFT","GLITCH","VOID","NOVA","SPARK","SHAPE","DREAM","MOTION","STATIC","RHYTHM","GROOVE","VIBE","GRID","FLOW","HALO"];
+
+// Simple value noise for painterly modes
+function ValueNoise(seed){
+  const r = rngFromSeed(seed + "_valuenoise");
+  const table = new Float32Array(512);
+  for(let i=0;i<table.length;i++) table[i]=r();
+  function noise2D(x,y){
+    function fade(t){ return t*t*(3-2*t); }
+    function lerp(a,b,t){ return a + (b-a)*t; }
+    const xi = Math.floor(x)&255, yi = Math.floor(y)&255;
+    const xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const topRight = table[(xi+1 + (yi+1)*31) & 511];
+    const topLeft  = table[(xi   + (yi+1)*31) & 511];
+    const bottomRight = table[(xi+1 + yi*31) & 511];
+    const bottomLeft  = table[(xi   + yi*31) & 511];
+    const u = fade(xf), v = fade(yf);
+    return lerp(lerp(bottomLeft, bottomRight, u), lerp(topLeft, topRight, u), v);
+  }
+  return { noise2D };
+}
+
+// Individual rendering modes
+const modes = {
+  minimal_geometric(ctx, r, W, H){
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+    const n = randInt(r, 3, 10);
+    for(let i=0;i<n;i++){
+      ctx.save();
+      const x = randRange(r, 0, W);
+      const y = randRange(r, 0, H);
+      const w = randRange(r, W*0.05, W*0.6);
+      const h = randRange(r, H*0.05, H*0.6);
+      const rot = randRange(r, 0, Math.PI);
+      ctx.translate(x,y);
+      ctx.rotate(rot);
+      ctx.strokeStyle = seededColor(r, 1);
+      ctx.lineWidth = randRange(r, 4, Math.min(W,H)*0.04);
+      const shape = pick(r, ["rect","circle","tri"]);
+      if(shape === "rect"){ ctx.strokeRect(-w/2,-h/2,w,h); }
+      else if(shape === "circle"){ ctx.beginPath(); ctx.arc(0,0, Math.min(w,h)/2, 0, Math.PI*2); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(-w/2, h/2); ctx.lineTo(0, -h/2); ctx.lineTo(w/2, h/2); ctx.closePath(); ctx.stroke(); }
+      ctx.restore();
+    }
+  },
+  op_art(ctx, r, W, H){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    const bands = randInt(r, 20, 80);
+    const angle = randRange(r, 0, Math.PI);
+    ctx.translate(W/2,H/2);
+    ctx.rotate(angle);
+    ctx.translate(-W/2,-H/2);
+    for(let i=0;i<bands;i++){
+      const y = i * (H/bands);
+      ctx.fillStyle = i%2 ? "#000" : "#fff";
+      ctx.fillRect(0,y,W,H/bands);
+    }
+    // distort
+    const lines = randInt(r, 50, 200);
+    ctx.globalCompositeOperation = "difference";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1;
+    for(let i=0;i<lines;i++){
+      ctx.beginPath();
+      const fx = randRange(r, 0, W);
+      const amp = randRange(r, 10, H*0.2);
+      const freq = randRange(r, 0.002, 0.02);
+      for(let x=0;x<W;x+=4){
+        const y = (H/2) + Math.sin((x+fx)*freq) * amp + (i - lines/2)*0.5;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  },
+  emoji_collage(ctx, r, W, H){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    const count = randInt(r, 30, 140);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for(let i=0;i<count;i++){
+      const e = pick(r, EMOJI);
+      const size = randRange(r, Math.min(W,H)*0.04, Math.min(W,H)*0.18);
+      ctx.font = `${Math.floor(size)}px Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, emoji`;
+      ctx.globalAlpha = randRange(r, 0.6, 1);
+      const x = randRange(r, 0, W);
+      const y = randRange(r, 0, H);
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(randRange(r, -0.5, 0.5));
+      ctx.fillText(e, 0, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  },
+  word_poster(ctx, r, W, H, seedStr){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    const words = shuffle(r, WORDS.slice()).slice(0, randInt(r, 1, 3));
+    // sometimes use the seed itself
+    if(r() < 0.6) words[0] = seedStr.toString().toUpperCase().slice(0, 18) || "ARTSY";
+    const lines = randInt(r, 1, 3);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const fontSize = Math.min(W,H) / (1.2*lines);
+    for(let i=0;i<lines;i++){
+      ctx.fillStyle = seededColor(r, 1);
+      ctx.font = `900 ${Math.floor(fontSize)}px Helvetica, Arial, sans-serif`;
+      ctx.fillText(words[i % words.length], W/2, H*(0.35 + 0.3*i));
+    }
+  },
+  paint_blobs(ctx, r, W, H, seedStr){
+    const vn = ValueNoise(seedStr);
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    const layers = randInt(r, 3, 8);
+    for(let l=0;l<layers;l++){
+      ctx.globalAlpha = randRange(r, 0.18, 0.45);
+      ctx.fillStyle = seededColor(r, 1);
+      const scale = randRange(r, 200, 800);
+      for(let y=0;y<H;y+=4){
+        for(let x=0;x<W;x+=4){
+          const v = vn.noise2D(x/scale + l*13.37, y/scale + l*7.77);
+          if(v > 0.55 + (l*0.02)) ctx.fillRect(x, y, 4, 4);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  },
+  line_field(ctx, r, W, H, seedStr){
+    const vn = ValueNoise(seedStr);
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.2;
+    const step = randInt(r, 8, 18);
+    const len = randInt(r, 20, 60);
+    for(let y=0;y<H;y+=step){
+      for(let x=0;x<W;x+=step){
+        const ang = vn.noise2D(x*0.01,y*0.01) * Math.PI*2;
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        ctx.lineTo(x + Math.cos(ang)*len, y + Math.sin(ang)*len);
+        ctx.stroke();
+      }
+    }
+  },
+  mandala(ctx, r, W, H){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    ctx.translate(W/2,H/2);
+    const arms = randInt(r, 6, 18);
+    const rings = randInt(r, 4, 12);
+    for(let a=0;a<arms;a++){
+      const ang = (a/arms)*Math.PI*2;
+      ctx.save();
+      ctx.rotate(ang);
+      for(let i=1;i<=rings;i++){
+        ctx.strokeStyle = seededColor(r, 1);
+        ctx.lineWidth = randRange(r, 1, 6);
+        const rad = (Math.min(W,H)/2) * (i/(rings+1));
+        ctx.beginPath();
+        ctx.arc(0,0,rad, 0, Math.PI*0.5);
+        ctx.stroke();
+        // dots
+        ctx.fillStyle = seededColor(r, 1);
+        ctx.beginPath();
+        ctx.arc(rad, 0, randRange(r, 2, 8), 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.setTransform(1,0,0,1,0,0);
+  },
+  pixel_mosaic(ctx, r, W, H){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+    const sz = randInt(r, 6, 24);
+    for(let y=0;y<H;y+=sz){
+      for(let x=0;x<W;x+=sz){
+        if(r() < 0.5) continue;
+        ctx.fillStyle = seededColor(r, r()<0.5?0.8:1);
+        ctx.fillRect(x,y,sz,sz);
+        if(r() < 0.2){
+          ctx.strokeStyle = "#000";
+          ctx.strokeRect(x+0.5,y+0.5,sz-1,sz-1);
+        }
+      }
+    }
+  }
+};
+
+const modeKeys = Object.keys(modes);
+
+// ===== Render =====
+let currentSeed = "";
+function render(seedStr){
+  currentSeed = seedStr;
+  const r = rngFromSeed(seedStr);
+  const ctx = view.getContext('2d');
+  const W = view.width, H = view.height;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  // choose 1-3 modes to layer for diversity
+  const count = randInt(r, 1, 3);
+  const chosen = shuffle(r, modeKeys.slice()).slice(0, count);
+  for(const key of chosen){
+    modes[key](ctx, r, W, H, seedStr);
+  }
+
+  // occasional vignette / framing
+  if(r() < 0.4){
+    const grd = ctx.createRadialGradient(W/2,H/2, Math.min(W,H)*0.2, W/2,H/2, Math.max(W,H)*0.7);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.6)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+// ===== High-res export =====
+function exportPNG(){
+  const seedStr = currentSeed || (seedInput.value.trim() || "ARTSY");
+  const size = 2048; // high-res square export
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  // Render using same logic at fixed size
+  const r = rngFromSeed(seedStr);
+  const W = c.width, H = c.height;
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+  const count = randInt(r, 1, 3);
+  const chosen = shuffle(r, modeKeys.slice()).slice(0, count);
+  for(const key of chosen){
+    modes[key](ctx, r, W, H, seedStr);
+  }
+  if(r() < 0.4){
+    const grd = ctx.createRadialGradient(W/2,H/2, Math.min(W,H)*0.2, W/2,H/2, Math.max(W,H)*0.7);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.6)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  const filename = sanitizeFilename(seedStr) + "_artsy.png";
+  c.toBlob(async (blob)=>{
+    if(navigator.canShare && navigator.canShare({ files: [new File([blob], filename, {type:"image/png"})] })){
+      try{
+        await navigator.share({ files: [new File([blob], filename, {type:"image/png"})], title: filename, text: filename });
+      }catch(e){
+        // fall back to download
+        const url = URL.createObjectURL(blob);
+        dl.href = url; dl.download = filename; dl.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 2000);
+      }
+    }else{
+      const url = URL.createObjectURL(blob);
+      dl.href = url; dl.download = filename; dl.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    }
+  }, "image/png");
+}
+
+// ===== Events =====
+seedInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    resizeCanvas();
+    render(seedInput.value.trim() || "ARTSY");
+    // after generation, move focus away for fullscreen feel
+    view.focus && view.focus();
+  }
+});
+shareBtn.addEventListener('click', exportPNG);
+
+// Initial layout
+resizeCanvas();
+// leave screen black until user enters a seed, per request.
+</script>
+</body>
+</html>

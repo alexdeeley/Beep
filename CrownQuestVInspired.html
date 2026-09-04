@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Crown Quest: The Silver Owl</title>
+<style>
+  :root{
+    --bg:#000; --fg:#fff; --dim:#9a9a9a; --panel:#080808; --panel2:#121212; --line:#fff;
+    --gold:#f4d35e; --red:#ff4d4d; --green:#7dff9a; --blue:#87ceff; --purple:#caa3ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:#000;color:#fff;font-family:Georgia,'Times New Roman',serif;overflow:hidden;}
+  body{display:flex;justify-content:center;align-items:center;}
+  #game{width:min(100vw,980px);height:100vh;max-height:760px;background:#000;border:2px solid #fff;display:grid;grid-template-rows:auto 1fr auto auto;position:relative;}
+  header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid #fff;background:#050505;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:.08em;font-size:12px;}
+  .title{font-weight:bold;color:var(--gold);white-space:nowrap;}
+  .meters{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  button{background:#000;color:#fff;border:1px solid #fff;padding:8px 10px;font-family:'Courier New',monospace;font-weight:bold;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}
+  button:active,button.active{background:#fff;color:#000;}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+  #stageWrap{position:relative;background:linear-gradient(#111,#000);min-height:0;}
+  #scene{display:block;width:100%;height:100%;image-rendering:pixelated;background:#000;touch-action:none;}
+  #hotspotLabels{position:absolute;inset:0;pointer-events:none;font-family:'Courier New',monospace;font-size:11px;}
+  .label{position:absolute;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.5);padding:2px 5px;border-radius:10px;color:#fff;white-space:nowrap;opacity:.9;}
+  #commandBar{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;padding:6px;border-top:2px solid #fff;border-bottom:2px solid #fff;background:#030303;}
+  #inventory{display:flex;gap:6px;overflow-x:auto;padding:6px;background:#090909;border-bottom:1px solid #333;min-height:49px;align-items:center;}
+  .invItem{border:1px solid #fff;background:#000;color:#fff;padding:8px 10px;white-space:nowrap;font-family:'Courier New',monospace;font-size:12px;text-transform:uppercase;}
+  .invItem.selected{background:#fff;color:#000;}
+  #messageBox{min-height:106px;padding:9px 12px;background:#000;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;}
+  #message{font-size:16px;line-height:1.35;max-height:86px;overflow-y:auto;}
+  #choices{display:flex;flex-direction:column;gap:5px;min-width:124px;}
+  #overlay{position:absolute;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:20;padding:22px;text-align:center;}
+  #overlay.hidden{display:none;}
+  .card{max-width:720px;border:2px solid #fff;background:#050505;padding:24px;box-shadow:0 0 0 6px #000,0 0 0 8px #fff;}
+  h1{font-size:34px;color:var(--gold);letter-spacing:.04em;margin-bottom:8px;}
+  h2{font-size:21px;margin:14px 0 8px;color:#fff;}
+  p{margin:8px 0;line-height:1.45;}
+  .small{color:#cfcfcf;font-size:13px;font-family:'Courier New',monospace;}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px;}
+  #death{position:absolute;inset:0;background:#000;z-index:25;display:none;align-items:center;justify-content:center;text-align:center;padding:25px;}
+  #death .card{border-color:var(--red);}
+  #death h1{color:var(--red);}
+  @media(max-width:620px){
+    #game{height:100dvh;max-height:none;border:none;}
+    header{font-size:10px;padding:6px;}
+    .title{max-width:42vw;overflow:hidden;text-overflow:ellipsis;}
+    #commandBar{grid-template-columns:repeat(3,1fr);}
+    button{padding:9px 6px;font-size:11px;}
+    #messageBox{grid-template-columns:1fr;min-height:148px;}
+    #message{font-size:15px;max-height:88px;}
+    #choices{flex-direction:row;min-width:0;overflow-x:auto;}
+    h1{font-size:27px;}
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="game" aria-label="Crown Quest adventure game">
+  <header>
+    <div class="title">Crown Quest V-ish: The Silver Owl</div>
+    <div class="meters"><span id="roomName">Room</span><span id="score">Score 0/100</span><span id="turns">Turns 0</span></div>
+  </header>
+  <div id="stageWrap">
+    <canvas id="scene" width="960" height="460"></canvas>
+    <div id="hotspotLabels"></div>
+  </div>
+  <div id="commandBar" role="toolbar">
+    <button data-verb="walk" class="active">Walk</button>
+    <button data-verb="look">Look</button>
+    <button data-verb="take">Take</button>
+    <button data-verb="use">Use</button>
+    <button data-verb="talk">Talk</button>
+    <button data-verb="open">Open</button>
+  </div>
+  <div id="inventory" aria-label="Inventory"><span class="small">Inventory: empty</span></div>
+  <div id="messageBox">
+    <div id="message"></div>
+    <div id="choices">
+      <button id="saveBtn">Save</button>
+      <button id="loadBtn">Load</button>
+      <button id="hintBtn">Hint</button>
+    </div>
+  </div>
+  <div id="overlay">
+    <div class="card">
+      <h1>Crown Quest: The Silver Owl</h1>
+      <p>A compact original fantasy adventure inspired by early 1990s point-and-click quests.</p>
+      <p>You are Rowan, a royal courier whose kingdom has been frozen beneath a moonlit curse. Find the Silver Owl, wake the three bells, and restore the crown before the night becomes permanent.</p>
+      <p class="small">Choose a command, then tap the picture. Use inventory items by selecting USE, selecting an item, then tapping a target. Save often. Adventure games are rude.</p>
+      <div class="row"><button id="startBtn">Begin Quest</button></div>
+    </div>
+  </div>
+  <div id="death">
+    <div class="card">
+      <h1>Alas!</h1>
+      <p id="deathText">You have perished.</p>
+      <div class="row"><button id="restoreBtn">Restore</button><button id="restartBtn">Restart</button></div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+'use strict';
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+const labels = document.getElementById('hotspotLabels');
+const msg = document.getElementById('message');
+const invDiv = document.getElementById('inventory');
+const roomNameEl = document.getElementById('roomName');
+const scoreEl = document.getElementById('score');
+const turnsEl = document.getElementById('turns');
+const overlay = document.getElementById('overlay');
+const death = document.getElementById('death');
+const deathText = document.getElementById('deathText');
+
+const W=960,H=460;
+let state;
+let verb='walk';
+let selectedItem=null;
+let hover=null;
+let anim=0;
+const MAX_SCORE=100;
+
+const itemNames={
+  bread:'crusty bread', feather:'silver feather', coin:'moon coin', flute:'reed flute', lantern:'star lantern', key:'thorn key', mirror:'pocket mirror', rope:'braided rope', gem:'blue gem', seed:'sun seed', crown:'restored crown'
+};
+const scoreEvents={};
+function fresh(){return {
+  room:'castleGate', inventory:[], flags:{}, score:0, turns:0, alive:true,
+  path:['castleGate'], known:{}, talked:{}, save:null
+};}
+function has(i){return state.inventory.includes(i);}
+function flag(f){return !!state.flags[f];}
+function setFlag(f,v=true){state.flags[f]=v;}
+function score(id,pts){ if(!scoreEvents[id]){scoreEvents[id]=true;state.score=Math.min(MAX_SCORE,state.score+pts);} }
+function say(t){msg.innerHTML=t;}
+function addItem(id){if(!has(id)){state.inventory.push(id); score('take_'+id, itemScore[id]||2); say(`Taken: <b>${itemNames[id]}</b>.`); renderInv();}}
+function removeItem(id){state.inventory=state.inventory.filter(x=>x!==id); if(selectedItem===id)selectedItem=null; renderInv();}
+const itemScore={bread:3,feather:5,coin:4,flute:5,lantern:8,key:6,mirror:4,rope:4,gem:7,seed:8,crown:15};
+
+const rooms={
+ castleGate:{name:'Castle Gate', bg:'dawn', desc:'The castle of Bellweather stands locked and silent. Frost curls over the royal crest. Paths lead east to the village and north into the dark wood.', exits:{east:'village',north:'darkWood'},
+  draw(){sky('#101020','#273452'); mountains(); ground('#182018'); castle(455,170); road(); tree(110,250,1); tree(820,265,.9); signpost(725,310,'VILLAGE');},
+  spots:[
+    spot('gate',390,135,205,165,'castle gate',{look:'The gate is sealed by three sleeping bells: brass, glass, and silver. Three little sockets are set into the arch.',open(){ if(flag('bellsAwake')&&has('gem')){removeItem('gem'); setFlag('gateOpen'); score('open_gate',10); go('throneRoom','The three bells ring without sound. The gate drinks the blue gem like a drop of sky and swings open.');} else say('The gate does not move. Three bells must be awakened, and something bright seems to belong in the empty socket.');},use(){ if(selectedItem==='gem'&&flag('bellsAwake')){removeItem('gem'); setFlag('gateOpen'); score('open_gate',10); go('throneRoom','The blue gem flashes. The three bells wake. The castle opens like a book.');} else say('That is not enough to wake the castle.');}}),
+    spot('frosty crest',500,155,80,75,'crest',{look:'The royal crest shows an owl carrying a crown beneath three stars. A fresh scratch points north.'}),
+    exit('east road',760,300,170,115,'east'), exit('north path',255,250,170,170,'north')]
+ },
+ village:{name:'Village of Pebblewick', bg:'day', desc:'Crooked cottages lean together around a dry fountain. A baker watches from a warm window. Roads lead west, east, and south.', exits:{west:'castleGate',east:'mill',south:'market'},
+  draw(){sky('#16202b','#32566d'); hills(); ground('#203018'); cottage(165,250,'#302010'); cottage(390,230,'#242428'); cottage(650,260,'#202830'); fountain(500,325); road();},
+  spots:[
+    spot('baker',155,210,90,130,'baker',{look:'The baker has flour on his beard and suspicion in both eyebrows.',talk(){ if(!flag('gotBread')){setFlag('gotBread'); addItem('bread'); say('The baker says, “Heroes are always hungry. Take this, but do not feed it to anyone unworthy.”');} else say('The baker says, “Remember: bread opens more doors than swords.”');}}),
+    spot('fountain',450,265,110,95,'fountain',{look(){ if(flag('fountainOn')) say('Clear water sings in the fountain. A moon coin glitters where the ice melted.'); else say('A dry fountain shaped like a fish. Its mouth is plugged with frost.');},take(){ if(flag('fountainOn')&&!has('coin')&&!flag('coinTaken')){setFlag('coinTaken'); addItem('coin');} else say('You find only a cold penny-shaped circle in the stone.');},use(){ if(selectedItem==='feather'&&!flag('fountainOn')){setFlag('fountainOn'); score('fountain',6); say('You tickle the frozen fish-mouth with the silver feather. It sneezes, and water bursts forth.');} else say('The fountain remains stubbornly theatrical.');}}),
+    exit('west lane',55,310,120,120,'west'), exit('east lane',785,310,140,115,'east'), exit('south lane',480,360,150,90,'south')]
+ },
+ market:{name:'Moon Market', bg:'night', desc:'A tiny night market glows under paper moons. A peddler sells useful nonsense. North returns to the village; east leads to the river.', exits:{north:'village',east:'riverBank'},
+  draw(){sky('#070713','#1d1942'); stars(); ground('#151515'); stall(230,265); stall(535,250); moon(755,80); road();},
+  spots:[
+    spot('peddler',540,225,90,125,'peddler',{look:'The peddler wears seven scarves and the smile of a person who knows the ending.',talk(){ if(has('coin')&&!has('flute')) say('The peddler whispers, “One moon coin buys one reed flute. Fair trade, unfair magic.”'); else say('“Nothing is free,” says the peddler, “except bad advice.”');},use(){ if(selectedItem==='coin'&&!has('flute')){removeItem('coin'); addItem('flute'); score('buy_flute',6); say('The peddler bites the coin, hears it hum, and hands you a reed flute.');} else say('The peddler is not impressed by that currency.');}}),
+    spot('moon lanterns',205,135,150,105,'lanterns',{look:'Paper lanterns bob on strings. One is real starlight trapped in brass.',take(){ if(flag('peddlerDistracted')&&!has('lantern')) addItem('lantern'); else say('The peddler coughs loudly. “Looking is cheaper than taking.”');},use(){ if(selectedItem==='flute'){setFlag('peddlerDistracted'); score('distract_peddler',5); say('You play a crooked little tune. The lanterns dance; the peddler dances after them. The star lantern is briefly unwatched.');} else say('The lanterns sway, awaiting music.');}}),
+    exit('north road',430,100,170,120,'north'), exit('east road',795,310,150,120,'east')]
+ },
+ mill:{name:'Old Mill', bg:'day', desc:'The old mill turns though there is no wind. A raven sits on the wheel. Paths lead west and north.', exits:{west:'village',north:'cliff'},
+  draw(){sky('#172233','#46617a'); clouds(); ground('#202414'); mill(410,230); stream(); tree(725,250,1.1);},
+  spots:[
+    spot('raven',500,150,80,80,'raven',{look:'A glossy raven guards a silver feather caught in the wheel.',talk(){say('The raven croaks, “Bread for a secret. Secret for a feather.”');},use(){ if(selectedItem==='bread'&&!flag('fedRaven')){removeItem('bread'); setFlag('fedRaven'); addItem('feather'); score('fed_raven',6); say('The raven swallows the bread in one rude gulp and drops the silver feather. “North: mirror the moon,” it croaks.');} else say('The raven judges your offering and finds it insufficiently carbohydrate.');}}),
+    spot('wheel',405,120,170,190,'mill wheel',{look:'The wheel turns counterclockwise. Painted symbols show feather, moon, bell.'}),
+    exit('west path',65,310,125,120,'west'), exit('north hill',690,185,130,160,'north')]
+ },
+ darkWood:{name:'Dark Wood', bg:'forest', desc:'Trees crowd together like gossiping giants. An owl-shaped hollow watches you. Paths lead south, east, and north.', exits:{south:'castleGate',east:'witchHut',north:'owlTree'},
+  draw(){sky('#05070a','#111a16'); forest(); ground('#0b120b'); bigTree(470,235); mushrooms(190,350); pathFork();},
+  spots:[
+    spot('mushrooms',135,325,150,75,'mushrooms',{look:'Red-capped mushrooms form a perfect circle. A fairy ring. Obviously dangerous. Obviously tempting.',use(){ if(selectedItem==='flute'&&!flag('fairyDoor')){setFlag('fairyDoor'); score('fairy_ring',6); say('You play the reed flute. The mushrooms bow, one by one, revealing a thumb-sized doorway under a root.');} else say('The mushrooms refuse to dance without the proper tune.');}}),
+    spot('root doorway',420,270,110,75,'tiny doorway',{look(){say(flag('fairyDoor')?'A tiny doorway glimmers beneath the owl tree roots. Something inside smells like rain and secrets.':'Only knotted roots. The forest keeps its small doors hidden.');},open(){ if(flag('fairyDoor')&&!has('key')){addItem('key'); score('fairy_key',6); say('Inside the tiny doorway, a polite invisible hand gives you a thorn key.');} else say('Nothing opens for you there.');}}),
+    exit('south path',455,360,160,90,'south'), exit('east path',795,300,140,120,'east'), exit('north path',455,105,130,140,'north')]
+ },
+ witchHut:{name:'Witch Hut', bg:'forest', desc:'A crooked hut squats on chicken-like stilts. Smoke spells itself into question marks. West returns to the wood.', exits:{west:'darkWood'},
+  draw(){sky('#07080e','#19171e'); forest(); ground('#0f0c10'); hut(465,225); cauldron(270,325);},
+  spots:[
+    spot('witch',512,210,100,130,'witch',{look:'The witch has kind eyes, sharp teeth, and a hat that looks embarrassed.',talk(){ if(!flag('witchTalked')){setFlag('witchTalked'); say('The witch says, “Bring me a sun seed from a place where no sun grows, and I shall trade you a mirror.”');} else if(has('seed')) say('“Ah,” she says, “a sun seed. Trade?”'); else say('“Do not eat anything with more than three adjectives,” she advises.');},use(){ if(selectedItem==='seed'&&!has('mirror')){removeItem('seed'); addItem('mirror'); score('witch_trade',7); say('The witch plants the sun seed in her teacup. It blooms instantly. She gives you a pocket mirror, warm on one side and cold on the other.');} else say('The witch says, “That is not the bargain.”');}}),
+    spot('cauldron',225,270,105,95,'cauldron',{look:'The cauldron bubbles in iambic pentameter. It smells like soup regretting its choices.',use(){ if(selectedItem==='bread') die('You dip your bread into the cauldron. The soup was cursed to punish snacking. You become a decorative turnip.'); else say('A bubble rises and pops into the word “NO.”');}}),
+    exit('west trees',55,300,120,130,'west')]
+ },
+ owlTree:{name:'Owl Tree', bg:'forest', desc:'A colossal hollow tree towers above you. Something silver sleeps high in the branches. South returns to the wood; east climbs toward the cliffs.', exits:{south:'darkWood',east:'cliff'},
+  draw(){sky('#080b12','#18251e'); stars(); forest(); ground('#0d120c'); giantOwlTree();},
+  spots:[
+    spot('silver owl',440,105,135,100,'silver owl',{look:'The Silver Owl is a statue, or a bird, or a dream pretending to be both.',talk(){ if(flag('bellsAwake')) say('The owl opens one eye. “The crown remembers you.”'); else say('The owl sleeps. Its dream sounds like three bells underwater.');},use(){ if(selectedItem==='lantern'&&!flag('owlAwake')){setFlag('owlAwake'); score('wake_owl',8); say('You lift the star lantern. The Silver Owl opens its eyes and drops a blue gem into the leaves below.');} else say('The owl remains folded into moonlight.');}}),
+    spot('fallen leaves',405,305,160,80,'fallen leaves',{look(){say(flag('owlAwake')&&!has('gem')?'A blue gem glitters among the silver leaves.':'Leaves shaped like tiny feathers blanket the ground.');},take(){ if(flag('owlAwake')&&!has('gem')&&!flag('gemTaken')){setFlag('gemTaken'); addItem('gem');} else say('You gather only ordinary leaves, which immediately become less interesting.');}}),
+    exit('south path',455,370,160,80,'south'), exit('east ridge',795,255,130,120,'east')]
+ },
+ cliff:{name:'Glass Cliff', bg:'dusk', desc:'A glassy cliff reflects the sky. A bell hangs in a cleft across a gap. Paths lead south to the mill and west to the owl tree.', exits:{south:'mill',west:'owlTree'},
+  draw(){sky('#1a1630','#5e4b73'); stars(); mountains(); cliffScene();},
+  spots:[
+    spot('gap',455,250,185,150,'gap',{look:'A deep gap splits the cliff. You can almost hear old save files at the bottom.',use(){ if(selectedItem==='rope'&&!flag('ropeBridge')){setFlag('ropeBridge'); score('rope_bridge',6); say('You fasten the rope to two stubborn rocks, making an unsafe but technically usable bridge.');} else if(!flag('ropeBridge')) die('You attempt the leap. Gravity, ever the traditionalist, votes against you.'); else say('The rope bridge sways but holds.');}}),
+    spot('glass bell',645,130,100,130,'glass bell',{look:'A glass bell hangs across the gap. Moonlight trembles inside it.',use(){ if(selectedItem==='mirror'&&flag('ropeBridge')&&!flag('glassBell')){setFlag('glassBell'); score('glass_bell',7); checkBells(); say('You flash moonlight from the pocket mirror into the glass bell. It rings once, so clear the cliff blushes.');} else if(!flag('ropeBridge')) say('The bell is across the gap. You need a safer way over.'); else say('The bell needs reflected moonlight, not brute force.');}}),
+    spot('braided vine',180,300,120,95,'braided vine',{look:'A tough braided vine dangles from a lonely root.',take(){ if(!has('rope')&&!flag('ropeTaken')){setFlag('ropeTaken'); addItem('rope');} else say('You already have a perfectly suspicious rope.');}}),
+    exit('south slope',210,370,130,80,'south'), exit('west trail',55,270,120,115,'west')]
+ },
+ riverBank:{name:'River Bank', bg:'day', desc:'A black river slides past, smooth as ink. A brass bell hangs from a buoy. West returns to the market; east leads to a frozen garden.', exits:{west:'market',east:'garden'},
+  draw(){sky('#111c24','#315b67'); hills(); river(); ground('#141914'); buoyBell(515,235); reeds(190,330);},
+  spots:[
+    spot('brass bell',475,180,105,135,'brass bell',{look:'The brass bell bobs beyond reach. It has teeth marks, because rivers are weird.',use(){ if(selectedItem==='flute'&&!flag('brassBell')){setFlag('brassBell'); score('brass_bell',7); checkBells(); say('You play the reed flute. The river coils into a listening spiral and the brass bell rings from the buoy.');} else say('The bell is unmoved. Perhaps it prefers wind made by music.');}}),
+    spot('reeds',140,280,130,110,'reeds',{look:'Reeds whisper along the riverbank. One reed has been cut cleanly, recently.',take(){ if(!has('seed')&&flag('gardenMelted')){addItem('seed'); setFlag('seedTaken'); say('Among the reeds you find a sun seed washed down from the thawed garden.');} else say('The reeds shiver away from your hands.');}}),
+    exit('west road',55,300,135,120,'west'), exit('east path',795,300,135,120,'east')]
+ },
+ garden:{name:'Frozen Garden', bg:'ice', desc:'A garden of ice statues gleams in unnatural winter. A silver bell is trapped inside a frozen rose. West returns to the river.', exits:{west:'riverBank'},
+  draw(){sky('#09101d','#405a78'); snow(); ground('#101820'); frozenGarden();},
+  spots:[
+    spot('frozen rose',440,190,130,150,'frozen rose',{look:'A rose of clear ice imprisons a tiny silver bell.',use(){ if(selectedItem==='lantern'&&!flag('gardenMelted')){setFlag('gardenMelted'); score('melt_garden',6); say('The star lantern warms the garden. Ice slides from the rose, and meltwater runs toward the river.');} else if(selectedItem==='feather'&&flag('gardenMelted')&&!flag('silverBell')){setFlag('silverBell'); score('silver_bell',7); checkBells(); say('You touch the silver bell with the silver feather. It rings softly, like a bird waking.');} else say('The rose needs warmth first, then a delicate touch.');}}),
+    spot('ice statue',650,220,95,145,'ice statue',{look:'The statue is a knight holding an empty bowl. The plaque reads: “PLANT SUN WHERE WINTER DRINKS.”',use(){ if(selectedItem==='lantern') say('The statue sighs, but does not melt. The rose gets jealous of your attention.'); else say('The statue waits with heroic patience.');}}),
+    exit('west trail',55,300,135,120,'west')]
+ },
+ throneRoom:{name:'Throne Room', bg:'castle', desc:'The throne room is cracked with moonlight. The crown rests in a cage of shadow. The Silver Owl waits on the throne.', exits:{south:'castleGate'},
+  draw(){castleInterior(); throne(480,210); shadowCage(480,235);},
+  spots:[
+    spot('shadow cage',390,125,185,185,'shadow cage',{look:'A cage of shadow surrounds the crown. It is locked with a keyhole shaped like a thorn.',open(){ if(has('key')&&!has('crown')){addItem('crown'); score('restore_crown',12); say('The thorn key pricks the lock. The shadow cage shatters, and you lift the restored crown.');} else say('The cage needs a thorn key. Shadows are very specific locksmiths.');},use(){ if(selectedItem==='key'&&!has('crown')){addItem('crown'); score('restore_crown',12); say('The thorn key turns. The crown rises into your hands, heavier than gold and lighter than forgiveness.');} else say('The cage ignores you with royal confidence.');}}),
+    spot('silver owl',565,145,120,120,'silver owl',{look:'The Silver Owl bows. “A crown is not a hat,” it says. “It is a promise with weather.”',talk(){ if(has('crown')) win(); else say('The owl says, “The crown waits inside the shadow. Unlock what fear locked.”');}}),
+    exit('south doors',410,350,160,90,'south')]
+ }
+};
+function checkBells(){ if(flag('brassBell')&&flag('glassBell')&&flag('silverBell')&&!flag('bellsAwake')){setFlag('bellsAwake');score('all_bells',10); setTimeout(()=>say('Far away, the three sleeping bells answer one another. The castle gate can now be opened with a bright gem.'),450);} }
+
+function spot(id,x,y,w,h,label,actions){return {id,x,y,w,h,label,actions};}
+function exit(id,x,y,w,h,dir){return spot(id,x,y,w,h,dir+' exit',{look:`The way ${dir} seems passable.`,walk(){go(rooms[state.room].exits[dir]);}});}
+function getAction(s,v){const a=s.actions||{};return a[v]||a.default;}
+function actOn(s){state.turns++; if(verb==='walk' && s.actions && s.actions.walk){s.actions.walk(); update(); return;} if(verb==='use' && !selectedItem){say('Select an inventory item first, then tap what you want to use it on.'); update(); return;} const a=getAction(s,verb); if(typeof a==='function') a.call(s); else if(typeof a==='string') say(a); else generic(s); update();}
+function generic(s){
+ const label=s.label||s.id;
+ if(verb==='look') say(`You examine the ${label}. It seems important, because it has a hotspot.`);
+ else if(verb==='take') say(`You cannot take the ${label}. Adventure law forbids it.`);
+ else if(verb==='talk') say(`The ${label} has nothing to say, which is either wisdom or poor writing.`);
+ else if(verb==='open') say(`The ${label} does not open.`);
+ else if(verb==='use') say(`The ${itemNames[selectedItem]||'item'} has no useful effect on the ${label}.`);
+ else say(`You cannot go that way.`);
+}
+function go(room,text){if(!room)return say('You cannot go that way.'); state.room=room; state.path.push(room); say(text||rooms[room].desc); selectedItem=null; renderInv(); draw();}
+function die(t){state.alive=false; deathText.textContent=t; death.style.display='flex';}
+function win(){score('win',12); update(); death.style.display='flex'; death.querySelector('h1').textContent='Victory!'; deathText.innerHTML=`You set the restored crown upon the empty throne. Dawn breaks over Bellweather. The Silver Owl becomes a streak of light, and every frozen bell in the kingdom rings at once.<br><br><b>Final score: ${state.score}/${MAX_SCORE}</b><br>Turns: ${state.turns}`;}
+
+function update(){roomNameEl.textContent=rooms[state.room].name; scoreEl.textContent=`Score ${state.score}/${MAX_SCORE}`; turnsEl.textContent=`Turns ${state.turns}`; draw();}
+function renderInv(){invDiv.innerHTML=''; if(!state.inventory.length){const s=document.createElement('span');s.className='small';s.textContent='Inventory: empty';invDiv.appendChild(s);return;} state.inventory.forEach(id=>{const b=document.createElement('button');b.className='invItem'+(selectedItem===id?' selected':'');b.textContent=itemNames[id];b.onclick=()=>{selectedItem=selectedItem===id?null:id; verb='use'; setVerbButton(); renderInv(); say(selectedItem?`Use <b>${itemNames[id]}</b> on what?`:'Item unselected.');}; invDiv.appendChild(b);});}
+function setVerbButton(){document.querySelectorAll('#commandBar button').forEach(b=>b.classList.toggle('active',b.dataset.verb===verb));}
+
+document.querySelectorAll('#commandBar button').forEach(b=>b.onclick=()=>{verb=b.dataset.verb; if(verb!=='use')selectedItem=null; setVerbButton(); renderInv(); say(`<b>${verb.toUpperCase()}</b>: tap something in the scene.`);});
+document.getElementById('startBtn').onclick=()=>{overlay.classList.add('hidden'); say(rooms[state.room].desc); update();};
+document.getElementById('restartBtn').onclick=()=>{location.reload();};
+document.getElementById('restoreBtn').onclick=()=>{const saved=localStorage.getItem('crownQuestSave'); if(saved){state=JSON.parse(saved); death.style.display='none'; death.querySelector('h1').textContent='Alas!'; update(); say('Restored from your last save.');} else {death.style.display='none'; say('No saved game found. You are miraculously returned, but perhaps save next time.'); state.alive=true; update();}};
+document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('crownQuestSave',JSON.stringify(state)); say('Game saved. A responsible hero is a living hero.');};
+document.getElementById('loadBtn').onclick=()=>{const saved=localStorage.getItem('crownQuestSave'); if(saved){state=JSON.parse(saved); death.style.display='none'; update(); say('Game loaded. The universe reluctantly rewinds.');} else say('No saved game found.');};
+document.getElementById('hintBtn').onclick=()=>hint();
+function hint(){const r=state.room; let h='Try looking carefully, talking to characters, and using inventory items on suspicious objects.';
+ if(!has('bread')&&!flag('gotBread')) h='Talk to the baker in the village. Heroes need snacks.';
+ else if(!has('feather')) h='The raven at the mill wants bread.';
+ else if(!has('coin')) h='The village fountain might respond to something delicate and silver.';
+ else if(!has('flute')) h='A moon coin might interest the peddler at the market.';
+ else if(!has('lantern')) h='Use the flute on the market lanterns, then take the star lantern.';
+ else if(!has('key')) h='In the dark wood, music may reveal a tiny door. Open it.';
+ else if(!has('rope')) h='At the glass cliff, take the braided vine.';
+ else if(!flag('brassBell')) h='The brass bell at the river likes music.';
+ else if(!flag('glassBell')) h='Use the rope at the cliff gap, then reflect moonlight into the glass bell with the mirror.';
+ else if(!flag('silverBell')) h='Warm the frozen garden with the lantern, then touch the silver bell with the feather.';
+ else if(!has('gem')) h='Wake the Silver Owl with the star lantern, then search the leaves.';
+ else if(state.room!=='castleGate' && !flag('gateOpen')) h='Return to the castle gate. The gem matters after all three bells are awake.';
+ else if(!has('crown')) h='In the throne room, use or open the shadow cage with the thorn key.';
+ else h='Talk to the Silver Owl in the throne room.';
+ say(`<b>Hint:</b> ${h}`);
+}
+
+function canvasPos(e){const rect=canvas.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-rect.left)/rect.width*W,y:(p.clientY-rect.top)/rect.height*H};}
+function findSpot(x,y){const spots=rooms[state.room].spots||[]; for(let i=spots.length-1;i>=0;i--){const s=spots[i]; if(x>=s.x&&x<=s.x+s.w&&y>=s.y&&y<=s.y+s.h)return s;} return null;}
+canvas.addEventListener('pointerdown',e=>{const p=canvasPos(e); const s=findSpot(p.x,p.y); if(s) actOn(s); else {state.turns++; say('You wander a few steps and achieve very little, which is still exercise.'); update();}});
+canvas.addEventListener('pointermove',e=>{const p=canvasPos(e); hover=findSpot(p.x,p.y); drawLabels();});
+canvas.addEventListener('pointerleave',()=>{hover=null; drawLabels();});
+function drawLabels(){labels.innerHTML=''; const spots=rooms[state.room].spots||[]; spots.forEach(s=>{ if(s===hover || state.flags.showHotspots){const d=document.createElement('div');d.className='label';d.textContent=s.label||s.id;d.style.left=((s.x+s.w/2)/W*100)+'%';d.style.top=((s.y+s.h/2)/H*100)+'%';labels.appendChild(d);} });}
+
+function draw(){ctx.clearRect(0,0,W,H); const r=rooms[state.room]; r.draw(); drawVignette(); drawLabels();}
+function sky(a,b){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,a);g.addColorStop(1,b);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);} 
+function stars(){ctx.fillStyle='#fff'; for(let i=0;i<90;i++){const x=(i*137)%W,y=(i*71)%190+8; ctx.globalAlpha=.35+((i%5)/10); ctx.fillRect(x,y,1+(i%3===0),1+(i%4===0));} ctx.globalAlpha=1;}
+function clouds(){ctx.fillStyle='rgba(255,255,255,.18)'; for(let i=0;i<5;i++){ellipse(130+i*180,75+(i%2)*30,70,18);ellipse(160+i*180,68+(i%2)*30,55,16);}}
+function moon(x,y){ctx.fillStyle='#fff8ca';ellipse(x,y,42,42);ctx.fillStyle='rgba(0,0,0,.18)';ellipse(x+12,y-8,34,34);}
+function hills(){ctx.fillStyle='#263820';poly([[0,270],[140,210],[300,265],[470,195],[650,270],[810,205],[960,260],[960,460],[0,460]]);} 
+function mountains(){ctx.fillStyle='#1a2030';poly([[0,250],[145,105],[290,250]]);poly([[190,250],[370,80],[560,250]]);poly([[490,250],[700,105],[960,250]]);ctx.fillStyle='#d7d7e8';poly([[370,80],[326,150],[405,135]]);}
+function ground(c){ctx.fillStyle=c;ctx.fillRect(0,285,W,175);ctx.fillStyle='rgba(255,255,255,.08)';for(let i=0;i<80;i++)ctx.fillRect((i*83)%W,300+(i*47)%145,16,2);} 
+function road(){ctx.fillStyle='rgba(190,170,120,.25)';poly([[410,460],[550,460],[505,330],[470,330]]);} 
+function pathFork(){ctx.fillStyle='rgba(150,120,90,.18)';poly([[410,460],[550,460],[500,290],[460,290]]);poly([[460,330],[200,460],[120,460],[430,300]]);poly([[500,325],[870,460],[780,460],[510,300]]);} 
+function castle(x,y){ctx.fillStyle='#111';rect(x-150,y,300,170);ctx.strokeStyle='#ccc';ctx.lineWidth=3;ctx.strokeRect(x-150,y,300,170);tower(x-125,y-30);tower(x+125,y-30);tower(x,y-60);ctx.fillStyle='#000';rect(x-45,y+85,90,85);ctx.strokeStyle='#fff';ctx.strokeRect(x-45,y+85,90,85);for(let i=-1;i<=1;i++){ctx.fillStyle='#f4d35e';ellipse(x+i*35,y+15,12,18);} }
+function tower(x,y){ctx.fillStyle='#151515';rect(x-38,y,76,200);ctx.strokeStyle='#aaa';ctx.strokeRect(x-38,y,76,200);ctx.fillStyle='#050505';poly([[x-52,y],[x,y-70],[x+52,y]]);ctx.strokeStyle='#fff';ctx.stroke();}
+function cottage(x,y,c){ctx.fillStyle=c;rect(x-70,y-50,140,100);ctx.strokeStyle='#ddd';ctx.strokeRect(x-70,y-50,140,100);ctx.fillStyle='#111';poly([[x-85,y-50],[x,y-120],[x+85,y-50]]);ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#f6d365';rect(x-20,y-15,35,25);}
+function fountain(x,y){ctx.strokeStyle='#fff';ctx.lineWidth=3;ellipseStroke(x,y,65,18);rect(x-20,y-45,40,45);ellipseStroke(x,y-48,30,12);ctx.fillStyle=flag('fountainOn')?'#8fe8ff':'#111';ellipse(x,y-20,45,12);}
+function mill(x,y){ctx.fillStyle='#181818';rect(x-80,y-90,160,165);ctx.strokeStyle='#fff';ctx.strokeRect(x-80,y-90,160,165);ctx.fillStyle='#080808';poly([[x-100,y-90],[x,y-175],[x+100,y-90]]);ctx.stroke();ctx.save();ctx.translate(x+82,y-62);ctx.rotate(anim/90);ctx.strokeStyle='#eee';ctx.lineWidth=5;for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);line(0,0,0,-72);line(0,-72,34,-46);}ctx.restore();}
+function stream(){ctx.fillStyle='rgba(120,210,255,.28)';poly([[0,380],[260,350],[570,390],[960,350],[960,460],[0,460]]);}
+function forest(){for(let i=0;i<12;i++)tree((i*91+30)%W,255+(i%3)*18,.8+(i%4)*.15);} 
+function tree(x,y,s){ctx.fillStyle='#080808';rect(x-10*s,y-60*s,20*s,85*s);ctx.strokeStyle='#444';ctx.strokeRect(x-10*s,y-60*s,20*s,85*s);ctx.fillStyle='#0e1b10';poly([[x-70*s,y-40*s],[x,y-150*s],[x+70*s,y-40*s]]);poly([[x-58*s,y-85*s],[x,y-185*s],[x+58*s,y-85*s]]);ctx.strokeStyle='#31553a';ctx.stroke();}
+function bigTree(x,y,s=1){ctx.fillStyle='#080604';rect(x-48,y-120,96,190);ctx.strokeStyle='#a98';ctx.lineWidth=2;ctx.strokeRect(x-48,y-120,96,190);ctx.fillStyle='#061006';for(let i=0;i<5;i++)ellipse(x+(i-2)*45,y-145-(i%2)*25,85,70);}
+function giantOwlTree(){bigTree(480,275,1);ctx.fillStyle='#000';ellipse(480,150,60,78);ctx.strokeStyle='#ddd';ellipseStroke(455,130,18,24);ellipseStroke(505,130,18,24);ctx.fillStyle=flag('owlAwake')?'#f4d35e':'#222';ellipse(455,130,8,12);ellipse(505,130,8,12);}
+function hut(x,y){ctx.fillStyle='#130c0d';rect(x-85,y-75,170,130);ctx.strokeStyle='#fff';ctx.strokeRect(x-85,y-75,170,130);ctx.fillStyle='#050505';poly([[x-110,y-75],[x,y-165],[x+110,y-75]]);ctx.stroke();ctx.fillStyle='#050505';rect(x-30,y-10,60,65);line(x-58,y+55,x-80,y+105);line(x+58,y+55,x+80,y+105);} 
+function cauldron(x,y){ctx.fillStyle='#050505';ellipse(x,y,70,30);rect(x-63,y-5,126,55);ellipse(x,y+50,62,18);ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#8cffbd';ellipse(x,y-10,52,15);} 
+function mushrooms(x,y){for(let i=0;i<8;i++){ctx.fillStyle='#eee';rect(x+i*20,y+(i%2)*8,6,20);ctx.fillStyle='#b11616';ellipse(x+i*20+3,y+(i%2)*8,16,8);}}
+function cliffScene(){ctx.fillStyle='#171717';poly([[0,460],[0,280],[355,230],[390,460]]);poly([[570,460],[615,230],[960,285],[960,460]]);ctx.fillStyle='#000';poly([[390,460],[355,230],[615,230],[570,460]]);ctx.strokeStyle='#8fd7ff';ctx.lineWidth=3;line(355,230,615,230); if(flag('ropeBridge')){ctx.strokeStyle='#d6c08d';ctx.lineWidth=6;line(350,255,625,255);ctx.lineWidth=2;for(let x=360;x<625;x+=20)line(x,250,x+12,262);} }
+function buoyBell(x,y){ctx.fillStyle='#5b2020';ellipse(x,y+45,45,25);ctx.fillStyle='#c89b3c';poly([[x-25,y],[x+25,y],[x+35,y+55],[x-35,y+55]]);ctx.strokeStyle='#fff';ctx.stroke();}
+function river(){ctx.fillStyle='rgba(20,20,35,.92)';poly([[0,270],[960,230],[960,380],[0,430]]);ctx.strokeStyle='rgba(255,255,255,.2)';for(let i=0;i<9;i++)line(i*120,330+(i%3)*22,i*120+80,310+(i%2)*18);}
+function reeds(x,y){ctx.strokeStyle='#9ab27f';ctx.lineWidth=3;for(let i=0;i<18;i++)line(x+i*12,y+50,x+i*12+(i%3-1)*10,y+(i%5)*4);} 
+function frozenGarden(){for(let i=0;i<7;i++){ctx.strokeStyle='#d9f6ff';ctx.lineWidth=3;line(140+i*110,330,160+i*100,220+(i%2)*25);ellipseStroke(160+i*100,215+(i%2)*25,22,38);}ctx.fillStyle='#d8f8ff';ellipse(480,250,55,85);ctx.fillStyle=flag('gardenMelted')?'#ff7f9f':'#bff4ff';ellipse(480,190,42,35);ctx.strokeStyle='#fff';ellipseStroke(480,190,42,35);} 
+function snow(){ctx.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<85;i++){const x=(i*47+anim*0.4)%W,y=(i*89+anim*0.7)%H;ctx.fillRect(x,y,2,2);}}
+function stall(x,y){ctx.fillStyle='#171717';rect(x-85,y-40,170,100);ctx.strokeStyle='#fff';ctx.strokeRect(x-85,y-40,170,100);ctx.fillStyle='#292929';poly([[x-100,y-40],[x+100,y-40],[x+75,y-95],[x-75,y-95]]);ctx.stroke();for(let i=-2;i<=2;i++){ctx.fillStyle=i%2?'#fff':'#111';rect(x+i*35-16,y-95,32,55);}}
+function signpost(x,y,t){ctx.fillStyle='#111';rect(x-6,y-70,12,95);rect(x-60,y-70,120,26);ctx.strokeStyle='#fff';ctx.strokeRect(x-60,y-70,120,26);ctx.fillStyle='#fff';ctx.font='14px Courier New';ctx.textAlign='center';ctx.fillText(t,x,y-52);}
+function castleInterior(){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#101010');g.addColorStop(1,'#000');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle='#444';for(let x=60;x<W;x+=120){line(x,0,x,460);}ctx.fillStyle='#111';rect(120,70,110,250);rect(730,70,110,250);ctx.strokeStyle='#fff';ctx.strokeRect(120,70,110,250);ctx.strokeRect(730,70,110,250);ctx.fillStyle='rgba(244,211,94,.12)';poly([[430,0],[530,0],[700,460],[260,460]]);} 
+function throne(x,y){ctx.fillStyle='#121212';rect(x-75,y-90,150,190);ctx.strokeStyle='#f4d35e';ctx.lineWidth=3;ctx.strokeRect(x-75,y-90,150,190);ctx.fillStyle='#080808';poly([[x-100,y-90],[x,y-175],[x+100,y-90]]);ctx.stroke();}
+function shadowCage(x,y){ctx.strokeStyle=has('crown')?'rgba(255,255,255,.15)':'#8b5cff';ctx.lineWidth=4;for(let i=-3;i<=3;i++)line(x+i*24,y-105,x+i*10,y+95);ctx.fillStyle=has('crown')?'rgba(0,0,0,.15)':'#f4d35e'; if(!has('crown')){ellipse(x,y,45,25);rect(x-35,y-55,70,50);}}
+function drawVignette(){const g=ctx.createRadialGradient(W/2,H/2,150,W/2,H/2,600);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.55)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+function poly(points){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fill();}
+function rect(x,y,w,h){ctx.fillRect(x,y,w,h);} function line(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+function ellipse(x,y,rx,ry){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();}
+function ellipseStroke(x,y,rx,ry){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.stroke();}
+
+function loop(){anim++; draw(); requestAnimationFrame(loop);} 
+state=fresh(); renderInv(); setVerbButton(); say('Press Begin Quest to start.'); loop();
+})();
+</script>
+</body>
+</html>

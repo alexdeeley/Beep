@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Neon Block Blaster</title>
+<style>
+  /* High contrast black background */
+  body {
+    background-color: #000;
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  #gameCanvas {
+    max-width: 450px; 
+    height: 100vh;
+    background-color: #000;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth > 450 ? 450 : window.innerWidth;
+  canvas.height = window.innerHeight;
+  let isGameOver = false;
+  let player = { x: canvas.width / 2, y: canvas.height - 70, size: 15, speed: 8, shooting: true, baseDamage: 1, currentDamage: 1, fireRate: 10, powerUpTime: 0 };
+  let bullets = [];
+  let blocks = [];
+  let score = 0;
+  let lastTime = 0;
+  const bulletSpeed = 10;
+  const blockSpeed = 1.2;
+  const blockSize = 40;
+  let mouseX = player.x;
+  const colorWhite = '#FFF';
+  const colorGreen = '#0F0';
+  const colorRed = '#F00';
+  const colorYellow = '#FF0';
+  function resetGame(){ isGameOver=false; score=0; blocks=[]; bullets=[]; player.x=canvas.width/2; player.currentDamage=player.baseDamage; player.powerUpTime=0; segmentCount=0; nextSegmentY=-100; createSnakeSegment(); if(!lastTime){ requestAnimationFrame(gameLoop);} }
+  canvas.addEventListener('touchmove',(e)=>{e.preventDefault(); if(!isGameOver){const rect=canvas.getBoundingClientRect(); mouseX=e.touches[0].clientX-rect.left;}});
+  canvas.addEventListener('mousemove',(e)=>{if(!isGameOver){const rect=canvas.getBoundingClientRect(); mouseX=e.clientX-rect.left;}});
+  canvas.addEventListener('click',()=>{if(isGameOver) resetGame();});
+  function updatePlayer(){ if(player.powerUpTime>0){player.powerUpTime--; player.currentDamage=player.baseDamage*3; player.fireRate=5;} else {player.currentDamage=player.baseDamage; player.fireRate=10;} const diff=mouseX-player.x; if(Math.abs(diff)>player.speed){player.x+=diff>0?player.speed:-player.speed;} else player.x=mouseX; player.x=Math.max(player.size,Math.min(canvas.width-player.size,player.x)); }
+  let bulletTimer=0;
+  function fireBullet(){ if(player.shooting && bulletTimer%player.fireRate===0){ bullets.push({ x:player.x,y:player.y,radius:3+(player.currentDamage>player.baseDamage?2:0), damage:player.currentDamage, color:player.currentDamage>player.baseDamage?colorYellow:colorGreen}); } bulletTimer++; }
+  function updateBullets(){ for(let i=bullets.length-1;i>=0;i--){ bullets[i].y-=bulletSpeed; if(bullets[i].y<0) bullets.splice(i,1);} }
+  function drawBullets(){ bullets.forEach(b=>{ctx.fillStyle=b.color; ctx.shadowBlur=5; ctx.shadowColor=b.color; ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill();}); ctx.shadowBlur=0;}
+  function createBlock(x,y,health,type=0){return{x,y,health,size:blockSize,type,hit:false};}
+  let blockCreationTimer=0;
+  const blocksPerSegment=10;
+  let segmentCount=0;
+  let nextSegmentY=-100;
+  function createSnakeSegment(){ segmentCount++; let startX=Math.random()<0.5?canvas.width*0.2:canvas.width*0.8; let amplitude=canvas.width*0.3; let frequency=0.01; let initialHealth=50+(segmentCount*10)+(score/20); for(let i=0;i<blocksPerSegment;i++){ let segmentX=startX+Math.sin(segmentCount*frequency+i*0.5)*amplitude; let segmentY=nextSegmentY-(i*blockSize*1.5); let health=Math.floor(initialHealth+Math.random()*20); let type=0; if(i>0&&i%4===0&&Math.random()<0.3){ type=1; health=50;} blocks.push(createBlock(segmentX,segmentY,health,type));} nextSegmentY-=blocksPerSegment*blockSize*1.5; blockCreationTimer=0;}
+  function updateBlocks(){ blockCreationTimer++; if(blockCreationTimer>250) createSnakeSegment(); for(let i=blocks.length-1;i>=0;i--){ blocks[i].y+=blockSpeed; if(blocks[i].y>player.y-player.size){ isGameOver=true; return;} if(blocks[i].y>canvas.height+blockSize) blocks.splice(i,1);} }
+  function drawBlocks(){ ctx.font='16px Monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; blocks.forEach(block=>{ let color,shadowColor; if(block.type===1){ color=colorYellow; shadowColor=colorYellow;} else { const healthRatio=block.health/500; let r=Math.min(255,255-Math.floor(healthRatio*200)); let g=Math.min(255,Math.floor(healthRatio*200)); let b=255; color=`rgb(${r},${g},${b})`; shadowColor=colorWhite;} ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowBlur=8; ctx.shadowColor=shadowColor; const halfSize=block.size/2; if(block.type===1){ ctx.beginPath(); ctx.arc(block.x,block.y,halfSize*0.8,0,Math.PI*2); ctx.stroke(); ctx.fillStyle=color; ctx.fillText('x3',block.x,block.y);} else { ctx.strokeRect(block.x-halfSize,block.y-halfSize,block.size,block.size); ctx.fillStyle=colorWhite; ctx.fillText(Math.max(0,Math.floor(block.health)),block.x,block.y);} ctx.shadowBlur=0;});}
+  function checkCollisions(){ for(let i=bullets.length-1;i>=0;i--){ let bullet=bullets[i]; for(let j=blocks.length-1;j>=0;j--){ let block=blocks[j]; const distSq=(bullet.x-block.x)**2+(bullet.y-block.y)**2; const radiusSumSq=(bullet.radius+block.size/2)**2; if(distSq<radiusSumSq){ block.health-=bullet.damage; bullets.splice(i,1); score+=1; if(block.health<=0){ if(block.type===1) player.powerUpTime=300; blocks.splice(j,1);} break;}}}}
+  function drawPlayer(){ ctx.strokeStyle=colorWhite; ctx.lineWidth=1; ctx.shadowBlur=10; ctx.shadowColor=player.currentDamage>player.baseDamage?colorYellow:colorWhite; ctx.beginPath(); ctx.moveTo(player.x,player.y-player.size); ctx.lineTo(player.x+player.size,player.y+player.size); ctx.lineTo(player.x-player.size,player.y+player.size); ctx.closePath(); ctx.stroke(); ctx.fillStyle=colorGreen; ctx.fillRect(player.x-5,player.y+player.size,10,5); ctx.shadowBlur=0;}
+  function drawScore(){ ctx.fillStyle=colorWhite; ctx.font='20px Monospace'; ctx.textAlign='left'; ctx.fillText(`Score: ${score}`,10,25); if(player.powerUpTime>0){ ctx.fillStyle=colorYellow; ctx.font='16px Monospace'; ctx.textAlign='right'; ctx.fillText(`POWER UP: ${Math.ceil(player.powerUpTime/60)}s`,canvas.width-10,25);} }
+  function drawGameOver(){ ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.shadowBlur=20; ctx.shadowColor=colorRed; ctx.fillStyle=colorRed; ctx.font='bold 48px Monospace'; ctx.textAlign='center'; ctx.fillText('GAME OVER',canvas.width/2,canvas.height/2-40); ctx.fillStyle=colorWhite; ctx.font='24px Monospace'; ctx.fillText(`Final Score: ${score}`,canvas.width/2,canvas.height/2+10); ctx.font='16px Monospace'; ctx.fillText('Click or Tap to Restart',canvas.width/2,canvas.height/2+50); ctx.shadowBlur=0;}
+  function gameLoop(timestamp){ if(!isGameOver){ const deltaTime=timestamp-lastTime; lastTime=timestamp; ctx.clearRect(0,0,canvas.width,canvas.height); updatePlayer(); fireBullet(); updateBullets(); updateBlocks(); checkCollisions(); drawPlayer(); drawBullets(); drawBlocks(); drawScore(); } else drawGameOver(); requestAnimationFrame(gameLoop);}
+  resetGame();
+  window.addEventListener('resize',()=>{canvas.width=window.innerWidth>450?450:window.innerWidth; canvas.height=window.innerHeight; player.y=canvas.height-70; mouseX=player.x;});
+
+</script>
+
+</body>
+</html>

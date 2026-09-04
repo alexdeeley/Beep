@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dot Escape</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: monospace;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+  #hud {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #444;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+  #count {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #333;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="hud">ROTATING INVISIBLE CONTAINER · 20° ESCAPE HOLE</div>
+<canvas id="c"></canvas>
+<div id="count">DOTS: 1</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const countEl = document.getElementById('count');
+
+let W, H, cx, cy, R;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2; cy = H / 2;
+  R = Math.min(W, H) * 0.38;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const DAMPING = 0.72;
+const DOT_R = 6;
+const HOLE_DEG = 20;
+const HOLE_RAD = (HOLE_DEG / 2) * Math.PI / 180;
+const ROTATE_SPEED = 0.00004;
+const MAX_DOTS = 300;
+
+let containerAngle = 0;
+let totalEscaped = 0;
+let isDragging = false;
+let lastPointerAngle = null;
+let manualSpin = 0; // extra angular velocity from drag
+
+canvas.addEventListener('pointerdown', e => {
+  isDragging = true;
+  lastPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+});
+window.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  const a = Math.atan2(e.clientY - cy, e.clientX - cx);
+  let delta = a - lastPointerAngle;
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  if (delta < -Math.PI) delta += Math.PI * 2;
+  manualSpin = delta;
+  containerAngle += delta;
+  lastPointerAngle = a;
+});
+window.addEventListener('pointerup', () => { isDragging = false; });
+
+let dotCount = 0;      // increments every time a dot is spawned
+let dots = [];
+let fallingDots = [];
+
+function spawnDot(x, y, vx, vy) {
+  const hue = (dotCount * 10) % 360; // step 10° per dot through full spectrum
+  dotCount++;
+  dots.push({ x, y, vx, vy, hue, age: 0 });
+}
+
+// First dot — red (dotCount=0 → hue=0)
+spawnDot(cx, cy - R * 0.3, (Math.random() - 0.5) * 2, 0);
+
+function holeWorldAngle() {
+  return containerAngle + Math.PI / 2;
+}
+
+function update() {
+  if (!isDragging) {
+    manualSpin *= 0.95; // friction
+    containerAngle += manualSpin + ROTATE_SPEED;
+  }
+
+  const holeAngle = holeWorldAngle();
+  const holeX = cx + Math.cos(holeAngle) * R;
+  const holeY = cy + Math.sin(holeAngle) * R;
+  const holeChord = R * Math.sin(HOLE_RAD) * 2;
+
+  const escaped = [];
+
+  dots = dots.filter(dot => {
+    dot.age++;
+
+    // Attraction toward hole (first 10 escapes only, fades with age)
+    if (totalEscaped < 10) {
+      const toHoleX = holeX - dot.x;
+      const toHoleY = holeY - dot.y;
+      const holeDist = Math.sqrt(toHoleX * toHoleX + toHoleY * toHoleY) || 1;
+      const strength = (0.5 / (holeDist * 0.008 + 1)) * (1 / (1 + dot.age * 0.01));
+      dot.vx += (toHoleX / holeDist) * strength;
+      dot.vy += (toHoleY / holeDist) * strength;
+    }
+
+    dot.x += dot.vx;
+    dot.y += dot.vy;
+
+    const dx = dot.x - cx;
+    const dy = dot.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist + DOT_R > R) {
+      // Check if near invisible hole opening
+      const dHX = dot.x - holeX;
+      const dHY = dot.y - holeY;
+      const distToHole = Math.sqrt(dHX * dHX + dHY * dHY);
+      if (distToHole < holeChord + DOT_R) {
+        escaped.push(dot);
+        return false;
+      }
+
+      // Bounce against invisible container wall
+      const nx = dx / dist;
+      const ny = dy / dist;
+      dot.x = cx + nx * (R - DOT_R - 1);
+      dot.y = cy + ny * (R - DOT_R - 1);
+      const vn = dot.vx * nx + dot.vy * ny;
+      dot.vx -= 2 * vn * nx;
+      dot.vy -= 2 * vn * ny;
+      dot.vx *= DAMPING;
+      dot.vy *= DAMPING;
+    }
+
+    return true;
+  });
+
+  // Spawn two new dots at center for each escaped
+  totalEscaped += escaped.length;
+  for (const e of escaped) {
+    fallingDots.push({ x: e.x, y: e.y, vx: e.vx * 0.8, vy: e.vy * 0.8, hue: e.hue, age: 0 });
+    if (dots.length < MAX_DOTS) {
+      const a1 = Math.random() * Math.PI * 2;
+      const spd = 1.5;
+      spawnDot(cx, cy, Math.cos(a1) * spd, Math.sin(a1) * spd);
+      spawnDot(cx, cy, Math.cos(a1 + Math.PI) * spd, Math.sin(a1 + Math.PI) * spd);
+    }
+  }
+
+  fallingDots = fallingDots.filter(d => {
+    d.x += d.vx;
+    d.y += d.vy;
+    d.age++;
+    return d.age < 220;
+  });
+
+  countEl.textContent = `DOTS: ${dots.length}`;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Invisible rotating container.
+  // The physics still uses the circle, but the white circle is no longer drawn.
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(containerAngle);
+
+  // Optional visible red tick marks showing where the invisible escape hole is.
+  // Delete this whole for-loop too if you want absolutely no hole marker.
+  for (const side of [-1, 1]) {
+    const a = Math.PI / 2 + side * HOLE_RAD;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (R - 10), Math.sin(a) * (R - 10));
+    ctx.lineTo(Math.cos(a) * (R + 10), Math.sin(a) * (R + 10));
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // Falling dots
+  for (const d of fallingDots) {
+    const alpha = Math.max(0, 1 - d.age / 180);
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, DOT_R * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${d.hue},80%,70%,${alpha * 0.6})`;
+    ctx.fill();
+  }
+
+  // Contained dots
+  for (const dot of dots) {
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, DOT_R, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${dot.hue},90%,65%)`;
+    ctx.shadowColor = `hsl(${dot.hue},100%,80%)`;
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

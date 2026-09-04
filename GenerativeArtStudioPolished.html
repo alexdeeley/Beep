@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generative Art Studio</title>
+
+  <!-- React -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel (for in-browser JSX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+                   Helvetica, Arial, system-ui, sans-serif;
+      font-weight: 600;
+    }
+
+    * {
+      box-sizing: border-box;
+      text-align: left;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .glow {
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05),
+        0 0 30px rgba(233, 69, 96, 0.35);
+    }
+
+    canvas {
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    canvas:hover {
+      transform: scale(1.01);
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function seededRandom(seedString) {
+      let seed = 0;
+      for (let i = 0; i < seedString.length; i++) {
+        seed = ((seed << 5) - seed) + seedString.charCodeAt(i);
+        seed |= 0;
+      }
+      return function () {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+      };
+    }
+
+    const PALETTES = [
+      ['#1a1a2e', '#16213e', '#0f3460', '#533483', '#e94560'],
+      ['#2d4059', '#ea5455', '#f07b3f', '#ffd460', '#decdc3'],
+      ['#05668d', '#028090', '#00a896', '#02c39a', '#f0f3bd'],
+      ['#351f39', '#726a95', '#a0c1b8', '#f4e8c1', '#ffffff'],
+      ['#dd4132', '#9e1030', '#fe5f55', '#f0b67f', '#d6d1b1'],
+      ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'],
+      ['#ff006e', '#fb5607', '#ffbe0b', '#8338ec', '#3a86ff'],
+      ['#06ffa5', '#00d9ff', '#7000ff', '#ff0090', '#ffee00']
+    ];
+
+    function ArtGenerator() {
+      const [seed, setSeed] = useState('');
+      const [style, setStyle] = useState('geometric');
+      const [complexity, setComplexity] = useState(50);
+      const [busy, setBusy] = useState(false);
+      const canvasRef = useRef(null);
+
+      function resizeCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return ctx;
+      }
+
+      function generate() {
+        if (!seed || !canvasRef.current) return;
+
+        setBusy(true);
+
+        requestAnimationFrame(() => {
+          const canvas = canvasRef.current;
+          const ctx = resizeCanvas(canvas);
+          const w = canvas.width / (window.devicePixelRatio || 1);
+          const h = canvas.height / (window.devicePixelRatio || 1);
+          const rand = seededRandom(seed);
+          const colors = PALETTES[Math.floor(rand() * PALETTES.length)];
+          const elements = Math.floor(complexity / 2.5);
+
+          ctx.clearRect(0, 0, w, h);
+
+          const bg = ctx.createRadialGradient(
+            w / 2, h / 2, 0,
+            w / 2, h / 2, Math.max(w, h)
+          );
+          bg.addColorStop(0, colors[0]);
+          bg.addColorStop(0.6, colors[1]);
+          bg.addColorStop(1, colors[2] || colors[0]);
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, w, h);
+
+          if (style === 'geometric') {
+            for (let i = 0; i < elements; i++) {
+              ctx.save();
+              ctx.translate(rand() * w, rand() * h);
+              ctx.rotate(rand() * Math.PI * 2);
+              ctx.globalAlpha = 0.25 + rand() * 0.5;
+              ctx.lineWidth = 2 + rand() * 4;
+              ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+              ctx.strokeStyle = colors[Math.floor(rand() * colors.length)];
+
+              const sides = 3 + Math.floor(rand() * 5);
+              const r = 30 + rand() * 120;
+
+              ctx.beginPath();
+              for (let j = 0; j < sides; j++) {
+                const a = (j / sides) * Math.PI * 2;
+                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+              }
+              ctx.closePath();
+              rand() > 0.5 ? ctx.fill() : ctx.stroke();
+              ctx.restore();
+            }
+          }
+
+          if (style === 'circles') {
+            for (let i = 0; i < elements; i++) {
+              const x = rand() * w;
+              const y = rand() * h;
+              const r = 10 + rand() * 100;
+              ctx.globalAlpha = 0.2 + rand() * 0.4;
+
+              const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+              g.addColorStop(0, colors[Math.floor(rand() * colors.length)]);
+              g.addColorStop(1, 'transparent');
+
+              ctx.fillStyle = g;
+              ctx.beginPath();
+              ctx.arc(x, y, r, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+
+          if (style === 'lines') {
+            ctx.lineWidth = 1 + rand() * 3;
+            for (let i = 0; i < elements * 2; i++) {
+              ctx.globalAlpha = 0.25 + rand() * 0.4;
+              ctx.strokeStyle = colors[Math.floor(rand() * colors.length)];
+              ctx.beginPath();
+              ctx.moveTo(rand() * w, rand() * h);
+              ctx.lineTo(rand() * w, rand() * h);
+              ctx.stroke();
+            }
+          }
+
+          if (style === 'organic') {
+            for (let i = 0; i < elements; i++) {
+              ctx.globalAlpha = 0.35 + rand() * 0.4;
+              ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
+              ctx.beginPath();
+              ctx.moveTo(rand() * w, rand() * h);
+              for (let j = 0; j < 8; j++) {
+                ctx.bezierCurveTo(
+                  rand() * w, rand() * h,
+                  rand() * w, rand() * h,
+                  rand() * w, rand() * h
+                );
+              }
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+
+          setBusy(false);
+        });
+      }
+
+      useEffect(generate, [seed, style, complexity]);
+
+      function randomSeed() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let s = '';
+        for (let i = 0; i < 8; i++) {
+          s += chars[Math.floor(Math.random() * chars.length)];
+        }
+        setSeed(s);
+      }
+
+      function download() {
+        const canvas = canvasRef.current;
+        canvas.toBlob(blob => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `art-${seed}-${style}.png`;
+          a.click();
+        });
+      }
+
+      return (
+        <div className="min-h-screen p-6 flex items-center justify-center">
+          <div className="w-full max-w-5xl">
+            <header className="mb-8">
+              <h1 className="text-5xl text-white mb-2">Generative Art Studio</h1>
+              <p className="text-gray-400">Deterministic art from a text seed</p>
+            </header>
+
+            <section className="glass rounded-2xl p-6 mb-6">
+              <div className="flex gap-4 mb-4">
+                <input
+                  value={seed}
+                  onChange={e => setSeed(e.target.value)}
+                  placeholder="Enter a seed…"
+                  className="flex-1 px-4 py-3 bg-black/50 text-white border border-white/20 rounded-lg focus:outline-none focus:border-white/40"
+                />
+                <button
+                  onClick={randomSeed}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20"
+                >
+                  Random
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-300 text-sm mb-2">Art Style</label>
+                  <select
+                    value={style}
+                    onChange={e => setStyle(e.target.value)}
+                    className="w-full px-4 py-3 bg-black/50 text-white border border-white/20 rounded-lg"
+                  >
+                    <option value="geometric">Geometric</option>
+                    <option value="circles">Circles</option>
+                    <option value="lines">Lines</option>
+                    <option value="organic">Organic</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-sm mb-2">
+                    Complexity: {complexity}
+                  </label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={complexity}
+                    onChange={e => setComplexity(+e.target.value)}
+                    className="w-full h-2 cursor-pointer"
+                    style={{ accentColor: '#e94560' }}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="relative glass rounded-2xl p-4 glow">
+              <canvas
+                ref={canvasRef}
+                className="w-full rounded-lg"
+                style={{ height: '480px', opacity: busy ? 0.5 : 1 }}
+              />
+
+              {seed && (
+                <button
+                  onClick={download}
+                  disabled={busy}
+                  className="absolute bottom-6 right-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg shadow-lg disabled:opacity-50"
+                >
+                  Download PNG
+                </button>
+              )}
+
+              {!seed && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-gray-500 text-lg">Enter a seed to begin</p>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ArtGenerator />);
+  </script>
+</body>
+</html>

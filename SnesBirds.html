@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+<title>SNES Birds — 3 Levels</title>
+<style>
+  html, body { margin:0; height:100%; background:#0b1021; }
+  #wrap { position:relative; height:100%; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; image-rendering: pixelated; touch-action:none; }
+  .ui {
+    position: absolute; left: 8px; top: 8px; display:flex; gap:8px; flex-wrap:wrap;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  button {
+    background:#111; color:#fff; border:2px solid #6cf; padding:8px 10px; font-weight:700;
+    border-radius:8px; box-shadow:0 0 0 2px #023 inset;
+  }
+  button:focus { outline:3px solid #fff; }
+  .hud {
+    position:absolute; right:8px; top:8px; color:#fff; font-weight:800; font-size:18px;
+    text-shadow:0 2px 0 #000, 0 0 8px #09f;
+    background: rgba(0,0,0,0.35); padding:8px 10px; border-radius:8px; border:2px solid #6cf;
+  }
+  .toast {
+    position:absolute; left:50%; transform:translateX(-50%);
+    bottom: 10px; color:#fff; font-weight:800; font-size:20px; letter-spacing:0.5px;
+    padding:8px 12px; border-radius:10px; border:2px solid #ff9a00;
+    background:linear-gradient(180deg, rgba(255,154,0,0.85), rgba(255,64,0,0.85));
+    text-shadow:0 2px 0 #000;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <canvas id="game" width="960" height="540" aria-label="SNES Birds Game Canvas"></canvas>
+  <div class="ui" aria-label="Controls">
+    <button id="prev" title="Previous Level (A)">⟵ Prev</button>
+    <button id="reset" title="Reset Level (R)">⟲ Reset</button>
+    <button id="next" title="Next Level (D)">Next ⟶</button>
+    <button id="help" title="Help (H)">❓ Help</button>
+  </div>
+  <div class="hud" id="hud"></div>
+  <div class="toast" id="toast" style="display:none;"></div>
+</div>
+
+<script>
+(() => {
+  // ===== Utility =====
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rand = (a, b) => a + Math.random()*(b-a);
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const now = () => performance.now()/1000;
+
+  // ===== Canvas =====
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+    ctx.imageSmoothingEnabled = false;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ===== Sound (tiny WebAudio synth) =====
+  let audioCtx;
+  function beep(freq=440, dur=0.07, type='square', gain=0.03) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.value = gain;
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start();
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.stop(t0 + dur + 0.01);
+    } catch (e) {}
+  }
+  function chord(base=440) { [1, 1.25, 1.5].forEach((m,i)=>setTimeout(()=>beep(base*m, 0.09, 'triangle', 0.05), i*50)); }
+  function thud() { beep(110, 0.08, 'sawtooth', 0.05); }
+  function winSound(){ [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.12,'square',0.06), i*120)); }
+  function loseSound(){ [330,220,147].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'triangle',0.05), i*140)); }
+
+  // ===== World config =====
+  const G = 2200;      // gravity px/s^2
+  const DRAG = 0.999;  // air drag
+  const REST = 0.55;   // restitution
+  const GROUND_Y = () => canvas.height - 80;
+  const SCALE = 1;     // screen pixels are "world" pixels
+
+  // ===== Art helpers (SNES-y pixel look) =====
+  function drawPixelRect(x, y, w, h, fill, stroke='#000', sw=3) {
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = sw; ctx.strokeStyle = stroke; ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  }
+  function drawPixelCircle(x, y, r, fill, stroke='#000', sw=3) {
+    ctx.beginPath();
+    ctx.arc(Math.round(x), Math.round(y), Math.round(r), 0, Math.PI*2);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.lineWidth = sw; ctx.strokeStyle = stroke; ctx.stroke();
+  }
+  function drawCloud(x,y,s=1) {
+    ctx.save();
+    ctx.translate(x,y); ctx.scale(s,s);
+    drawPixelCircle(0,0,18,'#ffffff','#0a2b6a',3);
+    drawPixelCircle(18,-6,14,'#e8f6ff','#0a2b6a',3);
+    drawPixelCircle(-16,-8,12,'#e8f6ff','#0a2b6a',3);
+    drawPixelRect(-30,10,60,12,'#ffffff','#0a2b6a',3);
+    ctx.restore();
+  }
+  function drawBackMountain(x,baseY,w,h,color) {
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x+w/2, baseY-h);
+    ctx.lineTo(x+w, baseY);
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = '#062345'; ctx.stroke();
+  }
+  function skyGradient() {
+    const g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0, '#1b52e2');
+    g.addColorStop(1, '#16a4ff');
+    return g;
+  }
+
+  // ===== Entities =====
+  class Box {
+    constructor(x,y,w,h,hp=40,mat='wood'){ this.x=x; this.y=y; this.w=w; this.h=h; this.hp=hp; this.mat=mat; this.vx=0; this.vy=0; this.angle=0; this.static=false; }
+    aabb(){ return {x:this.x, y:this.y, w:this.w, h:this.h}; }
+    damage(d){ this.hp -= d; if(this.hp<=0) this.dead = true; }
+    draw(){
+      const colors = this.mat==='stone'? ['#88ffd1','#004b4b'] : this.mat==='glass' ? ['#9be1ff','#0a2b6a'] : ['#ffcf75','#6b3a00'];
+      drawPixelRect(this.x, this.y, this.w, this.h, colors[0], colors[1], 4);
+      // decorative pixels
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillRect(this.x+4,this.y+4, this.w-8, 6);
+    }
+    step(dt){ 
+      if(this.static) return;
+      this.vy += G*dt; this.vx *= DRAG; this.vy *= DRAG;
+      this.x += this.vx*dt; this.y += this.vy*dt;
+      // ground
+      const gy = GROUND_Y();
+      if (this.y + this.h > gy) { this.y = gy - this.h; this.vy *= -REST; thud(); }
+    }
+  }
+  class Pig {
+    constructor(x,y,r=22){ this.x=x; this.y=y; this.r=r; this.vx=0; this.vy=0; this.hp=60; }
+    damage(d){ this.hp -= d; if(this.hp<=0) this.dead=true; }
+    draw(){
+      drawPixelCircle(this.x, this.y, this.r, '#68ff5a', '#035a1a', 5);
+      // nose
+      drawPixelRect(this.x-8, this.y-4, 16, 10, '#32b84a', '#035a1a', 3);
+      drawPixelRect(this.x-4, this.y-2, 3, 4, '#0a2b6a'); drawPixelRect(this.x+2, this.y-2, 3, 4, '#0a2b6a');
+      // eyes
+      drawPixelRect(this.x-9, this.y-12, 7,7,'#fff','#0a2b6a',2);
+      drawPixelRect(this.x+2, this.y-12, 7,7,'#fff','#0a2b6a',2);
+      drawPixelRect(this.x-7, this.y-10, 3,3,'#0a2b6a'); drawPixelRect(this.x+4, this.y-10, 3,3,'#0a2b6a');
+    }
+    step(dt){
+      this.vy += G*dt; this.vx *= DRAG; this.vy *= DRAG;
+      this.x += this.vx*dt; this.y += this.vy*dt;
+      const gy = GROUND_Y();
+      if (this.y + this.r > gy) { this.y = gy - this.r; this.vy *= -REST; }
+    }
+  }
+  class Bird {
+    constructor(x,y){ this.x=x; this.y=y; this.r=20; this.vx=0; this.vy=0; this.launched=false; this.trail=[]; }
+    draw(){
+      // trail
+      ctx.globalAlpha = 0.7;
+      for (let i=0;i<this.trail.length;i++) {
+        const t = this.trail[i];
+        drawPixelCircle(t.x, t.y, Math.max(6, this.r - i*2), '#ff4a4a', '#420000', 3);
+      }
+      ctx.globalAlpha = 1;
+      // body
+      drawPixelCircle(this.x, this.y, this.r, '#ff2b2b', '#420000', 5);
+      // beak
+      drawPixelRect(this.x+this.r-6, this.y-6, 12, 12, '#ffd34d', '#420000', 3);
+      // eye
+      drawPixelRect(this.x-6, this.y-10, 9,9,'#fff','#420000',3);
+      drawPixelRect(this.x-2, this.y-6, 4,4,'#000');
+    }
+    step(dt){
+      if(!this.launched) return;
+      this.vy += G*dt;
+      this.vx *= DRAG; this.vy *= DRAG;
+      this.x += this.vx*dt; this.y += this.vy*dt;
+      // ground
+      const gy = GROUND_Y();
+      if (this.y + this.r > gy) { this.y = gy - this.r; this.vy *= -REST; this.vx *= 0.95; thud(); }
+      // trail
+      this.trail.unshift({x:this.x, y:this.y});
+      if (this.trail.length>4) this.trail.pop();
+    }
+  }
+
+  // ===== Levels =====
+  const LEVELS = [
+    { // Level 1: simple stack
+      birds: 3,
+      boxes: [
+        {x: 620, y: 380, w: 50, h: 120, mat:'wood'},
+        {x: 720, y: 380, w: 50, h: 120, mat:'wood'},
+        {x: 570, y: 360, w: 250, h: 30, mat:'wood'},
+        {x: 650, y: 330, w: 90, h: 30, mat:'glass'}
+      ],
+      pigs: [
+        {x: 620, y: 330, r: 22},
+        {x: 720, y: 330, r: 22}
+      ]
+    },
+    { // Level 2: stone & glass mix
+      birds: 3,
+      boxes: [
+        {x: 650, y: 400, w: 70, h: 120, mat:'stone'},
+        {x: 740, y: 400, w: 70, h: 120, mat:'stone'},
+        {x: 610, y: 370, w: 240, h: 30, mat:'glass'},
+        {x: 660, y: 340, w: 140, h: 30, mat:'glass'},
+      ],
+      pigs: [
+        {x: 700, y: 330, r: 22},
+        {x: 620, y: 330, r: 18},
+        {x: 780, y: 330, r: 18}
+      ]
+    },
+    { // Level 3: bridge of doom
+      birds: 4,
+      boxes: [
+        {x: 560, y: 420, w: 70, h: 100, mat:'wood'},
+        {x: 820, y: 420, w: 70, h: 100, mat:'wood'},
+        {x: 630, y: 380, w: 70, h: 30, mat:'glass'},
+        {x: 700, y: 360, w: 70, h: 30, mat:'glass'},
+        {x: 770, y: 380, w: 70, h: 30, mat:'glass'},
+        {x: 600, y: 350, w: 270, h: 26, mat:'stone'}
+      ],
+      pigs: [
+        {x: 660, y: 320, r: 22},
+        {x: 740, y: 320, r: 22},
+        {x: 700, y: 300, r: 20}
+      ]
+    }
+  ];
+
+  // ===== Game state =====
+  let levelIndex = 0;
+  let boxes=[], pigs=[], birdsRemaining=3, bird=null, slingshotPos={x:160,y:GROUND_Y()-90};
+  let dragging=false, dragPoint=null;
+  let lastTime = now();
+  const hud = document.getElementById('hud');
+  const toast = document.getElementById('toast');
+
+  function showToast(msg, ms=1600) {
+    toast.textContent = msg;
+    toast.style.display='block';
+    setTimeout(()=>toast.style.display='none', ms);
+  }
+
+  function loadLevel(i) {
+    levelIndex = (i+LEVELS.length)%LEVELS.length;
+    const L = LEVELS[levelIndex];
+    boxes = L.boxes.map(b=>Object.assign(new Box(0,0,0,0), b));
+    pigs  = L.pigs.map(p=>Object.assign(new Pig(0,0,0), p));
+    birdsRemaining = L.birds;
+    bird = new Bird(slingshotPos.x, slingshotPos.y);
+    bird.launched=false;
+    dragging=false; dragPoint=null;
+    showToast(`Level ${levelIndex+1} — ${birdsRemaining} bird${birdsRemaining>1?'s':''}`);
+  }
+
+  // ===== Input =====
+  function screenToWorld(x,y) { return {x:x, y:y}; }
+  function onDown(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches? e.touches[0].clientY : e.clientY) - rect.top;
+    const p = screenToWorld(x,y);
+    const dx = p.x - slingshotPos.x, dy = p.y - slingshotPos.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 80 && !bird.launched) { dragging=true; dragPoint={x:p.x,y:p.y}; beep(660,0.06,'square',0.04); }
+  }
+  function onMove(e){
+    if (!dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches? e.touches[0].clientY : e.clientY) - rect.top;
+    const p = screenToWorld(x,y);
+    // limit sling radius
+    const dx = p.x - slingshotPos.x, dy = p.y - slingshotPos.y;
+    const dist = Math.hypot(dx, dy);
+    const maxPull = 120;
+    const t = dist>maxPull ? maxPull/dist : 1;
+    dragPoint = { x: slingshotPos.x + dx*t, y: slingshotPos.y + dy*t };
+  }
+  function onUp(){
+    if (!dragging) return;
+    dragging=false;
+    // launch
+    const dx = slingshotPos.x - dragPoint.x;
+    const dy = slingshotPos.y - dragPoint.y;
+    const power = clamp(Math.hypot(dx,dy), 0, 120);
+    const k = 6.2; // power scale
+    bird.vx = dx * k; bird.vy = dy * k;
+    bird.launched = true;
+    birdsRemaining--;
+    chord(440 + power*2);
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); onDown(e); });
+  canvas.addEventListener('touchmove', (e)=>{ e.preventDefault(); onMove(e); });
+  canvas.addEventListener('touchend', (e)=>{ e.preventDefault(); onUp(e); });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    if (e.key==='r' || e.key==='R') loadLevel(levelIndex);
+    if (e.key==='a' || e.key==='A') loadLevel(levelIndex-1);
+    if (e.key==='d' || e.key==='D') loadLevel(levelIndex+1);
+    if (e.key==='h' || e.key==='H') showToast('Drag from the slingshot, release to fire. Knock out all pigs!');
+  });
+
+  // Buttons
+  document.getElementById('reset').onclick = ()=>loadLevel(levelIndex);
+  document.getElementById('prev').onclick = ()=>loadLevel(levelIndex-1);
+  document.getElementById('next').onclick = ()=>loadLevel(levelIndex+1);
+  document.getElementById('help').onclick = ()=>showToast('Drag from the slingshot, release to fire. Knock out all pigs!');
+
+  // ==== Collision helpers ====
+  function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+    // Closest point
+    const nx = clamp(cx, rx, rx+rw);
+    const ny = clamp(cy, ry, ry+rh);
+    const dx = cx - nx, dy = cy - ny;
+    const dist2 = dx*dx + dy*dy;
+    if (dist2 > cr*cr) return null;
+    const dist = Math.sqrt(dist2) || 0.0001;
+    const nxn = dx/dist, nyn = dy/dist;
+    const pen = cr - dist;
+    return { nx:nxn, ny:nyn, pen };
+  }
+  function resolveCircleRect(entity, rect, hardness=1) {
+    const c = circleRectCollision(entity.x, entity.y, entity.r, rect.x, rect.y, rect.w, rect.h);
+    if (!c) return false;
+    // push out
+    entity.x += c.nx * (c.pen+0.5);
+    entity.y += c.ny * (c.pen+0.5);
+    // reflect velocity
+    const vn = entity.vx*c.nx + entity.vy*c.ny;
+    entity.vx -= (1+REST)*vn*c.nx;
+    entity.vy -= (1+REST)*vn*c.ny;
+    // damage the box proportional to speed
+    const speed = Math.hypot(entity.vx, entity.vy);
+    rect.damage(speed * 0.5 * hardness);
+    thud();
+    return true;
+  }
+  function circleCircleCollision(a,b){
+    const dx = a.x-b.x, dy = a.y-b.y;
+    const d2 = dx*dx+dy*dy; const r = a.r+b.r;
+    if (d2>r*r) return null;
+    const d = Math.sqrt(d2)||0.0001;
+    const nx = dx/d, ny = dy/d;
+    const pen = r - d;
+    return {nx,ny,pen,d};
+  }
+  function resolveCircleCircle(a,b, dmgScale=1) {
+    const c = circleCircleCollision(a,b);
+    if (!c) return false;
+    // separate
+    a.x += c.nx * (c.pen*0.6);
+    a.y += c.ny * (c.pen*0.6);
+    b.x -= c.nx * (c.pen*0.4);
+    b.y -= c.ny * (c.pen*0.4);
+    // velocity exchange (naive)
+    const rvx = a.vx - b.vx, rvy = a.vy - b.vy;
+    const vn = rvx*c.nx + rvy*c.ny;
+    if (vn > 0) return true;
+    const imp = -(1+REST) * vn;
+    a.vx += -imp*c.nx; a.vy += -imp*c.ny;
+    b.vx +=  imp*c.nx; b.vy +=  imp*c.ny;
+    a.vx *= DRAG; a.vy *= DRAG; b.vx *= DRAG; b.vy *= DRAG;
+    const speed = Math.abs(vn);
+    b.damage(speed*2*dmgScale);
+    thud();
+    return true;
+  }
+
+  // ===== Game loop =====
+  function step(dt) {
+    // step physics
+    boxes.forEach(b=>b.step(dt));
+    pigs.forEach(p=>p.step(dt));
+    bird.step(dt);
+
+    // collisions: bird vs boxes
+    for (let i=0;i<boxes.length;i++) {
+      const bx = boxes[i];
+      resolveCircleRect(bird, bx, bx.mat==='stone'?1.4:bx.mat==='glass'?0.8:1.0);
+    }
+    // collisions: bird vs pigs
+    for (let i=0;i<pigs.length;i++) {
+      resolveCircleCircle(bird, pigs[i], 1.0);
+    }
+
+    // boxes vs pigs (falling damage)
+    for (let b of boxes) {
+      for (let p of pigs) {
+        // treat box as circle at its center for rough collision when fast
+        const c = circleRectCollision(p.x, p.y, p.r, b.x, b.y, b.w, b.h);
+        if (c) {
+          p.x += c.nx*(c.pen+0.5); p.y += c.ny*(c.pen+0.5);
+          p.damage( (Math.hypot(b.vx,b.vy)+Math.hypot(p.vx,p.vy))*0.6 );
+          thud();
+        }
+      }
+    }
+
+    // cleanup
+    boxes = boxes.filter(b=>!b.dead);
+    pigs  = pigs.filter(p=>!p.dead);
+
+    // if bird stops and we have birds remaining, spawn next
+    const speed = Math.hypot(bird.vx, bird.vy);
+    if (bird.launched && speed<15 && Math.abs(bird.y - (GROUND_Y()-bird.r))<2) {
+      if (pigs.length===0) {
+        winSound();
+        showToast("Level cleared! → Next level");
+        loadLevel(levelIndex+1);
+      } else if (birdsRemaining>0) {
+        bird = new Bird(slingshotPos.x, slingshotPos.y);
+      } else {
+        loseSound();
+        showToast("Out of birds — Reset level (R)");
+      }
+    }
+  }
+
+  function render() {
+    // sky
+    ctx.fillStyle = skyGradient();
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // background mountains
+    const gy = GROUND_Y();
+    drawBackMountain(180, gy, 280, 180, '#233e9b');
+    drawBackMountain(520, gy, 360, 220, '#274bbd');
+    drawBackMountain(860, gy, 320, 160, '#233e9b');
+    drawCloud(140, 120, 1.2); drawCloud(420, 80, 1); drawCloud(760, 110, 1.3);
+
+    // ground
+    drawPixelRect(0, gy, canvas.width, canvas.height-gy, '#2e912e', '#0a2b6a', 6);
+    // dirt pattern
+    for (let x=0; x<canvas.width; x+=32) {
+      drawPixelRect(x, gy+16, 28, 18, '#6a3d18', '#351d09', 3);
+    }
+
+    // slingshot base
+    drawPixelRect(slingshotPos.x-8, gy-40, 16, 40, '#7a4b12', '#2f1e06', 4);
+    drawPixelRect(slingshotPos.x-4, gy-80, 8, 40, '#a3661a', '#2f1e06', 4);
+
+    // rubber band
+    ctx.lineWidth = 6; ctx.strokeStyle = '#ff9a00';
+    if (dragging && dragPoint) {
+      ctx.beginPath(); ctx.moveTo(slingshotPos.x-10, slingshotPos.y); ctx.lineTo(dragPoint.x, dragPoint.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(slingshotPos.x+10, slingshotPos.y); ctx.lineTo(dragPoint.x, dragPoint.y); ctx.stroke();
+    }
+
+    // boxes
+    boxes.forEach(b=>b.draw());
+    // pigs
+    pigs.forEach(p=>p.draw());
+    // bird
+    bird.draw();
+
+    // HUD
+    hud.innerText = `Level ${levelIndex+1}/3  |  Birds: ${birdsRemaining + (bird && !bird.launched ? 1:0)}  |  Pigs: ${pigs.length}
+Drag from slingshot. Knock out all pigs!  [R]eset  [A]/[D] Level  [H]elp`;
+  }
+
+  function loop() {
+    const t = now();
+    let dt = t - lastTime; lastTime = t;
+    dt = Math.min(dt, 1/30);
+    step(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  loadLevel(0);
+  loop();
+})();
+</script>
+</body>
+</html>

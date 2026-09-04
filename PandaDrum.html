@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Panda Drum</title>
+<style>
+:root { --fg:#fff; --bg:#000; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html,body{
+  margin:0; width:100%; height:100%;
+  background:var(--bg); color:var(--fg);
+  font-family: system-ui, -apple-system, Arial, sans-serif;
+  overflow:hidden; touch-action:none;
+}
+#overlay{
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.95); z-index:10; cursor:pointer;
+  font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+}
+.drum-container{
+  position:relative; width:320px; height:320px;
+  border:5px solid var(--fg); border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.tongue{
+  position:absolute; width:64px; height:64px;
+  background:var(--bg); border:3px solid var(--fg);
+  border-radius:50%; cursor:pointer;
+  transition: background-color .08s, transform .08s;
+}
+.tongue:active{ background:var(--fg); transform:scale(.96); }
+
+/* Positions */
+.t1{ top:6%; left:50%; transform:translateX(-50%); }
+.t2{ top:22%; right:6%; }
+.t3{ top:50%; right:2%; transform:translateY(-50%); }
+.t4{ bottom:22%; right:6%; }
+.t5{ bottom:6%; left:50%; transform:translateX(-50%); }
+.t6{ bottom:22%; left:6%; }
+.t7{ top:50%; left:2%; transform:translateY(-50%); }
+.t8{ top:22%; left:6%; }
+
+#hint{
+  position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+  font-size:10px; letter-spacing:.2em; opacity:.7; text-transform:uppercase;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="overlay">Tap to Begin</div>
+
+<div class="drum-container" id="drum">
+  <div class="tongue t1" data-f="261.63"></div>
+  <div class="tongue t2" data-f="293.66"></div>
+  <div class="tongue t3" data-f="329.63"></div>
+  <div class="tongue t4" data-f="392.00"></div>
+  <div class="tongue t5" data-f="440.00"></div>
+  <div class="tongue t6" data-f="523.25"></div>
+  <div class="tongue t7" data-f="587.33"></div>
+  <div class="tongue t8" data-f="659.25"></div>
+</div>
+
+<div id="hint">Tap tongues · position controls intensity</div>
+
+<script>
+let audioCtx, master, reverb;
+
+function initAudio(){
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  master = audioCtx.createGain();
+  master.gain.value = 0.9;
+
+  // Simple reverb (convolver)
+  reverb = audioCtx.createConvolver();
+  reverb.buffer = makeImpulse(2.2, 2.0);
+
+  master.connect(reverb);
+  reverb.connect(audioCtx.destination);
+}
+
+function makeImpulse(seconds, decay){
+  const rate = audioCtx.sampleRate;
+  const len = rate * seconds;
+  const buf = audioCtx.createBuffer(2, len, rate);
+  for(let c=0;c<2;c++){
+    const data = buf.getChannelData(c);
+    for(let i=0;i<len;i++){
+      data[i] = (Math.random()*2-1) * Math.pow(1-i/len, decay);
+    }
+  }
+  return buf;
+}
+
+function playNote(freq, vel=0.5){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+  const t = audioCtx.currentTime;
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(vel, t+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t+2.2);
+
+  osc.connect(gain);
+  gain.connect(master);
+
+  osc.start();
+  osc.stop(t+2.3);
+}
+
+document.getElementById('overlay').addEventListener('pointerdown', ()=>{
+  initAudio();
+  document.getElementById('overlay').remove();
+});
+
+document.querySelectorAll('.tongue').forEach(el=>{
+  el.addEventListener('pointerdown', e=>{
+    if(!audioCtx) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width/2;
+    const cy = r.top + r.height/2;
+    const dx = Math.abs(e.clientX - cx);
+    const dy = Math.abs(e.clientY - cy);
+    const dist = Math.min(1, Math.sqrt(dx*dx+dy*dy)/(r.width/2));
+    const vel = Math.max(0.2, 1-dist);
+    playNote(parseFloat(el.dataset.f), vel);
+  });
+});
+</script>
+</body>
+</html>

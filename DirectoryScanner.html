@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Directory Scanner</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: Helvetica, Arial, sans-serif;
+  }
+  body {
+    padding: 22px;
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(34px, 9vw, 76px);
+    line-height: .9;
+    letter-spacing: -.05em;
+    text-transform: uppercase;
+  }
+  p {
+    font-size: 18px;
+    line-height: 1.35;
+    max-width: 900px;
+  }
+  button, textarea, input {
+    font: inherit;
+  }
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  button {
+    appearance: none;
+    border: 2px solid #fff;
+    background: #fff;
+    color: #000;
+    font-weight: 900;
+    text-transform: uppercase;
+    padding: 14px 16px;
+    border-radius: 0;
+    cursor: pointer;
+  }
+  button.secondary {
+    background: #000;
+    color: #fff;
+  }
+  .panel {
+    border: 2px solid #fff;
+    padding: 14px;
+    margin: 16px 0;
+  }
+  .status {
+    white-space: pre-wrap;
+    font-family: "Courier New", monospace;
+    font-size: 15px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    background: #000;
+    color: #fff;
+    border: 2px solid #fff;
+    padding: 12px;
+    font-family: "Courier New", monospace;
+    font-size: 16px;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  li {
+    border-top: 1px solid #444;
+    padding: 10px 0;
+    overflow-wrap: anywhere;
+  }
+  a {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .small {
+    color: #bbb;
+    font-size: 14px;
+    font-family: "Courier New", monospace;
+  }
+  .dir {
+    font-size: 28px;
+    font-weight: 900;
+    margin-top: 24px;
+    border-bottom: 2px solid #fff;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <h1>Directory Scanner</h1>
+  <p>
+    Upload this file into any Neocities folder. It can list files from a local
+    <b>manifest.json</b>, discover same-folder links, and build a clean directory index.
+    Browser security usually prevents true raw folder scraping unless the host exposes a listing.
+  </p>
+
+  <div class="bar">
+    <button id="scanBtn">Scan This Folder</button>
+    <button id="copyBtn" class="secondary">Copy List</button>
+    <button id="downloadBtn" class="secondary">Download JSON</button>
+  </div>
+
+  <div class="panel">
+    <div class="small">Optional: paste extra paths here, one per line, then scan.</div>
+    <textarea id="manual" placeholder="example:
+orbital-dots.html
+Feb/oscillating-grid-fixed.html
+apps/noise-machine.html"></textarea>
+  </div>
+
+  <div class="panel">
+    <div class="small">Status</div>
+    <div id="status" class="status">Ready.</div>
+  </div>
+
+  <div id="output"></div>
+
+<script>
+(function () {
+  const statusEl = document.getElementById("status");
+  const outputEl = document.getElementById("output");
+  const manualEl = document.getElementById("manual");
+
+  let found = [];
+
+  function log(msg) {
+    statusEl.textContent += "\n" + msg;
+  }
+
+  function reset() {
+    found = [];
+    statusEl.textContent = "Scanning from: " + location.href;
+    outputEl.innerHTML = "";
+  }
+
+  function normalizePath(path) {
+    if (!path) return null;
+
+    try {
+      const url = new URL(path, location.href);
+
+      if (url.origin !== location.origin) return null;
+
+      let clean = url.pathname;
+      clean = decodeURIComponent(clean);
+      clean = clean.replace(/\/index\.html?$/i, "/");
+
+      return clean;
+    } catch (e) {
+      let clean = path.trim();
+      if (!clean) return null;
+      if (/^(mailto:|tel:|javascript:|data:|#)/i.test(clean)) return null;
+      return clean;
+    }
+  }
+
+  function addPath(path, source) {
+    const clean = normalizePath(path);
+    if (!clean) return;
+
+    const existing = found.find(item => item.path === clean);
+    if (!existing) {
+      found.push({
+        path: clean,
+        source: source || "unknown",
+        type: guessType(clean)
+      });
+    }
+  }
+
+  function guessType(path) {
+    if (path.endsWith("/")) return "directory";
+    if (/\.(html?|xhtml)$/i.test(path)) return "page";
+    if (/\.(js|mjs)$/i.test(path)) return "script";
+    if (/\.css$/i.test(path)) return "style";
+    if (/\.(png|jpg|jpeg|gif|svg|webp|avif)$/i.test(path)) return "image";
+    if (/\.(mp3|wav|ogg|m4a)$/i.test(path)) return "audio";
+    if (/\.(mp4|webm|mov)$/i.test(path)) return "video";
+    if (/\.json$/i.test(path)) return "json";
+    return "file";
+  }
+
+  async function tryFetchJson(path) {
+    try {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status + " " + res.statusText);
+      return await res.json();
+    } catch (e) {
+      log("Could not read " + path + ": " + e.message);
+      return null;
+    }
+  }
+
+  function harvestManifest(data, sourceName) {
+    if (!data) return;
+
+    if (Array.isArray(data)) {
+      data.forEach(item => {
+        if (typeof item === "string") addPath(item, sourceName);
+        else if (item && typeof item === "object") {
+          addPath(item.path || item.url || item.href || item.file || item.name, sourceName);
+        }
+      });
+      return;
+    }
+
+    if (typeof data === "object") {
+      const likelyArrays = [
+        data.files,
+        data.pages,
+        data.items,
+        data.entries,
+        data.apps,
+        data.projects
+      ];
+
+      likelyArrays.forEach(arr => {
+        if (Array.isArray(arr)) harvestManifest(arr, sourceName);
+      });
+
+      Object.keys(data).forEach(key => {
+        const value = data[key];
+        if (typeof value === "string" && /[/.]/.test(value)) {
+          addPath(value, sourceName);
+        }
+      });
+    }
+  }
+
+  function harvestCurrentDocument() {
+    document.querySelectorAll("a[href], script[src], link[href], img[src], source[src], audio[src], video[src]").forEach(el => {
+      const raw = el.getAttribute("href") || el.getAttribute("src");
+      addPath(raw, "current document");
+    });
+  }
+
+  async function harvestDirectoryListing() {
+    /*
+      This only works if the server exposes an HTML directory listing.
+      Neocities usually does NOT expose one, but this harmlessly tries.
+    */
+    try {
+      const res = await fetch("./", { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status + " " + res.statusText);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+
+      doc.querySelectorAll("a[href]").forEach(a => {
+        addPath(a.getAttribute("href"), "folder listing");
+      });
+
+      log("Checked ./ for exposed links.");
+    } catch (e) {
+      log("Could not scrape raw folder listing: " + e.message);
+    }
+  }
+
+  function harvestManual() {
+    const lines = manualEl.value
+      .split(/\n+/)
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    lines.forEach(line => addPath(line, "manual"));
+  }
+
+  function groupByDirectory(items) {
+    const groups = {};
+
+    items.forEach(item => {
+      const parts = item.path.split("/");
+      let dir = "/";
+
+      if (item.path.endsWith("/")) {
+        dir = item.path;
+      } else {
+        parts.pop();
+        dir = parts.join("/") || "/";
+        if (!dir.endsWith("/")) dir += "/";
+      }
+
+      groups[dir] ||= [];
+      groups[dir].push(item);
+    });
+
+    return groups;
+  }
+
+  function render() {
+    found.sort((a, b) => a.path.localeCompare(b.path));
+
+    const groups = groupByDirectory(found);
+    const dirs = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+    outputEl.innerHTML = "";
+
+    const summary = document.createElement("div");
+    summary.className = "panel";
+    summary.innerHTML = "<b>" + found.length + "</b> items found across <b>" + dirs.length + "</b> directories.";
+    outputEl.appendChild(summary);
+
+    dirs.forEach(dir => {
+      const h = document.createElement("div");
+      h.className = "dir";
+      h.textContent = dir;
+      outputEl.appendChild(h);
+
+      const ul = document.createElement("ul");
+
+      groups[dir].forEach(item => {
+        const li = document.createElement("li");
+
+        const a = document.createElement("a");
+        a.href = item.path;
+        a.textContent = item.path;
+
+        const meta = document.createElement("div");
+        meta.className = "small";
+        meta.textContent = item.type + " · found by " + item.source;
+
+        li.appendChild(a);
+        li.appendChild(meta);
+        ul.appendChild(li);
+      });
+
+      outputEl.appendChild(ul);
+    });
+
+    log("Done. Found " + found.length + " items.");
+  }
+
+  async function scan() {
+    reset();
+
+    addPath(location.pathname, "this page");
+
+    harvestCurrentDocument();
+    log("Checked links/assets on this page.");
+
+    const manifestNames = [
+      "./manifest.json",
+      "../manifest.json",
+      "/manifest.json",
+      "./files.json",
+      "/files.json",
+      "./sitemap.json",
+      "/sitemap.json"
+    ];
+
+    for (const name of manifestNames) {
+      const data = await tryFetchJson(name);
+      if (data) {
+        log("Read " + name);
+        harvestManifest(data, name);
+      }
+    }
+
+    await harvestDirectoryListing();
+    harvestManual();
+
+    render();
+  }
+
+  function textList() {
+    return found
+      .sort((a, b) => a.path.localeCompare(b.path))
+      .map(item => item.path)
+      .join("\n");
+  }
+
+  document.getElementById("scanBtn").addEventListener("click", scan);
+
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const text = textList();
+    try {
+      await navigator.clipboard.writeText(text);
+      log("Copied list to clipboard.");
+    } catch (e) {
+      manualEl.value = text;
+      log("Clipboard blocked. Put list in the text box instead.");
+    }
+  });
+
+  document.getElementById("downloadBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(found, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "directory-scan.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  scan();
+})();
+</script>
+</body>
+</html>

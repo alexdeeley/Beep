@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hypnotic Spirals</title>
+  <style>
+    *{margin:0;padding:0;overflow:hidden;touch-action:none;}
+    body{background:#000;width:100vw;height:100vh;position:fixed;}
+    canvas{display:block;width:100%;height:100%;}
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const gl = canvas.getContext('webgl', {
+    antialias:false,
+    alpha:false,
+    premultipliedAlpha:false,
+    preserveDrawingBuffer:false
+  });
+
+  if (!gl) { document.body.innerHTML=''; throw new Error('WebGL not supported'); }
+
+  // ===== Helpers =====
+  function createShader(type, source){
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+      console.error(gl.getShaderInfoLog(sh));
+      gl.deleteShader(sh);
+      return null;
+    }
+    return sh;
+  }
+  function createProgram(vsSrc, fsSrc){
+    const vs = createShader(gl.VERTEX_SHADER, vsSrc);
+    const fs = createShader(gl.FRAGMENT_SHADER, fsSrc);
+    if(!vs || !fs) return null;
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
+      console.error(gl.getProgramInfoLog(p));
+      gl.deleteProgram(p);
+      return null;
+    }
+    return p;
+  }
+
+  // Fullscreen quad
+  const quadBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const VS = `
+    attribute vec2 a_position;
+    varying vec2 v_uv;
+    void main(){
+      v_uv = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  // Main render shader (writes to texture)
+  const FS_MAIN = `
+    precision highp float;
+    varying vec2 v_uv;
+    uniform float u_time;
+    uniform vec2  u_resolution;
+    uniform sampler2D u_feedback;
+    uniform vec2  u_forcePos;
+    uniform float u_forceStrength;
+    uniform float u_zoom;
+    uniform float u_rotation;
+    uniform float u_trailPersist;
+    uniform float u_slowBlend;
+
+    #define TAU 6.28318530718
+
+    float hash(vec2 p){
+      p = fract(p * vec2(443.897, 441.423));
+      p += dot(p, p + 23.45);
+      return fract(p.x * p.y);
+    }
+    float noise(vec2 p){
+      vec2 i=floor(p), f=fract(p);
+      f=f*f*(3.0-2.0*f);
+      float a=hash(i);
+      float b=hash(i+vec2(1.0,0.0));
+      float c=hash(i+vec2(0.0,1.0));
+      float d=hash(i+vec2(1.0,1.0));
+      return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+    }
+    float fbm(vec2 p){
+      float v=0.0, a=0.5;
+      for(int i=0;i<5;i++){
+        v += a * noise(p);
+        p *= 2.3;
+        a *= 0.5;
+      }
+      return v;
+    }
+    vec2 curl(vec2 p){
+      float eps=0.01;
+      float n1=fbm(p+vec2(0.0,eps));
+      float n2=fbm(p-vec2(0.0,eps));
+      float n3=fbm(p+vec2(eps,0.0));
+      float n4=fbm(p-vec2(eps,0.0));
+      return vec2(n1-n2, n4-n3)/(2.0*eps);
+    }
+
+    float spiralLog(vec2 p,float phase,float freq,float tight){
+      float r=length(p);
+      float a=atan(p.y,p.x);
+      float s=a - log(r+0.1)*tight + phase;
+      return cos(s*freq)*0.5+0.5;
+    }
+    float spiralArch(vec2 p,float phase,float freq){
+      float r=length(p);
+      float a=atan(p.y,p.x);
+      float s=a - r*0.3 + phase;
+      return cos(s*freq)*0.5+0.5;
+    }
+    float spiralLituus(vec2 p,float phase,float freq){
+      float r=length(p);
+      float a=atan(p.y,p.x);
+      float s=a*a - r*0.5 + phase;
+      return cos(s*freq)*0.5+0.5;
+    }
+
+    void main(){
+      vec2 uv=v_uv;
+      vec2 coord=(uv-0.5)*2.0;
+      coord.x *= u_resolution.x/u_resolution.y;
+      coord *= u_zoom;
+
+      float ca=cos(u_rotation), sa=sin(u_rotation);
+      coord = vec2(ca*coord.x - sa*coord.y, sa*coord.x + ca*coord.y);
+
+      vec2 w1=curl(coord*0.8 + u_time*0.05);
+      vec2 w2=curl(coord*1.3 - u_time*0.07 + w1*0.5);
+      vec2 p = coord + w1*0.3 + w2*0.2;
+
+      vec2 toF = coord - u_forcePos;
+      float d = length(toF);
+      float infl = exp(-d*2.0)*u_forceStrength;
+      vec2 dir = toF / max(d, 1e-4);
+      p += dir*infl*0.5;
+      p += vec2(-dir.y, dir.x)*infl*0.3;
+
+      float b1=sin(u_time*0.3)*0.5+0.5;
+      float b2=cos(u_time*0.23)*0.5+0.5;
+      float b3=sin(u_time*0.17)*0.5+0.5;
+
+      float s1=spiralLog(p + vec2(sin(u_time*0.1), cos(u_time*0.13))*0.5,
+                         u_time*0.5 + b1*TAU, 8.0 + b1*3.0, 3.0 + b1);
+      float s2=spiralArch(p + vec2(cos(u_time*0.15), sin(u_time*0.11))*0.7,
+                          u_time*0.3 + b2*TAU, 6.0 + b2*4.0);
+      float s3=spiralLituus(p + vec2(sin(u_time*0.09), -cos(u_time*0.14))*0.4,
+                            u_time*0.7 + b3*TAU, 5.0 + b3*2.0);
+
+      float inter = s1*s2 + s2*s3 + s1*s3;
+      inter = pow(inter*0.33, 1.5);
+
+      float micro=0.0;
+      for(int i=0;i<8;i++){
+        float fi=float(i);
+        vec2 off=vec2(cos(fi*0.7 + u_time*0.1), sin(fi*0.8 - u_time*0.12))*0.3;
+        micro += spiralLog(p*(2.0+fi*0.3)+off, u_time*(0.8+fi*0.1), 12.0+fi*2.0, 4.0) * (1.0/8.0);
+      }
+
+      float spiral = (s1+s2+s3)*0.333 + inter*0.2 + micro*0.3;
+
+      float ph=sin(u_time*0.4)*0.1;
+      vec3 col;
+      col.r = spiralLog(p, u_time*0.5 + ph, 8.0, 3.0);
+      col.g = spiral;
+      col.b = spiralLog(p, u_time*0.5 - ph, 8.0, 3.0);
+
+      // Feedback
+      vec3 fb = texture2D(u_feedback, uv).rgb;
+      float persist = mix(u_trailPersist, 0.99, u_slowBlend);
+      col = mix(col, fb, persist);
+
+      col = pow(col, vec3(1.2));
+      col = smoothstep(0.0, 1.0, col);
+
+      float dith = (hash(uv*u_resolution + fract(u_time)) - 0.5) * 0.01;
+      col += dith;
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  // Blit shader (just display a texture)
+  const FS_BLIT = `
+    precision mediump float;
+    varying vec2 v_uv;
+    uniform sampler2D u_tex;
+    void main(){
+      gl_FragColor = texture2D(u_tex, v_uv);
+    }
+  `;
+
+  const progMain = createProgram(VS, FS_MAIN);
+  const progBlit = createProgram(VS, FS_BLIT);
+  if(!progMain || !progBlit) throw new Error('Program compile/link failed');
+
+  // Locations
+  const loc = {
+    main: {
+      aPos: gl.getAttribLocation(progMain, 'a_position'),
+      uTime: gl.getUniformLocation(progMain, 'u_time'),
+      uRes: gl.getUniformLocation(progMain, 'u_resolution'),
+      uFeedback: gl.getUniformLocation(progMain, 'u_feedback'),
+      uForcePos: gl.getUniformLocation(progMain, 'u_forcePos'),
+      uForceStr: gl.getUniformLocation(progMain, 'u_forceStrength'),
+      uZoom: gl.getUniformLocation(progMain, 'u_zoom'),
+      uRot: gl.getUniformLocation(progMain, 'u_rotation'),
+      uPersist: gl.getUniformLocation(progMain, 'u_trailPersist'),
+      uSlow: gl.getUniformLocation(progMain, 'u_slowBlend'),
+    },
+    blit: {
+      aPos: gl.getAttribLocation(progBlit, 'a_position'),
+      uTex: gl.getUniformLocation(progBlit, 'u_tex')
+    }
+  };
+
+  // Ping-pong
+  let fbA=null, fbB=null, texA=null, texB=null;
+  let ping = false;
+
+  // Make texture/fbo
+  function makeTex(){
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  }
+  function makeFB(tex){
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const ok = (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return ok ? fb : null;
+  }
+
+  let feedbackOK = true;
+  let initRamp = 0.0; // ramps feedback in so you see something immediately
+  function setupFramebuffers(){
+    if (fbA) gl.deleteFramebuffer(fbA);
+    if (fbB) gl.deleteFramebuffer(fbB);
+    if (texA) gl.deleteTexture(texA);
+    if (texB) gl.deleteTexture(texB);
+
+    texA = makeTex();
+    texB = makeTex();
+    fbA = makeFB(texA);
+    fbB = makeFB(texB);
+    feedbackOK = !!(fbA && fbB);
+
+    // If feedback isn't supported, we can still render without it.
+    // Also clear textures to black so the first frames aren't undefined.
+    if (feedbackOK){
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbA);
+      gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbB);
+      gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    ping = false;
+    initRamp = 0.0;
+  }
+
+  // Resize
+  let qualityScale = 1.0;
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = Math.max(2, Math.floor(w * dpr * qualityScale));
+    canvas.height = Math.max(2, Math.floor(h * dpr * qualityScale));
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    gl.viewport(0,0,canvas.width,canvas.height);
+    setupFramebuffers();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Interaction
+  let interactionForce = {x:0,y:0,strength:0};
+  let zoomLevel = 1.0;
+  let rotationBias = 0.0;
+  let slowTime = false;
+  let slowTimeBlend = 0.0;
+  let lastTouchDist = 0.0;
+  let lastTouchAngle = 0.0;
+  let mouseDown = false;
+  let mousePos = {x:0,y:0};
+  let lastMousePos = {x:0,y:0};
+  let longPressTimer = null;
+
+  function getEventPos(e){
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches){
+      return Array.from(e.touches).map(t => ({
+        x: ((t.clientX-rect.left)/rect.width - 0.5) * 2 * (canvas.width/canvas.height),
+        y: -((t.clientY-rect.top)/rect.height - 0.5) * 2
+      }));
+    }
+    return [{
+      x: ((e.clientX-rect.left)/rect.width - 0.5) * 2 * (canvas.width/canvas.height),
+      y: -((e.clientY-rect.top)/rect.height - 0.5) * 2
+    }];
+  }
+
+  function handleStart(e){
+    e.preventDefault();
+    const p = getEventPos(e);
+    if (p.length===1){
+      mouseDown = true;
+      mousePos = p[0];
+      lastMousePos = p[0];
+      clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(()=>{ slowTime = true; }, 500);
+    } else if (p.length===2){
+      const dx=p[1].x-p[0].x, dy=p[1].y-p[0].y;
+      lastTouchDist = Math.hypot(dx,dy);
+      lastTouchAngle = Math.atan2(dy,dx);
+    }
+  }
+  function handleMove(e){
+    e.preventDefault();
+    const p = getEventPos(e);
+    if (p.length===1 && mouseDown){
+      lastMousePos = mousePos;
+      mousePos = p[0];
+      const dx = mousePos.x-lastMousePos.x;
+      const dy = mousePos.y-lastMousePos.y;
+      interactionForce = { x: mousePos.x/zoomLevel, y: mousePos.y/zoomLevel, strength: Math.hypot(dx,dy)*5.0 };
+    } else if (p.length===2){
+      const dx=p[1].x-p[0].x, dy=p[1].y-p[0].y;
+      const dist = Math.hypot(dx,dy);
+      const ang = Math.atan2(dy,dx);
+      if (lastTouchDist>0){
+        zoomLevel *= dist/lastTouchDist;
+        zoomLevel = Math.max(0.5, Math.min(3.0, zoomLevel));
+      }
+      lastTouchDist = dist;
+      rotationBias += (ang - lastTouchAngle) * 0.5;
+      lastTouchAngle = ang;
+    }
+  }
+  function handleEnd(e){
+    e.preventDefault();
+    mouseDown = false;
+    lastTouchDist = 0;
+    lastTouchAngle = 0;
+    clearTimeout(longPressTimer);
+    slowTime = false;
+  }
+  function handleWheel(e){
+    e.preventDefault();
+    zoomLevel *= Math.exp(-(e.deltaY*0.001));
+    zoomLevel = Math.max(0.5, Math.min(3.0, zoomLevel));
+  }
+
+  canvas.addEventListener('touchstart', handleStart, {passive:false});
+  canvas.addEventListener('touchmove', handleMove, {passive:false});
+  canvas.addEventListener('touchend', handleEnd, {passive:false});
+  canvas.addEventListener('touchcancel', handleEnd, {passive:false});
+  canvas.addEventListener('mousedown', handleStart);
+  canvas.addEventListener('mousemove', handleMove);
+  canvas.addEventListener('mouseup', handleEnd);
+  canvas.addEventListener('wheel', handleWheel, {passive:false});
+  canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+  // Render loop
+  let time = 0;
+  let lastT = performance.now();
+  let frameSamples = [];
+  const TARGET_MS = 16.67;
+
+  function drawFullscreen(program, aPosLoc){
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.enableVertexAttribArray(aPosLoc);
+    gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function loop(){
+    const now = performance.now();
+    const dt = Math.min((now - lastT)/1000, 0.1);
+    lastT = now;
+
+    // adaptive scaling (gentle)
+    frameSamples.push(dt*1000);
+    if (frameSamples.length>60) frameSamples.shift();
+    const avg = frameSamples.reduce((a,b)=>a+b,0)/frameSamples.length;
+    if (avg > TARGET_MS*1.6 && qualityScale > 0.55){ qualityScale *= 0.985; if(frameSamples.length===60) resize(); }
+    if (avg < TARGET_MS*0.75 && qualityScale < 1.0){ qualityScale = Math.min(1.0, qualityScale*1.01); if(frameSamples.length===60) resize(); }
+
+    // time / slow blend
+    const targetSlow = slowTime ? 1.0 : 0.0;
+    slowTimeBlend += (targetSlow - slowTimeBlend) * dt * 3.0;
+    time += dt * (slowTime ? 0.2 : 1.0);
+
+    // decay force
+    interactionForce.strength *= Math.exp(-dt*5.0);
+
+    // ramp feedback in over ~1.5s so it isn't "black forever"
+    initRamp = Math.min(1.0, initRamp + dt/1.5);
+    const basePersist = 0.92 + slowTimeBlend*0.06; // slightly lower than before
+    const persist = initRamp * basePersist;
+
+    if (feedbackOK){
+      const readTex  = ping ? texB : texA;
+      const writeFB  = ping ? fbA : fbB;
+      const writeTex = ping ? texA : texB;
+
+      // Pass 1: render into writeFB using readTex as feedback
+      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFB);
+      gl.useProgram(progMain);
+
+      gl.uniform1f(loc.main.uTime, time);
+      gl.uniform2f(loc.main.uRes, canvas.width, canvas.height);
+      gl.uniform2f(loc.main.uForcePos, interactionForce.x, interactionForce.y);
+      gl.uniform1f(loc.main.uForceStr, interactionForce.strength);
+      gl.uniform1f(loc.main.uZoom, zoomLevel);
+      gl.uniform1f(loc.main.uRot, rotationBias);
+      gl.uniform1f(loc.main.uPersist, persist);
+      gl.uniform1f(loc.main.uSlow, slowTimeBlend);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, readTex);
+      gl.uniform1i(loc.main.uFeedback, 0);
+
+      drawFullscreen(progMain, loc.main.aPos);
+
+      // Pass 2: blit writeTex to screen
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.useProgram(progBlit);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, writeTex);
+      gl.uniform1i(loc.blit.uTex, 0);
+      drawFullscreen(progBlit, loc.blit.aPos);
+
+      ping = !ping;
+    } else {
+      // Fallback: no feedback, draw directly to screen (feed black)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.useProgram(progMain);
+
+      gl.uniform1f(loc.main.uTime, time);
+      gl.uniform2f(loc.main.uRes, canvas.width, canvas.height);
+      gl.uniform2f(loc.main.uForcePos, interactionForce.x, interactionForce.y);
+      gl.uniform1f(loc.main.uForceStr, interactionForce.strength);
+      gl.uniform1f(loc.main.uZoom, zoomLevel);
+      gl.uniform1f(loc.main.uRot, rotationBias);
+      gl.uniform1f(loc.main.uPersist, 0.0);
+      gl.uniform1f(loc.main.uSlow, slowTimeBlend);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.uniform1i(loc.main.uFeedback, 0);
+
+      drawFullscreen(progMain, loc.main.aPos);
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

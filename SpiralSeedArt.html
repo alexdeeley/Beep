@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Seeded Spiral Generator</title>
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  #ui {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 2;
+  }
+  #seed {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 18px;
+    color: #fff;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    outline: none;
+  }
+  button {
+    padding: 10px 14px;
+    font-size: 16px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:active { transform: translateY(1px); }
+  #canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .hint {
+    position: fixed;
+    bottom: 10px;
+    left: 12px;
+    color: #999;
+    font-size: 12px;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="ui" role="group" aria-label="Seed controls">
+    <input id="seed" type="text" inputmode="text" placeholder="type a seed…" aria-label="Seed value" />
+    <button id="go" aria-label="Generate art">Go</button>
+    <button id="random" aria-label="Random seed">Random</button>
+    <button id="save" aria-label="Save image">Save</button>
+  </div>
+  <canvas id="canvas" aria-label="Procedural spiral art" role="img"></canvas>
+  <div class="hint">High‑contrast, seeded spiral. Tip: rotate your phone; try short or long seeds.</div>
+
+<script>
+// --- Seeded PRNG helpers (cyrb128 + sfc32) ---
+function cyrb128(str){
+  let h1 = 1779033703, h2 = 3144134277,
+      h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0, k; i < str.length; i++) {
+    k = str.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  let x = (h1 ^ h2 ^ h3 ^ h4) >>> 0;
+  return [h1>>>0, h2>>>0, h3>>>0, h4>>>0, x];
+}
+function sfc32(a,b,c,d){
+  return function() {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) | 0;
+    a = b ^ b >>> 9;
+    b = c + (c << 3) | 0;
+    c = (c << 21 | c >>> 11);
+    d = d + 1 | 0;
+    t = t + d | 0;
+    c = c + t | 0;
+    return (t >>> 0) / 4294967296;
+  }
+}
+function rngFromSeed(seed){
+  const s = seed ? String(seed) : String(crypto.getRandomValues(new Uint32Array(1))[0]);
+  const [a,b,c,d] = cyrb128(s);
+  return sfc32(a,b,c,d);
+}
+function hash01(seed){
+  const h = cyrb128(seed);
+  return (h[4] % 1e9) / 1e9;
+}
+
+// --- Canvas setup ---
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+function resize(){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+}
+window.addEventListener('resize', () => draw(currentSeed));
+resize();
+
+// --- Core drawing ---
+let currentSeed = 'alex-spiral';
+
+function draw(seed){
+  if (!seed) seed = 'default';
+  currentSeed = seed;
+  const rand = rngFromSeed(seed);
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+  // Parameters driven by seed
+  const baseAngle = rand()*Math.PI*2;
+  const tightness = 0.16 + rand()*0.22;    // spiral b (higher=tighter)
+  const armCount = 1 + (rand() < 0.65 ? 1 : 0); // 1 or 2 arms
+  const segLen = 0.12 + rand()*0.22;       // radians for painted segment
+  const gapLen = segLen * (0.7 + rand()*0.9);
+  const maxR = Math.hypot(W, H) * (0.62 + rand()*0.28);
+  const growth = 0.008 + rand()*0.007;     // controls how linewidth grows with radius
+  const swirl = (rand()*0.5 + 0.5) * (W+H)*0.000015; // minor wobble
+
+  // Draw faint concentric rings to echo the reference image
+  const ringCount = 120;
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  for (let i=0;i<ringCount;i++){
+    const rr = (i+1)/ringCount * maxR * 1.15;
+    const shade = Math.floor(255 * (0.15 + 0.65*(1 - i/ringCount)));
+    ctx.strokeStyle = `rgb(${shade},${shade},${shade})`;
+    ctx.lineWidth = Math.max(1, rr*0.003);
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Function to map radius to line width and brightness
+  function widthAt(r){
+    return Math.max(1, 1 + r*growth);
+  }
+  function grayAt(r){
+    // White near center, darker outward
+    const t = Math.min(1, r / (maxR*1.05));
+    const v = 255 * (1 - 0.70*t);
+    return Math.round(v);
+  }
+
+  // Draw the spiral arms
+  for (let arm=0; arm<armCount; arm++){
+    const phase = baseAngle + arm*Math.PI; // opposite arms if 2
+    let theta = -Math.PI*18 * (0.6 + rand()*0.6); // start deep inside
+    // Logarithmic spiral r = a * e^(b*theta); choose a to place center nicely
+    const a = 0.6;
+    const b = tightness;
+
+    // Step size for parametric sweep
+    const dt = 0.01;
+
+    // Walk along theta, drawing dash segments
+    let on = true, remain = segLen;
+    let lastX = null, lastY = null;
+    while (true){
+      const r = Math.exp(b*theta) * maxR * a;
+      if (r > maxR*1.2) break;
+
+      const wobble = Math.sin(theta*3.0 + phase)*swirl*r;
+      const ang = theta + phase;
+      const x = cx + (r+wobble)*Math.cos(ang);
+      const y = cy + (r-wobble)*Math.sin(ang);
+
+      if (lastX !== null && on){
+        const w = widthAt(r);
+        const g = grayAt(r);
+        ctx.strokeStyle = `rgb(${g},${g},${g})`;
+        ctx.lineCap = 'round';
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+
+      // Dash accounting
+      remain -= dt;
+      if (remain <= 0){
+        on = !on;
+        remain = (on ? segLen : gapLen);
+      }
+
+      lastX = x; lastY = y;
+      theta += dt;
+    }
+  }
+}
+
+document.getElementById('go').addEventListener('click', () => {
+  const s = document.getElementById('seed').value.trim();
+  draw(s || 'default');
+});
+document.getElementById('seed').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('go').click();
+});
+document.getElementById('random').addEventListener('click', () => {
+  const s = Math.random().toString(36).slice(2,8);
+  document.getElementById('seed').value = s;
+  draw(s);
+});
+document.getElementById('save').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = `spiral-${currentSeed}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// Initial draw
+(function boot(){
+  const params = new URLSearchParams(location.search);
+  const s = params.get('seed') || currentSeed;
+  document.getElementById('seed').value = s;
+  draw(s);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>Unicorn Blocks</title>
+<style>
+  /* High-contrast, no-text UI */
+  :root{
+    --black:#000;
+    --white:#fff;
+    --pink:#ff69b4;
+    --purple:#8a2be2;
+    --gray:#7a7a7a;
+    --red:#ff2b2b;
+  }
+  html,body{
+    margin:0;
+    background:var(--black);
+    height:100%;
+    touch-action:none; /* allow custom gestures */
+  }
+  #wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+  }
+  canvas{
+    width:min(94vmin,540px);
+    height:calc(min(94vmin,540px)*1.2);
+    image-rendering: pixelated;
+    display:block;
+    border:2px solid var(--white);
+    box-shadow:0 0 0 4px var(--black), 0 0 16px 0 rgba(255,255,255,0.15) inset;
+    background:
+      radial-gradient(circle at 50% -10%, rgba(255,255,255,0.06), transparent 50%),
+      radial-gradient(circle at 20% 120%, rgba(255,0,100,0.07), transparent 50%),
+      radial-gradient(circle at 120% 50%, rgba(150,0,255,0.06), transparent 40%),
+      var(--black);
+  }
+  /* Optional: tiny icon-only pause (hidden by default; enabled by tapping with two fingers) */
+  #pauseOverlay{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.6);
+  }
+  #pauseOverlay .icon{
+    width:18vmin; height:18vmin; border-radius:50%; border:4px solid var(--white);
+    display:flex; align-items:center; justify-content:center;
+  }
+  #pauseOverlay .icon::before{
+    content:""; width:4vmin; height:10vmin; background:var(--white);
+    box-shadow:6vmin 0 0 var(--white);
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap"><canvas id="game" width="300" height="360" aria-hidden="true"></canvas></div>
+<div id="pauseOverlay" aria-hidden="true"><div class="icon"></div></div>
+<script>
+(() => {
+  // --- Config ---
+  const COLS = 10, ROWS = 20, CELL = 18; // logical cell size; canvas scales via CSS
+  const COLORS = ["#ff69b4","#8a2be2","#7a7a7a","#ffffff","#ff2b2b"];
+  const OUTLINE = "#000000";
+  const GRID_BG = "#111111";
+  const GRID_LINE = "#2a2a2a";
+  const DROP_MS_START = 800; // easy speed
+  const DROP_MS_MIN = 180;   // cap
+  const SOFT_DROP_MS = 40;
+  const FLOATING_UNICORNS = 10;
+
+  // --- Canvas ---
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // Resize logic to keep crisp pixels
+  function fitCanvas() {
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const logicalW = COLS * CELL;
+    const logicalH = ROWS * CELL + 60; // top banner space for ambience (no text)
+    canvas.width = logicalW * dpr;
+    canvas.height = logicalH * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  fitCanvas();
+  addEventListener('resize', fitCanvas);
+
+  // --- Shapes (standard Tetris tetrominoes) ---
+  // Each shape is a matrix of 0/1 cells. We'll skin blocks with unicorn decals.
+  const SHAPES = [
+    [[1,1,1,1]],                // I
+    [[1,1],[1,1]],              // O
+    [[0,1,0],[1,1,1]],          // T
+    [[1,0,0],[1,1,1]],          // J
+    [[0,0,1],[1,1,1]],          // L
+    [[0,1,1],[1,1,0]],          // S
+    [[1,1,0],[0,1,1]],          // Z
+    // cute bonus: U-corn (still 4 blocks, in a "U" of 2x3 missing one)
+    [[1,0,1],[1,0,0]]           // U-like (4 cells)
+  ];
+
+  // --- Unicorn decals (drawn on each cell) ---
+  function drawUnicornDecal(gx, gy, size, tint) {
+    // gx, gy are top-left of cell
+    const x = gx, y = gy, s = size;
+    // Simple unicorn head: circle, ear triangle, horn triangle; outline black for contrast
+    ctx.save();
+    ctx.translate(x + s*0.5, y + s*0.55);
+    ctx.scale(s/18, s/18);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = OUTLINE;
+    // head
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0,0,6,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    // ear
+    ctx.fillStyle = tint;
+    ctx.beginPath();
+    ctx.moveTo(2,-4); ctx.lineTo(6,-8); ctx.lineTo(5,-2); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // horn
+    ctx.fillStyle = tint;
+    ctx.beginPath();
+    ctx.moveTo(-1,-6); ctx.lineTo(-5,-12); ctx.lineTo(1,-8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // eye
+    ctx.fillStyle = OUTLINE;
+    ctx.beginPath(); ctx.arc(2,0,0.9,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function roundedRect(x,y,w,h,r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  // floating background unicorn sprites
+  const bgSprites = Array.from({length: FLOATING_UNICORNS}, () => ({
+    x: Math.random()* (COLS*CELL),
+    y: Math.random()* (ROWS*CELL),
+    s: 12 + Math.random()*12,
+    vx: (Math.random()*0.2+0.05) * (Math.random()<0.5?-1:1),
+    vy: (Math.random()*0.2+0.05) * (Math.random()<0.5?-1:1),
+    tint: COLORS[(Math.random()*COLORS.length)|0]
+  }));
+
+  function stepBG(dt) {
+    for (const u of bgSprites) {
+      u.x += u.vx*dt*0.06;
+      u.y += u.vy*dt*0.06;
+      const W = COLS*CELL, H = ROWS*CELL+60;
+      if (u.x<-20 || u.x>W+20) u.vx*=-1;
+      if (u.y<-20 || u.y>H+20) u.vy*=-1;
+    }
+  }
+
+  function drawBG() {
+    // grid
+    ctx.fillStyle = GRID_BG;
+    ctx.fillRect(0,0, COLS*CELL, ROWS*CELL+60);
+    ctx.strokeStyle = GRID_LINE;
+    ctx.lineWidth = 1;
+    for (let c=0;c<=COLS;c++){
+      ctx.beginPath();
+      ctx.moveTo(c*CELL,60);
+      ctx.lineTo(c*CELL,ROWS*CELL+60);
+      ctx.stroke();
+    }
+    for (let r=0;r<=ROWS;r++){
+      ctx.beginPath();
+      ctx.moveTo(0,60 + r*CELL);
+      ctx.lineTo(COLS*CELL,60 + r*CELL);
+      ctx.stroke();
+    }
+    // ambient band on top (no text)
+    const g = ctx.createLinearGradient(0,0,0,60);
+    g.addColorStop(0,"rgba(255,255,255,0.05)");
+    g.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,COLS*CELL,60);
+
+    // floating unicorns
+    for (const u of bgSprites) {
+      drawUnicornDecal(u.x, u.y, u.s, u.tint);
+    }
+  }
+
+  // --- Board state ---
+  const board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+  function collide(shape, x, y) {
+    for (let r=0;r<shape.length;r++){
+      for (let c=0;c<shape[r].length;c++){
+        if (!shape[r][c]) continue;
+        const nx = x + c, ny = y + r;
+        if (nx<0 || nx>=COLS || ny>=ROWS) return true;
+        if (ny>=0 && board[ny][nx]) return true;
+      }
+    }
+    return false;
+  }
+  function rotate(shape) {
+    const h = shape.length, w = shape[0].length;
+    const res = Array.from({length:w}, (_,c)=>Array.from({length:h},(_,r)=>shape[h-1-r][c]));
+    return res;
+  }
+  function spawnPiece() {
+    const mat = JSON.parse(JSON.stringify(SHAPES[(Math.random()*SHAPES.length)|0]));
+    const tint = COLORS[(Math.random()*COLORS.length)|0];
+    const x = ((COLS - mat[0].length) / 2) | 0;
+    const y = -2;
+    return {mat, x, y, tint};
+  }
+
+  let cur = spawnPiece();
+  let dropTimer = 0;
+  let dropMs = DROP_MS_START;
+  let paused = false;
+  let last = performance.now();
+
+  function lockPiece() {
+    const {mat,x,y,tint} = cur;
+    for (let r=0;r<mat.length;r++){
+      for (let c=0;c<mat[r].length;c++){
+        if (!mat[r][c]) continue;
+        const nx = x+c, ny = y+r;
+        if (ny>=0 && ny<ROWS && nx>=0 && nx<COLS) {
+          board[ny][nx] = tint;
+        }
+      }
+    }
+    // clear lines
+    for (let r=ROWS-1;r>=0;r--){
+      if (board[r].every(cell => !!cell)) {
+        // pop line and add empty on top
+        board.splice(r,1);
+        board.unshift(Array(COLS).fill(null));
+        r++;
+        // speed up slightly (cap)
+        dropMs = Math.max(DROP_MS_MIN, dropMs * 0.97);
+      }
+    }
+    cur = spawnPiece();
+    if (collide(cur.mat, cur.x, cur.y)) {
+      // game over: wipe board softly (but no text)
+      for (let r=0;r<ROWS;r++) board[r].fill(null);
+      dropMs = DROP_MS_START;
+      cur = spawnPiece();
+    }
+  }
+
+  function hardDrop() {
+    while (!collide(cur.mat, cur.x, cur.y+1)) cur.y++;
+    lockPiece();
+  }
+
+  function drawCell(gx, gy, color) {
+    const x = gx, y = gy, s = CELL;
+    // block
+    const inner = 3;
+    // outer
+    ctx.fillStyle = color;
+    roundedRect(x+0.6, y+0.6, s-1.2, s-1.2, 3.5);
+    ctx.fill();
+    // glossy top
+    const gg = ctx.createLinearGradient(x, y, x, y+s);
+    gg.addColorStop(0, "rgba(255,255,255,0.35)");
+    gg.addColorStop(0.35, "rgba(255,255,255,0.06)");
+    gg.addColorStop(1, "rgba(0,0,0,0.18)");
+    ctx.fillStyle = gg;
+    roundedRect(x+0.6, y+0.6, s-1.2, s-1.2, 3.5);
+    ctx.fill();
+    // outline
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.2;
+    roundedRect(x+0.6, y+0.6, s-1.2, s-1.2, 3.5);
+    ctx.stroke();
+
+    // decal
+    drawUnicornDecal(x+3, y+2, s-6, color === "#ffffff" ? "#ff69b4" : "#ffffff");
+  }
+
+  function render() {
+    drawBG();
+    // settled blocks
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        const tint = board[r][c];
+        if (tint) drawCell(c*CELL, 60 + r*CELL, tint);
+      }
+    }
+    // current piece
+    const {mat,x,y,tint} = cur;
+    for (let r=0;r<mat.length;r++){
+      for (let c=0;c<mat[r].length;c++){
+        if (!mat[r][c]) continue;
+        const gx = (x+c)*CELL, gy = 60 + (y+r)*CELL;
+        if (y+r >= 0) drawCell(gx, gy, tint);
+      }
+    }
+  }
+
+  // --- Loop ---
+  function frame(now) {
+    const dt = now - last; last = now;
+    if (!paused){
+      stepBG(dt);
+      dropTimer += dt;
+      if (dropTimer >= dropMs) {
+        dropTimer = 0;
+        if (!collide(cur.mat, cur.x, cur.y+1)) cur.y++;
+        else lockPiece();
+      }
+      render();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // --- Controls (no on-screen text) ---
+  function tryMove(dx, dy) {
+    if (!collide(cur.mat, cur.x+dx, cur.y+dy)) { cur.x+=dx; cur.y+=dy; }
+  }
+  function tryRotate() {
+    const r = rotate(cur.mat);
+    if (!collide(r, cur.x, cur.y)) cur.mat = r;
+  }
+  addEventListener('keydown', (e)=>{
+    if (e.repeat) return;
+    switch(e.key){
+      case "ArrowLeft": tryMove(-1,0); break;
+      case "ArrowRight": tryMove(1,0); break;
+      case "ArrowDown": tryMove(0,1); break;
+      case "ArrowUp": tryRotate(); break;
+      case " ": hardDrop(); break;
+      case "p": case "P": togglePause(); break;
+      case "r": case "R": resetGame(); break;
+    }
+  }, {passive:true});
+
+  // Touch controls: tap = rotate, swipe down = drop, drag left/right = move
+  let touchStartX = 0, touchStartY = 0, lastDragX = null, lastDragY = null, touchTime = 0;
+  window.addEventListener('touchstart', (e)=>{
+    if (e.touches.length===2){ togglePause(); return; }
+    const t = e.touches[0];
+    touchStartX = lastDragX = t.clientX;
+    touchStartY = lastDragY = t.clientY;
+    touchTime = performance.now();
+  }, {passive:true});
+  window.addEventListener('touchmove', (e)=>{
+    const t = e.touches[0]; if (!t) return;
+    const dx = t.clientX - lastDragX;
+    const dy = t.clientY - lastDragY;
+    const stepX = Math.sign(dx);
+    const stepY = Math.sign(dy);
+    if (Math.abs(dx) > 18) { tryMove(stepX,0); lastDragX = t.clientX; }
+    if (Math.abs(dy) > 24) { tryMove(0,stepY>0?1:0); lastDragY = t.clientY; }
+  }, {passive:true});
+  window.addEventListener('touchend', (e)=>{
+    const dt = performance.now() - touchTime;
+    // quick tap => rotate
+    if (dt < 200) tryRotate();
+    // flick down => hard drop
+    // Already handled by move; but if last move was sizable downward, do a drop
+  }, {passive:true});
+
+  // Soft drop with key holding
+  let softDropping = false;
+  addEventListener('keydown',(e)=>{
+    if (e.key==="ArrowDown") { softDropping = true; }
+  });
+  addEventListener('keyup',(e)=>{
+    if (e.key==="ArrowDown") { softDropping = false; }
+  });
+
+  // Timer adjust for soft drop
+  setInterval(()=>{
+    if (softDropping && !paused){
+      if (!collide(cur.mat, cur.x, cur.y+1)) cur.y++;
+      else lockPiece();
+      render();
+    }
+  }, SOFT_DROP_MS);
+
+  function togglePause(){
+    paused = !paused;
+    document.getElementById('pauseOverlay').style.display = paused ? 'flex' : 'none';
+  }
+  function resetGame(){
+    for (let r=0;r<ROWS;r++) board[r].fill(null);
+    dropMs = DROP_MS_START;
+    cur = spawnPiece();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>HYPER BOWLING — Chain Reactions</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; height:100%; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .hud { position:fixed; left:0; top:0; width:100vw; display:flex; justify-content:space-between;
+         font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif; font-weight:900;
+         letter-spacing:0.5px; color:#fff; padding:10px 14px; user-select:none; }
+  .hud span { font-size:18px; }
+  .hint { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+          color:#fff; font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif;
+          text-align:center; line-height:1.25; user-select:none; }
+  .hint .title { font-size:28px; font-weight:900; margin-bottom:12px; }
+  .hint .sub { font-size:14px; opacity:0.85; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="game"></canvas>
+<div class="hud" id="hud" aria-hidden="true">
+  <span id="score">Score: 0</span>
+  <span id="frame">Frame 1 • Roll 1</span>
+</div>
+<div class="hint" id="hint">
+  <div class="title">HYPER BOWLING</div>
+  <div class="sub">
+    Swipe up to roll • Curve by swiping with a sideways angle<br/>
+    Pins now collide with each other for chain reactions ⚡<br/><br/>
+    <b>Tap to start</b>
+  </div>
+</div>
+<script>
+(function(){
+  // Canvas (DPR=1 for iPhone stability)
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W=0, H=0;
+  function resize(){
+    W = Math.max(320, Math.floor(innerWidth));
+    H = Math.max(480, Math.floor(innerHeight));
+    canvas.width = W; canvas.height = H;
+    layoutLane();
+    resetBall();
+  }
+  addEventListener('resize', resize, {passive:true});
+
+  // Lane layout
+  const lane = { x:0, y:0, w:0, h:0, gutter:0 };
+  function layoutLane(){
+    lane.w = Math.min(W*0.7, 420);
+    lane.h = H*0.9;
+    lane.x = Math.floor((W - lane.w)/2);
+    lane.y = Math.floor(H*0.05);
+    lane.gutter = Math.max(12, Math.floor(lane.w*0.06));
+  }
+
+  // Pins
+  let pins = [];
+  const PIN_R = 10;
+  const PIN_M = 1.0; // mass for simple collision
+  const FRICTION_GROUND = 0.995; // slow slide
+  const GRAVITY = 0.28; // for flying (knocked) pins to arc down-lane
+
+  const pinRows = [
+    [0],
+    [-1,1],
+    [-2,0,2],
+    [-3,-1,1,3]
+  ];
+  function resetPins(){
+    pins = [];
+    const baseY = lane.y + 90; // top area (head pin)
+    const rowGap = 38;
+    const colGap = 24;
+    for(let r=0;r<pinRows.length;r++){
+      const row = pinRows[r];
+      for(const c of row){
+        const x = lane.x + lane.w/2 + c*colGap;
+        const y = baseY + r*rowGap;
+        pins.push({x, y, vx:0, vy:0, alive:true, flying:false, off:false});
+      }
+    }
+  }
+
+  // Ball
+  const ball = { x:0, y:0, r:16, vx:0, vy:0, rolling:false, spin:0 };
+  function resetBall(){
+    ball.x = lane.x + lane.w/2;
+    ball.y = lane.y + lane.h - 40;
+    ball.vx = 0; ball.vy = 0; ball.spin = 0;
+    ball.rolling = false;
+  }
+
+  // Game state
+  let running=false, waitingSwipe=true;
+  let score=0, frame=1, roll=1, pinsDownThisFrame=0, pinsDownThisRoll=0;
+  const hudScore = document.getElementById('score');
+  const hudFrame = document.getElementById('frame');
+  const hint = document.getElementById('hint');
+
+  function start(){
+    running=true; waitingSwipe=true;
+    score=0; frame=1; roll=1; pinsDownThisFrame=0; pinsDownThisRoll=0;
+    resetPins(); resize(); updateHUD();
+    hint.style.display='none';
+  }
+
+  function updateHUD(){
+    hudScore.textContent = 'Score: ' + score;
+    hudFrame.textContent = 'Frame ' + frame + ' • Roll ' + roll;
+  }
+
+  // Input
+  let dragStart=null, dragLast=null;
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    let cx,cy;
+    if(e.touches && e.touches[0]){ cx=e.touches[0].clientX - r.left; cy=e.touches[0].clientY - r.top; }
+    else { cx=e.clientX - r.left; cy=e.clientY - r.top; }
+    return {x:cx, y:cy};
+  }
+  function down(e){
+    e.preventDefault();
+    if(!running){ start(); return; }
+    if(!waitingSwipe) return;
+    dragStart = pos(e);
+    dragLast = dragStart;
+  }
+  function move(e){
+    if(!running || !dragStart) return;
+    e.preventDefault();
+    dragLast = pos(e);
+  }
+  function up(e){
+    if(!running || !dragStart) return;
+    const end = dragLast || pos(e);
+    const dx = end.x - dragStart.x;
+    const dy = end.y - dragStart.y;
+    // Only accept upward swipes
+    if (dy < -10){
+      // Speed scale
+      const speed = Math.min(18, Math.max(6, (-dy) * 0.06));
+      ball.vy = -speed;
+      // Lateral velocity small
+      ball.vx = dx * 0.04;
+      // Spin proportional to sideways swipe vs up distance
+      ball.spin = (dx / Math.max(1, -dy)) * 0.06; // curve accel per frame
+      ball.rolling = true;
+      waitingSwipe = false;
+    }
+    dragStart=null; dragLast=null;
+  }
+  canvas.addEventListener('touchstart', down, {passive:false});
+  addEventListener('touchmove', move, {passive:false});
+  addEventListener('touchend', up, {passive:true});
+  canvas.addEventListener('mousedown', down, {passive:false});
+  addEventListener('mousemove', move, {passive:false});
+  addEventListener('mouseup', up, {passive:true});
+
+  // Helpers
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+
+  // Main loop
+  let last = performance.now();
+  function step(now){
+    const dt = Math.min(32, now - last); last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function knockPin(p, nx, ny, power){
+    // Make the pin dynamic and give it a push along normal
+    if (p.alive){ pinsDownThisRoll++; }
+    p.alive = false;
+    p.flying = true;
+    p.vx += nx * power + (Math.random()-0.5)*0.8;
+    p.vy += ny * power + (Math.random()-0.5)*0.8;
+  }
+
+  function resolvePinPinCollision(a, b){
+    // Only consider if at least one is moving (flying)
+    const rr = (PIN_R*2);
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d2 = dx*dx + dy*dy;
+    if (d2 > rr*rr || d2 === 0) return;
+    const d = Math.sqrt(d2);
+    const nx = dx / d, ny = dy / d;
+    // Separate overlap
+    const overlap = rr - d;
+    const total = (a.flying?1:0) + (b.flying?1:0) || 2;
+    const push = overlap / total;
+    if (a.flying){ a.x -= nx * push*0.6; a.y -= ny * push*0.6; }
+    if (b.flying){ b.x += nx * push*0.6; b.y += ny * push*0.6; }
+
+    // Simple elastic impulse along normal
+    const rvx = b.vx - a.vx;
+    const rvy = b.vy - a.vy;
+    const vn = rvx*nx + rvy*ny;
+    if (vn < 0){
+      const e = 0.6; // restitution
+      const j = -(1+e) * vn / (1/PIN_M + 1/PIN_M);
+      const jx = j*nx, jy = j*ny;
+      a.vx -= jx / PIN_M; a.vy -= jy / PIN_M;
+      b.vx += jx / PIN_M; b.vy += jy / PIN_M;
+    }
+
+    // If b was standing and gets a strong hit, wake it up
+    if (!b.flying && !b.off){
+      const speedFromA = Math.hypot(a.vx, a.vy);
+      if (speedFromA > 0.8){
+        b.flying = true; b.alive = false;
+      }
+    }
+    // If a was standing and b hits it
+    if (!a.flying && !a.off){
+      const speedFromB = Math.hypot(b.vx, b.vy);
+      if (speedFromB > 0.8){
+        a.flying = true; a.alive = false;
+      }
+    }
+  }
+
+  function update(dt){
+    // Ball movement
+    if (ball.rolling){
+      // apply curve (spin) proportional to forward speed
+      ball.vx += ball.spin * Math.max(0, -ball.vy) * 0.02;
+      // friction
+      ball.vy *= 0.995;
+      ball.vx *= 0.996;
+      ball.y += ball.vy;
+      ball.x += ball.vx;
+      // wall (gutters)
+      const leftWall = lane.x + lane.gutter + ball.r;
+      const rightWall = lane.x + lane.w - lane.gutter - ball.r;
+      if (ball.x < leftWall || ball.x > rightWall || ball.y < lane.y - 20){
+        endRoll();
+      }
+    }
+
+    // Ball vs standing pins
+    if (ball.rolling){
+      for(const p of pins){
+        if (p.off || !p.alive) continue;
+        const rr = (PIN_R + ball.r);
+        const dx = p.x - ball.x, dy = p.y - ball.y;
+        if (dx*dx + dy*dy <= rr*rr){
+          const d = Math.hypot(dx, dy)||1, nx = dx/d, ny = dy/d;
+          const hitPower = Math.max(3, Math.min(10, -ball.vy*0.6 + Math.abs(ball.vx)*0.6));
+          knockPin(p, nx, ny, hitPower);
+        }
+      }
+    }
+
+    // Update flying pins + ground slide for standing ones (minimal)
+    for(const p of pins){
+      if (p.off) continue;
+      if (p.flying){
+        p.vy += GRAVITY * 0.02 * dt; // gravity down-lane
+        p.vx *= 0.995; p.vy *= 0.995;
+        p.x += p.vx; p.y += p.vy;
+        // off-lane or offscreen?
+        if (p.x < lane.x || p.x > lane.x+lane.w || p.y < lane.y-40 || p.y > lane.y+lane.h+60){
+          p.off = true;
+        }
+      } else {
+        // tiny settle friction so they don't vibrate on impacts
+        p.vx *= FRICTION_GROUND; p.vy *= FRICTION_GROUND;
+      }
+    }
+
+    // Pin-pin collisions for chain reactions
+    // We consider interactions between all pins that are not offscreen
+    for (let i=0;i<pins.length;i++){
+      const a = pins[i]; if (a.off) continue;
+      for (let j=i+1;j<pins.length;j++){
+        const b = pins[j]; if (b.off) continue;
+        // Only check if at least one is flying OR both alive (to prevent overlap at start)
+        if (a.flying || b.flying){
+          resolvePinPinCollision(a,b);
+        }
+      }
+    }
+
+    // Count pins that are now down (alive=false but not yet tallied this roll)
+    // (already tallied in knockPin for standing->down transitions)
+  }
+
+  function endRoll(){
+    ball.rolling = false;
+    // Wait a brief moment for chain reactions to settle
+    // (simple: simulate extra frames)
+    for(let k=0;k<40;k++){ update(16); }
+
+    // Tally score
+    pinsDownThisFrame += pinsDownThisRoll;
+    const strike = (roll === 1 && pinsDownThisRoll === 10);
+    const spare  = (!strike && pinsDownThisFrame === 10 && roll === 2);
+
+    let add = pinsDownThisRoll; // base: 1 per pin
+    if (strike) add += 5;
+    else if (spare) add += 3;
+    score += add;
+
+    // Next state
+    if (strike || roll === 2){
+      // next frame
+      frame++;
+      if (frame > 10){
+        // new game loop (endless)
+        frame = 1; score = 0;
+      }
+      roll = 1;
+      pinsDownThisFrame = 0;
+      resetPins();
+    } else {
+      // second roll: keep downed pins removed; keep flying pins off
+      roll = 2;
+      // Remove pins that are not alive (down) from play but keep them drawn gray where they landed
+      // We'll keep them in array with off=true so they don't collide further.
+      for(const p of pins){ if (!p.alive) p.off = true; }
+    }
+    pinsDownThisRoll = 0;
+    resetBall();
+    waitingSwipe = true;
+    updateHUD();
+  }
+
+  // Draw
+  function draw(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+    // Lane base
+    // gutters
+    ctx.fillStyle = '#111'; // deep gray
+    ctx.fillRect(lane.x, lane.y, lane.gutter, lane.h);
+    ctx.fillRect(lane.x + lane.w - lane.gutter, lane.y, lane.gutter, lane.h);
+    // lane wood (high-contrast)
+    ctx.fillStyle = '#222'; ctx.fillRect(lane.x + lane.gutter, lane.y, lane.w - lane.gutter*2, lane.h);
+    // lane center stripes
+    ctx.fillStyle = '#333';
+    for(let y=lane.y+40; y<lane.y+lane.h; y+=28){
+      const cx = lane.x + lane.w/2;
+      ctx.fillRect(cx-2, y, 4, 14);
+    }
+    // foul line
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(lane.x + lane.gutter, lane.y + lane.h - 90, lane.w - lane.gutter*2, 2);
+
+    // Pins
+    for(const p of pins){
+      if (p.off) continue;
+      if (p.alive && !p.flying){
+        // standing
+        ctx.fillStyle = '#fff';
+      } else if (p.flying){
+        ctx.fillStyle = '#aaa';
+      } else {
+        ctx.fillStyle = '#666';
+      }
+      ctx.beginPath(); ctx.arc(p.x, p.y, PIN_R, 0, Math.PI*2); ctx.fill();
+      if (p.alive){
+        ctx.fillStyle = '#000'; ctx.fillRect(p.x-6, p.y-1, 12, 2);
+      }
+    }
+
+    // Ball
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+    // stripe
+    ctx.fillStyle = '#000';
+    ctx.fillRect(ball.x - ball.r, ball.y - 2, ball.r*2, 4);
+
+    // Aim guide while swiping
+    if (waitingSwipe && dragStart && dragLast){
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(dragStart.x, dragStart.y); ctx.lineTo(dragLast.x, dragLast.y); ctx.stroke();
+      // arrow head
+      const dx = dragLast.x - dragStart.x, dy = dragLast.y - dragStart.y;
+      const ang = Math.atan2(dy, dx);
+      ctx.beginPath();
+      ctx.moveTo(dragLast.x, dragLast.y);
+      ctx.lineTo(dragLast.x - Math.cos(ang - 0.4)*14, dragLast.y - Math.sin(ang - 0.4)*14);
+      ctx.lineTo(dragLast.x - Math.cos(ang + 0.4)*14, dragLast.y - Math.sin(ang + 0.4)*14);
+      ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
+    }
+  }
+
+  // Init
+  resize();
+  hint.style.display = 'block';
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

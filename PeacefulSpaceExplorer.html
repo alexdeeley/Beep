@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Peaceful Space Explorer</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; height:100%; overflow:hidden; touch-action:none; }
+  canvas { display:block; width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // DPR-aware canvas
+  let W=0, H=0, DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  function resize(){
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // Utility
+  const TAU = Math.PI*2;
+  const rand = (a,b)=>a+Math.random()*(b-a);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist2=(x1,y1,x2,y2)=>{const dx=x2-x1, dy=y2-y1; return dx*dx+dy*dy;}
+  const lerp=(a,b,t)=>a+(b-a)*t;
+
+  // Input
+  const input = {
+    pointerX: W/2, pointerY: H/2,
+    active: false,
+    justPressed: false,
+    shooting: false,
+  };
+  const onPointerMove = e => {
+    const t = e.touches ? e.touches[0] : e;
+    input.pointerX = t.clientX;
+    input.pointerY = t.clientY;
+  };
+  const onPointerDown = e => {
+    input.active = true;
+    input.justPressed = true;
+    input.shooting = true;
+    onPointerMove(e);
+  };
+  const onPointerUp = e => {
+    input.active = false;
+    input.shooting = false;
+  };
+  window.addEventListener('mousemove', onPointerMove, {passive:false});
+  window.addEventListener('mousedown', onPointerDown, {passive:false});
+  window.addEventListener('mouseup', onPointerUp, {passive:false});
+  window.addEventListener('touchstart', onPointerDown, {passive:false});
+  window.addEventListener('touchmove', onPointerMove, {passive:false});
+  window.addEventListener('touchend', onPointerUp, {passive:false});
+  window.addEventListener('contextmenu', e=>e.preventDefault());
+
+  // Camera (simple screen wrap)
+  function wrap(obj){
+    if (obj.x < -obj.r) obj.x += W + obj.r*2;
+    if (obj.x > W + obj.r) obj.x -= W + obj.r*2;
+    if (obj.y < -obj.r) obj.y += H + obj.r*2;
+    if (obj.y > H + obj.r) obj.y -= H + obj.r*2;
+  }
+
+  // Player
+  const ship = {
+    x: W/2, y: H/2,
+    vx: 0, vy: 0,
+    angle: 0,
+    r: 14,
+    thrust: 0.14,
+    drag: 0.99,
+    maxSpeed: 6,
+    lastShot: 0,
+    shotDelay: 220, // ms
+  };
+
+  // Collections
+  let asteroids = [];
+  let particles = [];
+  let pickups = [];
+  let missiles = [];
+
+  // Populate field
+  function spawnAsteroid(edge=false){
+    // Large, medium, small asteroids
+    const size = Math.random();
+    const r = size<0.5 ? rand(26,40) : size<0.85 ? rand(16,26) : rand(10,16);
+    let x,y;
+    if (edge) {
+      const side = Math.floor(Math.random()*4);
+      if (side===0){ x = -r; y = rand(0,H); }
+      else if (side===1){ x = W+r; y = rand(0,H); }
+      else if (side===2){ x = rand(0,W); y = -r; }
+      else { x = rand(0,W); y = H+r; }
+    } else {
+      x = rand(0,W); y = rand(0,H);
+    }
+    const ang = rand(0,TAU);
+    const spd = rand(0.2, 1.2);
+    asteroids.push({
+      x, y, r,
+      vx: Math.cos(ang)*spd,
+      vy: Math.sin(ang)*spd,
+      rot: rand(0,TAU),
+      rotv: rand(-0.01,0.01),
+      jag: 0.5 + Math.random()*0.5,
+      segs: 10 + (r|0)%7,
+      life: 1
+    });
+  }
+
+  function spawnPickup(x,y,count=rand(3,7)|0){
+    for(let i=0;i<count;i++){
+      const a = rand(0,TAU);
+      const d = rand(0,14);
+      pickups.push({
+        x: x + Math.cos(a)*d,
+        y: y + Math.sin(a)*d,
+        vx: Math.cos(a)*rand(-0.2,0.2),
+        vy: Math.sin(a)*rand(-0.2,0.2),
+        r: rand(3,5),
+        wob: rand(0,TAU),
+        alive: true
+      });
+    }
+  }
+
+  function boom(x,y,mag=1, count=24){
+    for(let i=0;i<count;i++){
+      const a = rand(0,TAU);
+      const sp = rand(0.5, 3.0)*mag;
+      particles.push({
+        x, y,
+        vx: Math.cos(a)*sp,
+        vy: Math.sin(a)*sp,
+        life: rand(0.6,1.2),
+        r: rand(1,3)*mag,
+      });
+    }
+  }
+
+  function splitAsteroid(a){
+    if (a.r > 24){
+      const n = 2 + (Math.random()<0.3?1:0);
+      for (let i=0;i<n;i++){
+        asteroids.push({
+          x: a.x + rand(-6,6),
+          y: a.y + rand(-6,6),
+          r: a.r * (0.55 + rand(-0.05,0.05)),
+          vx: a.vx + rand(-0.8,0.8),
+          vy: a.vy + rand(-0.8,0.8),
+          rot: rand(0,TAU),
+          rotv: rand(-0.03,0.03),
+          jag: a.jag,
+          segs: Math.max(8, a.segs-1),
+          life: 1
+        });
+      }
+    }
+  }
+
+  // Initial field
+  for (let i=0;i<12;i++) spawnAsteroid(false);
+
+  // Game loop
+  let last = performance.now();
+  function loop(now){
+    const dt = (now - last)/1000; // seconds
+    last = now;
+    update(dt, now);
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function update(dt, nowms){
+    // Ship movement: attract towards pointer with gentle spring
+    const tx = input.pointerX, ty = input.pointerY;
+    const toAng = Math.atan2(ty - ship.y, tx - ship.x);
+    ship.angle = lerpAngle(ship.angle, toAng, 0.2);
+    const dx = tx - ship.x, dy = ty - ship.y;
+    const dist = Math.hypot(dx,dy);
+    const accel = clamp(dist * 0.0009, 0, ship.thrust);
+    ship.vx += Math.cos(ship.angle) * accel * (input.active ? 2.0 : 1.0);
+    ship.vy += Math.sin(ship.angle) * accel * (input.active ? 2.0 : 1.0);
+    // Drag and clamp
+    ship.vx *= ship.drag;
+    ship.vy *= ship.drag;
+    const spd = Math.hypot(ship.vx, ship.vy);
+    if (spd > ship.maxSpeed){
+      ship.vx *= ship.maxSpeed/spd;
+      ship.vy *= ship.maxSpeed/spd;
+    }
+    ship.x += ship.vx;
+    ship.y += ship.vy;
+    wrap(ship);
+
+    // Shooting
+    if (input.shooting && nowms - ship.lastShot > ship.shotDelay){
+      ship.lastShot = nowms;
+      const ms = {
+        x: ship.x + Math.cos(ship.angle)*ship.r,
+        y: ship.y + Math.sin(ship.angle)*ship.r,
+        vx: ship.vx + Math.cos(ship.angle)*9.0,
+        vy: ship.vy + Math.sin(ship.angle)*9.0,
+        r: 6,
+        life: 2.2,
+        smoke: 0
+      };
+      missiles.push(ms);
+    }
+
+    // Update missiles
+    for (let i=missiles.length-1;i>=0;i--){
+      const m = missiles[i];
+      m.x += m.vx;
+      m.y += m.vy;
+      m.life -= dt;
+      m.smoke += dt;
+      wrap(m);
+      // smoke particles
+      if (m.smoke > 0.04){
+        m.smoke = 0;
+        particles.push({ x:m.x, y:m.y, vx:rand(-0.2,0.2), vy:rand(-0.2,0.2), life:rand(0.3,0.6), r:1.2 });
+      }
+      if (m.life <= 0){
+        boom(m.x, m.y, 0.7, 16);
+        missiles.splice(i,1);
+      }
+    }
+
+    // Update asteroids
+    for (let i=asteroids.length-1;i>=0;i--){
+      const a = asteroids[i];
+      a.x += a.vx;
+      a.y += a.vy;
+      a.rot += a.rotv;
+      wrap(a);
+    }
+
+    // Missile-asteroid collisions
+    for (let i=missiles.length-1;i>=0;i--){
+      const m = missiles[i];
+      for (let j=asteroids.length-1;j>=0;j--){
+        const a = asteroids[j];
+        const rsum = m.r + a.r;
+        if (dist2(m.x,m.y,a.x,a.y) < rsum*rsum){
+          // Explosion
+          boom(a.x, a.y, clamp(a.r/20, 0.8, 2.0), 24 + (a.r|0));
+          spawnPickup(a.x, a.y, (a.r/4)|0);
+          splitAsteroid(a);
+          asteroids.splice(j,1);
+          missiles.splice(i,1);
+          break;
+        }
+      }
+    }
+
+    // Keep asteroid count healthy
+    if (asteroids.length < 10 && Math.random() < 0.02){
+      spawnAsteroid(true);
+    }
+
+    // Pickups update (magnet to ship)
+    for (let i=pickups.length-1;i>=0;i--){
+      const p = pickups[i];
+      p.wob += dt*4;
+      const attractR = 120;
+      const d2 = dist2(p.x,p.y,ship.x,ship.y);
+      if (d2 < attractR*attractR){
+        const d = Math.sqrt(d2) + 0.0001;
+        const ax = (ship.x - p.x) / d;
+        const ay = (ship.y - p.y) / d;
+        const pull = lerp(1.2, 4.0, clamp(1 - d/attractR, 0, 1));
+        p.vx += ax * pull * dt;
+        p.vy += ay * pull * dt;
+      }
+      p.vx *= 0.98; p.vy *= 0.98;
+      p.x += p.vx; p.y += p.vy;
+      wrap(p);
+      // Collect
+      if (d2 < (ship.r*ship.r)){
+        pickups.splice(i,1);
+        boom(ship.x, ship.y, 0.4, 8);
+      }
+    }
+
+    // Particles
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i,1);
+    }
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // Starfield subtle
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+    // Distant stars
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    for (let i=0;i<40;i++){
+      const x = (i*97 % W);
+      const y = (i*57 % H);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.restore();
+
+    // Draw pickups (glowing orbs)
+    ctx.save();
+    for (const p of pickups){
+      const pulse = (Math.sin(p.wob)+1)*0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r + pulse*1.5, 0, TAU);
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 0.08 + pulse*0.1;
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    // Draw asteroids (white wireframe)
+    ctx.save();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    for (const a of asteroids){
+      ctx.beginPath();
+      const n = a.segs|0;
+      for (let i=0;i<=n;i++){
+        const t = (i/n)*TAU;
+        const rr = a.r * (1 - a.jag*0.3 + Math.sin(t*3 + a.rot)*a.jag*0.2 + Math.cos(t*2 + a.rot)*a.jag*0.15);
+        const x = a.x + Math.cos(t + a.rot)*rr;
+        const y = a.y + Math.sin(t + a.rot)*rr;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Draw missiles
+    ctx.save();
+    for (const m of missiles){
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, TAU);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Draw particles
+    ctx.save();
+    ctx.fillStyle = 'white';
+    for (const p of particles){
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.fillRect(p.x, p.y, p.r, p.r);
+    }
+    ctx.globalAlpha = 1; ctx.restore();
+
+    // Draw ship (simple triangle)
+    ctx.save();
+    ctx.translate(ship.x, ship.y);
+    ctx.rotate(ship.angle);
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ship.r, 0);
+    ctx.lineTo(-ship.r*0.7, ship.r*0.6);
+    ctx.lineTo(-ship.r*0.2, 0);
+    ctx.lineTo(-ship.r*0.7, -ship.r*0.6);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Thrust glow when moving
+    const spd = Math.hypot(ship.vx, ship.vy);
+    if (spd > 0.4){
+      ctx.beginPath();
+      ctx.moveTo(-ship.r*0.2, 0);
+      ctx.lineTo(-ship.r*0.7, ship.r*0.3);
+      ctx.lineTo(-ship.r*1.0 - Math.min(18, spd*6), 0);
+      ctx.lineTo(-ship.r*0.7, -ship.r*0.3);
+      ctx.closePath();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function lerpAngle(a,b,t){
+    const da = ((b - a + Math.PI*3) % (Math.PI*2)) - Math.PI;
+    return a + da * t;
+  }
+
+  // Prevent iOS rubber-band
+  document.addEventListener('touchmove', e => { if(e.touches.length>0) e.preventDefault(); }, {passive:false});
+})();
+</script>
+</body>
+</html>

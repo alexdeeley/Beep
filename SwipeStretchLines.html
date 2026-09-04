@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Swipe-Stretch Lines</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    height: 100%;
+    overflow: hidden;
+    touch-action: none; /* prevent scrolling on touch */
+  }
+  canvas { 
+    display: block; 
+    width: 100vw; 
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  const LINES = 12;
+  const LINE_WIDTH = 3; // crisp white lines
+  const STEP = 2;       // vertical sampling step in pixels
+  const RADIUS = 80;    // vertical influence radius for a swipe
+  const SIGMA = 36;     // gaussian sigma for falloff
+  const BREAK_THRESH = 2.2; // gradient threshold to trigger fuzzing
+  const FUZZ_DENSITY = 0.35; // probability factor for fuzz specks
+  const FUZZ_SPREAD = 6;     // horizontal spread (px) for fuzz specks
+
+  let W = 0, H = 0;
+  let baseXs = [];
+  let disp = null;       // Float32Array of length H (device pixels)
+  let grad = null;       // gradient magnitude per y (for breaking)
+
+  function resize() {
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+
+    W = canvas.width;
+    H = canvas.height;
+
+    // recompute base line positions
+    baseXs = [];
+    const spacing = W / (LINES + 1);
+    for (let i = 1; i <= LINES; i++) {
+      baseXs.push(Math.floor(i * spacing));
+    }
+
+    // resize displacement & gradient
+    const oldDisp = disp;
+    disp = new Float32Array(H);
+    grad = new Float32Array(H);
+    // if old exists, copy overlap to preserve distortions across resize
+    if (oldDisp) {
+      const n = Math.min(oldDisp.length, disp.length);
+      for (let i = 0; i < n; i++) disp[i] = oldDisp[i];
+    }
+  }
+
+  function addDisplacement(centerY_css, amount_css) {
+    // convert CSS coords to device pixels
+    const cy = Math.floor(centerY_css * DPR);
+    const amt = amount_css * DPR;
+
+    const r = Math.floor(RADIUS * DPR);
+    const twoSigma2 = 2 * (SIGMA * DPR) * (SIGMA * DPR);
+
+    const y0 = Math.max(0, cy - r);
+    const y1 = Math.min(H - 1, cy + r);
+    for (let y = y0; y <= y1; y++) {
+      const dy = y - cy;
+      const w = Math.exp(-(dy * dy) / twoSigma2);
+      disp[y] += amt * w;
+    }
+    // update gradients locally for breaking test
+    const g0 = Math.max(1, y0);
+    const g1 = Math.min(H - 1, y1);
+    for (let y = g0; y <= g1; y++) {
+      grad[y] = Math.abs(disp[y] - disp[y - 1]);
+    }
+  }
+
+  // input handling
+  let isDown = false;
+  let lastX = 0, lastY = 0;
+
+  function onPointerDown(e) {
+    isDown = true;
+    const rect = canvas.getBoundingClientRect();
+    lastX = (e.clientX - rect.left);
+    lastY = (e.clientY - rect.top);
+  }
+
+  function onPointerMove(e) {
+    if (!isDown) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const dx = x - lastX;
+    // Add displacement centered at current Y, proportional to dx
+    addDisplacement(y, dx);
+    lastX = x;
+    lastY = y;
+    e.preventDefault();
+  }
+
+  function onPointerUp() {
+    isDown = false;
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp, { passive: true });
+  window.addEventListener('pointercancel', onPointerUp, { passive: true });
+  window.addEventListener('resize', resize);
+  resize();
+
+  function draw() {
+    // clear to black
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.lineWidth = Math.max(1, Math.floor(LINE_WIDTH * DPR));
+    ctx.strokeStyle = '#fff';
+    ctx.lineCap = 'butt';
+
+    // draw each line as a vertical polyline with horizontal offsets from disp[y]
+    for (let i = 0; i < baseXs.length; i++) {
+      const bx = baseXs[i];
+      ctx.beginPath();
+      let first = true;
+      for (let y = 0; y < H; y += STEP) {
+        const x = bx + disp[y];
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+
+    // fuzzing pass: add white noise specks around breaking zones
+    // scan in blocks for performance
+    const block = Math.max(2, STEP);
+    for (let y = 1; y < H; y += block) {
+      if (grad[y] > BREAK_THRESH * DPR) {
+        // For each line, spawn a few specks near its distorted x
+        for (let i = 0; i < baseXs.length; i++) {
+          const bx = baseXs[i] + disp[y];
+          // probabilistic specks
+          if (Math.random() < FUZZ_DENSITY) {
+            const fx = bx + (Math.random() * 2 - 1) * (FUZZ_SPREAD * DPR);
+            const fy = y + (Math.random() * 2 - 1) * (block * 0.75);
+            // draw tiny speck
+            ctx.fillStyle = '#fff';
+            ctx.globalAlpha = 0.85;
+            ctx.fillRect((fx|0), (fy|0), 1, 1);
+            ctx.globalAlpha = 1.0;
+          }
+        }
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+})();
+</script>
+</body>
+</html>

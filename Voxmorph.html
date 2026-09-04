@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOXMORPH</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=VT323&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #04060a;
+  --surface: #080c14;
+  --border: #0d1a2e;
+  --active: #00e5ff;
+  --active2: #ff006e;
+  --active3: #aaff00;
+  --dim: #0a1628;
+  --text: #4a7a9b;
+  --text-bright: #8ab4cc;
+  --glow: rgba(0,229,255,0.15);
+}
+
+html, body { min-height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'VT323', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes flicker {
+  0%,100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.96; }
+  94% { opacity: 1; }
+  96% { opacity: 0.98; }
+}
+body { animation: flicker 8s infinite; }
+
+header { text-align: center; margin-bottom: 24px; }
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(32px, 6vw, 56px);
+  letter-spacing: clamp(6px, 2vw, 12px);
+  color: var(--active);
+  text-shadow: 0 0 10px var(--active), 0 0 40px rgba(0,229,255,0.3), 0 0 80px rgba(0,229,255,0.1);
+  position: relative;
+}
+.logo::after {
+  content: 'VOXMORPH';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  color: var(--active2);
+  opacity: 0.4;
+  clip-path: inset(30% 0 40% 0);
+}
+.tagline { font-size: 16px; letter-spacing: 6px; color: #1a3a50; margin-top: 4px; }
+
+.mic-zone { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; }
+.mic-btn {
+  width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--active);
+  background: transparent; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center;
+  font-size: 32px; transition: all 0.2s; box-shadow: 0 0 20px rgba(0,229,255,0.1), inset 0 0 20px rgba(0,229,255,0.05);
+  touch-action: manipulation;
+}
+.mic-btn:hover { box-shadow: 0 0 30px rgba(0,229,255,0.3), inset 0 0 20px rgba(0,229,255,0.1); }
+.mic-btn.active { border-color: var(--active2); box-shadow: 0 0 30px rgba(255,0,110,0.4), inset 0 0 20px rgba(255,0,110,0.1); animation: pulse-ring 1.5s ease-out infinite; }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(255,0,110,0.4), inset 0 0 20px rgba(255,0,110,0.1); }
+  70% { box-shadow: 0 0 0 20px rgba(255,0,110,0), inset 0 0 20px rgba(255,0,110,0.1); }
+  100% { box-shadow: 0 0 0 0 rgba(255,0,110,0), inset 0 0 20px rgba(255,0,110,0.1); }
+}
+.mic-label { font-size: 13px; letter-spacing: 4px; color: var(--text); }
+.mic-label.live { color: var(--active2); }
+
+.viz-container { width: min(600px, 100%); margin-bottom: 20px; border: 1px solid var(--border); background: var(--surface); padding: 2px; position: relative; }
+.viz-label { position: absolute; top: 6px; left: 8px; font-size: 11px; letter-spacing: 3px; color: #0d2a3a; z-index: 1; }
+#vizCanvas { display: block; width: 100%; height: 80px; }
+
+.presets-label { font-size: 13px; letter-spacing: 5px; color: #1a3a50; margin-bottom: 10px; text-align: center; }
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: min(640px, 100%); margin-bottom: 24px; }
+@media (max-width: 480px) { .presets { grid-template-columns: repeat(2, 1fr); } }
+.preset-btn {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'VT323', monospace;
+  font-size: 15px; letter-spacing: 2px; padding: 14px 8px 10px; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; transition: all 0.15s; position: relative; overflow: hidden; touch-action: manipulation;
+}
+.preset-btn::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.15s; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--pc) 15%, transparent), transparent 70%); }
+.preset-btn:hover::before, .preset-btn.selected::before { opacity: 1; }
+.preset-btn .icon, .preset-btn .name, .preset-btn .desc { position: relative; z-index: 1; }
+.preset-btn .icon { font-size: 26px; line-height: 1; }
+.preset-btn .name { font-size: 13px; letter-spacing: 2px; }
+.preset-btn .desc { font-size: 10px; color: #1a3a50; letter-spacing: 1px; }
+.preset-btn[data-preset="normal"] { --pc: #4a7a9b; }
+.preset-btn[data-preset="chipmunk"] { --pc: #aaff00; }
+.preset-btn[data-preset="deep"] { --pc: #ff6b35; }
+.preset-btn[data-preset="robot"] { --pc: #00e5ff; }
+.preset-btn[data-preset="alien"] { --pc: #bf5af2; }
+.preset-btn[data-preset="cave"] { --pc: #7ec8e3; }
+.preset-btn[data-preset="telephone"] { --pc: #ffd60a; }
+.preset-btn[data-preset="demon"] { --pc: #ff006e; }
+.preset-btn:hover, .preset-btn.selected { border-color: var(--pc); color: var(--pc); }
+.preset-btn.selected { box-shadow: 0 0 15px color-mix(in srgb, var(--pc) 30%, transparent); }
+.preset-btn.selected .desc { color: color-mix(in srgb, var(--pc) 50%, transparent); }
+
+.controls-panel { width: min(640px, 100%); border: 1px solid var(--border); background: var(--surface); padding: 16px; margin-bottom: 16px; }
+.controls-header { font-size: 11px; letter-spacing: 4px; color: #1a3a50; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.controls-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+@media (max-width: 480px) { .sliders { grid-template-columns: 1fr; } }
+.slider-row { display: flex; flex-direction: column; gap: 4px; }
+.slider-row label { font-size: 11px; letter-spacing: 3px; color: #1a3a50; display: flex; justify-content: space-between; }
+.slider-row label span { color: var(--active); }
+input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: var(--dim); border-radius: 0; cursor: pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: var(--active); cursor: pointer; border-radius: 0; box-shadow: 0 0 6px var(--active); }
+input[type=range]::-moz-range-thumb { width: 22px; height: 22px; background: var(--active); cursor: pointer; border-radius: 0; border: none; box-shadow: 0 0 6px var(--active); }
+.status { font-size: 12px; letter-spacing: 3px; color: #0d2a3a; text-align: center; padding-bottom: 20px; }
+.status.error { color: var(--active2); }
+.status.ok { color: var(--active3); }
+
+#permScreen {
+  position: fixed; inset: 0; background: #04060a; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; font-family: 'VT323', monospace; padding: 24px; text-align: center;
+}
+.perm-title { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(28px,5vw,48px); letter-spacing: 10px; color: #00e5ff; text-shadow: 0 0 20px #00e5ff, 0 0 60px rgba(0,229,255,0.3); }
+.perm-tag { font-size: 13px; letter-spacing: 5px; color: #1a3a50; margin-bottom: 8px; }
+.perm-copy { font-size: 16px; letter-spacing: 3px; color: #4a7a9b; max-width: 320px; line-height: 1.6; }
+#permBtn {
+  margin-top: 8px; background: transparent; border: 2px solid #00e5ff; color: #00e5ff; font-family: 'Orbitron', sans-serif; font-size: 14px;
+  font-weight: 700; letter-spacing: 5px; padding: 16px 40px; cursor: pointer; box-shadow: 0 0 30px rgba(0,229,255,0.2), inset 0 0 20px rgba(0,229,255,0.05);
+  transition: all 0.15s; touch-action: manipulation;
+}
+#permBtn:hover { background: rgba(0,229,255,0.1); box-shadow: 0 0 50px rgba(0,229,255,0.4), inset 0 0 20px rgba(0,229,255,0.1); }
+#permStatus { font-size: 12px; letter-spacing: 3px; color: #1a3a50; min-height: 20px; max-width: 360px; }
+.perm-foot { font-size: 11px; letter-spacing: 2px; color: #0d2a3a; max-width: 340px; line-height: 1.8; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<header>
+  <div class="logo">VOXMORPH</div>
+  <div class="tagline">LIVE VOICE TRANSFORMER</div>
+</header>
+
+<div id="permScreen">
+  <div class="perm-title">VOXMORPH</div>
+  <div class="perm-tag">LIVE VOICE TRANSFORMER</div>
+  <div class="perm-copy">THIS APP NEEDS MICROPHONE ACCESS<br>TO PROCESS YOUR VOICE IN REAL TIME</div>
+  <button id="permBtn">🎤 GRANT MIC ACCESS</button>
+  <div id="permStatus"></div>
+  <div class="perm-foot">USE HEADPHONES TO AVOID FEEDBACK<br>YOUR AUDIO NEVER LEAVES YOUR DEVICE<br>NOTE: MIC ACCESS REQUIRES HTTPS OR LOCAL FILE PERMISSION</div>
+</div>
+
+<div class="mic-zone">
+  <button class="mic-btn" id="micBtn">🎤</button>
+  <div class="mic-label" id="micLabel">MIC OFF — TAP TO START</div>
+</div>
+
+<div class="viz-container">
+  <div class="viz-label">WAVEFORM</div>
+  <canvas id="vizCanvas" width="600" height="80"></canvas>
+</div>
+
+<div class="presets-label">SELECT VOICE</div>
+<div class="presets">
+  <button class="preset-btn selected" data-preset="normal"><span class="icon">😐</span><span class="name">NORMAL</span><span class="desc">no effect</span></button>
+  <button class="preset-btn" data-preset="chipmunk"><span class="icon">🐿️</span><span class="name">CHIPMUNK</span><span class="desc">high + fast</span></button>
+  <button class="preset-btn" data-preset="deep"><span class="icon">🦁</span><span class="name">TITAN</span><span class="desc">deep + slow</span></button>
+  <button class="preset-btn" data-preset="robot"><span class="icon">🤖</span><span class="name">ROBOT</span><span class="desc">ring mod</span></button>
+  <button class="preset-btn" data-preset="alien"><span class="icon">👾</span><span class="name">ALIEN</span><span class="desc">pitch wobble</span></button>
+  <button class="preset-btn" data-preset="cave"><span class="icon">🏔️</span><span class="name">CAVE</span><span class="desc">big reverb</span></button>
+  <button class="preset-btn" data-preset="telephone"><span class="icon">📞</span><span class="name">TELEPHONE</span><span class="desc">bandpass lo-fi</span></button>
+  <button class="preset-btn" data-preset="demon"><span class="icon">😈</span><span class="name">DEMON</span><span class="desc">low + distort</span></button>
+</div>
+
+<div class="controls-panel">
+  <div class="controls-header">MANUAL CONTROLS</div>
+  <div class="sliders">
+    <div class="slider-row"><label>PITCH <span id="pitchVal">0 st</span></label><input type="range" id="pitchSlider" min="-24" max="24" step="0.5" value="0"></div>
+    <div class="slider-row"><label>FORMANT <span id="formantVal">1.0x</span></label><input type="range" id="formantSlider" min="0.5" max="2.5" step="0.05" value="1.0"></div>
+    <div class="slider-row"><label>REVERB <span id="reverbVal">0%</span></label><input type="range" id="reverbSlider" min="0" max="1" step="0.01" value="0"></div>
+    <div class="slider-row"><label>DISTORT <span id="distortVal">0%</span></label><input type="range" id="distortSlider" min="0" max="1" step="0.01" value="0"></div>
+    <div class="slider-row"><label>RING MOD <span id="ringVal">0 Hz</span></label><input type="range" id="ringSlider" min="0" max="200" step="1" value="0"></div>
+    <div class="slider-row"><label>LO-CUT <span id="hpVal">0 Hz</span></label><input type="range" id="hpSlider" min="0" max="2000" step="10" value="0"></div>
+    <div class="slider-row"><label>HI-CUT <span id="lpVal">20k Hz</span></label><input type="range" id="lpSlider" min="500" max="20000" step="100" value="20000"></div>
+    <div class="slider-row"><label>DELAY <span id="delayVal">0%</span></label><input type="range" id="delaySlider" min="0" max="0.9" step="0.01" value="0"></div>
+  </div>
+</div>
+
+<div class="status" id="status">AWAITING MIC ACCESS</div>
+
+<script>
+let audioCtx = null;
+let micSource = null;
+let stream = null;
+let isLive = false;
+let animFrame = null;
+let analyser = null;
+let pitchShifter = null;
+let inputGain, hpFilter, lpFilter, distorter, ringGain, ringOsc, ringDepthGain,
+    delayNode, delayFeedback, delayWetGain, reverbNode, reverbWetGain,
+    outputGain, dryGain, wetMerger;
+
+let params = { pitch: 0, formant: 1.0, reverb: 0, distort: 0, ring: 0, hp: 0, lp: 20000, delay: 0 };
+const PRESETS = {
+  normal:    { pitch: 0,   formant: 1.0, reverb: 0,   distort: 0,   ring: 0,  hp: 0,   lp: 20000, delay: 0   },
+  chipmunk:  { pitch: 12,  formant: 1.8, reverb: 0.1, distort: 0,   ring: 0,  hp: 0,   lp: 20000, delay: 0   },
+  deep:      { pitch: -10, formant: 0.6, reverb: 0.3, distort: 0,   ring: 0,  hp: 0,   lp: 20000, delay: 0   },
+  robot:     { pitch: 0,   formant: 1.0, reverb: 0.2, distort: 0.2, ring: 80, hp: 0,   lp: 20000, delay: 0   },
+  alien:     { pitch: 7,   formant: 1.4, reverb: 0.3, distort: 0.1, ring: 40, hp: 0,   lp: 20000, delay: 0.2 },
+  cave:      { pitch: -2,  formant: 0.9, reverb: 0.9, distort: 0,   ring: 0,  hp: 0,   lp: 20000, delay: 0.4 },
+  telephone: { pitch: 0,   formant: 1.0, reverb: 0,   distort: 0.3, ring: 0,  hp: 800, lp: 3400,  delay: 0   },
+  demon:     { pitch: -14, formant: 0.55,reverb: 0.5, distort: 0.6, ring: 30, hp: 0,   lp: 20000, delay: 0.1 }
+};
+
+class PitchShifter {
+  constructor(ctx, bufferSize = 2048) {
+    this.ctx = ctx;
+    this.bufferSize = bufferSize;
+    this.pitchRatio = 1.0;
+    this.inputBuffer = new Float32Array(bufferSize * 4);
+    this.writePos = 0;
+    this.readPos = 0;
+    this.node = ctx.createScriptProcessor(bufferSize, 1, 1);
+    this.node.onaudioprocess = e => this.process(e);
+  }
+  setPitch(semitones) { this.pitchRatio = Math.pow(2, semitones / 12); }
+  process(e) {
+    const input = e.inputBuffer.getChannelData(0);
+    const output = e.outputBuffer.getChannelData(0);
+    const len = input.length;
+    for (let i = 0; i < len; i++) {
+      this.inputBuffer[this.writePos] = input[i];
+      this.writePos = (this.writePos + 1) % this.inputBuffer.length;
+    }
+    const stride = 1.0 / this.pitchRatio;
+    for (let i = 0; i < len; i++) {
+      const readIdx = ((this.readPos + i * stride) % this.inputBuffer.length + this.inputBuffer.length) % this.inputBuffer.length;
+      const i0 = Math.floor(readIdx) % this.inputBuffer.length;
+      const i1 = (i0 + 1) % this.inputBuffer.length;
+      const frac = readIdx - Math.floor(readIdx);
+      output[i] = this.inputBuffer[i0] * (1 - frac) + this.inputBuffer[i1] * frac;
+    }
+    this.readPos = (this.readPos + len * stride) % this.inputBuffer.length;
+  }
+}
+
+function makeDistortionCurve(amount) {
+  const n = 512;
+  const curve = new Float32Array(n);
+  const k = amount * 500;
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = k ? ((Math.PI + k) * x) / (Math.PI + k * Math.abs(x)) : x;
+  }
+  return curve;
+}
+
+function buildIR(ctx, dur = 2.5, decay = 3.0) {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(rate * dur);
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+  }
+  return buf;
+}
+
+async function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  inputGain = audioCtx.createGain();
+  inputGain.gain.value = 1.0;
+  hpFilter = audioCtx.createBiquadFilter(); hpFilter.type = 'highpass'; hpFilter.frequency.value = 1;
+  lpFilter = audioCtx.createBiquadFilter(); lpFilter.type = 'lowpass'; lpFilter.frequency.value = 20000;
+  distorter = audioCtx.createWaveShaper(); distorter.curve = makeDistortionCurve(0); distorter.oversample = '4x';
+  dryGain = audioCtx.createGain(); dryGain.gain.value = 1.0;
+  outputGain = audioCtx.createGain(); outputGain.gain.value = 0.85;
+
+  delayNode = audioCtx.createDelay(1.0); delayNode.delayTime.value = 0.28;
+  delayFeedback = audioCtx.createGain(); delayFeedback.gain.value = 0.35;
+  delayWetGain = audioCtx.createGain(); delayWetGain.gain.value = 0;
+
+  reverbNode = audioCtx.createConvolver(); reverbNode.buffer = buildIR(audioCtx);
+  reverbWetGain = audioCtx.createGain(); reverbWetGain.gain.value = 0;
+
+  ringGain = audioCtx.createGain(); ringGain.gain.value = 1;
+  ringOsc = audioCtx.createOscillator(); ringOsc.type = 'sine'; ringOsc.frequency.value = 30;
+  ringDepthGain = audioCtx.createGain(); ringDepthGain.gain.value = 0;
+  ringOsc.connect(ringDepthGain);
+  ringDepthGain.connect(ringGain.gain);
+  ringOsc.start();
+
+  analyser = audioCtx.createAnalyser(); analyser.fftSize = 512;
+  pitchShifter = new PitchShifter(audioCtx, 2048);
+
+  inputGain.connect(pitchShifter.node);
+  pitchShifter.node.connect(hpFilter);
+  hpFilter.connect(lpFilter);
+  lpFilter.connect(distorter);
+
+  distorter.connect(dryGain);
+  dryGain.connect(outputGain);
+  distorter.connect(delayNode);
+  delayNode.connect(delayFeedback);
+  delayFeedback.connect(delayNode);
+  delayNode.connect(delayWetGain);
+  delayWetGain.connect(outputGain);
+  distorter.connect(reverbNode);
+  reverbNode.connect(reverbWetGain);
+  reverbWetGain.connect(outputGain);
+
+  outputGain.connect(ringGain);
+  ringGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  applyParams();
+}
+
+function applyParams() {
+  if (pitchShifter) pitchShifter.setPitch(params.pitch);
+  if (hpFilter) hpFilter.frequency.value = Math.max(1, params.hp);
+  if (lpFilter && audioCtx) lpFilter.frequency.value = Math.min(audioCtx.sampleRate / 2 - 1, params.lp);
+  if (distorter) distorter.curve = makeDistortionCurve(params.distort);
+  if (ringOsc) ringOsc.frequency.value = Math.max(0.1, params.ring);
+  if (ringDepthGain) ringDepthGain.gain.value = params.ring > 0 ? 0.45 : 0;
+  if (delayWetGain) delayWetGain.gain.value = params.delay;
+  if (reverbWetGain) reverbWetGain.gain.value = params.reverb;
+  updateUIValues();
+}
+
+function updateUIValues() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('pitchSlider', params.pitch); set('formantSlider', params.formant); set('reverbSlider', params.reverb); set('distortSlider', params.distort);
+  set('ringSlider', params.ring); set('hpSlider', params.hp); set('lpSlider', params.lp); set('delaySlider', params.delay);
+  document.getElementById('pitchVal').textContent = (params.pitch >= 0 ? '+' : '') + Number(params.pitch).toFixed(1).replace('.0','') + ' st';
+  document.getElementById('formantVal').textContent = Number(params.formant).toFixed(2) + 'x';
+  document.getElementById('reverbVal').textContent = Math.round(params.reverb * 100) + '%';
+  document.getElementById('distortVal').textContent = Math.round(params.distort * 100) + '%';
+  document.getElementById('ringVal').textContent = params.ring + ' Hz';
+  document.getElementById('hpVal').textContent = params.hp + ' Hz';
+  document.getElementById('lpVal').textContent = params.lp >= 20000 ? '20k Hz' : params.lp + ' Hz';
+  document.getElementById('delayVal').textContent = Math.round(params.delay * 100) + '%';
+}
+
+async function startMic() {
+  try {
+    setStatus('REQUESTING MIC...', '');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Microphone API unavailable. Use Safari/Chrome over HTTPS.');
+    if (!audioCtx) await initAudio();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
+    micSource = audioCtx.createMediaStreamSource(stream);
+    micSource.connect(inputGain);
+    isLive = true;
+    document.getElementById('micBtn').classList.add('active');
+    document.getElementById('micBtn').textContent = '🔴';
+    document.getElementById('micLabel').textContent = 'LIVE — TAP TO STOP';
+    document.getElementById('micLabel').classList.add('live');
+    setStatus('LIVE — AUDIO PROCESSING ACTIVE', 'ok');
+    drawViz();
+    return true;
+  } catch (err) {
+    setStatus('MIC ERROR: ' + err.message, 'error');
+    console.error(err);
+    return false;
+  }
+}
+
+function stopMic() {
+  if (micSource) { try { micSource.disconnect(); } catch(e) {} micSource = null; }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  if (animFrame) cancelAnimationFrame(animFrame);
+  isLive = false;
+  document.getElementById('micBtn').classList.remove('active');
+  document.getElementById('micBtn').textContent = '🎤';
+  document.getElementById('micLabel').textContent = 'MIC OFF — TAP TO START';
+  document.getElementById('micLabel').classList.remove('live');
+  setStatus('MIC DEACTIVATED', '');
+  clearViz();
+}
+
+function clearViz() {
+  const canvas = document.getElementById('vizCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#080c14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawViz() {
+  const canvas = document.getElementById('vizCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const buf = new Uint8Array(analyser.fftSize);
+  function frame() {
+    if (!isLive) return;
+    animFrame = requestAnimationFrame(frame);
+    analyser.getByteTimeDomainData(buf);
+    ctx.fillStyle = 'rgba(8,12,20,0.4)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / buf.length;
+    for (let i = 0; i < buf.length; i++) {
+      const y = (buf[i] / 255) * H;
+      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(13,26,46,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  }
+  frame();
+}
+
+const permScreen = document.getElementById('permScreen');
+const permBtn = document.getElementById('permBtn');
+const permStatus = document.getElementById('permStatus');
+
+permBtn.addEventListener('click', async () => {
+  permBtn.textContent = '⏳ REQUESTING...';
+  permBtn.disabled = true;
+  permStatus.style.color = '#4a7a9b';
+  permStatus.textContent = 'WAITING FOR BROWSER PERMISSION PROMPT...';
+  const ok = await startMic();
+  if (ok) {
+    permScreen.style.transition = 'opacity 0.4s';
+    permScreen.style.opacity = '0';
+    setTimeout(() => permScreen.style.display = 'none', 400);
+  } else {
+    permBtn.disabled = false;
+    permBtn.textContent = '🎤 TRY AGAIN';
+    permStatus.style.color = '#ff006e';
+    permStatus.textContent = 'MIC FAILED — CHECK BROWSER MIC PERMISSION AND USE HTTPS';
+  }
+});
+
+document.getElementById('micBtn').addEventListener('click', async () => {
+  if (isLive) stopMic();
+  else await startMic();
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const p = PRESETS[btn.dataset.preset];
+    if (p) { Object.assign(params, p); applyParams(); }
+  });
+});
+
+const sliderMap = [
+  ['pitchSlider', 'pitch'], ['formantSlider', 'formant'], ['reverbSlider', 'reverb'], ['distortSlider', 'distort'],
+  ['ringSlider', 'ring'], ['hpSlider', 'hp'], ['lpSlider', 'lp'], ['delaySlider', 'delay']
+];
+sliderMap.forEach(([id, key]) => {
+  document.getElementById(id).addEventListener('input', e => {
+    params[key] = parseFloat(e.target.value);
+    applyParams();
+  });
+});
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (cls ? ' ' + cls : '');
+}
+clearViz();
+</script>
+</body>
+</html>

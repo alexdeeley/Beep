@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Wobbly Checkerboard — Swirl + Red Shift</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  // Offscreens
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d', { alpha: false });
+  const tint = document.createElement('canvas');
+  const tctx = tint.getContext('2d', { alpha: true });
+
+  // Grid
+  let cols = 28, rows = 20;
+
+  const TAU = 3000; // ~3s decay per tap
+  let impulses = [];
+  let lastDir = [0.7,0.3];
+  let phase = 0;
+
+  function resize(){
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width  = Math.floor(window.innerWidth  * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    off.width = canvas.width; off.height = canvas.height;
+    tint.width = canvas.width; tint.height = canvas.height;
+    cols = Math.max(16, Math.floor(canvas.width/(30*dpr)));
+    rows = Math.max(12, Math.floor(canvas.height/(30*dpr)));
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function impulseFromGesture(dx, dy){
+    const mag = Math.hypot(dx, dy);
+    const nx = mag>1 ? dx/mag : lastDir[0];
+    const ny = mag>1 ? dy/mag : lastDir[1];
+    lastDir = [nx, ny];
+    const m = Math.min(2.0, (mag || 60)/120); // taps ~0.5, big swipes up to 2
+    impulses.push({ t0: performance.now(), mag: m, dir: [nx, ny] });
+  }
+
+  // Input
+  let dragging=false, x0=0, y0=0;
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    dragging = true; x0=t.clientX; y0=t.clientY;
+  }, {passive:false});
+  canvas.addEventListener('touchend', e => {
+    const t = e.changedTouches[0];
+    if(!dragging) return; dragging=false;
+    impulseFromGesture(t.clientX-x0, t.clientY-y0);
+  });
+  canvas.addEventListener('mousedown', e => { dragging=true; x0=e.clientX; y0=e.clientY; });
+  window.addEventListener('mouseup', e => { if(!dragging) return; dragging=false; impulseFromGesture(e.clientX-x0, e.clientY-y0); });
+  canvas.addEventListener('click', ()=>impulseFromGesture(0.001,0.001));
+
+  // Helpers
+  function energy(now){
+    let E=0; const keep=[];
+    for(const im of impulses){
+      const dt = now - im.t0;
+      if (dt < 8000){
+        const w = Math.exp(-dt/TAU);
+        E += im.mag*w; keep.push(im);
+      }
+    }
+    impulses = keep;
+    return E;
+  }
+
+  function drawBase(width, height, E){
+    octx.clearRect(0,0,width,height);
+    octx.save();
+    octx.scale(dpr,dpr);
+    const cw = width/(cols*dpr), ch = height/(rows*dpr);
+    const cx = (width/dpr)/2, cy = (height/dpr)/2;
+    // strength increases with energy
+    const swirl = Math.min(3.5, 0.8*E + 0.35*E*E); // radians at r=1
+    const rippleAmp = 0.012 + 0.02*Math.tanh(E);
+    const rippleFreq = 8 + 10*Math.min(1,E);
+    phase += 0.02 + Math.min(0.5, 0.14*E);
+
+    function warp(x, y){ // x,y in 0..1
+      // move to center (in -1..1 approx)
+      const X = x* (width/dpr);
+      const Y = y* (height/dpr);
+      const u = (X - cx) / Math.min(cx,cy);
+      const v = (Y - cy) / Math.min(cx,cy);
+      const r = Math.hypot(u,v);
+      let theta = Math.atan2(v,u);
+
+      // swirl: angle offset proportional to radius and energy
+      theta += swirl * (r*r) * (0.6 + 0.4*Math.sin(phase*0.7 + r*rippleFreq));
+
+      // radial ripple
+      const dr = rippleAmp * Math.sin(r*rippleFreq - phase*2.0) * (1 + 0.6*E);
+
+      const rp = r + dr;
+      const ux = Math.cos(theta)*rp;
+      const vy = Math.sin(theta)*rp;
+
+      // back to pixels
+      const PX = ux * Math.min(cx,cy) + cx;
+      const PY = vy * Math.min(cx,cy) + cy;
+      return [PX, PY];
+    }
+
+    for(let j=0;j<rows;j++){
+      for(let i=0;i<cols;i++){
+        const p0 = warp(i/cols,     j/rows);
+        const p1 = warp((i+1)/cols, j/rows);
+        const p2 = warp((i+1)/cols, (j+1)/rows);
+        const p3 = warp(i/cols,     (j+1)/rows);
+        octx.beginPath();
+        octx.moveTo(p0[0],p0[1]);
+        octx.lineTo(p1[0],p1[1]);
+        octx.lineTo(p2[0],p2[1]);
+        octx.lineTo(p3[0],p3[1]);
+        octx.closePath();
+        octx.fillStyle = ((i+j)&1)===0 ? '#fff' : '#000';
+        octx.fill();
+        octx.lineWidth = 1.5;
+        octx.strokeStyle = '#000';
+        octx.stroke();
+      }
+    }
+    octx.restore();
+  }
+
+  function drawTintedCopy(dx, dy, color, blurPx, alpha){
+    // Render tinted version into 'tint' canvas then draw
+    tctx.clearRect(0,0,tint.width,tint.height);
+    tctx.filter = blurPx>0 ? `blur(${blurPx}px)` : 'none';
+    tctx.globalAlpha = 1;
+    tctx.drawImage(off, dx, dy);
+    // tint
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = color;
+    tctx.fillRect(0,0,tint.width,tint.height);
+    tctx.globalCompositeOperation = 'source-over';
+    // draw to main
+    ctx.filter = 'none';
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(tint, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  function render(){
+    const W = canvas.width, H = canvas.height;
+    const now = performance.now();
+    const E = energy(now);
+
+    drawBase(W, H, E);
+
+    // Start clean
+    ctx.clearRect(0,0,W,H);
+
+    // Chromatic aberration / red shift:
+    // left: cool blur outline shifted left; center: original; right: red outline shifted right
+    const shift = Math.floor((2 + 10*Math.min(1,E)) * dpr); // pixels (device)
+    const blurLeft = 2 * dpr * (1 + 0.5*Math.min(1,E));
+    const blurRight = 0.5 * dpr;
+
+    // Left bluish blurred outline
+    drawTintedCopy(-shift, 0, 'rgba(150,200,255,1)', blurLeft, Math.min(0.35, 0.12+0.08*E));
+
+    // Main image
+    ctx.drawImage(off, 0, 0);
+
+    // Right red outline
+    drawTintedCopy(shift, 0, 'rgba(255,70,70,1)', blurRight, Math.min(0.4, 0.18+0.1*E));
+
+    requestAnimationFrame(render);
+  }
+  render();
+
+  // Auto motion on load
+  setTimeout(()=>impulses.push({t0:performance.now(), mag:0.6, dir:[0.7,0.3]}), 250);
+})();
+</script>
+</body>
+</html>

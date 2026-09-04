@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>OP ART</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; width: 100vw; height: 100vh; cursor: none; }
+  canvas { display: block; }
+  #hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.25);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 2s;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div id="hint">swipe to distort</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const hint = document.getElementById('hint');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+let time = 0;
+let mx = 0, my = 0;
+let vx = 0, vy = 0;
+let smx = 0, smy = 0;
+let speed = 0;
+let mode = 0;
+let hintVisible = true;
+
+function getXY(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return [(t.clientX / W) * 2 - 1, (t.clientY / H) * 2 - 1];
+}
+
+let lastX = 0, lastY = 0;
+function onMove(e) {
+  e.preventDefault();
+  const [x, y] = getXY(e);
+  vx = x - lastX; vy = y - lastY;
+  lastX = x; lastY = y;
+  mx = x; my = y;
+  speed = Math.sqrt(vx*vx + vy*vy);
+  if (hintVisible) { hint.style.opacity = '0'; hintVisible = false; }
+}
+
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchstart', e => { const [x,y] = getXY(e); lastX=x; lastY=y; mx=x; my=y; }, { passive: true });
+
+let smoothSpeed = 0;
+let distortion = 0;
+let energy = 0;
+const ENERGY_DECAY_SECONDS = 30;
+const ENERGY_DECAY = Math.exp(-0.016 / ENERGY_DECAY_SECONDS);
+const MIN_SPEEDUP = 0.35;
+const MAX_SPEEDUP = 2.2;
+
+function modeConcentricWaves(i, n, t, sx, sy, sp) {
+  const baseY = (i / n) * H;
+  const dist = Math.sqrt(Math.pow((i/n - (sy*0.5+0.5)), 2));
+  const wave = Math.sin(dist * 30 - t * 3) * sp * 40;
+  const pinch = Math.cos((i/n - (sx*0.5+0.5)) * Math.PI * 6 - t) * sp * 15;
+  return baseY + wave + pinch;
+}
+
+function modeMoire(i, n, t, sx, sy, sp) {
+  const baseY = (i / n) * H;
+  const f1 = Math.sin(i * 0.4 + t * 0.8 + sx * 4) * 20;
+  const f2 = Math.sin(i * 0.41 + t * 0.82 + sy * 4) * 20;
+  return baseY + (f1 + f2) * (1 + sp * 3);
+}
+
+function modeVortex(i, n, t, sx, sy, sp) {
+  const ni = i / n;
+  const baseY = ni * H;
+  const dist = Math.abs(ni - (sy * 0.5 + 0.5));
+  const twist = Math.sin(dist * 20 - t * 2 + sx * 6) * dist * sp * 80;
+  return baseY + twist;
+}
+
+function modeShockwave(i, n, t, sx, sy, sp) {
+  const ni = i / n;
+  const cy = sy * 0.5 + 0.5;
+  const dist = Math.abs(ni - cy);
+  const shock = Math.sin(dist * 40 - t * 5) * Math.exp(-dist * 6) * sp * 60;
+  const base = Math.sin(ni * Math.PI * n * 0.1 + t) * 2;
+  return ni * H + shock + base;
+}
+
+function modeFolding(i, n, t, sx, sy, sp) {
+  const ni = i / n;
+  const baseY = ni * H;
+  const fold = Math.sin(ni * Math.PI * 8 + sx * 5 + t * 0.5) *
+               Math.cos(ni * Math.PI * 3 - sy * 3 + t * 0.3) * sp * 50;
+  const drift = Math.sin(t * 0.2 + ni * 2) * 8;
+  return baseY + fold + drift;
+}
+
+const patternFns = [modeConcentricWaves, modeMoire, modeVortex, modeShockwave, modeFolding];
+let modeTimer = 0;
+
+function draw() {
+  smx += (mx - smx) * 0.08;
+  smy += (my - smy) * 0.08;
+  smoothSpeed += (speed * 40 - smoothSpeed) * 0.05;
+
+  energy = Math.max(energy * ENERGY_DECAY, Math.min(smoothSpeed, 1));
+  distortion += (energy - distortion) * 0.02;
+
+  speed *= 0.85;
+
+  const timeScale = MIN_SPEEDUP + (MAX_SPEEDUP - MIN_SPEEDUP) * distortion;
+  time += 0.016 * timeScale;
+  modeTimer += 0.016 * Math.max(0.6, timeScale * 0.8);
+
+  if (modeTimer > 8 && energy > 0.05) {
+    mode = (mode + 1) % patternFns.length;
+    modeTimer = 0;
+  }
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const N = Math.floor(H / 8);
+  const fn = patternFns[mode];
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < N; i++) {
+    const y = (i / N) * H;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  const segments = 120;
+  for (let i = 0; i < N; i++) {
+    const ni = i / N;
+    const distFromTouch = Math.sqrt(
+      Math.pow(ni - (smy * 0.5 + 0.5), 2) +
+      Math.pow(0.5 - (smx * 0.5 + 0.5), 2)
+    );
+    const alpha = 0.15 + distortion * 0.7 * Math.exp(-distFromTouch * 3);
+    const lineW = 0.6 + distortion * 1.2 * Math.exp(-distFromTouch * 2);
+
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = lineW;
+    ctx.beginPath();
+
+    for (let s = 0; s <= segments; s++) {
+      const x = (s / segments) * W;
+      const nx = s / segments;
+      const localSx = smx + Math.sin(ni * Math.PI * 4 + time) * distortion * 0.3;
+      const localSy = smy + Math.cos(nx * Math.PI * 4 + time) * distortion * 0.3;
+      const y = fn(i, N, time, localSx, localSy, distortion);
+      const xOffset = Math.sin(ni * 20 + time * 0.5 + nx * 5) * distortion * 8;
+      if (s === 0) ctx.moveTo(x + xOffset, y);
+      else ctx.lineTo(x + xOffset, y);
+    }
+    ctx.stroke();
+  }
+
+  const VN = Math.floor(W / 8);
+  for (let i = 0; i < VN; i++) {
+    const ni = i / VN;
+    const distFromTouch = Math.abs(ni - (smx * 0.5 + 0.5));
+    const alpha = distortion * 0.3 * Math.exp(-distFromTouch * 5);
+    if (alpha < 0.01) continue;
+
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    for (let s = 0; s <= 80; s++) {
+      const y = (s / 80) * H;
+      const x = (ni * W) + Math.sin(s * 0.3 + time * 2 + ni * 15) * distortion * 12;
+      if (s === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  if (distortion > 0.4) {
+    const cx = (smx * 0.5 + 0.5) * W;
+    const cy = (smy * 0.5 + 0.5) * H;
+    const rays = 36;
+    for (let r = 0; r < rays; r++) {
+      const angle = (r / rays) * Math.PI * 2 + time * 0.3;
+      const len = 80 + Math.sin(r * 7 + time * 3) * 40;
+      const alpha = (distortion - 0.4) * 0.6;
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * len * distortion, cy + Math.sin(angle) * len * distortion);
+      ctx.stroke();
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>

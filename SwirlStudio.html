@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SWIRL STUDIO</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: 'Share Tech Mono', monospace;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#canvas {
+  flex: 1;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+#ui {
+  background: #000;
+  border-top: 1px solid #333;
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 4px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.btn-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+button {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid #444;
+  background: #111;
+  color: #fff;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  border-radius: 0;
+}
+
+button:active { background: #fff; color: #000; }
+button.active { background: #fff; color: #000; border-color: #fff; }
+
+.sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+
+.slider-group label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #888;
+  margin-bottom: 3px;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: #333;
+  outline: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 0;
+  border: none;
+}
+
+input[type=range]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 0;
+  border: none;
+}
+
+.mode-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inv-btn {
+  border-color: #666;
+}
+
+@media (max-width: 520px) {
+  .title-row { align-items: flex-start; }
+  .title { font-size: 20px; letter-spacing: 3px; }
+  button { padding: 7px 8px; }
+  .sliders { grid-template-columns: 1fr; gap: 7px; }
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div class="title-row">
+    <div class="title">SWIRL STUDIO</div>
+    <div class="btn-row">
+      <button id="animBtn">ANIMATE</button>
+      <button id="invertBtn" class="inv-btn">INVERT</button>
+      <button id="saveBtn">SAVE</button>
+    </div>
+  </div>
+
+  <div class="mode-row">
+    <button class="mode-btn active" data-mode="swirl">SWIRL</button>
+    <button class="mode-btn" data-mode="radial">RADIAL</button>
+    <button class="mode-btn" data-mode="wave">WAVE</button>
+    <button class="mode-btn" data-mode="vortex">VORTEX</button>
+    <button class="mode-btn" data-mode="zebra">ZEBRA</button>
+    <button class="mode-btn" data-mode="hypno">HYPNO</button>
+  </div>
+
+  <div class="sliders">
+    <div class="slider-group">
+      <label><span>LINES</span><span id="linesVal">40</span></label>
+      <input type="range" id="lines" min="5" max="120" value="40">
+    </div>
+    <div class="slider-group">
+      <label><span>TWIST</span><span id="twistVal">3.0</span></label>
+      <input type="range" id="twist" min="0" max="100" value="30">
+    </div>
+    <div class="slider-group">
+      <label><span>ZOOM</span><span id="zoomVal">1.0</span></label>
+      <input type="range" id="zoom" min="10" max="300" value="100">
+    </div>
+    <div class="slider-group">
+      <label><span>MORPH</span><span id="morphVal">0.0</span></label>
+      <input type="range" id="morph" min="0" max="100" value="0">
+    </div>
+    <div class="slider-group">
+      <label><span>SPEED</span><span id="speedVal">1.0</span></label>
+      <input type="range" id="speed" min="1" max="100" value="20">
+    </div>
+    <div class="slider-group">
+      <label><span>THICKNESS</span><span id="thickVal">0.5</span></label>
+      <input type="range" id="thick" min="10" max="90" value="50">
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+let W, H, cx, cy;
+let mode = 'swirl';
+let animating = false;
+let inverted = false;
+let animFrame = 0;
+let rafId = null;
+let centerX = 0.5, centerY = 0.5;
+let isDragging = false;
+let dpr = 1;
+
+const sliders = [
+  ['lines', 'linesVal', v => Math.round(v)],
+  ['twist', 'twistVal', v => (v / 10).toFixed(1)],
+  ['zoom', 'zoomVal', v => (v / 100).toFixed(1)],
+  ['morph', 'morphVal', v => (v / 100).toFixed(2)],
+  ['speed', 'speedVal', v => (v / 20).toFixed(1)],
+  ['thick', 'thickVal', v => (v / 100).toFixed(2)],
+];
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.max(1, Math.floor(rect.width * dpr));
+  H = Math.max(1, Math.floor(rect.height * dpr));
+  canvas.width = W;
+  canvas.height = H;
+  cx = W * centerX;
+  cy = H * centerY;
+  draw(animFrame);
+}
+
+function getParams() {
+  return {
+    lines: parseInt(document.getElementById('lines').value, 10),
+    twist: parseFloat(document.getElementById('twist').value) / 10,
+    zoom: parseFloat(document.getElementById('zoom').value) / 100,
+    morph: parseFloat(document.getElementById('morph').value) / 100,
+    speed: parseFloat(document.getElementById('speed').value) / 20,
+    thick: parseFloat(document.getElementById('thick').value) / 100,
+  };
+}
+
+function draw(t = 0) {
+  if (!W || !H) return;
+  const p = getParams();
+
+  const imgData = ctx.createImageData(W, H);
+  const data = imgData.data;
+
+  const fgR = inverted ? 0 : 255;
+  const fgG = inverted ? 0 : 255;
+  const fgB = inverted ? 0 : 255;
+  const bgR = inverted ? 255 : 0;
+  const bgG = inverted ? 255 : 0;
+  const bgB = inverted ? 255 : 0;
+
+  cx = W * centerX;
+  cy = H * centerY;
+  const scale = Math.min(W, H) * 0.5 * p.zoom;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = (x - cx) / scale;
+      const dy = (y - cy) / scale;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      const a = Math.atan2(dy, dx);
+
+      let val;
+
+      switch (mode) {
+        case 'swirl': {
+          const swirlAngle = a + p.twist * r + t;
+          const morphWave = p.morph * Math.sin(r * 3 - t * 2);
+          val = (swirlAngle + morphWave) / (Math.PI * 2 / p.lines);
+          break;
+        }
+        case 'radial': {
+          const radAngle = a + t + p.morph * Math.sin(r * p.twist * 2);
+          val = radAngle / (Math.PI * 2 / p.lines);
+          break;
+        }
+        case 'wave': {
+          const wx = dx + p.twist * Math.sin(dy * 3 + t) + p.morph * Math.sin(r * 4 - t);
+          val = wx * p.lines * 0.5;
+          break;
+        }
+        case 'vortex': {
+          const logR = Math.log(r + 0.001);
+          const vAngle = a + p.twist * logR + t;
+          const m = p.morph * Math.sin(r * 2 + t);
+          val = (vAngle + m) / (Math.PI * 2 / p.lines);
+          break;
+        }
+        case 'zebra': {
+          const zr = r + p.morph * Math.sin(a * p.lines * 0.5 + t);
+          val = (zr + p.twist * Math.sin(a * 2 + t) * 0.3) * p.lines * 0.5;
+          break;
+        }
+        case 'hypno':
+        default: {
+          const h1 = Math.sin(r * p.lines * 0.5 - t) * (1 - p.morph);
+          const h2 = Math.sin(a * p.lines * 0.5 + t) * p.morph;
+          const h3 = p.twist * Math.sin(r * 2 + a * 3 + t) * 0.5;
+          val = (h1 + h2 + h3) * p.lines;
+          break;
+        }
+      }
+
+      const frac = ((val % 1) + 1) % 1;
+      const on = frac < p.thick;
+      const idx = (y * W + x) * 4;
+      data[idx] = on ? fgR : bgR;
+      data[idx + 1] = on ? fgG : bgG;
+      data[idx + 2] = on ? fgB : bgB;
+      data[idx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4 * dpr, 0, Math.PI * 2);
+  ctx.fillStyle = inverted ? '#000' : '#fff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2 * dpr, 0, Math.PI * 2);
+  ctx.fillStyle = inverted ? '#fff' : '#000';
+  ctx.fill();
+}
+
+function animate() {
+  animFrame += 0.02 * getParams().speed;
+  draw(animFrame);
+  if (animating) rafId = requestAnimationFrame(animate);
+}
+
+const driftState = {};
+
+function initDrift() {
+  sliders.forEach(([id]) => {
+    const el = document.getElementById(id);
+    const min = parseFloat(el.min);
+    const max = parseFloat(el.max);
+    driftState[id] = {
+      target: parseFloat(el.value),
+      nextChange: 1000 + Math.random() * 3000,
+      lastTime: performance.now(),
+      min,
+      max,
+    };
+  });
+}
+
+function updateDrift(now) {
+  sliders.forEach(([id, valId, fmt]) => {
+    const el = document.getElementById(id);
+    const val = document.getElementById(valId);
+    const s = driftState[id];
+    const dt = now - s.lastTime;
+    s.lastTime = now;
+
+    s.nextChange -= dt;
+    if (s.nextChange <= 0) {
+      const current = parseFloat(el.value);
+      const range = s.max - s.min;
+      const center = s.min + range * 0.5;
+      const pull = ((center - current) / range) * 0.3;
+      const step = (Math.random() - 0.5 + pull) * range * 0.35;
+      s.target = Math.min(s.max, Math.max(s.min, current + step));
+      s.nextChange = 1500 + Math.random() * 5000;
+    }
+
+    const current = parseFloat(el.value);
+    const diff = s.target - current;
+    if (Math.abs(diff) > 0.05) {
+      const newVal = current + diff * Math.min(1, dt / 900);
+      el.value = newVal;
+      val.textContent = fmt(newVal);
+    }
+  });
+}
+
+function driftLoop(now) {
+  updateDrift(now);
+  if (!animating) draw(animFrame);
+  requestAnimationFrame(driftLoop);
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    if (!animating) draw(animFrame);
+  });
+});
+
+document.getElementById('animBtn').addEventListener('click', function() {
+  animating = !animating;
+  this.classList.toggle('active', animating);
+  this.textContent = animating ? 'STOP' : 'ANIMATE';
+  if (animating) animate();
+  else {
+    cancelAnimationFrame(rafId);
+    draw(animFrame);
+  }
+});
+
+document.getElementById('invertBtn').addEventListener('click', function() {
+  inverted = !inverted;
+  this.classList.toggle('active', inverted);
+  if (!animating) draw(animFrame);
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = `swirl-${mode}-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+sliders.forEach(([id, valId, fmt]) => {
+  const el = document.getElementById(id);
+  const val = document.getElementById(valId);
+  el.addEventListener('input', () => {
+    val.textContent = fmt(parseFloat(el.value));
+    driftState[id].target = parseFloat(el.value);
+    if (!animating) draw(animFrame);
+  });
+});
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return {
+    x: Math.min(1, Math.max(0, (touch.clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (touch.clientY - rect.top) / rect.height)),
+  };
+}
+
+function setCenterFromEvent(e) {
+  const pos = getPos(e);
+  centerX = pos.x;
+  centerY = pos.y;
+  if (!animating) draw(animFrame);
+}
+
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  setCenterFromEvent(e);
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  setCenterFromEvent(e);
+});
+window.addEventListener('mouseup', () => isDragging = false);
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  isDragging = true;
+  setCenterFromEvent(e);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!isDragging) return;
+  setCenterFromEvent(e);
+}, { passive: false });
+canvas.addEventListener('touchend', () => isDragging = false);
+canvas.addEventListener('touchcancel', () => isDragging = false);
+
+window.addEventListener('resize', resize);
+initDrift();
+requestAnimationFrame(driftLoop);
+resize();
+</script>
+
+</body>
+</html>

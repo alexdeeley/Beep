@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>OpSeed Studio — seed‑driven op art from your refs</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; color: #fff; overflow: hidden;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  #ui {
+    position: fixed; left: 0; right: 0; top: 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    align-items: center; padding: 8px 10px 6px 10px;
+    background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+  #ui > * { font-size: 14px; }
+  .btn, select, input[type="text"] {
+    background: #111; color: #fff; border: 1px solid #444; border-radius: 8px;
+    padding: 8px 10px; outline: none;
+  }
+  .btn { cursor: pointer; }
+  .btn:active { transform: translateY(1px); }
+  input[type="file"] { display: none; }
+  label.file { cursor: pointer; border: 1px dashed #555; padding: 8px 10px; border-radius: 8px; }
+  #seed { width: 180px; }
+  #canvas { position: absolute; inset: 0; }
+  #toast {
+    position: fixed; right: 10px; bottom: 12px; background: rgba(0,0,0,.7);
+    border: 1px solid #333; border-radius: 8px; padding: 8px 10px; font-size: 12px;
+    opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  .spacer { flex: 1 1 auto; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; }
+  .small { font-size: 12px; opacity: .85; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <label class="file" title="Reference 1">
+    <input id="file1" type="file" accept="image/*">
+    Ref 1
+  </label>
+  <label class="file" title="Reference 2">
+    <input id="file2" type="file" accept="image/*">
+    Ref 2
+  </label>
+  <label class="file" title="Reference 3">
+    <input id="file3" type="file" accept="image/*">
+    Ref 3
+  </label>
+
+  <span class="small">Mode</span>
+  <select id="mode">
+    <option value="lines">Moiré Lines</option>
+    <option value="checker">Checker Warp</option>
+    <option value="circles">Shimmer Circles</option>
+    <option value="tri">Tight Triangles</option>
+  </select>
+
+  <span class="small">Seed</span>
+  <input id="seed" type="text" placeholder="type a seed…" value="alex-ops">
+  <button id="random" class="btn" title="Randomize seed">🎲</button>
+  <label class="toggle">
+    <input id="useRefs" type="checkbox" checked>
+    <span class="small">Use refs (palette + flow)</span>
+  </label>
+
+  <span class="spacer"></span>
+
+  <button id="gen" class="btn">Generate</button>
+  <button id="save" class="btn">Save PNG</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W=0, H=0;
+  function resize(){
+    const b = document.body.getBoundingClientRect();
+    W = Math.floor(b.width * dpr);
+    H = Math.floor(b.height * dpr);
+    canvas.width = W; canvas.height = H;
+  }
+  resize(); addEventListener('resize', () => { resize(); render(); });
+
+  // UI
+  const fileEls = [document.getElementById('file1'), document.getElementById('file2'), document.getElementById('file3')];
+  const modeEl = document.getElementById('mode');
+  const seedEl = document.getElementById('seed');
+  const randomBtn = document.getElementById('random');
+  const genBtn = document.getElementById('gen');
+  const saveBtn = document.getElementById('save');
+  const useRefsEl = document.getElementById('useRefs');
+  const toast = document.getElementById('toast');
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove('show'), 1600);
+  }
+
+  // Seeded RNG helpers
+  function xfnv1a(str){
+    for(var i=0,h=2166136261>>>0;i<str.length;i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+    }
+    return function(){ return h>>>0; };
+  }
+  function mulberry32(a){
+    return function(){
+      var t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+  }
+  function seededRngFromSeedString(s){
+    const seed = xfnv1a(s)();
+    return mulberry32(seed);
+  }
+  function hashStrToInt(s){
+    let h = 0;
+    for (let i=0; i<s.length; i++) {
+      h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+    }
+    return (h>>>0);
+  }
+
+  // Simple value noise (tileable-ish) for warps
+  function makeValueNoise(rng, size=256){
+    const grid = new Float32Array(size*size);
+    for(let i=0;i<grid.length;i++) grid[i]=rng();
+    function sample(x,y){
+      const xi = Math.floor(x)%size, yi = Math.floor(y)%size;
+      const xf = x - Math.floor(x), yf = y - Math.floor(y);
+      const i00 = ((yi*size)+xi)%grid.length;
+      const i10 = ((yi*size)+((xi+1)%size))%grid.length;
+      const i01 = ((((yi+1)%size)*size)+xi)%grid.length;
+      const i11 = ((((yi+1)%size)*size)+((xi+1)%size))%grid.length;
+      const v00 = grid[i00], v10 = grid[i10], v01 = grid[i01], v11 = grid[i11];
+      const u = xf*xf*(3-2*xf);
+      const v = yf*yf*(3-2*yf);
+      const a = v00*(1-u)+v10*u;
+      const b = v01*(1-u)+v11*u;
+      return a*(1-v)+b*v;
+    }
+    return { sample };
+  }
+
+  // Load refs, extract palette + flow (edge/orientation field)
+  const refs = [null,null,null];
+  fileEls.forEach((el,idx)=>{
+    el.addEventListener('change', async (e)=>{
+      if (!el.files || !el.files[0]) return;
+      const img = new Image();
+      img.onload = ()=>{ refs[idx]=img; showToast(`Loaded Ref ${idx+1}`); if (useRefsEl.checked) render(); };
+      img.src = URL.createObjectURL(el.files[0]);
+    });
+  });
+
+  function avg(a,b){ return (a+b)/2; }
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function rgb2hsl(r,g,b){
+    r/=255; g/=255; b/=255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h,s,l = (max+min)/2;
+    if (max === min) { h = s = 0; }
+    else {
+      const d = max-min;
+      s = l>0.5 ? d/(2-max-min) : d/(max+min);
+      switch(max){
+        case r: h = (g-b)/d + (g<b?6:0); break;
+        case g: h = (b-r)/d + 2; break;
+        case b: h = (r-g)/d + 4; break;
+      }
+      h/=6;
+    }
+    return [h,s,l];
+  }
+  function hsl2rgb(h,s,l){
+    function hue2rgb(p, q, t){
+      if(t<0) t+=1; if(t>1) t-=1;
+      if(t<1/6) return p + (q-p)*6*t;
+      if(t<1/2) return q;
+      if(t<2/3) return p + (q-p)*(2/3 - t)*6;
+      return p;
+    }
+    let r,g,b;
+    if(s===0){ r=g=b=l; }
+    else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+  }
+
+  function extractPaletteFromImages(maxColors=6){
+    // If no refs, return a default white-on-black palette
+    const imgs = refs.filter(Boolean);
+    if (imgs.length===0){
+      return [
+        [255,255,255], [220,220,220], [180,180,180],
+        [120,120,120], [80,80,80], [40,40,40]
+      ];
+    }
+    // Sample pixels from each image (downscaled)
+    const tmp = document.createElement('canvas');
+    const tctx = tmp.getContext('2d');
+    let samples = [];
+    imgs.forEach(img=>{
+      const w = 160, h = Math.round(img.height * (w/img.width));
+      tmp.width = w; tmp.height = h;
+      tctx.drawImage(img, 0,0,w,h);
+      const data = tctx.getImageData(0,0,w,h).data;
+      for (let i=0; i<data.length; i+=4*4){ // sample every 4th pixel
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const [h0,s0,l0] = rgb2hsl(r,g,b);
+        samples.push({h:h0,s:s0,l:l0});
+      }
+    });
+    // Quantize hue into 24 bins, choose top bins by saturation*contrast
+    const bins = Array.from({length:24},()=>({w:0, hs:0, ls:0, smax:0, lsum:0}));
+    for (const px of samples){
+      const k = Math.floor(px.h*24) % 24;
+      const w = 0.5 + px.s*0.8 + Math.abs(px.l-0.5)*0.6;
+      const b = bins[k];
+      b.w += w; b.hs += px.h*w; b.ls += px.l*w;
+      b.smax = Math.max(b.smax, px.s);
+      b.lsum += px.l;
+    }
+    const ranked = bins.map((b,i)=>({i,score:b.w + b.smax*1.2}))
+                       .sort((a,b)=>b.score-a.score)
+                       .slice(0,maxColors);
+    const palette = [];
+    ranked.forEach(({i})=>{
+      const b = bins[i];
+      if (b.w<=0) return;
+      const h = (b.hs / b.w) % 1;
+      let l = b.ls / b.w;
+      let s = clamp01(0.5 + (0.8 * (b.smax||0.4)));
+      // Build a couple shades around this hue
+      const shades = [ -0.18, -0.05, 0.12 ];
+      shades.forEach(delta=>{
+        const [r,g,b2] = hsl2rgb(h, s, clamp01(l+delta));
+        palette.push([r,g,b2]);
+      });
+    });
+    // Ensure white/near-white present for contrast
+    palette.push([240,240,240]);
+    return palette.slice(0, Math.max(6, maxColors));
+  }
+
+  function computeFlowFieldFromImages(size=128){
+    const imgs = refs.filter(Boolean);
+    const tmp = document.createElement('canvas');
+    const tctx = tmp.getContext('2d');
+    const field = { w:size, h:size, vx:new Float32Array(size*size), vy:new Float32Array(size*size), mag:new Float32Array(size*size) };
+    if (imgs.length===0) return field;
+    tmp.width = size; tmp.height = size;
+    // Average gradients from all refs
+    const gxK = [-1,0,1,-2,0,2,-1,0,1];
+    const gyK = [-1,-2,-1,0,0,0,1,2,1];
+    imgs.forEach(img=>{
+      const ratio = Math.min(size/img.width, size/img.height);
+      const w = Math.max(1, Math.min(size, Math.round(img.width*ratio)));
+      const h = Math.max(1, Math.min(size, Math.round(img.height*ratio)));
+      tctx.clearRect(0,0,size,size);
+      // center
+      const ox = (size - w)>>1, oy = (size - h)>>1;
+      tctx.drawImage(img, ox, oy, w, h);
+      const d = tctx.getImageData(0,0,size,size).data;
+      // grayscale
+      const g = new Float32Array(size*size);
+      for (let i=0,j=0;i<d.length;i+=4,j++){
+        g[j] = (0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]) / 255;
+      }
+      // sobel
+      for (let y=1;y<size-1;y++){
+        for (let x=1;x<size-1;x++){
+          let sx=0, sy=0, idx=0;
+          for (let ky=-1; ky<=1; ky++){
+            for (let kx=-1; kx<=1; kx++){
+              const v = g[(y+ky)*size + (x+kx)];
+              sx += v * gxK[idx];
+              sy += v * gyK[idx];
+              idx++;
+            }
+          }
+          const i0 = y*size + x;
+          field.vx[i0] += sx;
+          field.vy[i0] += sy;
+        }
+      }
+    });
+    // Normalize & compute magnitude
+    for (let i=0;i<field.vx.length;i++){
+      const sx = field.vx[i], sy=field.vy[i];
+      const m = Math.hypot(sx,sy);
+      field.mag[i] = m;
+      if (m>1e-6){ field.vx[i]/=m; field.vy[i]/=m; }
+    }
+    return field;
+  }
+
+  // Renderers
+  function renderMoiréLines(rng, palette, flow){
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    // layered line fields with slight offsets
+    const layers = 5;
+    const noise = makeValueNoise(rng);
+    for (let L=0; L<layers; L++){
+      const hueShift = rng()*360;
+      const col = palette[(L*2) % palette.length];
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = Math.max(1, 1.0 * dpr);
+      const spacing = 12 * dpr * (0.7 + L*0.08);
+      const ang = rng()*Math.PI*2;
+      const dirx = Math.cos(ang), diry=Math.sin(ang);
+      // draw parallel lines across canvas
+      const diag = Math.hypot(W,H);
+      const count = Math.ceil(diag/spacing) + 2;
+      for (let i=-count;i<count;i++){
+        ctx.beginPath();
+        // base point
+        const bx = W/2 + (-diag + i*spacing) * (-diry);
+        const by = H/2 + (-diag + i*spacing) * ( dirx);
+        // march along the line
+        let first=true;
+        for (let t=-diag; t<=diag; t+= 8*dpr){
+          let x = bx + t*dirx;
+          let y = by + t*diry;
+          // warp via noise + flow (if any)
+          const nx = noise.sample(x*0.005, y*0.005) - 0.5;
+          const ny = noise.sample((x+1000)*0.005, (y-700)*0.005) - 0.5;
+          x += nx * 18 * (1+L*0.2);
+          y += ny * 18 * (1+L*0.2);
+          if (useRefsEl.checked && flow){
+            const fx = Math.floor((x/W)*flow.w) | 0;
+            const fy = Math.floor((y/H)*flow.h) | 0;
+            const ii = Math.max(0, Math.min(flow.w-1, fx)) + Math.max(0, Math.min(flow.h-1, fy))*flow.w;
+            const mag = flow.mag[ii];
+            x += flow.vx[ii] * (mag * 6); // push along edges
+            y += flow.vy[ii] * (mag * 6);
+          }
+          if (first){ ctx.moveTo(x,y); first=false; } else { ctx.lineTo(x,y); }
+        }
+        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},0.7)`;
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function renderChecker(rng, palette, flow){
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    const noise = makeValueNoise(rng);
+    const cell = Math.max(10*dpr, Math.min(W,H)/32);
+    const cols = Math.ceil(W/cell), rows = Math.ceil(H/cell);
+    for (let y=0;y<rows;y++){
+      for (let x=0;x<cols;x++){
+        // base grid center
+        let cx = x*cell + cell/2;
+        let cy = y*cell + cell/2;
+        // warp
+        const nx = noise.sample(cx*0.01, cy*0.01)-0.5;
+        const ny = noise.sample((cx+1000)*0.01, (cy-700)*0.01)-0.5;
+        cx += nx * cell*0.6;
+        cy += ny * cell*0.6;
+        if (useRefsEl.checked && flow){
+          const fx = Math.floor((cx/W)*flow.w) | 0;
+          const fy = Math.floor((cy/H)*flow.h) | 0;
+          const ii = Math.max(0, Math.min(flow.w-1, fx)) + Math.max(0, Math.min(flow.h-1, fy))*flow.w;
+          const mag = flow.mag[ii];
+          cx += flow.vx[ii] * (mag * 10);
+          cy += flow.vy[ii] * (mag * 10);
+        }
+        const idx = (x+y)%2;
+        const col = palette[(idx + ((x*7+y*5)%palette.length)) % palette.length];
+        ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+        // draw distorted quad
+        const half = cell*0.7;
+        ctx.beginPath();
+        ctx.moveTo(cx-half, cy-half);
+        ctx.lineTo(cx+half, cy-half);
+        ctx.lineTo(cx+half, cy+half);
+        ctx.lineTo(cx-half, cy+half);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    // subtle overlay lines for extra moiré
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i=0;i<6;i++){
+      ctx.fillRect(0, (i/6)*H, W, 1*dpr);
+      ctx.fillRect((i/6)*W, 0, 1*dpr, H);
+    }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  }
+
+  function renderCircles(rng, palette, flow){
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    const noise = makeValueNoise(rng);
+    const spacing = Math.max(16*dpr, Math.min(W,H)/30);
+    const r = spacing * 0.45;
+    const stepX = spacing, stepY = spacing * Math.sqrt(3)/2;
+    const cols = Math.ceil(W / stepX) + 2;
+    const rows = Math.ceil(H / stepY) + 2;
+    ctx.globalCompositeOperation = 'lighter';
+    for(let row=0; row<rows; row++){
+      const y = row * stepY;
+      const offset = (row % 2) ? stepX * 0.5 : 0;
+      for(let col=0; col<cols; col++){
+        let x = col * stepX + offset;
+        let yy = y;
+        const nx = noise.sample(x*0.01, yy*0.01)-0.5;
+        const ny = noise.sample((x+900)*0.01, (yy-350)*0.01)-0.5;
+        x += nx * 14; yy += ny * 14;
+        if (useRefsEl.checked && flow){
+          const fx = Math.floor((x/W)*flow.w) | 0;
+          const fy = Math.floor((yy/H)*flow.h) | 0;
+          const ii = Math.max(0, Math.min(flow.w-1, fx)) + Math.max(0, Math.min(flow.h-1, fy))*flow.w;
+          const mag = flow.mag[ii];
+          x += flow.vx[ii] * (mag * 8);
+          yy += flow.vy[ii] * (mag * 8);
+        }
+        const colr = palette[(row*3+col*5)%palette.length];
+        const g = ctx.createRadialGradient(x,yy,0,x,yy,r*1.35);
+        g.addColorStop(0, `rgba(${colr[0]},${colr[1]},${colr[2]},0.95)`);
+        g.addColorStop(0.6, `rgba(${colr[0]},${colr[1]},${colr[2]},0.65)`);
+        g.addColorStop(1, `rgba(${colr[0]},${colr[1]},${colr[2]},0.00)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x,yy,r,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function renderTriangles(rng, palette, flow){
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    const spacing = Math.max(12*dpr, Math.min(W,H)/40);
+    const h = spacing * Math.sqrt(3)/2;
+    const cols = Math.ceil(W / spacing) + 2;
+    const rows = Math.ceil(H / h) + 2;
+    for(let row=0; row<rows; row++){
+      for(let col=0; col<cols; col++){
+        let x = col * spacing + ((row % 2) ? spacing/2 : 0);
+        let y = row * h;
+        // flow warp
+        if (useRefsEl.checked && flow){
+          const fx = Math.floor((x/W)*flow.w) | 0;
+          const fy = Math.floor((y/H)*flow.h) | 0;
+          const ii = Math.max(0, Math.min(flow.w-1, fx)) + Math.max(0, Math.min(flow.h-1, fy))*flow.w;
+          const mag = flow.mag[ii];
+          x += flow.vx[ii] * (mag * 8);
+          y += flow.vy[ii] * (mag * 8);
+        }
+        const up = (col + row) % 2 === 0;
+        const c = palette[(row*7+col*11)%palette.length];
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.beginPath();
+        if (up){
+          ctx.moveTo(x, y - h/2);
+          ctx.lineTo(x - spacing/2, y + h/2);
+          ctx.lineTo(x + spacing/2, y + h/2);
+        } else {
+          ctx.moveTo(x, y + h/2);
+          ctx.lineTo(x - spacing/2, y - h/2);
+          ctx.lineTo(x + spacing/2, y - h/2);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  function currentPalette(){
+    const rng = seededRngFromSeedString(seedEl.value || 'ops');
+    // If using refs, mix their palette with a deterministic tweak from the seed
+    let pal = extractPaletteFromImages(6);
+    // spice: rotate palette deterministically by seed
+    const shift = Math.floor(rng()*pal.length);
+    pal = pal.slice(shift).concat(pal.slice(0,shift));
+    // ensure high-contrast lead color
+    pal[0] = [255,255,255];
+    return pal;
+  }
+
+  function render(){
+    const s = seedEl.value || 'ops';
+    const rng = seededRngFromSeedString(s);
+    const pal = currentPalette();
+    const flow = useRefsEl.checked ? computeFlowFieldFromImages(128) : null;
+    const m = modeEl.value;
+    if (m === 'lines') renderMoiréLines(rng, pal, flow);
+    else if (m === 'checker') renderChecker(rng, pal, flow);
+    else if (m === 'circles') renderCircles(rng, pal, flow);
+    else renderTriangles(rng, pal, flow);
+  }
+
+  genBtn.addEventListener('click', render);
+  randomBtn.addEventListener('click', ()=>{
+    seedEl.value = 'seed-' + Math.random().toString(36).slice(2,8);
+    render();
+  });
+  saveBtn.addEventListener('click', ()=>{
+    const a = document.createElement('a');
+    a.download = `opseed-${(seedEl.value||'seed')}-${modeEl.value}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    showToast('Saved PNG');
+  });
+
+  // First paint
+  render();
+})();
+</script>
+</body>
+</html>
