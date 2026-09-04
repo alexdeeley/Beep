@@ -180,5 +180,12 @@
     "description": "A guess-the-emoji quiz — watch a mystery emoji peek out from behind a shifting cover, use hints, and pick the right answer across three modes and 15 rounds.",
     "category": "Games",
     "path": "MaisieEmojiGuess.html"
+  },
+  {
+    "id": "emoji-scramble",
+    "name": "Emoji Scramble",
+    "description": "A distorted-symbol quiz — the emoji is scrambled through glitchy visual effects and it's up to you to guess it, across eight modes with streaks, hints, and a discoverable collection.",
+    "category": "Games",
+    "path": "EmojiScramble.html"
   }
 ]
