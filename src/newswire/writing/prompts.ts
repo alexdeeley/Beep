@@ -3,16 +3,19 @@ import type { MusicItemType, ReleaseFormat, VerifiedFact } from "../types.js";
 
 /**
  * One music item, grounded in the facts the verification stage
- * independently confirmed - never invented by the writer. Only singles
- * and news items ever reach the writer: album/EP/compilation releases
- * are held back for the weekly WEEKLY NEW RELEASES roundup instead (see
- * runNewswireCycle.ts and weeklyRoundup/postWeeklyRoundup.ts).
+ * independently confirmed - never invented by the writer. Only singles,
+ * news, and priority-artist albums ever reach the writer: ordinary
+ * album/EP/compilation releases are held back for the weekly WEEKLY NEW
+ * RELEASES roundup instead (see runNewswireCycle.ts and
+ * weeklyRoundup/postWeeklyRoundup.ts).
  */
 export interface WritingItem {
   musicItemId: number;
   artistName: string;
   itemType: MusicItemType;
   releaseFormat: ReleaseFormat | null;
+  /** True for an artist in editorial-focus.json's priorityArtists - gets the "HUGE NEWS:" label instead of the normal flat tone. */
+  isPriorityArtist: boolean;
   headline: string;
   facts: VerifiedFact[];
 }
@@ -50,6 +53,10 @@ const GOOD_BAD_EXAMPLES = [
   'GOOD (single): "NEW SINGLE ALERT: Bon Iver released a new single, \\"Speyside,\\" today."',
   'BAD (stating an UNCONFIRMED claim as settled fact): "The band is breaking up."',
   'GOOD (hedges appropriately): "Sources close to the band say a breakup is imminent, though nothing has been officially confirmed."',
+  'GOOD (priority artist, required label, one exclamation point is fine): "HUGE NEWS: Dave Matthews Band announced a new album, ' +
+    '\\"Walk Around the Moon II,\\" out November 14! It\'s their first new studio record since 2023."',
+  'BAD (priority artist but adds an unsupported superlative beyond the allowed enthusiasm): "HUGE NEWS: the greatest band of all time ' +
+    'is BACK with their most essential album ever!!!"',
 ].join("\n");
 
 export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number): string {
@@ -82,6 +89,12 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
     'When an item is marked (single), the post text MUST begin with the literal label "NEW SINGLE ALERT: " (that exact capitalization',
     "and punctuation, followed immediately by the rest of the announcement in the same sentence) - this is a fixed editorial label, not",
     "something to reword or omit. Items marked (news) never get this or any other label - just the plain wire-style sentence.",
+    'When an item is marked (priority), it is from an artist the reader specifically wants amplified treatment for. The post text MUST',
+    'begin with the literal label "HUGE NEWS: " instead of any other label (this replaces NEW SINGLE ALERT if the item is also a single)',
+    "- exact capitalization, followed immediately by the rest of the announcement. For a (priority) item only, you may write with more",
+    "enthusiasm than usual (one exclamation point is fine, e.g. after a release date), but this is a tone exception, not a facts",
+    "exception: still state ONLY what the given facts actually say - never invent a superlative ('legendary', 'greatest', 'essential') or",
+    "any claim about quality or significance that isn't directly supported.",
     "If an item's facts are too thin or contradictory to write a genuine, accurate sentence about, omit that item from posts rather",
     "than padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts",
     "array - staying silent is a normal, expected, and preferred outcome over posting something thin or padded.",
@@ -96,7 +109,7 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
 export function buildWritingUserPrompt(items: WritingItem[]): string {
   const blocks = items.map((item, i) => {
     const factLines = item.facts.map((f) => `  - [${f.factLabel}] ${f.claim}`).join("\n");
-    const kind = item.releaseFormat ?? item.itemType;
+    const kind = [item.releaseFormat ?? item.itemType, item.isPriorityArtist ? "priority" : null].filter(Boolean).join(", ");
     return [`ITEM ${i} (${item.artistName}, ${kind}):`, `Headline: ${item.headline}`, "Facts:", factLines].join("\n");
   });
   return blocks.join("\n\n");

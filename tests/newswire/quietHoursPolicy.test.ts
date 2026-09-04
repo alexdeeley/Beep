@@ -8,6 +8,7 @@ function makeFocus(overrides: Partial<EditorialFocus["quietHours"]> = {}): Edito
     neutralityNote: "",
     sourceTiers: ["primary_official", "general_news"],
     entertainmentTradePublishers: [],
+    priorityArtists: [],
     quietHours: {
       timezone: "America/Los_Angeles",
       slowStartHourLocal: 23,

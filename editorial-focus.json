@@ -28,6 +28,10 @@
     "Uproxx"
   ],
 
+  // Names here must match watched-artists.txt exactly. These get VIP treatment: always post immediately
+  // (never held for quiet hours or the Friday album roundup) and always labeled HUGE NEWS.
+  "priorityArtists": ["Dave Matthews", "Dave Matthews Band"],
+
   "quietHours": {
     "timezone": "America/Los_Angeles",
     "slowStartHourLocal": 23,

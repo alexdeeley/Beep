@@ -768,3 +768,31 @@ still catch anything discovered since (see `db/weeklyRoundupRepo.ts` for
 the once-per-Friday idempotency guard). `npm run news:status` reports
 `albumsQueuedForRoundup` (how many are waiting) and `lastRoundup` (the
 date and item count of the most recent one actually posted).
+
+### 18.8 VIP artists: `priorityArtists`
+
+`editorial-focus.json`'s `priorityArtists` array (names must match
+`watched-artists.txt` exactly) gets an artist special treatment across
+every stage that matters:
+
+- **Never held back.** An album/EP/compilation from a priority artist
+  skips the Friday-only roundup entirely and joins the immediate queue
+  like a single would (`runNewswireCycle.ts` merges it in and excludes it
+  from `postWeeklyRoundup.ts`'s pool).
+- **Jumps the queue.** Priority items are placed at the front of the
+  FIFO pool before ranking, so they're never waiting behind older,
+  unrelated items when `NEWS_MAX_POSTS_PER_EDITION` caps an edition.
+- **Always clears quiet hours.** Their `importanceScore` is forced to the
+  maximum (1.0), guaranteeing a `normal` quiet-hours outcome regardless
+  of the hour - see §18.4.
+- **A different voice, on purpose.** The writer labels the post
+  `HUGE NEWS:` instead of the usual flat wire tone (or instead of
+  `NEW SINGLE ALERT:` if it's also a single), and is allowed one
+  exclamation point - the one deliberate exception to this pipeline's
+  otherwise strict no-hype voice. It's still bound by the same rule as
+  everything else, though: only the given verified facts, never an
+  invented superlative.
+
+This is a small, deliberately manual list (repo ships with
+`["Dave Matthews", "Dave Matthews Band"]`) - add any artist name you want
+VIP treatment for, exactly as it appears in `watched-artists.txt`.

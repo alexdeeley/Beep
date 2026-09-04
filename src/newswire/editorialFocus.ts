@@ -24,6 +24,8 @@ export const editorialFocusSchema = z.object({
   sourceTiers: z.array(z.string().min(1)).min(1),
   /** Named music-trade publishers (Pitchfork, Billboard, ...) recognized as the "entertainment_trade" tier during verification. */
   entertainmentTradePublishers: z.array(z.string()).default([]),
+  /** Artist names (must match watched-artists.txt exactly) that get VIP treatment: always bypass quiet hours, jump the queue ahead of everything else, never held for the Friday album roundup, and get a "HUGE NEWS:" label instead of the normal flat wire tone. */
+  priorityArtists: z.array(z.string().min(1)).default([]),
   quietHours: quietHoursSchema,
   voice: voiceSchema,
 });

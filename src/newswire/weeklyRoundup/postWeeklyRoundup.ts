@@ -57,7 +57,10 @@ export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
   const roundupDate = dt.toISODate()!;
   if (hasRoundupForDate(ctx.db, roundupDate)) return;
 
-  const items = getUnpostedAlbumItems(ctx.db);
+  // Priority artists (editorial-focus.json's priorityArtists) never wait for the roundup - the hourly
+  // orchestrator posts their albums immediately instead (see runNewswireCycle.ts), so exclude them here.
+  const priorityNames = new Set(ctx.editorialFocus.priorityArtists);
+  const items = getUnpostedAlbumItems(ctx.db).filter((item) => !priorityNames.has(item.artist_name));
   if (items.length === 0) {
     ctx.logger.info("weekly-roundup", "Friday, but no albums/EPs queued this week - staying silent, will keep checking later today");
     return;

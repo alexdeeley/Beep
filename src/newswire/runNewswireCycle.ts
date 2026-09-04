@@ -8,7 +8,7 @@ import { loadEditorialFocus } from "./editorialFocus.js";
 import { downloadStoryDb, uploadStoryDb } from "./db/sync.js";
 import { openStoryDb, closeStoryDb } from "./db/connection.js";
 import { startHourlyRun, finishHourlyRun } from "./db/researchRunsRepo.js";
-import { getUnpostedIndividualItems, insertMusicItem } from "./db/musicItemsRepo.js";
+import { getUnpostedIndividualItems, getUnpostedAlbumItems, insertMusicItem } from "./db/musicItemsRepo.js";
 import { importArtistList } from "./artists/importArtistList.js";
 import { getArtistsDueForCheck, markArtistsChecked } from "./db/watchedArtistsRepo.js";
 import { discoverArtistNews } from "./discovery/discoverArtistNews.js";
@@ -147,8 +147,16 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     // no-op most hours. Placed before every early-return path so it always gets a chance to run.
     await postWeeklyRoundup(ctx);
 
-    const unposted = getUnpostedIndividualItems(db);
-    const eligiblePool = rankMusicItems(unposted, MAX_ELIGIBLE_ITEMS);
+    // Priority artists (editorial-focus.json's priorityArtists) get VIP treatment: their album/EP/compilation
+    // releases skip the Friday-only roundup hold and join the immediate queue like everything else, jumping
+    // to the front of it (queue-jump), and their importanceScore is forced to the max below so they always
+    // clear quiet hours regardless of the hour.
+    const priorityNames = new Set(editorialFocus.priorityArtists);
+    const priorityAlbums = getUnpostedAlbumItems(db).filter((item) => priorityNames.has(item.artist_name));
+    const unposted = [...priorityAlbums, ...getUnpostedIndividualItems(db)];
+    const eligiblePool = rankMusicItems(unposted, MAX_ELIGIBLE_ITEMS).map((r) =>
+      priorityNames.has(r.item.artist_name) ? { ...r, importanceScore: 1 } : r
+    );
     const topScore = eligiblePool.reduce<number | null>((max, r) => (max === null || r.importanceScore > max ? r.importanceScore : max), null);
     const quietDecision = resolveQuietHoursOutcome(editorialFocus, now, topScore);
     const effectiveOutcome = options.forceRun ? "normal" : quietDecision.outcome;
@@ -169,7 +177,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
     }
 
-    const writingItems: WritingItem[] = filtered.map((r) => toWritingItem(r));
+    const writingItems: WritingItem[] = filtered.map((r) => toWritingItem(r, priorityNames));
 
     let edition: DraftEdition = await writeEdition(ctx, writingItems);
     const copyEdited = await copyEditEdition(ctx, edition);
@@ -258,13 +266,14 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
   }
 }
 
-function toWritingItem(ranked: RankedMusicItem): WritingItem {
+function toWritingItem(ranked: RankedMusicItem, priorityNames: Set<string>): WritingItem {
   const item = ranked.item;
   return {
     musicItemId: item.id,
     artistName: item.artist_name,
     itemType: item.item_type,
     releaseFormat: item.release_format,
+    isPriorityArtist: priorityNames.has(item.artist_name),
     headline: item.headline,
     facts: JSON.parse(item.facts_json),
   };

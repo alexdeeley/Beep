@@ -7,6 +7,7 @@ describe("buildWritingUserPrompt", () => {
     artistName: "Alvvays",
     itemType: "release",
     releaseFormat: "album",
+    isPriorityArtist: false,
     headline: "Alvvays release Blue Rev II",
     facts: [
       {
@@ -35,5 +36,17 @@ describe("buildWritingUserPrompt", () => {
     expect(prompt).toContain("ITEM 0");
     expect(prompt).toContain("ITEM 1");
     expect(prompt).toContain("Wilco");
+  });
+
+  it("marks a priority-artist item as (priority) alongside its kind", () => {
+    const priority: WritingItem = { ...item, isPriorityArtist: true };
+    const prompt = buildWritingUserPrompt([priority]);
+    expect(prompt).toContain("(Alvvays, album, priority)");
+  });
+
+  it("does not add the priority marker for a non-priority item", () => {
+    const prompt = buildWritingUserPrompt([item]);
+    expect(prompt).toContain("(Alvvays, album)");
+    expect(prompt).not.toContain("priority");
   });
 });
