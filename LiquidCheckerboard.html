@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Liquid Checkerboard — 10px Pixel Flow</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;color:#fff;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh;image-rendering: pixelated;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let W=0,H=0;
+  function resize(){
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+    W = Math.floor(innerWidth*DPR);
+    H = Math.floor(innerHeight*DPR);
+    canvas.width = W; canvas.height = H;
+  }
+  addEventListener('resize', resize, {passive:true}); resize();
+
+  // Base checkerboard cell size (10x10 pixels)
+  const BASE = 10; // logical pixels
+  let pixelFactor = 1; // swells up on swipe, eases back to 1
+
+  // Distortion "swirls" list
+  const swirls = []; // {x,y,strength, radius, decay, dir}
+
+  // Utility
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  function len2(x,y){ return Math.hypot(x,y); }
+  function rnd(a,b){ return a + Math.random()*(b-a); }
+
+  // Input
+  const P = {x:W/2, y:H/2, px:W/2, py:H/2, vx:0, vy:0, active:false, id:null, t:0};
+  function toCanvas(e){
+    const r = canvas.getBoundingClientRect();
+    return { x:(e.clientX - r.left)*DPR, y:(e.clientY - r.top)*DPR };
+  }
+  function setPointer(x,y,active=true,id=null){
+    P.vx = (x - P.x); P.vy = (y - P.y);
+    P.px = P.x; P.py = P.y;
+    P.x = x; P.y = y; P.active = active; P.id = id;
+    P.t = performance.now();
+  }
+
+  function addSwirl(x,y,vx,vy){
+    const speed = len2(vx,vy) / (16*DPR); // normalize for device
+    const sgn = (Math.random()<0.5? -1: 1);
+    swirls.push({
+      x,y,
+      strength: clamp(0.8 + speed*0.6, 0.6, 3.2) * sgn, // signed for clockwise/counter
+      radius: clamp(60*DPR + speed*40*DPR, 60*DPR, 320*DPR),
+      decay: rnd(0.85, 0.92), // per second decay factor
+    });
+    // Spike pixelation
+    pixelFactor = clamp(1 + speed*1.8, 1, 12); // expands pixels to big swaths
+    try { if(navigator.vibrate) navigator.vibrate(8); } catch(e){}
+  }
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    const p = toCanvas(e); setPointer(p.x,p.y,true,e.pointerId);
+    addSwirl(P.x,P.y, 0,0);
+  });
+  canvas.addEventListener('pointermove', (e)=>{
+    if (P.active && e.pointerId === P.id){
+      const p = toCanvas(e);
+      const vx = p.x - P.x, vy = p.y - P.y;
+      setPointer(p.x,p.y,true,e.pointerId);
+      // Add a trailing series of swirls for a sweeping bend
+      const steps = Math.ceil(len2(vx,vy) / (18*DPR));
+      for (let i=0;i<steps;i++){
+        const t = (i+1)/(steps+1);
+        addSwirl(P.x - vx*(1-t), P.y - vy*(1-t), vx, vy);
+      }
+    }
+  });
+  function endPointer(e){ if (P.id === e.pointerId){ setPointer(P.x,P.y,false,null); } }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+
+  // Distortion field from swirls
+  function displacement(x,y, now){
+    let dx = 0, dy = 0;
+    for (let i=swirls.length-1;i>=0;i--){
+      const s = swirls[i];
+      // compute age-based attenuation
+      const age = (now - startTime)/1000;
+      // we store no per-s time, so decay handled in update()
+      const vx = x - s.x;
+      const vy = y - s.y;
+      const r = Math.hypot(vx,vy) + 1e-6;
+      const falloff = Math.exp(-(r*r)/(2*(s.radius*s.radius)));
+      // perpendicular rotation for swirl
+      dx += (-vy / r) * s.strength * falloff * 120;
+      dy += ( vx / r) * s.strength * falloff * 120;
+    }
+    return {dx, dy};
+  }
+
+  // Main render
+  let last = 0, startTime = performance.now();
+  function step(tms){
+    const now = tms || performance.now();
+    const dt = Math.min(0.06, (now - last)/1000 || 0);
+    last = now;
+
+    // Ease pixelFactor back to 1
+    pixelFactor += (1 - pixelFactor) * (1 - Math.pow(0.04, dt*60));
+
+    // Decay swirls over time
+    for (let i=swirls.length-1;i>=0;i--){
+      const s = swirls[i];
+      // per-frame decay tuned to dt (decay ~0.88–0.92 per second)
+      const per = Math.pow(s.decay, dt*60);
+      s.strength *= per;
+      s.radius *= (0.999 + 0.0004*Math.sin(now*0.001 + i)); // tiny breathing
+      if (Math.abs(s.strength) < 0.02) swirls.splice(i,1);
+    }
+
+    // Background (no full clear—maintain crisp pixels each frame)
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+    // Effective draw cell (pixelation)
+    const S = Math.round(BASE * pixelFactor) * DPR;
+    const stepX = S, stepY = S;
+
+    // Draw checkerboard via displacement sampling
+    // For speed, sample at tile centers and fill rects
+    const half = S/2;
+    for (let y = 0; y < H; y += stepY){
+      for (let x = 0; x < W; x += stepX){
+        const cx = x + half, cy = y + half;
+        const disp = displacement(cx, cy, now);
+        const sx = cx + disp.dx;
+        const sy = cy + disp.dy;
+
+        // Checkerboard based on BASE (10px) regardless of current pixelation
+        const gx = Math.floor(sx / (BASE*DPR));
+        const gy = Math.floor(sy / (BASE*DPR));
+        const isWhite = ((gx + gy) & 1) === 0;
+        ctx.fillStyle = isWhite ? '#fff' : '#000';
+        ctx.fillRect(x, y, S, S);
+      }
+    }
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  // Prevent scroll/zoom on iOS
+  addEventListener('gesturestart', e=>e.preventDefault());
+  addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+
+  // Keyboard helpers (desktop): R resets distortion, P pulse pixelate
+  addEventListener('keydown', e=>{
+    const k = e.key.toLowerCase();
+    if (k === 'r'){ swirls.length = 0; pixelFactor = 1; }
+    if (k === 'p'){ pixelFactor = Math.min(12, pixelFactor + 2); }
+  });
+})();
+</script>
+</body>
+</html>

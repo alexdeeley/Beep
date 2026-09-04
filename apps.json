@@ -243,5 +243,33 @@
     "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
     "category": "Art",
     "path": "SpiralFanSpinner.html"
+  },
+  {
+    "id": "liquid-checkerboard",
+    "name": "Liquid Checkerboard",
+    "description": "A pixel checkerboard that swirls and blows out into big pixelated swaths as you swipe.",
+    "category": "Art",
+    "path": "LiquidCheckerboard.html"
+  },
+  {
+    "id": "triangle-kaleidoscope",
+    "name": "Triangle Kaleidoscope",
+    "description": "Drag to morph a triangle into a swirling kaleidoscope, then settle into a diamond.",
+    "category": "Art",
+    "path": "TriangleKaleidoscope.html"
+  },
+  {
+    "id": "gooey-blobs",
+    "name": "Gooey Blobs & Lines",
+    "description": "A flowing RGB isoline field — drag to drop gooey metaball blobs into the current.",
+    "category": "Art",
+    "path": "GooeyBlobs.html"
+  },
+  {
+    "id": "material-cube",
+    "name": "Material Cube",
+    "description": "A tumbling 3D cube that cycles through chrome, wood, ice, and other procedural materials.",
+    "category": "Art",
+    "path": "MaterialCube.html"
   }
 ]
