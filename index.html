@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beep</title>
-<meta name="description" content="A small gallery of self-contained apps — music tools, games, art." />
+<title>Artcade</title>
+<meta name="description" content="A small gallery of self-contained apps — games and art." />
 <meta name="theme-color" content="#000000" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="./manifest.json" />
@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Beep" />
+<meta name="apple-mobile-web-app-title" content="Artcade" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -26,24 +26,51 @@
   main {
     max-width: 720px;
     margin: 0 auto;
-    padding: 72px 28px 120px;
+    padding: 56px 24px 100px;
   }
-  header { margin-bottom: 44px; }
+  header { margin-bottom: 24px; }
   h1 {
-    font-weight: 300;
-    letter-spacing: 0.14em;
-    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-size: 0.95rem;
     text-transform: lowercase;
     color: #6b6b78;
-    margin: 0 0 6px;
+    margin: 0 0 4px;
   }
   header p {
     color: #46464f;
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin: 0;
   }
+  #tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #1c1c20;
+  }
+  .tab {
+    appearance: none;
+    background: none;
+    border: 0;
+    color: #4a4a54;
+    font-family: inherit;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    text-transform: lowercase;
+    padding: 6px 4px 12px;
+    margin-right: 22px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab.active {
+    color: #fff;
+    border-bottom-color: #fff;
+  }
+  .tab:hover { color: #b8b8c2; }
   #appList {
     display: flex;
     flex-direction: column;
@@ -52,30 +79,31 @@
     display: block;
     text-decoration: none;
     color: #f2f2f5;
-    padding: 16px 0;
+    padding: 12px 0;
     border-bottom: 1px solid #141416;
-    transition: color 0.15s, transform 0.15s, padding-left 0.15s;
+    transition: color 0.15s, padding-left 0.15s;
   }
   a.app-item:last-child { border-bottom: 0; }
   a.app-item:hover, a.app-item:active {
     color: #fff;
-    padding-left: 14px;
+    padding-left: 12px;
   }
   a.app-item h2 {
     margin: 0;
-    font-weight: 300;
-    font-size: clamp(1.7rem, 6.5vw, 2.5rem);
+    font-weight: 800;
+    font-size: clamp(1.6rem, 6vw, 2.3rem);
     text-transform: lowercase;
-    letter-spacing: 0.01em;
-    line-height: 1.15;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
   }
   a.app-item p {
-    margin: 5px 0 0;
+    margin: 3px 0 0;
     color: #5c5c68;
-    font-size: 0.7rem;
-    letter-spacing: 0.09em;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    line-height: 1.5;
+    font-weight: 700;
+    line-height: 1.4;
     transition: color 0.15s;
   }
   a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
@@ -88,27 +116,63 @@
 <body>
 <main>
   <header>
-    <h1>beep</h1>
+    <h1>artcade</h1>
     <p>tap a name to open it</p>
   </header>
+  <div id="tabs"></div>
   <div id="appList"></div>
 </main>
 
 <script>
+const TABS = ["Games", "Art"];
+// Music Tools apps fold into the Art tab — both are non-game, creative/generative.
+const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Art" };
+
+let apps = [];
+let activeTab = "Games";
+
 async function main() {
   const res = await fetch("./apps.json");
-  const apps = await res.json();
-
-  const listEl = document.getElementById("appList");
+  apps = await res.json();
 
   if (apps.length === 0) {
-    listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
+    document.getElementById("appList").innerHTML = '<p class="empty">Nothing here yet.</p>';
     return;
   }
 
-  const sorted = [...apps].sort((a, b) =>
+  buildTabs();
+  renderList();
+}
+
+function buildTabs() {
+  const tabsEl = document.getElementById("tabs");
+  for (const tab of TABS) {
+    const btn = document.createElement("button");
+    btn.className = "tab" + (tab === activeTab ? " active" : "");
+    btn.textContent = tab;
+    btn.dataset.tab = tab;
+    btn.addEventListener("click", () => {
+      activeTab = tab;
+      [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
+      renderList();
+    });
+    tabsEl.appendChild(btn);
+  }
+}
+
+function renderList() {
+  const listEl = document.getElementById("appList");
+  listEl.innerHTML = "";
+
+  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab);
+  const sorted = filtered.sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
   );
+
+  if (sorted.length === 0) {
+    listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
+    return;
+  }
 
   for (const app of sorted) {
     listEl.appendChild(buildItem(app));

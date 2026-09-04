@@ -1,7 +1,7 @@
 {
-  "name": "Beep",
-  "short_name": "Beep",
-  "description": "A small gallery of self-contained apps — music tools, games, art.",
+  "name": "Artcade",
+  "short_name": "Artcade",
+  "description": "A small gallery of self-contained apps — games and art.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
