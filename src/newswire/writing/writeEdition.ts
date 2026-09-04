@@ -10,10 +10,10 @@ const writingResultSchema = z.object({
 });
 
 /**
- * Composes this hour's edition from the items that survived quiet-hours
- * filtering, in importance order. May legitimately return null - silence
- * is a valid, preferred outcome when nothing clears the bar for genuinely
- * worthwhile wire copy, not just when there's no material at all.
+ * Composes this hour's edition from the release candidates that survived
+ * ranking and quiet-hours filtering. May legitimately return null -
+ * silence is a valid, preferred outcome when nothing clears the bar for
+ * genuinely worthwhile copy, not just when there's no material at all.
  */
 export async function writeEdition(ctx: NewsRunContext, items: WritingItem[]): Promise<DraftEdition> {
   if (items.length === 0) return null;
@@ -57,10 +57,8 @@ export async function writeEdition(ctx: NewsRunContext, items: WritingItem[]): P
   }
 
   const posts = result.posts.slice(0, ctx.config.news.maxPostsPerEdition).map((p) => {
-    const storyEventIds = p.sourceItemIndexes
-      .filter((i) => i >= 0 && i < items.length)
-      .map((i) => items[i]!.ranked.storyEventId);
-    return { text: p.text, sourceEventIds: storyEventIds };
+    const releaseIds = p.sourceItemIndexes.filter((i) => i >= 0 && i < items.length).map((i) => items[i]!.releaseId);
+    return { text: p.text, sourceReleaseIds: releaseIds };
   });
 
   ctx.logger.info("writing", `Drafted ${posts.length} post(s) for this edition`);

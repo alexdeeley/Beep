@@ -1,11 +1,46 @@
 import type { EditorialFocus } from "../editorialFocus.js";
-import type { RankedStoryEvent, StoryConnection, VerifiedFact } from "../types.js";
+import type { FactLabel } from "../types.js";
+import type { ReleaseType } from "../db/releasesRepo.js";
 
+export interface MusicFact {
+  factLabel: FactLabel;
+  claim: string;
+}
+
+/** One release, with its facts synthesized deterministically from the Spotify API response - never model-generated, so the fact-check gate has a ground truth to check the writer's prose against. */
 export interface WritingItem {
-  ranked: RankedStoryEvent;
-  facts: VerifiedFact[];
-  isNewStory: boolean;
-  connections: StoryConnection[];
+  releaseId: number;
+  artistName: string;
+  releaseType: ReleaseType;
+  title: string;
+  releaseDate: string;
+  totalTracks: number;
+  genres: string[];
+  spotifyUrl: string;
+  facts: MusicFact[];
+}
+
+export function buildReleaseFacts(item: {
+  artistName: string;
+  releaseType: ReleaseType;
+  title: string;
+  releaseDate: string;
+  totalTracks: number;
+  genres: string[];
+  spotifyUrl: string;
+}): MusicFact[] {
+  const facts: MusicFact[] = [
+    {
+      factLabel: "FACT",
+      claim: `${item.artistName} released a new ${item.releaseType} titled "${item.title}" on ${item.releaseDate}.`,
+    },
+    { factLabel: "FACT", claim: `"${item.title}" has ${item.totalTracks} track${item.totalTracks === 1 ? "" : "s"}.` },
+  ];
+  if (item.genres.length > 0) {
+    facts.push({ factLabel: "FACT", claim: `Spotify associates ${item.artistName} with these genres: ${item.genres.join(", ")}.` });
+  }
+  facts.push({ factLabel: "FACT", claim: `The release is available on Spotify at ${item.spotifyUrl}.` });
+  return facts;
 }
 
 export const WRITING_JSON_SCHEMA = {
@@ -30,14 +65,13 @@ export const WRITING_JSON_SCHEMA = {
 } as const;
 
 const GOOD_BAD_EXAMPLES = [
-  "BAD (generic AI filler): \"In a significant development that underscores the growing tension in the region, officials announced today " +
-    "that new tariffs would be imposed, marking a major shift in trade policy.\"",
-  'GOOD (wire style): "The White House imposed 25% tariffs on steel imports Tuesday, effective next month. Industry groups praised the move; ' +
-    'import-reliant manufacturers warned of higher costs."',
-  'BAD (rhetorical/engagement bait): "Could this be the beginning of the end for the deal? Only time will tell."',
-  'GOOD: "The merger requires regulatory approval in three countries. A decision is expected by December."',
-  'BAD (false precision on breaking news): "Exactly 47 people were injured in the incident, officials confirmed."',
-  'GOOD (appropriate hedging): "Officials said dozens were injured; the exact number was still being confirmed as of press time."',
+  'BAD (breathless hype): "Get ready to have your mind blown - the legendary indie icons have finally dropped their most anticipated ' +
+    'album yet, and it\'s absolutely essential listening!"',
+  'GOOD (wire style): "Alvvays released their new album \\"Blue Rev II\\" today, 9 tracks."',
+  'BAD (invented editorial claim not in the facts): "This marks a bold new direction for the band."',
+  'GOOD (states only what\'s given): "Fontaines D.C. released the single \\"Favourite\\" today - their first new material since 2024."',
+  "BAD (padding a one-line announcement into filler): \"In an exciting development for fans everywhere, the wait is finally over as...\"",
+  'GOOD: "Bon Iver released a new single, \\"Speyside,\\" today."',
 ].join("\n");
 
 export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number): string {
@@ -45,10 +79,9 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
   if (!focus.voice.allowJokes) voiceRules.push("No jokes, humor, or snark.");
   if (focus.voice.allowHashtagsInline) {
     voiceRules.push(
-      "You may append 1-3 specific, relevant hashtags at the very end of a post when they would genuinely help discovery " +
-        "(e.g. a named topic, place, or entity directly in that post - #Politics, #MusicIndustry, #AnthropicLawsuit). Never use " +
-        "generic engagement hashtags (#news, #breaking, #trending), never hashtag-stuff, and never let a hashtag replace a word " +
-        "that should appear in the sentence itself - hashtags are metadata appended after the complete thought, not part of the prose."
+      "You may append 1-2 specific, relevant hashtags at the very end of a post when they would genuinely help discovery " +
+        "(e.g. #NewMusic, or the artist/genre name - #Alvvays, #IndieRock). Never use generic engagement hashtags (#music, #trending), " +
+        "never hashtag-stuff, and never let a hashtag replace a word that should appear in the sentence itself."
     );
   } else {
     voiceRules.push("No hashtags.");
@@ -57,20 +90,20 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
   if (!focus.voice.allowRhetoricalQuestions) voiceRules.push("No rhetorical questions or engagement-bait phrasing.");
 
   return [
-    "You are the writing stage of an autonomous wire-service newsroom, posting to Bluesky. Write in stripped-down, economical wire-service",
-    "prose: short declarative sentences, active voice, facts first, no editorializing, no filler, no throat-clearing. Every sentence must",
-    "carry information - if a sentence could be deleted without losing a fact, delete it.",
+    "You are the writing stage of an autonomous music release-announcement wire, posting to Bluesky. Each item below is one confirmed",
+    "new release (album, single, or compilation) from an artist on the watchlist, already verified against the Spotify catalog - the",
+    "facts given are ground truth, not something you need to hedge or verify further.",
+    "Write ONE short, factual announcement post per item: artist, release title, release type, and (when it adds real information, not",
+    "just filler) something like track count or genre. Present tense, active voice, no throat-clearing, no hype adjectives",
+    '("essential", "must-listen", "banger", "iconic"), no editorializing about quality or significance - you were not given any claim',
+    "about how good or important the release is, so do not invent one. State only what the facts given to you actually say.",
     voiceRules.join(" "),
-    "Structure is dynamic, not a fixed template - a single-sentence update is fine; a multi-post thread is fine when there's genuinely that",
-    "much to say. Never pad a short update into a longer thread just to fill space.",
-    `You may produce at most ${maxPosts} post(s) total across the whole edition (it may cover more than one story if there's room).`,
-    "Each post's text should fit comfortably in a single Bluesky post (roughly 260-280 characters is a safe target; never write a run-on",
-    "sentence that gets cut off mid-thought - each post must be a complete, standalone thought even if it's part of a thread).",
-    "Only reference a connection between stories when it's given to you explicitly below as evidence-based - never invent a connection.",
-    "When a claim is UNCONFIRMED or a PREDICTION, say so plainly (\"officials say\", \"expected to\") rather than stating it as settled fact.",
-    "Distinguish when something happened from when it was reported, if that distinction matters to the reader.",
-    "If, after reviewing the material, none of it is genuinely worth posting about this hour, set shouldPost to false and return an empty",
-    "posts array - staying silent is a normal, expected, and preferred outcome over posting something thin or padded.",
+    `Produce exactly one post per item you are given, up to ${maxPosts} items total per edition (if more than ${maxPosts} items are`,
+    `given, prioritize the ones listed first). Each post's text should fit comfortably in a single Bluesky post (roughly 200-260`,
+    "characters is a safe target).",
+    "If an item's facts are too thin or malformed to write a genuine, accurate sentence about, omit that item from posts rather than",
+    "padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts array -",
+    "this should be rare, since every item here already passed release verification, but is allowed when the data is degenerate.",
     "",
     "Examples of the required style:",
     GOOD_BAD_EXAMPLES,
@@ -82,17 +115,7 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
 export function buildWritingUserPrompt(items: WritingItem[]): string {
   const blocks = items.map((item, i) => {
     const factLines = item.facts.map((f) => `  - [${f.factLabel}] ${f.claim}`).join("\n");
-    const connectionLines = item.connections.map((c) => `  - ${c.explanation}`).join("\n");
-    return [
-      `ITEM ${i} (${item.isNewStory ? "new story" : "development in an ongoing story"}, importance ${item.ranked.importanceScore.toFixed(2)}):`,
-      `Headline: ${item.ranked.headline}`,
-      "Facts:",
-      factLines,
-      item.connections.length ? "Evidence-based connections to other open stories:\n" + connectionLines : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    return [`ITEM ${i} (${item.releaseType}):`, "Facts:", factLines].join("\n");
   });
-
   return blocks.join("\n\n");
 }

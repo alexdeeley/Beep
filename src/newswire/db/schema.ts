@@ -168,4 +168,50 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // V3: the pipeline pivoted from general web-search news discovery to a
+    // music release-announcement wire driven by a user-maintained artist
+    // watchlist (watched-artists.txt) checked against the Spotify Web API.
+    // The tables above (stories/story_events/sources/entities/...) are no
+    // longer written by the current pipeline but are left in place rather
+    // than dropped - migrations here are additive-only, and the DB is the
+    // durable audit trail, not disposable state.
+    id: "0002_music_release_wire",
+    sql: `
+      CREATE TABLE IF NOT EXISTS watched_artists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        spotify_artist_id TEXT,
+        resolution_status TEXT NOT NULL DEFAULT 'pending' CHECK (resolution_status IN ('pending', 'resolved', 'unresolved')),
+        resolve_attempts INTEGER NOT NULL DEFAULT 0,
+        genres_json TEXT,
+        popularity INTEGER,
+        last_checked_at TEXT,
+        last_seen_release_id TEXT,
+        last_seen_release_date TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_watched_artists_resolution_status ON watched_artists(resolution_status, resolve_attempts, id);
+      CREATE INDEX IF NOT EXISTS idx_watched_artists_last_checked ON watched_artists(last_checked_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_watched_artists_spotify_id ON watched_artists(spotify_artist_id) WHERE spotify_artist_id IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS releases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watched_artist_id INTEGER NOT NULL REFERENCES watched_artists(id),
+        spotify_release_id TEXT NOT NULL UNIQUE,
+        release_type TEXT NOT NULL CHECK (release_type IN ('album', 'single', 'compilation')),
+        title TEXT NOT NULL,
+        release_date TEXT NOT NULL,
+        release_date_precision TEXT NOT NULL,
+        total_tracks INTEGER NOT NULL,
+        spotify_url TEXT NOT NULL,
+        image_url TEXT,
+        discovered_in_run_id INTEGER NOT NULL,
+        posted_in_run_id INTEGER,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_releases_artist ON releases(watched_artist_id);
+      CREATE INDEX IF NOT EXISTS idx_releases_unposted ON releases(posted_in_run_id, discovered_in_run_id);
+    `,
+  },
 ];

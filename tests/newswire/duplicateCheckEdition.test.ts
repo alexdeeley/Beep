@@ -39,6 +39,7 @@ describe("duplicateCheckEdition", () => {
       logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as unknown as NewsRunContext["logger"],
       db,
       openai: {} as NewsRunContext["openai"],
+      spotifyToken: "test-token",
       editorialFocus: {} as NewsRunContext["editorialFocus"],
       hourlyRunId: 1,
       dryRun: false,
@@ -51,7 +52,7 @@ describe("duplicateCheckEdition", () => {
   });
 
   it("passes a genuinely new edition as not-a-duplicate", () => {
-    const result = duplicateCheckEdition(makeCtx(), { posts: [{ text: "Brand new post text.", sourceEventIds: [] }] });
+    const result = duplicateCheckEdition(makeCtx(), { posts: [{ text: "Brand new post text.", sourceReleaseIds: [] }] });
     expect(result.isDuplicate).toBe(false);
   });
 
@@ -70,7 +71,7 @@ describe("duplicateCheckEdition", () => {
     });
 
     const result = duplicateCheckEdition(makeCtx(), {
-      posts: [{ text: "  officials CONFIRMED the deal   Tuesday.  ", sourceEventIds: [] }],
+      posts: [{ text: "  officials CONFIRMED the deal   Tuesday.  ", sourceReleaseIds: [] }],
     });
     expect(result.isDuplicate).toBe(true);
     expect(result.reason).toContain("Identical text already published");
@@ -90,7 +91,7 @@ describe("duplicateCheckEdition", () => {
       dryRun: true,
     });
 
-    const result = duplicateCheckEdition(makeCtx(), { posts: [{ text: "A dry-run-only post.", sourceEventIds: [] }] });
+    const result = duplicateCheckEdition(makeCtx(), { posts: [{ text: "A dry-run-only post.", sourceReleaseIds: [] }] });
     expect(result.isDuplicate).toBe(false);
   });
 });

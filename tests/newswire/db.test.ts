@@ -6,21 +6,18 @@ import Database from "better-sqlite3";
 import { openStoryDb, closeStoryDb } from "../../src/newswire/db/connection.js";
 import { runMigrations } from "../../src/newswire/db/migrate.js";
 import {
-  insertStory,
-  insertStoryEvent,
-  getStoryById,
-  getStoryBySlug,
-  getOpenStories,
-  getEventsForStory,
-  getUnpostedEventsForStory,
-  markEventPosted,
-  touchStory,
-  archiveStaleStories,
-} from "../../src/newswire/db/storiesRepo.js";
-import { insertSource, getSourcesForEvent, getDistinctDomainsForEvent } from "../../src/newswire/db/sourcesRepo.js";
-import { upsertEntity, linkStoryEntity, getEntitiesForStory, insertRelationship, getStoriesSharingEntities } from "../../src/newswire/db/entitiesRepo.js";
-import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate, insertResearchSearch } from "../../src/newswire/db/researchRunsRepo.js";
-import { insertBlueskyPost, findPostByContentHash, insertCorrection } from "../../src/newswire/db/postsRepo.js";
+  importArtistNames,
+  getPendingArtists,
+  markArtistResolved,
+  recordFailedResolveAttempt,
+  MAX_RESOLVE_ATTEMPTS,
+  getArtistsDueForReleaseCheck,
+  markArtistChecked,
+  getArtistResolutionCounts,
+} from "../../src/newswire/db/watchedArtistsRepo.js";
+import { insertRelease, getUnpostedReleases, markReleasePosted, getRecentlyPostedReleases } from "../../src/newswire/db/releasesRepo.js";
+import { startHourlyRun, finishHourlyRun, getHourlyRun } from "../../src/newswire/db/researchRunsRepo.js";
+import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 
 describe("newswire SQLite DB layer", () => {
   let dir: string;
@@ -43,21 +40,7 @@ describe("newswire SQLite DB layer", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .all()
       .map((r) => (r as { name: string }).name);
-    for (const t of [
-      "schema_migrations",
-      "stories",
-      "story_events",
-      "sources",
-      "entities",
-      "entity_relationships",
-      "story_entities",
-      "hourly_runs",
-      "run_candidates",
-      "research_searches",
-      "deep_research_runs",
-      "bluesky_posts",
-      "corrections",
-    ]) {
+    for (const t of ["schema_migrations", "hourly_runs", "bluesky_posts", "watched_artists", "releases"]) {
       expect(tables).toContain(t);
     }
   });
@@ -70,128 +53,25 @@ describe("newswire SQLite DB layer", () => {
 
   it("enforces foreign key constraints (PRAGMA foreign_keys=ON actually took effect)", () => {
     expect(() =>
-      insertSource(db, {
-        storyEventId: 999999, // no such story_event
-        url: "https://example.com",
-        domain: "example.com",
-        title: null,
-        sourceTier: "general_news",
-        isPrimaryForEvent: false,
+      insertRelease(db, {
+        watchedArtistId: 999999, // no such watched_artists row
+        spotifyReleaseId: "r1",
+        releaseType: "single",
+        title: "T",
+        releaseDate: "2026-01-01",
+        releaseDatePrecision: "day",
+        totalTracks: 1,
+        spotifyUrl: "https://open.spotify.com/album/r1",
+        imageUrl: null,
+        discoveredInRunId: 1,
       })
     ).toThrow();
   });
 
-  it("round-trips a story and its events through insert/get", () => {
-    const run = startHourlyRun(db, false);
-    const story = insertStory(db, {
-      slug: "test-story",
-      headline: "Headline",
-      summary: "Summary",
-      topicTags: ["politics"],
-      importanceScore: 0.5,
-      createdInRunId: run.id,
-    });
-    expect(getStoryById(db, story.id)?.slug).toBe("test-story");
-    expect(getStoryBySlug(db, "test-story")?.id).toBe(story.id);
-    expect(getOpenStories(db).map((s) => s.id)).toContain(story.id);
-
-    const event = insertStoryEvent(db, {
-      storyId: story.id,
-      summary: "Something happened",
-      eventTime: null,
-      eventTimeConfidence: "unknown",
-      articlePublishedAt: null,
-      factLabel: "FACT",
-      isCorrection: false,
-      correctsEventId: null,
-      discoveredInRunId: run.id,
-    });
-    expect(getEventsForStory(db, story.id)).toHaveLength(1);
-    expect(getUnpostedEventsForStory(db, story.id)).toHaveLength(1);
-
-    markEventPosted(db, event.id, run.id);
-    expect(getUnpostedEventsForStory(db, story.id)).toHaveLength(0);
-
-    touchStory(db, story.id, { importance_score: 0.9 });
-    expect(getStoryById(db, story.id)?.importance_score).toBe(0.9);
-  });
-
-  it("archives stories untouched past the stale threshold, without deleting them", () => {
-    const run = startHourlyRun(db, false);
-    const story = insertStory(db, {
-      slug: "stale-story",
-      headline: "Old news",
-      summary: "Summary",
-      topicTags: ["politics"],
-      importanceScore: 0.1,
-      createdInRunId: run.id,
-    });
-    // Backdate last_updated_at directly - simulates a story untouched for a long time.
-    db.prepare("UPDATE stories SET last_updated_at = ? WHERE id = ?").run("2000-01-01T00:00:00.000Z", story.id);
-
-    const archivedCount = archiveStaleStories(db, 30);
-    expect(archivedCount).toBe(1);
-    expect(getOpenStories(db).map((s) => s.id)).not.toContain(story.id);
-    // Still readable by id - archived, not deleted.
-    expect(getStoryById(db, story.id)?.status).toBe("archived");
-  });
-
-  it("round-trips sources and computes distinct domains for an event", () => {
-    const run = startHourlyRun(db, false);
-    const story = insertStory(db, {
-      slug: "s",
-      headline: "h",
-      summary: "s",
-      topicTags: ["politics"],
-      importanceScore: 0,
-      createdInRunId: run.id,
-    });
-    const event = insertStoryEvent(db, {
-      storyId: story.id,
-      summary: "e",
-      eventTime: null,
-      eventTimeConfidence: "unknown",
-      articlePublishedAt: null,
-      factLabel: "FACT",
-      isCorrection: false,
-      correctsEventId: null,
-      discoveredInRunId: run.id,
-    });
-    insertSource(db, { storyEventId: event.id, url: "https://a.com/1", domain: "a.com", title: null, sourceTier: "general_news", isPrimaryForEvent: true });
-    insertSource(db, { storyEventId: event.id, url: "https://b.com/1", domain: "b.com", title: null, sourceTier: "general_news", isPrimaryForEvent: false });
-    expect(getSourcesForEvent(db, event.id)).toHaveLength(2);
-    expect(getDistinctDomainsForEvent(db, event.id).sort()).toEqual(["a.com", "b.com"]);
-  });
-
-  it("dedupes entities on (name, type) and finds stories that share an entity", () => {
-    const run = startHourlyRun(db, false);
-    const storyA = insertStory(db, { slug: "a", headline: "A", summary: "s", topicTags: ["politics"], importanceScore: 0, createdInRunId: run.id });
-    const storyB = insertStory(db, { slug: "b", headline: "B", summary: "s", topicTags: ["politics"], importanceScore: 0, createdInRunId: run.id });
-    const eventA = insertStoryEvent(db, { storyId: storyA.id, summary: "e", eventTime: null, eventTimeConfidence: "unknown", articlePublishedAt: null, factLabel: "FACT", isCorrection: false, correctsEventId: null, discoveredInRunId: run.id });
-
-    const entity1 = upsertEntity(db, "Acme Corp", "COMPANY");
-    const entity2 = upsertEntity(db, "Acme Corp", "COMPANY"); // same (name, type) - should dedupe
-    expect(entity1.id).toBe(entity2.id);
-
-    linkStoryEntity(db, storyA.id, entity1.id);
-    linkStoryEntity(db, storyB.id, entity1.id);
-    expect(getEntitiesForStory(db, storyA.id)).toHaveLength(1);
-
-    const otherEntity = upsertEntity(db, "Jane Doe", "PERSON");
-    insertRelationship(db, { fromEntityId: otherEntity.id, toEntityId: entity1.id, relationshipType: "EMPLOYED_BY", evidenceStoryEventId: eventA.id });
-
-    const sharing = getStoriesSharingEntities(db, storyA.id);
-    expect(sharing.map((s) => s.story_id)).toContain(storyB.id);
-  });
-
-  it("round-trips hourly_runs, run_candidates, and research_searches", () => {
+  it("round-trips hourly_runs", () => {
     const run = startHourlyRun(db, true);
     expect(run.status).toBe("running");
     expect(run.dry_run).toBe(1);
-
-    insertRunCandidate(db, { runId: run.id, stage: "discovery", candidateSummary: "x", decision: "accepted", reason: null, storyId: null });
-    insertResearchSearch(db, { runId: run.id, stage: "discovery", query: "test query", resultCount: 3 });
-
     finishHourlyRun(db, run.id, { status: "success", publish_status: "dry_run" });
     const finished = getHourlyRun(db, run.id);
     expect(finished?.status).toBe("success");
@@ -215,20 +95,165 @@ describe("newswire SQLite DB layer", () => {
     expect(findPostByContentHash(db, "does-not-exist")).toBeUndefined();
   });
 
-  it("round-trips a correction linking two story_events", () => {
-    const run = startHourlyRun(db, false);
-    const story = insertStory(db, { slug: "c", headline: "C", summary: "s", topicTags: ["politics"], importanceScore: 0, createdInRunId: run.id });
-    const original = insertStoryEvent(db, { storyId: story.id, summary: "12 missing", eventTime: null, eventTimeConfidence: "unknown", articlePublishedAt: null, factLabel: "UNCONFIRMED", isCorrection: false, correctsEventId: null, discoveredInRunId: run.id });
-    const corrected = insertStoryEvent(db, { storyId: story.id, summary: "3 missing", eventTime: null, eventTimeConfidence: "unknown", articlePublishedAt: null, factLabel: "FACT", isCorrection: true, correctsEventId: original.id, discoveredInRunId: run.id });
-
-    const correction = insertCorrection(db, {
-      originalStoryEventId: original.id,
-      correctedStoryEventId: corrected.id,
-      detectedInRunId: run.id,
-      correctionPostId: null,
-      explanation: "revised down",
+  describe("watched_artists", () => {
+    it("imports names idempotently (unique by name)", () => {
+      const first = importArtistNames(db, ["Radiohead", "Wilco", "Radiohead"]);
+      expect(first).toBe(2); // "Radiohead" only inserted once even though listed twice
+      const second = importArtistNames(db, ["Radiohead", "Beck"]);
+      expect(second).toBe(1); // only "Beck" is new
     });
-    expect(correction.original_story_event_id).toBe(original.id);
-    expect(correction.corrected_story_event_id).toBe(corrected.id);
+
+    it("returns pending artists never-tried-first, then fewest-attempts-first", () => {
+      importArtistNames(db, ["A", "B", "C"]);
+      const [a] = getPendingArtists(db, 1);
+      recordFailedResolveAttempt(db, a!.id); // A now has 1 attempt
+      const pending = getPendingArtists(db, 10).map((r) => r.name);
+      // B and C (0 attempts) should come before A (1 attempt)
+      expect(pending.indexOf("B")).toBeLessThan(pending.indexOf("A"));
+      expect(pending.indexOf("C")).toBeLessThan(pending.indexOf("A"));
+    });
+
+    it("marks an artist unresolved after MAX_RESOLVE_ATTEMPTS failed attempts, pending before that", () => {
+      importArtistNames(db, ["Ghost Band"]);
+      const [artist] = getPendingArtists(db, 1);
+      for (let i = 0; i < MAX_RESOLVE_ATTEMPTS - 1; i++) recordFailedResolveAttempt(db, artist!.id);
+      let counts = getArtistResolutionCounts(db);
+      expect(counts.pending).toBe(1);
+      expect(counts.unresolved).toBe(0);
+
+      recordFailedResolveAttempt(db, artist!.id); // final attempt hits the cap
+      counts = getArtistResolutionCounts(db);
+      expect(counts.pending).toBe(0);
+      expect(counts.unresolved).toBe(1);
+    });
+
+    it("marks an artist resolved with Spotify metadata", () => {
+      importArtistNames(db, ["Wilco"]);
+      const [artist] = getPendingArtists(db, 1);
+      markArtistResolved(db, artist!.id, { spotifyArtistId: "spotify123", genres: ["alt-country"], popularity: 55 });
+      const counts = getArtistResolutionCounts(db);
+      expect(counts.resolved).toBe(1);
+      const due = getArtistsDueForReleaseCheck(db, 10);
+      expect(due).toHaveLength(1);
+      expect(due[0]!.spotify_artist_id).toBe("spotify123");
+      expect(due[0]!.genres_json).toBe(JSON.stringify(["alt-country"]));
+    });
+
+    it("orders release-check rotation never-checked-first, then oldest-checked-first", () => {
+      importArtistNames(db, ["X", "Y"]);
+      const pending = getPendingArtists(db, 2);
+      for (const p of pending) markArtistResolved(db, p.id, { spotifyArtistId: `sp-${p.name}`, genres: [], popularity: 0 });
+
+      const [x, y] = getArtistsDueForReleaseCheck(db, 2);
+      // Both never checked - order between them doesn't matter, but marking one checked should push it behind the other.
+      markArtistChecked(db, x!.id, { lastSeenReleaseId: null, lastSeenReleaseDate: null });
+      const due = getArtistsDueForReleaseCheck(db, 2);
+      expect(due[0]!.id).toBe(y!.id); // never-checked Y comes before now-checked X
+      expect(due[1]!.id).toBe(x!.id);
+    });
+  });
+
+  describe("releases", () => {
+    function makeResolvedArtist(name: string): number {
+      importArtistNames(db, [name]);
+      const [artist] = getPendingArtists(db, 1);
+      markArtistResolved(db, artist!.id, { spotifyArtistId: `sp-${name}`, genres: [], popularity: 50 });
+      return artist!.id;
+    }
+
+    it("round-trips a release and finds it as unposted", () => {
+      const run = startHourlyRun(db, false);
+      const artistId = makeResolvedArtist("Alvvays");
+      const release = insertRelease(db, {
+        watchedArtistId: artistId,
+        spotifyReleaseId: "album1",
+        releaseType: "album",
+        title: "Blue Rev",
+        releaseDate: "2026-09-01",
+        releaseDatePrecision: "day",
+        totalTracks: 12,
+        spotifyUrl: "https://open.spotify.com/album/album1",
+        imageUrl: null,
+        discoveredInRunId: run.id,
+      });
+      expect(release.title).toBe("Blue Rev");
+
+      const unposted = getUnpostedReleases(db);
+      expect(unposted).toHaveLength(1);
+      expect(unposted[0]!.artist_name).toBe("Alvvays");
+      expect(unposted[0]!.artist_popularity).toBe(50);
+
+      markReleasePosted(db, release.id, run.id);
+      expect(getUnpostedReleases(db)).toHaveLength(0);
+      expect(getRecentlyPostedReleases(db, 5).map((r) => r.id)).toContain(release.id);
+    });
+
+    it("is idempotent on spotify_release_id (INSERT OR IGNORE)", () => {
+      const run = startHourlyRun(db, false);
+      const artistId = makeResolvedArtist("Beck");
+      const first = insertRelease(db, {
+        watchedArtistId: artistId,
+        spotifyReleaseId: "dup1",
+        releaseType: "single",
+        title: "Single A",
+        releaseDate: "2026-09-01",
+        releaseDatePrecision: "day",
+        totalTracks: 1,
+        spotifyUrl: "https://open.spotify.com/album/dup1",
+        imageUrl: null,
+        discoveredInRunId: run.id,
+      });
+      const second = insertRelease(db, {
+        watchedArtistId: artistId,
+        spotifyReleaseId: "dup1",
+        releaseType: "single",
+        title: "Single A (should be ignored)",
+        releaseDate: "2026-09-01",
+        releaseDatePrecision: "day",
+        totalTracks: 1,
+        spotifyUrl: "https://open.spotify.com/album/dup1",
+        imageUrl: null,
+        discoveredInRunId: run.id,
+      });
+      expect(first.id).toBe(second.id);
+      expect(getUnpostedReleases(db)).toHaveLength(1);
+    });
+
+    it("orders unposted releases FIFO by discovered run, not by popularity", () => {
+      const runOld = startHourlyRun(db, false);
+      const runNew = startHourlyRun(db, false);
+      const smallArtist = makeResolvedArtist("Small Band");
+      const bigArtist = makeResolvedArtist("Big Star");
+      db.prepare("UPDATE watched_artists SET popularity = 90 WHERE id = ?").run(bigArtist);
+
+      insertRelease(db, {
+        watchedArtistId: smallArtist,
+        spotifyReleaseId: "old-release",
+        releaseType: "single",
+        title: "Old",
+        releaseDate: "2026-08-01",
+        releaseDatePrecision: "day",
+        totalTracks: 1,
+        spotifyUrl: "https://open.spotify.com/album/old-release",
+        imageUrl: null,
+        discoveredInRunId: runOld.id,
+      });
+      insertRelease(db, {
+        watchedArtistId: bigArtist,
+        spotifyReleaseId: "new-release",
+        releaseType: "single",
+        title: "New",
+        releaseDate: "2026-09-01",
+        releaseDatePrecision: "day",
+        totalTracks: 1,
+        spotifyUrl: "https://open.spotify.com/album/new-release",
+        imageUrl: null,
+        discoveredInRunId: runNew.id,
+      });
+
+      const unposted = getUnpostedReleases(db);
+      expect(unposted[0]!.title).toBe("Old"); // discovered first, even though the popular artist's release is newer
+      expect(unposted[1]!.title).toBe("New");
+    });
   });
 });

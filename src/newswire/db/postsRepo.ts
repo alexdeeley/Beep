@@ -14,16 +14,6 @@ export interface BlueskyPostRow {
   created_at: string;
 }
 
-export interface CorrectionRow {
-  id: number;
-  original_story_event_id: number;
-  corrected_story_event_id: number;
-  detected_in_run_id: number;
-  correction_post_id: number | null;
-  explanation: string;
-  created_at: string;
-}
-
 /**
  * Records a single thread post immediately after it's sent (not batched
  * at the end of the thread) so a mid-thread publish failure still leaves
@@ -74,24 +64,4 @@ export function getRecentPosts(db: Database.Database, limit: number): BlueskyPos
   return db
     .prepare("SELECT * FROM bluesky_posts WHERE dry_run = 0 ORDER BY created_at DESC LIMIT ?")
     .all(limit) as BlueskyPostRow[];
-}
-
-export function insertCorrection(
-  db: Database.Database,
-  input: {
-    originalStoryEventId: number;
-    correctedStoryEventId: number;
-    detectedInRunId: number;
-    correctionPostId: number | null;
-    explanation: string;
-  }
-): CorrectionRow {
-  const now = new Date().toISOString();
-  const result = db
-    .prepare(
-      `INSERT INTO corrections (original_story_event_id, corrected_story_event_id, detected_in_run_id, correction_post_id, explanation, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(input.originalStoryEventId, input.correctedStoryEventId, input.detectedInRunId, input.correctionPostId, input.explanation, now);
-  return db.prepare("SELECT * FROM corrections WHERE id = ?").get(Number(result.lastInsertRowid)) as CorrectionRow;
 }

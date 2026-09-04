@@ -23,7 +23,6 @@ import type { VerificationOutput } from "../verification/verifyAgent.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
-import { runDeepResearchCycle } from "../newswire/runDeepResearchCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
@@ -200,7 +199,7 @@ program
 program
   .command("news:preview")
   .description(
-    "Run the full hourly newswire pipeline for real (real web search, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
+    "Run the full hourly music release-announcement pipeline for real (real Spotify API calls, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
   )
   .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
   .action(async (opts) => {
@@ -218,7 +217,7 @@ program
 
 program
   .command("news:publish")
-  .description("Run the full hourly newswire pipeline and publish to Bluesky if the pipeline finds something worth posting")
+  .description("Run the full hourly music release-announcement pipeline and publish to Bluesky if there's a new release worth posting")
   .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
   .action(async (opts) => {
     const summary = await runNewswireCycle(config, { dryRun: false, forceRun: Boolean(opts.force) });
@@ -231,7 +230,7 @@ program
 
 program
   .command("news:status")
-  .description("Print a read-only status summary of the newswire pipeline's story database (last run, open stories, recent posts)")
+  .description("Print a read-only status summary of the newswire pipeline's story database (last run, artist resolution progress, recent releases posted)")
   .action(async () => {
     const { mkdtempSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
@@ -251,15 +250,6 @@ program
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
-  });
-
-program
-  .command("news:deep-research")
-  .description("Manually trigger the once-daily deep-research cycle")
-  .option("--dry-run", "Run the research but don't persist story database changes back to R2", false)
-  .action(async (opts) => {
-    const result = await runDeepResearchCycle(config, { dryRun: Boolean(opts.dryRun) });
-    console.log(result.contextBlob ?? "(deep research failed - see logs)");
   });
 
 program

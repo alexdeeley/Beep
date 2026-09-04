@@ -2,25 +2,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 
-const priorityTopicSchema = z.object({
-  key: z.string().min(1),
-  label: z.string().min(1),
-  weight: z.number().min(0).max(1),
-  sourceTierTrack: z.enum(["hard_news", "entertainment"]),
-});
-
-const watchEntrySchema = z.object({
-  type: z.enum(["artist", "band", "person", "company", "technology", "game", "place", "topic"]),
-  name: z.string().min(1),
-  /** Optional short context for the discovery model - e.g. a genre/scene a band belongs to, so an adjacent story can bubble up even without an exact name match. */
-  note: z.string().min(1).optional(),
-});
-
-const excludeEntrySchema = z.object({
-  key: z.string().min(1).optional(),
-  phrase: z.string().min(1).optional(),
-});
-
 const quietHoursSchema = z.object({
   timezone: z.string().min(1),
   slowStartHourLocal: z.number().int().min(0).max(23),
@@ -38,14 +19,7 @@ const voiceSchema = z.object({
 
 export const editorialFocusSchema = z.object({
   $schemaVersion: z.number().int(),
-  priorityTopics: z.array(priorityTopicSchema).min(1),
   neutralityNote: z.string().min(1),
-  /** How discovery should treat priorityTopics/watch: an associative graph of related interests, not a literal keyword whitelist. Optional - falls back to a sensible default if omitted. */
-  topicGraphNote: z.string().min(1).optional(),
-  watch: z.array(watchEntrySchema).default([]),
-  exclude: z.array(excludeEntrySchema).default([]),
-  sourceTiers: z.record(z.string(), z.array(z.string()).min(1)),
-  entertainmentTradePublishers: z.array(z.string()).default([]),
   quietHours: quietHoursSchema,
   voice: voiceSchema,
 });

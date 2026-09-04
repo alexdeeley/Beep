@@ -16,6 +16,8 @@ export interface NewsRunContext {
   logger: RunLogger;
   db: Database.Database;
   openai: OpenAI;
+  /** Spotify Client Credentials access token, fetched once per cycle - see spotify/client.ts. */
+  spotifyToken: string;
   editorialFocus: EditorialFocus;
   hourlyRunId: number;
   dryRun: boolean;
