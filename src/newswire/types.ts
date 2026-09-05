@@ -1,3 +1,5 @@
+import type { LinkFacet } from "../bluesky/threadPublish.js";
+
 export type FactLabel = "FACT" | "ANALYSIS" | "UNCONFIRMED" | "BACKGROUND" | "PREDICTION";
 export type QuietHoursOutcome = "normal" | "slow" | "silent";
 export type MusicItemType = "release" | "news";
@@ -81,8 +83,16 @@ export interface DraftPost {
   text: string;
   /** Which music_item id(s) this post is about, so they can be marked posted_in_run_id on success. Always exactly one item per post in practice - kept as an array for symmetry with the copy-edit/fact-check stages, which operate on posts generically. */
   sourceItemIds: number[];
-  /** If set and this exact URL substring survives into a physical post's text, it's published as a real clickable Bluesky link facet rather than plain text. Optional - only mechanical posts that carry a verified source link set this. */
-  linkUrl?: string;
+  /**
+   * Optional rich-text link facet(s) - currently only ever set by the
+   * mechanical single-post path (see spotify/lookupTrack.ts), never by
+   * the writer/copy-edit path. Only applied when this draft survives as
+   * a single physical post (see toPhysicalItems in publishMusicItems.ts)
+   * - a facet's byte offsets are only valid against the exact text they
+   * were computed from, so one that got split across a reply-chain would
+   * be silently wrong rather than just missing.
+   */
+  facets?: LinkFacet[];
 }
 
 /** The writer stage's output: either an edition worth posting, or null - silence is a valid, expected outcome (e.g. nothing new this hour). */

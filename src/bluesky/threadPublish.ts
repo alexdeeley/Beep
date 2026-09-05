@@ -20,29 +20,27 @@ export interface PostRef {
   cid: string;
 }
 
-export interface RichTextFacet {
+/** A single `app.bsky.richtext.facet` link annotation - the AT Protocol's way of making a URL substring clickable, independent of whatever plain-text auto-linking (or lack of it) a given client does on its own. */
+export interface LinkFacet {
   index: { byteStart: number; byteEnd: number };
   features: { $type: "app.bsky.richtext.facet#link"; uri: string }[];
 }
 
 /**
- * Without a facet, a URL in post text renders as plain, non-clickable text - the AT Protocol lexicon
- * has no auto-linkification. `index` must be UTF-8 BYTE offsets into `text` (not grapheme or UTF-16
- * offsets), per app.bsky.richtext.facet - Buffer.byteLength on the prefix and on the url itself gives
- * the correct offsets even when the text contains multi-byte characters before the link. Returns null
- * if the exact url string isn't found verbatim in text (e.g. a thread split moved it to another post),
- * so the caller can fall back to posting plain text rather than attaching a facet pointing at the wrong
- * range.
+ * Builds a facet marking `url` as a clickable link, at whichever byte
+ * offset it occurs in `text` - AT Protocol facet offsets are UTF-8 byte
+ * indices, not JS string/grapheme indices, so this must measure with
+ * Buffer.byteLength rather than String.indexOf's character position.
+ * Returns null if `url` isn't actually present in `text` (should not
+ * happen for callers that just built `text` themselves, but this is
+ * cheap insurance against ever attaching a facet with the wrong offset).
  */
-export function buildLinkFacet(text: string, url: string): RichTextFacet | null {
+export function buildLinkFacet(text: string, url: string): LinkFacet | null {
   const charIndex = text.indexOf(url);
   if (charIndex === -1) return null;
   const byteStart = Buffer.byteLength(text.slice(0, charIndex), "utf8");
   const byteEnd = byteStart + Buffer.byteLength(url, "utf8");
-  return {
-    index: { byteStart, byteEnd },
-    features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
-  };
+  return { index: { byteStart, byteEnd }, features: [{ $type: "app.bsky.richtext.facet#link", uri: url }] };
 }
 
 interface CreateSessionResponse {
@@ -102,7 +100,7 @@ export async function postThreadMessage(
   config: AppConfig,
   logger: RunLogger,
   session: BlueskySession,
-  opts: { text: string; reply: { root: PostRef; parent: PostRef } | null; facets?: RichTextFacet[] }
+  opts: { text: string; reply: { root: PostRef; parent: PostRef } | null; facets?: LinkFacet[] }
 ): Promise<PostRef> {
   if (opts.text.length === 0) {
     throw new Error("postThreadMessage: refusing to post empty text");
