@@ -40,11 +40,20 @@ export function buildCommaSeparatedPost(header: string, items: string[], maxGrap
 
 /**
  * Chunks a header plus one-line-per-entry content (e.g. "1977: Fleetwood
- * Mac releases Dreams" for TODAY IN HISTORY) into grapheme-safe physical
- * posts, never splitting a line across posts. Throws if the header or any
- * single line alone exceeds the limit.
+ * Mac releases Dreams" for TODAY IN HISTORY, or "Matchbox 20 - Sept 7" for
+ * SHOWS) into grapheme-safe physical posts, never splitting a line across
+ * posts. The header always gets its own paragraph (a blank line before the
+ * first entry); `lineSeparator` controls spacing between entries
+ * themselves - "\n\n" (default) reads as short paragraphs (history), "\n"
+ * reads as a tight calendar-style list (shows). Throws if the header or
+ * any single line alone exceeds the limit.
  */
-export function buildMultiLinePost(header: string, lines: string[], maxGraphemes: number = BLUESKY_MAX_POST_GRAPHEMES): string[] {
+export function buildMultiLinePost(
+  header: string,
+  lines: string[],
+  maxGraphemes: number = BLUESKY_MAX_POST_GRAPHEMES,
+  lineSeparator: string = "\n\n"
+): string[] {
   if (countGraphemes(header) > maxGraphemes) {
     throw new Error(`The post header alone exceeds ${maxGraphemes} graphemes: "${header}"`);
   }
@@ -52,17 +61,21 @@ export function buildMultiLinePost(header: string, lines: string[], maxGraphemes
 
   const posts: string[] = [];
   let current = header;
+  let currentHasLines = false;
 
   for (const line of lines) {
     if (countGraphemes(line) > maxGraphemes) {
       throw new Error(`A single line exceeds ${maxGraphemes} graphemes: "${line.slice(0, 80)}..."`);
     }
-    const candidate = `${current}\n\n${line}`;
+    const separator = currentHasLines ? lineSeparator : "\n\n";
+    const candidate = `${current}${separator}${line}`;
     if (countGraphemes(candidate) <= maxGraphemes) {
       current = candidate;
+      currentHasLines = true;
     } else {
       posts.push(current);
       current = line;
+      currentHasLines = true;
     }
   }
   posts.push(current);

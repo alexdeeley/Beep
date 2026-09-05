@@ -32,6 +32,7 @@ import {
   hasSimilarIndustryItem,
 } from "../../src/newswire/db/industryReleaseItemsRepo.js";
 import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
+import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -78,6 +79,7 @@ describe("newswire SQLite DB layer", () => {
       "industry_release_items",
       "history_posts",
       "birthday_posts",
+      "shows_runs",
     ]) {
       expect(tables).toContain(t);
     }
@@ -491,6 +493,23 @@ describe("newswire SQLite DB layer", () => {
       expect(hasBirthdayPostForYear(db, bjork.id, 2027)).toBe(false);
 
       expect(() => recordBirthdayPost(db, { watchedArtistId: bjork.id, year: 2026, postedInRunId: run.id })).toThrow();
+    });
+  });
+
+  describe("shows_runs", () => {
+    it("is not recorded for a date until recordShowsPost is called", () => {
+      expect(hasShowsPostForDate(db, "2026-09-08")).toBe(false);
+    });
+
+    it("round-trips a recorded SHOWS post and enforces once-per-date via UNIQUE", () => {
+      const run = startHourlyRun(db, false);
+      const recorded = recordShowsPost(db, { runDate: "2026-09-08", postedInRunId: run.id, itemCount: 5 });
+      expect(recorded.run_date).toBe("2026-09-08");
+      expect(hasShowsPostForDate(db, "2026-09-08")).toBe(true);
+      expect(hasShowsPostForDate(db, "2026-09-15")).toBe(false);
+      expect(getLastShowsRun(db)?.run_date).toBe("2026-09-08");
+
+      expect(() => recordShowsPost(db, { runDate: "2026-09-08", postedInRunId: run.id, itemCount: 3 })).toThrow();
     });
   });
 });

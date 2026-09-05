@@ -313,4 +313,20 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Weekly SHOWS post: a Portland/Pacific-Northwest regional concert calendar, independent of
+    // watched-artists.txt (any artist). No accumulation table needed - each week's sweep discovers,
+    // verifies, and posts in one shot (like TODAY IN HISTORY), so shows_runs is only the once-per-week
+    // idempotency guard, keyed by the local date it ran on.
+    id: "0007_weekly_shows",
+    sql: `
+      CREATE TABLE IF NOT EXISTS shows_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_date TEXT NOT NULL UNIQUE,
+        posted_in_run_id INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `,
+  },
 ];

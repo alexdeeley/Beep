@@ -58,4 +58,10 @@ describe("buildMultiLinePost", () => {
   it("produces just the header when there are no lines", () => {
     expect(buildMultiLinePost("TODAY IN HISTORY 9/5", [])).toEqual(["TODAY IN HISTORY 9/5"]);
   });
+
+  it("uses a tight single-newline lineSeparator for a calendar-style list (SHOWS), still with a blank line after the header", () => {
+    const posts = buildMultiLinePost("SHOWS", ["Matchbox 20 - Sept 7", "The Cure - Sept 8"], undefined, "\n");
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toBe("SHOWS\n\nMatchbox 20 - Sept 7\nThe Cure - Sept 8");
+  });
 });

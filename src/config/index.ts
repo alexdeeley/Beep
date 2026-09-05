@@ -137,6 +137,8 @@ export interface AppConfig {
     postingHoursLocal: number[];
     /** How many never-checked watchlist artists get a one-time birth-date lookup per cycle (see birthdays/postBirthdays.ts). Small on purpose - each candidate needs its own independent verification search, and this is a one-time cost per artist, not a recurring one. */
     birthDateBatchSize: number;
+    /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Tuesday cycle posts the weekly Portland/Pacific-Northwest SHOWS calendar (see shows/postWeeklyShows.ts). */
+    showsHourLocal: number;
   };
 
   storage: {
@@ -251,6 +253,7 @@ export function loadConfig(): AppConfig {
         .map((h) => Number.parseInt(h.trim(), 10))
         .filter((h) => Number.isFinite(h)),
       birthDateBatchSize: envInt("NEWS_BIRTHDATE_BATCH_SIZE", 15),
+      showsHourLocal: envInt("NEWS_SHOWS_HOUR_LOCAL", 8),
     },
 
     storage: {

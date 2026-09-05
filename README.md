@@ -563,8 +563,10 @@ Alongside that per-artist flow: every Friday cycle also posts an
 industry-wide `NEW MUSIC FRIDAY` roundup, every cycle also checks whether
 today's `TODAY IN HISTORY` post has gone out yet, every non-priority
 single posts immediately as a plain mechanical line rather than through
-the writer, and any watchlist artist gets a one-line `HAPPY BIRTHDAY`
-post on their real, independently-verified birthday (§18.7-§18.10).
+the writer, any watchlist artist gets a one-line `HAPPY BIRTHDAY` post on
+their real, independently-verified birthday, and every Tuesday a `SHOWS`
+post lists upcoming Portland/Pacific-Northwest concerts, industry-wide
+like the Friday roundup (§18.7-§18.11).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -620,10 +622,10 @@ order:
    BACKGROUND / PREDICTION, classifies every source into a tier, and
    requires **at least 2 independent corroborating source domains** or
    the candidate is dropped outright.
-5. **NEW MUSIC FRIDAY + TODAY IN HISTORY + birthdays** — three independent,
-   mechanical posts that run before anything below and aren't affected by
-   whatever this cycle's quiet-hours outcome ends up being. See §18.7,
-   §18.9, and §18.10.
+5. **NEW MUSIC FRIDAY + TODAY IN HISTORY + birthdays + SHOWS** — four
+   independent, mechanical posts that run before anything below and
+   aren't affected by whatever this cycle's quiet-hours outcome ends up
+   being. See §18.7, §18.9, §18.10, and §18.11.
 6. **Mechanical singles** — every non-priority single verified so far
    (this cycle's or an earlier one's backlog) posts immediately as its
    own post, built directly as `NEW SINGLE: Artist - Title` - no writer,
@@ -970,3 +972,41 @@ musician). It does two independent things every cycle:
    guard, so the twice-daily cadence can never post the same artist's
    birthday twice in the same year even if both the 8am and 8pm cycle
    land on the date.
+
+### 18.11 Weekly regional shows: `shows/postWeeklyShows.ts`
+
+Independent of `watched-artists.txt` entirely (any artist, not just the
+personal watchlist) - every Tuesday, local time, at or after
+`NEWS_SHOWS_HOUR_LOCAL` (default 8am), this posts a calendar of upcoming
+concerts in **Portland, Oregon and the broader Pacific Northwest**
+(Oregon, Washington, Idaho) for the next 7 days. Unlike the Friday
+roundup, there's no backlog table to accumulate into - it's a single
+fresh web-search sweep each week (`discovery/discoverShows.ts` +
+`verification/verifyShows.ts`, the same independent 2-corroborating-
+source rule as everywhere else), discovered and posted in one shot, like
+`TODAY IN HISTORY`. Format is a tight, calendar-style list - one show per
+line, sorted chronologically, no blank lines between entries:
+
+```
+SHOWS
+
+Matchbox 20 - Sept 7
+The Cure - Sept 8
+```
+
+**A show's date is a calendar date at the venue, not a UTC instant** -
+`shows/postWeeklyShows.ts`'s `localCalendarDate`/`formatShowDate` always
+parse with `{ setZone: true }` rather than converting into the server's
+zone, specifically because this bit a live test during development: a
+verified 7pm-Pacific show naively converted to UTC landed on the *next*
+calendar day, silently reporting the wrong date. Deduplication
+(same artist + same calendar date) uses this same corrected date, so a
+show independently reported once with a bare date and once with a full
+timestamp still collapses to one line rather than showing twice.
+
+Like the other mechanical posts, this skips copy-edit/fact-check/
+duplicate-check - there's no new prose to check. If nothing independently
+verifiable turns up for the window, no post goes out and nothing is
+recorded, so a later cycle the same Tuesday can retry.
+`db/showsRepo.ts`'s `shows_runs` table (keyed by the local date it ran
+on) is the once-a-week idempotency guard.

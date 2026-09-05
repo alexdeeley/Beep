@@ -168,3 +168,25 @@ export interface VerifiedBirthDate {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw upcoming-show candidate surfaced by discoverShows, before independent verification - scoped
+ * to Portland, Oregon and the broader Pacific Northwest, and to any artist (not just watched-artists.txt),
+ * for the weekly SHOWS post.
+ */
+export interface ShowCandidate {
+  artistName: string;
+  venueName: string | null;
+  eventDateIso: string | null;
+  eventDateConfidence: "exact" | "approximate" | "unknown";
+  sources: ReportedSource[];
+}
+
+/** Output of verifyShows: a show candidate independently re-confirmed with the 2-source rule - eventDateIso/eventDateConfidence come from the verified fact, not discovery's initial guess. */
+export interface VerifiedShow {
+  artistName: string;
+  venueName: string | null;
+  eventDateIso: string;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}
