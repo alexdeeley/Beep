@@ -816,13 +816,29 @@ first cycle on a Friday, local time (in `editorial-focus.json`'s
    only) and are stored in their own `industry_release_items` table (no
    `watched_artist_id` - these artists don't need to be tracked between
    cycles).
-2. Merges that with whatever watchlist albums/EPs/compilations
-   accumulated this week, de-duplicating by artist+headline so an artist
+2. Merges that with whatever watchlist albums/EPs/compilations are
+   sitting unposted, de-duplicating by artist+headline so an artist
    that's both on your watchlist and independently surfaced by the
    industry sweep is only listed once (the watchlist-tracked version
    wins).
 
-The combined list becomes one thread, artist names only, comma-separated:
+**Fundamental rule: only releases dated exactly today make the cut.**
+Both pools are passed through `weeklyRoundup/releaseDateFilter.ts`'s
+`wasReleasedOn`, which requires an "exact"-confidence `event_time` (as
+independently determined during verification, not discovery's initial
+guess) matching today's local date precisely. An album that's been
+sitting unposted because the watchlist rotation only just got around to
+checking that artist - even if it actually released three days ago - is
+**excluded**, not swept in just because it happened to still be
+unposted. `NEW MUSIC FRIDAY` is a same-day snapshot of what's actually
+new today, never a backlog dump; a release with an approximate/unknown
+confidence, or no confirmed date at all, never counts as "today" no
+matter how notable it is. (This rule is specific to the roundup - it
+does not apply to `TODAY IN HISTORY`, §18.9, which is inherently about
+other years.)
+
+The combined, date-filtered list becomes one thread, artist names only,
+comma-separated:
 
 ```
 NEW MUSIC FRIDAY 9/4/26
