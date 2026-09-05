@@ -178,7 +178,7 @@
     "id": "artsy-v3",
     "name": "Artsy v3",
     "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
-    "category": "Art",
+    "category": "Daily",
     "path": "ArtsyV3.html"
   },
   {
@@ -292,13 +292,6 @@
     "description": "A game from the Neocities collection: \"Spider Kingdom\".",
     "category": "Games",
     "path": "SpiderKingdomJungleTriangle.html"
-  },
-  {
-    "id": "neo-artsy-v32",
-    "name": "ARTSY v3 \u2014 Seeded Painter",
-    "description": "A generative art / visual piece from the Neocities collection: \"ARTSY v3 \u2014 Seeded Painter\".",
-    "category": "Art",
-    "path": "ArtsyV32.html"
   },
   {
     "id": "neo-blockdrop-quake-v2",
@@ -964,13 +957,6 @@
     "description": "A music tool from the Neocities collection: \"Heapsort Audio Visualizer\".",
     "category": "Music Tools",
     "path": "HeapsortVoiceAudio.html"
-  },
-  {
-    "id": "neo-artsy",
-    "name": "artsy",
-    "description": "A generative art / visual piece from the Neocities collection: \"artsy\".",
-    "category": "Art",
-    "path": "Artsy.html"
   },
   {
     "id": "neo-factorial-push-art-longform",
