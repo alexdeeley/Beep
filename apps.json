@@ -833,13 +833,6 @@
     "path": "PrismBreaker.html"
   },
   {
-    "id": "neo-threesque",
-    "name": "Threesque",
-    "description": "A game from the Neocities collection: \"Threesque\".",
-    "category": "Games",
-    "path": "Threesque.html"
-  },
-  {
     "id": "neo-listening-club-whos-bigger",
     "name": "Listening Club Trivia: Top Artist",
     "description": "A game from the Neocities collection: \"Listening Club Trivia: Top Artist\".",
@@ -957,13 +950,6 @@
     "description": "A game from the Neocities collection: \"SNAKE! \u2014 Many Pickups + Skull (v6)\".",
     "category": "Games",
     "path": "SnakeManyPickupsSkullV6.html"
-  },
-  {
-    "id": "neo-threesque3",
-    "name": "Threesque",
-    "description": "A game from the Neocities collection: \"Threesque\".",
-    "category": "Games",
-    "path": "Threesque3.html"
   },
   {
     "id": "neo-snes-birds",
@@ -1260,13 +1246,6 @@
     "path": "ChromeCheckerboard16x16Safari.html"
   },
   {
-    "id": "neo-threes-lite",
-    "name": "Threes-Lite (High Contrast)",
-    "description": "A game from the Neocities collection: \"Threes-Lite (High Contrast)\".",
-    "category": "Games",
-    "path": "ThreesLite.html"
-  },
-  {
     "id": "neo-unicorn-tetris",
     "name": "Unicorn Blocks",
     "description": "A game from the Neocities collection: \"Unicorn Blocks\".",
@@ -1342,13 +1321,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"smooth\".",
     "category": "Art",
     "path": "SmoothV2.html"
-  },
-  {
-    "id": "neo-threes-minimal2",
-    "name": "Threes",
-    "description": "A game from the Neocities collection: \"Threes\".",
-    "category": "Games",
-    "path": "ThreesMinimal2.html"
   },
   {
     "id": "neo-d-s-s12",
