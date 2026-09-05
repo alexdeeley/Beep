@@ -112,14 +112,17 @@ function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): 
  * Non-priority singles post immediately as a mechanical "NEW SINGLE: Artist - Title" line - built
  * directly from already-verified structured fields, never through the writer/copy-edit/fact-check
  * stages (there's no new prose to check). Falls back to the full headline if releaseTitle is somehow
- * missing (only possible for a stale pre-migration backlog row) rather than skipping the item.
+ * missing (only possible for a stale pre-migration backlog row) rather than skipping the item. The
+ * verified primary source URL is appended on its own line and carried as linkUrl so publishMusicItems
+ * attaches it as a real clickable Bluesky link facet, not just plain URL text.
  */
 async function publishMechanicalSingles(ctx: NewsRunContext, items: UnpostedMusicItemRow[]): Promise<number> {
   if (items.length === 0) return 0;
   const edition: DraftEdition = {
     posts: items.map((item) => ({
-      text: `NEW SINGLE: ${item.artist_name} - ${item.release_title ?? item.headline}`,
+      text: `NEW SINGLE: ${item.artist_name} - ${item.release_title ?? item.headline}\n\n${item.primary_source_url}`,
       sourceItemIds: [item.id],
+      linkUrl: item.primary_source_url,
     })),
   };
   const result = await publishMusicItems(ctx, edition);

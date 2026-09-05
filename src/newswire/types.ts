@@ -81,6 +81,8 @@ export interface DraftPost {
   text: string;
   /** Which music_item id(s) this post is about, so they can be marked posted_in_run_id on success. Always exactly one item per post in practice - kept as an array for symmetry with the copy-edit/fact-check stages, which operate on posts generically. */
   sourceItemIds: number[];
+  /** If set and this exact URL substring survives into a physical post's text, it's published as a real clickable Bluesky link facet rather than plain text. Optional - only mechanical posts that carry a verified source link set this. */
+  linkUrl?: string;
 }
 
 /** The writer stage's output: either an edition worth posting, or null - silence is a valid, expected outcome (e.g. nothing new this hour). */

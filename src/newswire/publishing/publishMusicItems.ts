@@ -1,4 +1,4 @@
-import { createBlueskySession, postThreadMessage, type PostRef } from "../../bluesky/threadPublish.js";
+import { createBlueskySession, postThreadMessage, buildLinkFacet, type PostRef } from "../../bluesky/threadPublish.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { markMusicItemPosted } from "../db/musicItemsRepo.js";
 import type { NewsRunContext } from "../runContext.js";
@@ -10,12 +10,15 @@ interface PhysicalItem {
   itemIds: number[];
   /** Grapheme-safe physical posts for this one item - usually length 1, occasionally a short reply-chain if the announcement ran long. Never mixed with another item's posts. */
   texts: string[];
+  /** Carried from DraftPost.linkUrl - turned into a real clickable facet on whichever physical post still contains this exact URL substring after splitting. */
+  linkUrl?: string;
 }
 
 function toPhysicalItems(edition: NonNullable<DraftEdition>): PhysicalItem[] {
   return edition.posts.map((draft) => ({
     itemIds: draft.sourceItemIds,
     texts: splitIntoThread([{ text: draft.text }]),
+    linkUrl: draft.linkUrl,
   }));
 }
 
@@ -76,9 +79,11 @@ export async function publishMusicItems(ctx: NewsRunContext, edition: DraftEditi
 
     for (const text of item.texts) {
       try {
+        const facet = item.linkUrl ? buildLinkFacet(text, item.linkUrl) : null;
         const ref = await postThreadMessage(ctx.config, ctx.logger, session, {
           text,
           reply: root && parent ? { root, parent } : null,
+          facets: facet ? [facet] : undefined,
         });
         root = root ?? ref;
         parent = ref;

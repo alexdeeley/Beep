@@ -20,6 +20,31 @@ export interface PostRef {
   cid: string;
 }
 
+export interface RichTextFacet {
+  index: { byteStart: number; byteEnd: number };
+  features: { $type: "app.bsky.richtext.facet#link"; uri: string }[];
+}
+
+/**
+ * Without a facet, a URL in post text renders as plain, non-clickable text - the AT Protocol lexicon
+ * has no auto-linkification. `index` must be UTF-8 BYTE offsets into `text` (not grapheme or UTF-16
+ * offsets), per app.bsky.richtext.facet - Buffer.byteLength on the prefix and on the url itself gives
+ * the correct offsets even when the text contains multi-byte characters before the link. Returns null
+ * if the exact url string isn't found verbatim in text (e.g. a thread split moved it to another post),
+ * so the caller can fall back to posting plain text rather than attaching a facet pointing at the wrong
+ * range.
+ */
+export function buildLinkFacet(text: string, url: string): RichTextFacet | null {
+  const charIndex = text.indexOf(url);
+  if (charIndex === -1) return null;
+  const byteStart = Buffer.byteLength(text.slice(0, charIndex), "utf8");
+  const byteEnd = byteStart + Buffer.byteLength(url, "utf8");
+  return {
+    index: { byteStart, byteEnd },
+    features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+  };
+}
+
 interface CreateSessionResponse {
   accessJwt: string;
   did: string;
@@ -77,7 +102,7 @@ export async function postThreadMessage(
   config: AppConfig,
   logger: RunLogger,
   session: BlueskySession,
-  opts: { text: string; reply: { root: PostRef; parent: PostRef } | null }
+  opts: { text: string; reply: { root: PostRef; parent: PostRef } | null; facets?: RichTextFacet[] }
 ): Promise<PostRef> {
   if (opts.text.length === 0) {
     throw new Error("postThreadMessage: refusing to post empty text");
@@ -102,6 +127,7 @@ export async function postThreadMessage(
             text: opts.text,
             createdAt: nowIso(),
             ...(opts.reply ? { reply: opts.reply } : {}),
+            ...(opts.facets && opts.facets.length > 0 ? { facets: opts.facets } : {}),
           },
         }),
       });
