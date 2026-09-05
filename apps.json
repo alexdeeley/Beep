@@ -259,13 +259,6 @@
     "path": "MaterialCube.html"
   },
   {
-    "id": "neo-mini-hole",
-    "name": "Mini Hole",
-    "description": "A game from the Neocities collection: \"Mini Hole\".",
-    "category": "Games",
-    "path": "MiniHole.html"
-  },
-  {
     "id": "neo-swipe-drift-text",
     "name": "Swipe & Drift Text",
     "description": "A generative art / visual piece from the Neocities collection: \"Swipe & Drift Text\".",
@@ -707,13 +700,6 @@
     "path": "SwirlStudio.html"
   },
   {
-    "id": "neo-metropolis-fixed",
-    "name": "Metropolis",
-    "description": "A game from the Neocities collection: \"Metropolis\".",
-    "category": "Games",
-    "path": "MetropolisFixed.html"
-  },
-  {
     "id": "neo-fractal-checkerboard-vivid",
     "name": "Fractal Checkerboard Vivid",
     "description": "A generative art / visual piece from the Neocities collection: \"Fractal Checkerboard Vivid\".",
@@ -726,13 +712,6 @@
     "description": "A game from the Neocities collection: \"\ud83e\udd84 Maisie's Unicorn Maze!\".",
     "category": "Games",
     "path": "MaisiesUnicornMazeFixed.html"
-  },
-  {
-    "id": "neo-metropolis-touch-fixed",
-    "name": "Metropolis",
-    "description": "A game from the Neocities collection: \"Metropolis\".",
-    "category": "Games",
-    "path": "MetropolisTouchFixed.html"
   },
   {
     "id": "neo-field-lines",
@@ -943,13 +922,6 @@
     "description": "A music tool from the Neocities collection: \"Oscillate\".",
     "category": "Music Tools",
     "path": "Oscillate.html"
-  },
-  {
-    "id": "neo-peggle-noir",
-    "name": "Peggle Noir",
-    "description": "A game from the Neocities collection: \"Peggle Noir\".",
-    "category": "Games",
-    "path": "PeggleNoir.html"
   },
   {
     "id": "neo-peggle-noir-minimal",
