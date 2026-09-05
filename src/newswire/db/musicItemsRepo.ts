@@ -6,6 +6,7 @@ export interface MusicItemRow {
   watched_artist_id: number;
   item_type: MusicItemType;
   release_format: ReleaseFormat | null;
+  release_title: string | null;
   headline: string;
   summary: string;
   fact_label: FactLabel;
@@ -55,6 +56,7 @@ export function insertMusicItem(
     watchedArtistId: number;
     itemType: MusicItemType;
     releaseFormat: ReleaseFormat | null;
+    releaseTitle: string | null;
     headline: string;
     summary: string;
     factLabel: FactLabel;
@@ -71,13 +73,14 @@ export function insertMusicItem(
   const result = db
     .prepare(
       `INSERT OR IGNORE INTO music_items
-        (watched_artist_id, item_type, release_format, headline, summary, fact_label, event_time, event_time_confidence, article_published_at, primary_source_url, source_domains_json, facts_json, discovered_in_run_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (watched_artist_id, item_type, release_format, release_title, headline, summary, fact_label, event_time, event_time_confidence, article_published_at, primary_source_url, source_domains_json, facts_json, discovered_in_run_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       input.watchedArtistId,
       input.itemType,
       input.releaseFormat,
+      input.releaseTitle,
       input.headline,
       input.summary,
       input.factLabel,
@@ -128,7 +131,7 @@ export function getUnpostedIndividualItems(db: Database.Database): UnpostedMusic
     .all() as UnpostedMusicItemRow[];
 }
 
-/** Album/EP/compilation releases accumulated since the last WEEKLY NEW RELEASES roundup - the candidate pool for postWeeklyRoundup.ts. */
+/** Album/EP/compilation releases accumulated since the last NEW MUSIC FRIDAY roundup - the candidate pool for postWeeklyRoundup.ts. */
 export function getUnpostedAlbumItems(db: Database.Database): UnpostedMusicItemRow[] {
   return db
     .prepare(

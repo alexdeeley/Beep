@@ -8,6 +8,7 @@ function item(overrides: Partial<UnpostedMusicItemRow> = {}): UnpostedMusicItemR
     watched_artist_id: 1,
     item_type: "release",
     release_format: null,
+    release_title: null,
     headline: "H",
     summary: "S",
     fact_label: "FACT",

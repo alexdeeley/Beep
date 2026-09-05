@@ -1,7 +1,7 @@
 export type FactLabel = "FACT" | "ANALYSIS" | "UNCONFIRMED" | "BACKGROUND" | "PREDICTION";
 export type QuietHoursOutcome = "normal" | "slow" | "silent";
 export type MusicItemType = "release" | "news";
-/** Only set when itemType is "release" - what kind of release it is. Singles post immediately (with a "NEW SINGLE ALERT" label); albums/EPs/compilations are held and batched into the Friday WEEKLY NEW RELEASES roundup instead of posting individually. */
+/** Only set when itemType is "release" - what kind of release it is. Singles post immediately as a mechanical "NEW SINGLE: Artist - Title" post; albums/EPs/compilations are held and batched into the Friday NEW MUSIC FRIDAY roundup instead of posting individually. */
 export type ReleaseFormat = "single" | "album" | "ep" | "compilation";
 
 /** A single "here's a URL I found via web search" claim from the model - unverified until an independent stage re-checks it. */
@@ -17,6 +17,8 @@ export interface MusicNewsCandidate {
   artistName: string;
   itemType: MusicItemType;
   releaseFormat: ReleaseFormat | null;
+  /** The clean single/album/EP/compilation title (e.g. "Speyside"), null when itemType is "news". Used to build the mechanical "NEW SINGLE: Artist - Title" post text directly, without going through the writer. */
+  releaseTitle: string | null;
   headline: string;
   summary: string;
   eventTimeIso: string | null;
@@ -39,19 +41,20 @@ export interface VerifiedMusicItem {
   artistName: string;
   itemType: MusicItemType;
   releaseFormat: ReleaseFormat | null;
+  releaseTitle: string | null;
   headline: string;
   facts: VerifiedFact[];
   /** False if fewer than 2 independent domains corroborate the core claim - caller should reject it. */
   meetsSourceBar: boolean;
 }
 
-/** release_format values eligible for the Friday WEEKLY NEW RELEASES roundup (never a single). */
+/** release_format values eligible for the Friday NEW MUSIC FRIDAY roundup (never a single). */
 export type RoundupReleaseFormat = "album" | "ep" | "compilation";
 
 /**
  * One major-release candidate from discoverIndustryReleases - the industry-wide sweep that finds
  * notable album/EP/compilation releases across the whole music industry (not just watched-artists.txt)
- * for the Friday WEEKLY NEW RELEASES roundup. Deliberately not tied to a watchedArtistId, unlike
+ * for the Friday NEW MUSIC FRIDAY roundup. Deliberately not tied to a watchedArtistId, unlike
  * MusicNewsCandidate.
  */
 export interface IndustryReleaseCandidate {
@@ -123,4 +126,20 @@ export interface PublishedPost {
 export interface PublishResult {
   posts: PublishedPost[];
   dryRun: boolean;
+}
+
+/** One raw candidate surfaced by discoverMusicHistory, before independent verification - "on this day in music history" for today's calendar date (any year). */
+export interface HistoryFactCandidate {
+  year: number;
+  /** A short, factual description of what happened, e.g. "Fleetwood Mac releases Rumours" - no editorializing. */
+  eventDescription: string;
+  sources: ReportedSource[];
+}
+
+/** Output of verifyMusicHistory: a historical candidate that survived independent re-research with the 2-source rule applied. */
+export interface VerifiedHistoryFact {
+  year: number;
+  eventDescription: string;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
 }

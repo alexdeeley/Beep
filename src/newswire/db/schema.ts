@@ -219,8 +219,8 @@ export const migrations: Migration[] = [
   },
   {
     // Adds release-format classification (single vs. album/EP/compilation) so the two can be posted
-    // differently: singles post immediately with a "NEW SINGLE ALERT" label, while album/EP/compilation
-    // releases are held back and batched into a once-a-week Friday "WEEKLY NEW RELEASES" roundup instead
+    // differently: singles post immediately with a mechanical "NEW SINGLE: Artist - Title" line, while
+    // album/EP/compilation releases are held back and batched into a once-a-week Friday "NEW MUSIC FRIDAY" roundup instead
     // of posting individually. This migration IS additive against a live-deployed 0002 (unlike 0002 itself,
     // which was safe to edit in place - 0002 has since actually run in production), so it uses ALTER TABLE
     // rather than redefining music_items.
@@ -238,7 +238,7 @@ export const migrations: Migration[] = [
     `,
   },
   {
-    // WEEKLY NEW RELEASES was originally built from watchlist albums only (music_items, via
+    // NEW MUSIC FRIDAY was originally built from watchlist albums only (music_items, via
     // watched_artist_id). The roundup is now industry-wide - it also independently discovers major
     // album/EP/compilation releases across the whole music industry, not just watched-artists.txt - so
     // this table exists alongside music_items rather than reusing it, since these items have no
@@ -265,6 +265,25 @@ export const migrations: Migration[] = [
       );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_industry_release_items_dedup ON industry_release_items(artist_name, primary_source_url);
       CREATE INDEX IF NOT EXISTS idx_industry_release_items_unposted ON industry_release_items(posted_in_run_id);
+    `,
+  },
+  {
+    // Two additions for the "simpler, twice-daily" redesign: (1) release_title captures the clean
+    // single/album/EP title on its own (separately from the full prose `headline`), so a single can be
+    // posted as a mechanical "NEW SINGLE: Artist - Title" line without going through the writer LLM at
+    // all; (2) history_posts is the once-a-day idempotency guard for the new "TODAY IN HISTORY" post
+    // (postMusicHistory.ts), mirroring weekly_roundup_runs' roundup_date UNIQUE pattern exactly.
+    id: "0005_release_title_and_history_posts",
+    sql: `
+      ALTER TABLE music_items ADD COLUMN release_title TEXT;
+
+      CREATE TABLE IF NOT EXISTS history_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_date TEXT NOT NULL UNIQUE,
+        posted_in_run_id INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `,
   },
 ];

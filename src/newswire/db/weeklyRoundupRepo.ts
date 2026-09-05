@@ -8,7 +8,7 @@ export interface WeeklyRoundupRunRow {
   created_at: string;
 }
 
-/** True if a roundup has already been recorded for this local date (YYYY-MM-DD) - the idempotency guard against posting WEEKLY NEW RELEASES twice on the same Friday. */
+/** True if a roundup has already been recorded for this local date (YYYY-MM-DD) - the idempotency guard against posting NEW MUSIC FRIDAY twice on the same Friday. */
 export function hasRoundupForDate(db: Database.Database, roundupDate: string): boolean {
   return db.prepare("SELECT 1 FROM weekly_roundup_runs WHERE roundup_date = ?").get(roundupDate) !== undefined;
 }

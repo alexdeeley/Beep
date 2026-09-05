@@ -27,6 +27,7 @@ import {
   markIndustryReleaseItemPosted,
   hasSimilarIndustryItem,
 } from "../../src/newswire/db/industryReleaseItemsRepo.js";
+import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -71,6 +72,7 @@ describe("newswire SQLite DB layer", () => {
       "watched_artists",
       "music_items",
       "industry_release_items",
+      "history_posts",
     ]) {
       expect(tables).toContain(t);
     }
@@ -88,6 +90,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: 999999, // no such watched_artists row
         itemType: "release",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "H",
         summary: "S",
         factLabel: "FACT",
@@ -171,6 +174,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "release",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "Alvvays release Blue Rev II",
         summary: "Alvvays released a new album titled Blue Rev II.",
         factLabel: "FACT",
@@ -201,6 +205,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "release" as const,
         releaseFormat: null,
+        releaseTitle: null,
         headline: "Beck news",
         summary: "S",
         factLabel: "FACT" as const,
@@ -227,6 +232,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "news",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "Old news",
         summary: "S",
         factLabel: "FACT",
@@ -242,6 +248,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "news",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "New news",
         summary: "S",
         factLabel: "FACT",
@@ -266,6 +273,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "release",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "Wilco Announce New Album!",
         summary: "S",
         factLabel: "FACT",
@@ -290,6 +298,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "release",
         releaseFormat: "single",
+        releaseTitle: null,
         headline: "New single",
         summary: "S",
         factLabel: "FACT",
@@ -305,6 +314,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "news",
         releaseFormat: null,
+        releaseTitle: null,
         headline: "Tour announced",
         summary: "S",
         factLabel: "FACT",
@@ -320,6 +330,7 @@ describe("newswire SQLite DB layer", () => {
         watchedArtistId: artistId,
         itemType: "release",
         releaseFormat: "album",
+        releaseTitle: null,
         headline: "New album",
         summary: "S",
         factLabel: "FACT",
@@ -412,6 +423,23 @@ describe("newswire SQLite DB layer", () => {
       expect(hasSimilarIndustryItem(db, "Loud Colors", "loud colors announce new album")).toBe(true);
       expect(hasSimilarIndustryItem(db, "Loud Colors", "Loud Colors cancels tour dates")).toBe(false);
       expect(hasSimilarIndustryItem(db, "A Totally Different Band", "loud colors announce new album")).toBe(false);
+    });
+  });
+
+  describe("history_posts", () => {
+    it("is not recorded for a date until recordHistoryPost is called", () => {
+      expect(hasHistoryPostForDate(db, "2026-09-05")).toBe(false);
+    });
+
+    it("round-trips a recorded TODAY IN HISTORY post and enforces once-per-date via UNIQUE", () => {
+      const run = startHourlyRun(db, false);
+      const recorded = recordHistoryPost(db, { postDate: "2026-09-05", postedInRunId: run.id, itemCount: 2 });
+      expect(recorded.post_date).toBe("2026-09-05");
+      expect(hasHistoryPostForDate(db, "2026-09-05")).toBe(true);
+      expect(hasHistoryPostForDate(db, "2026-09-06")).toBe(false);
+      expect(getLastHistoryPost(db)?.post_date).toBe("2026-09-05");
+
+      expect(() => recordHistoryPost(db, { postDate: "2026-09-05", postedInRunId: run.id, itemCount: 3 })).toThrow();
     });
   });
 });

@@ -6,7 +6,7 @@ import { normalizeHeadline } from "./musicItemsRepo.js";
  * A major album/EP/compilation release surfaced by the industry-wide
  * discoverIndustryReleases sweep - independent of watched-artists.txt, so
  * (unlike music_items) there is no watched_artist_id to key off. Feeds the
- * Friday WEEKLY NEW RELEASES roundup alongside watchlist album items (see
+ * Friday NEW MUSIC FRIDAY roundup alongside watchlist album items (see
  * weeklyRoundup/postWeeklyRoundup.ts).
  */
 export interface IndustryReleaseItemRow {

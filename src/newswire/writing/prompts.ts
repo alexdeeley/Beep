@@ -3,11 +3,12 @@ import type { MusicItemType, ReleaseFormat, VerifiedFact } from "../types.js";
 
 /**
  * One music item, grounded in the facts the verification stage
- * independently confirmed - never invented by the writer. Only singles,
- * news, and priority-artist albums ever reach the writer: ordinary
- * album/EP/compilation releases are held back for the weekly WEEKLY NEW
- * RELEASES roundup instead (see runNewswireCycle.ts and
- * weeklyRoundup/postWeeklyRoundup.ts).
+ * independently confirmed - never invented by the writer. Only news items
+ * and priority-artist releases ever reach the writer: a non-priority
+ * single posts immediately as a mechanical "NEW SINGLE: Artist - Title"
+ * line (never through the writer), and ordinary album/EP/compilation
+ * releases are held back for the Friday NEW MUSIC FRIDAY roundup instead
+ * (see runNewswireCycle.ts and weeklyRoundup/postWeeklyRoundup.ts).
  */
 export interface WritingItem {
   musicItemId: number;
@@ -44,13 +45,12 @@ export const WRITING_JSON_SCHEMA = {
 const GOOD_BAD_EXAMPLES = [
   'BAD (breathless hype): "Get ready to have your mind blown - the legendary indie icons have finally dropped their most anticipated ' +
     'album yet, and it\'s absolutely essential listening!"',
-  'GOOD (single, with the required label): "NEW SINGLE ALERT: Fontaines D.C. released \\"Favourite\\" today - their first new material ' +
-    'since 2024."',
-  'BAD (invented editorial claim not in the facts): "This marks a bold new direction for the band."',
   'GOOD (news item, no label, states only what\'s given): "Bon Iver will headline three West Coast dates in October, according to a ' +
     "Tuesday announcement on the band's official site.\"",
+  'BAD (invented editorial claim not in the facts): "This marks a bold new direction for the band."',
   "BAD (padding a one-line announcement into filler): \"In an exciting development for fans everywhere, the wait is finally over as...\"",
-  'GOOD (single): "NEW SINGLE ALERT: Bon Iver released a new single, \\"Speyside,\\" today."',
+  'GOOD (news item): "Fontaines D.C. confirmed a European tour for spring 2027, according to a Tuesday announcement on the band\'s ' +
+    'official site."',
   'BAD (stating an UNCONFIRMED claim as settled fact): "The band is breaking up."',
   'GOOD (hedges appropriately): "Sources close to the band say a breakup is imminent, though nothing has been officially confirmed."',
   'GOOD (priority artist, required label, one exclamation point is fine): "HUGE NEWS: Dave Matthews Band announced a new album, ' +
@@ -86,15 +86,12 @@ export function buildWritingSystemPrompt(focus: EditorialFocus, maxPosts: number
     "'their best work') that isn't directly supported by the facts. When a fact is labeled UNCONFIRMED or PREDICTION, say so plainly",
     "(\"reportedly\", \"expected to\") rather than stating it as settled. When labeled ANALYSIS, attribute it (\"according to X\") rather",
     "than stating it as fact.",
-    'When an item is marked (single), the post text MUST begin with the literal label "NEW SINGLE ALERT: " (that exact capitalization',
-    "and punctuation, followed immediately by the rest of the announcement in the same sentence) - this is a fixed editorial label, not",
-    "something to reword or omit. Items marked (news) never get this or any other label - just the plain wire-style sentence.",
+    "Items marked (news) never get any label - just the plain wire-style sentence.",
     'When an item is marked (priority), it is from an artist the reader specifically wants amplified treatment for. The post text MUST',
-    'begin with the literal label "HUGE NEWS: " instead of any other label (this replaces NEW SINGLE ALERT if the item is also a single)',
-    "- exact capitalization, followed immediately by the rest of the announcement. For a (priority) item only, you may write with more",
-    "enthusiasm than usual (one exclamation point is fine, e.g. after a release date), but this is a tone exception, not a facts",
-    "exception: still state ONLY what the given facts actually say - never invent a superlative ('legendary', 'greatest', 'essential') or",
-    "any claim about quality or significance that isn't directly supported.",
+    'begin with the literal label "HUGE NEWS: " - exact capitalization, followed immediately by the rest of the announcement. For a',
+    "(priority) item only, you may write with more enthusiasm than usual (one exclamation point is fine, e.g. after a release date),",
+    "but this is a tone exception, not a facts exception: still state ONLY what the given facts actually say - never invent a",
+    "superlative ('legendary', 'greatest', 'essential') or any claim about quality or significance that isn't directly supported.",
     "If an item's facts are too thin or contradictory to write a genuine, accurate sentence about, omit that item from posts rather",
     "than padding it out or guessing. If NONE of the items are worth posting about, set shouldPost to false and return an empty posts",
     "array - staying silent is a normal, expected, and preferred outcome over posting something thin or padded.",

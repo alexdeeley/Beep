@@ -10,6 +10,7 @@ interface RawCandidate {
   artistName: string;
   itemType: "release" | "news";
   releaseFormat: ReleaseFormat | null;
+  releaseTitle: string | null;
   headline: string;
   summary: string;
   eventTimeIso: string | null;

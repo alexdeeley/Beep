@@ -124,8 +124,17 @@ export interface AppConfig {
     artistListPath: string;
     /** How many watchlist artists to check (rotation, oldest-checked-first) per cycle. With a large watchlist, full coverage takes many cycles - that's expected. */
     artistBatchSize: number;
-    /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Friday cycle posts the WEEKLY NEW RELEASES roundup. */
+    /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Friday cycle posts the NEW MUSIC FRIDAY roundup. */
     weeklyRoundupHourLocal: number;
+    /**
+     * The local hours (in editorial-focus.json's quietHours.timezone) this pipeline is meant to run at
+     * - default twice a day, 8am and 8pm. news.yml's cron fires more often than this (it has to, to
+     * survive DST without a wall-clock anchor drifting), so runNewswireCycle.ts checks the actual local
+     * hour against this list first and exits immediately (no OpenAI/R2 calls) on any other hour - this
+     * is what actually enforces the twice-daily cadence, not the cron expression alone. `--force`
+     * bypasses this, same as it bypasses the quiet-hours check, for manual testing.
+     */
+    postingHoursLocal: number[];
   };
 
   storage: {
@@ -233,8 +242,12 @@ export function loadConfig(): AppConfig {
       dbR2Key: envStr("NEWS_DB_R2_KEY", "newswire/story.db")!,
       editorialFocusPath: envStr("EDITORIAL_FOCUS_PATH", "editorial-focus.json")!,
       artistListPath: envStr("NEWS_ARTIST_LIST_PATH", "watched-artists.txt")!,
-      artistBatchSize: envInt("NEWS_ARTIST_BATCH_SIZE", 40),
+      artistBatchSize: envInt("NEWS_ARTIST_BATCH_SIZE", 150),
       weeklyRoundupHourLocal: envInt("NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL", 8),
+      postingHoursLocal: (envStr("NEWS_POSTING_HOURS_LOCAL", "8,20") ?? "8,20")
+        .split(",")
+        .map((h) => Number.parseInt(h.trim(), 10))
+        .filter((h) => Number.isFinite(h)),
     },
 
     storage: {

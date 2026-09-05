@@ -1,18 +1,31 @@
-name: Hourly newswire
+name: Newswire
 
-# V3.1: an autonomous music news/release-announcement wire - each cycle
-# rotates through a batch of the artist watchlist (watched-artists.txt),
-# discovers candidates via OpenAI web search, and independently
-# re-verifies each one (2-corroborating-source rule) before it's eligible
-# to post. Hourly has no local wall-clock anchor to preserve (unlike
-# "8:00am Pacific"), so unlike daily.yml this needs only a single cron
-# line - no DST two-cron dance. The concurrency group below is
-# load-bearing, not just an overlap-prevention nicety: it's what keeps
-# concurrent runs of this workflow from racing each other's
-# read-modify-write of the shared R2-hosted story database.
+# V3.2: an autonomous music news/release-announcement wire, checking
+# twice a day (8am and 8pm, in editorial-focus.json's quietHours.timezone
+# - default America/Los_Angeles) - each cycle rotates through a batch of
+# the artist watchlist (watched-artists.txt), discovers candidates via
+# OpenAI web search, and independently re-verifies each one
+# (2-corroborating-source rule) before it's eligible to post.
+#
+# Unlike the old hourly cadence, "8am/8pm local" IS a wall-clock anchor
+# that needs to survive DST, so this uses the same two-cron-per-target-hour
+# pattern as daily.yml/weekly-card.yml - 4 cron lines total (2 target
+# hours x PST/PDT offsets). The "wrong" offset's extra firing each day is
+# cheap and harmless: runNewswireCycle.ts checks the actual local hour
+# against config.news.postingHoursLocal first and exits immediately,
+# before contacting OpenAI or downloading the story database, on any hour
+# that isn't actually 8am or 8pm local right now.
+#
+# The concurrency group below is load-bearing, not just an
+# overlap-prevention nicety: it's what keeps concurrent runs of this
+# workflow from racing each other's read-modify-write of the shared
+# R2-hosted story database.
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 15 * * *" # ~8:00am America/Los_Angeles during PDT
+    - cron: "0 16 * * *" # ~8:00am America/Los_Angeles during PST
+    - cron: "0 3 * * *" # ~8:00pm America/Los_Angeles during PDT
+    - cron: "0 4 * * *" # ~8:00pm America/Los_Angeles during PST
   workflow_dispatch:
     inputs:
       dry_run:

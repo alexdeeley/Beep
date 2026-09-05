@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DateTime } from "luxon";
 import { makeOpenAIClient, MissingApiKeyError } from "../utils/openaiClient.js";
 import { RunLogger } from "../utils/logger.js";
 import type { AppConfig } from "../config/index.js";
@@ -8,7 +9,7 @@ import { loadEditorialFocus } from "./editorialFocus.js";
 import { downloadStoryDb, uploadStoryDb } from "./db/sync.js";
 import { openStoryDb, closeStoryDb } from "./db/connection.js";
 import { startHourlyRun, finishHourlyRun } from "./db/researchRunsRepo.js";
-import { getUnpostedIndividualItems, getUnpostedAlbumItems, insertMusicItem } from "./db/musicItemsRepo.js";
+import { getUnpostedIndividualItems, getUnpostedAlbumItems, insertMusicItem, type UnpostedMusicItemRow } from "./db/musicItemsRepo.js";
 import { importArtistList } from "./artists/importArtistList.js";
 import { getArtistsDueForCheck, markArtistsChecked } from "./db/watchedArtistsRepo.js";
 import { discoverArtistNews } from "./discovery/discoverArtistNews.js";
@@ -22,13 +23,14 @@ import { factCheckEdition } from "./factCheck/factCheckEdition.js";
 import { duplicateCheckEdition } from "./duplicateCheck/duplicateCheckEdition.js";
 import { publishMusicItems } from "./publishing/publishMusicItems.js";
 import { postWeeklyRoundup } from "./weeklyRoundup/postWeeklyRoundup.js";
+import { postMusicHistory } from "./history/postMusicHistory.js";
 import type { NewsRunContext } from "./runContext.js";
 import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
 export interface NewswireCycleOptions {
   /** True for `news:preview` - runs every stage for real but never publishes and never persists DB changes back to R2. */
   dryRun: boolean;
-  /** Bypasses quiet-hours silence, for manual testing (`news:publish --force`). */
+  /** Bypasses the posting-hours gate and quiet-hours silence, for manual testing (`news:publish --force`). */
   forceRun?: boolean;
 }
 
@@ -74,6 +76,7 @@ function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): 
     watchedArtistId: verified.watchedArtistId,
     itemType: verified.itemType,
     releaseFormat: verified.releaseFormat,
+    releaseTitle: verified.releaseTitle,
     headline: verified.headline,
     summary: verified.facts.map((f) => f.claim).join(" "),
     factLabel: primaryFact.factLabel,
@@ -89,14 +92,35 @@ function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): 
 }
 
 /**
- * The hourly master orchestrator (V3.1 - music news/release-announcement
- * wire): download DB from R2 -> import/update artist watchlist -> pick a
+ * Non-priority singles post immediately as a mechanical "NEW SINGLE: Artist - Title" line - built
+ * directly from already-verified structured fields, never through the writer/copy-edit/fact-check
+ * stages (there's no new prose to check). Falls back to the full headline if releaseTitle is somehow
+ * missing (only possible for a stale pre-migration backlog row) rather than skipping the item.
+ */
+async function publishMechanicalSingles(ctx: NewsRunContext, items: UnpostedMusicItemRow[]): Promise<number> {
+  if (items.length === 0) return 0;
+  const edition: DraftEdition = {
+    posts: items.map((item) => ({
+      text: `NEW SINGLE: ${item.artist_name} - ${item.release_title ?? item.headline}`,
+      sourceItemIds: [item.id],
+    })),
+  };
+  const result = await publishMusicItems(ctx, edition);
+  return result.posts.length;
+}
+
+/**
+ * The master orchestrator (V3.2 - twice-daily, simpler formats): runs at
+ * 8am/8pm local time (see config.news.postingHoursLocal - any other hour
+ * exits immediately below, before contacting OpenAI or R2 at all) and:
+ * download DB from R2 -> import/update artist watchlist -> pick a
  * rotation batch of artists due for checking -> discover candidates via
  * web search -> independently re-verify each one (2-corroborating-source
- * rule, mandatory) -> persist verified items -> rank/cap the unposted
- * backlog -> quiet-hours check -> write -> copy-edit -> fact-check
- * (mandatory gate) -> duplicate-check -> publish (each item as its own
- * post) -> upload DB.
+ * rule, mandatory) -> persist verified items -> mark artists checked ->
+ * NEW MUSIC FRIDAY roundup (Fridays only) -> TODAY IN HISTORY (once daily)
+ * -> non-priority singles post immediately as a mechanical one-liner ->
+ * remaining news/priority items go through write -> copy-edit ->
+ * fact-check (mandatory gate) -> duplicate-check -> publish -> upload DB.
  *
  * The DB is always closed and (outside dry-run) uploaded back to R2 in a
  * finally block, even on failure - the audit trail must survive a failed
@@ -106,10 +130,20 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
   const runDir = join(config.paths.runsDir, "news", new Date().toISOString().replace(/[:.]/g, "-"));
   const logger = new RunLogger(runDir);
 
+  const editorialFocus = loadEditorialFocus(config.news.editorialFocusPath);
+  const now = new Date();
+  const localHour = DateTime.fromJSDate(now, { zone: editorialFocus.quietHours.timezone }).hour;
+
+  if (!options.forceRun && !config.news.postingHoursLocal.includes(localHour)) {
+    logger.info(
+      "orchestrator",
+      `Off-hour cycle (local hour ${localHour}, posting hours are ${config.news.postingHoursLocal.join(", ")}) - exiting without contacting OpenAI or the story database`
+    );
+    return { hourlyRunId: 0, quietHoursOutcome: "off-hours", publishedPostCount: 0, publishStatus: "skipped", editionPreview: null };
+  }
+
   const openai = makeOpenAIClient(config);
   if (!openai) throw new MissingApiKeyError("newswire-cycle");
-
-  const editorialFocus = loadEditorialFocus(config.news.editorialFocusPath);
 
   const tempDir = mkdtempSync(join(tmpdir(), "newswire-db-"));
   const dbPath = join(tempDir, "story.db");
@@ -118,7 +152,6 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
   try {
     const hourlyRun = startHourlyRun(db, options.dryRun);
-    const now = new Date();
     const ctx: NewsRunContext = {
       config,
       logger,
@@ -142,10 +175,11 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     for (const item of verified) persistVerifiedItem(ctx, item);
     markArtistsChecked(db, batch.map((a) => a.id));
 
-    // Independent of the hourly per-item flow below (which only ever handles singles/news) - runs its own
-    // internal eligibility check (Friday, past the configured hour, not already posted today) and is a
-    // no-op most hours. Placed before every early-return path so it always gets a chance to run.
+    // Both of these are independent of the per-item flow below, run their own internal eligibility
+    // checks (roundup: Friday + past the configured hour; history: once a day), and are no-ops most
+    // cycles. Placed before every early-return path so they always get a chance to run.
     await postWeeklyRoundup(ctx);
+    await postMusicHistory(ctx);
 
     // Priority artists (editorial-focus.json's priorityArtists) get VIP treatment: their album/EP/compilation
     // releases skip the Friday-only roundup hold and join the immediate queue like everything else, jumping
@@ -153,7 +187,16 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     // clear quiet hours regardless of the hour.
     const priorityNames = new Set(editorialFocus.priorityArtists);
     const priorityAlbums = getUnpostedAlbumItems(db).filter((item) => priorityNames.has(item.artist_name));
-    const unposted = [...priorityAlbums, ...getUnpostedIndividualItems(db)];
+    const individualItems = getUnpostedIndividualItems(db);
+
+    // Non-priority singles bypass the writer entirely - a mechanical "NEW SINGLE: Artist - Title" post.
+    const mechanicalSingles = individualItems.filter((item) => item.item_type === "release" && !priorityNames.has(item.artist_name));
+    const mechanicalPublishedCount = await publishMechanicalSingles(ctx, mechanicalSingles);
+
+    // Everything else that can reach the writer: all news items (priority or not) + priority release
+    // items (always singles here, since priority albums were already pulled into priorityAlbums above).
+    const writerEligibleIndividual = individualItems.filter((item) => item.item_type === "news" || priorityNames.has(item.artist_name));
+    const unposted = [...priorityAlbums, ...writerEligibleIndividual];
     const eligiblePool = rankMusicItems(unposted, MAX_ELIGIBLE_ITEMS).map((r) =>
       priorityNames.has(r.item.artist_name) ? { ...r, importanceScore: 1 } : r
     );
@@ -168,7 +211,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     );
 
     if (effectiveOutcome === "silent" || eligiblePool.length === 0) {
-      logger.info("orchestrator", "Staying silent this hour - nothing to post, which is expected and healthy most hours");
+      logger.info("orchestrator", "Nothing left for the writer this cycle beyond what already posted mechanically above");
       return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
     }
 
@@ -200,7 +243,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       return {
         hourlyRunId: hourlyRun.id,
         quietHoursOutcome: quietDecision.outcome,
-        publishedPostCount: 0,
+        publishedPostCount: mechanicalPublishedCount,
         publishStatus: "failed",
         editionPreview: edition?.posts.map((p) => ({ text: p.text })) ?? null,
       };
@@ -221,16 +264,17 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       return {
         hourlyRunId: hourlyRun.id,
         quietHoursOutcome: quietDecision.outcome,
-        publishedPostCount: 0,
+        publishedPostCount: mechanicalPublishedCount,
         publishStatus: "skipped",
         editionPreview: edition?.posts.map((p) => ({ text: p.text })) ?? null,
       };
     }
 
     const publishResult = await publishMusicItems(ctx, edition);
+    const totalPublished = mechanicalPublishedCount + publishResult.posts.length;
     const publishStatus: NewswireCycleSummary["publishStatus"] = options.dryRun
       ? "dry_run"
-      : publishResult.posts.length > 0
+      : totalPublished > 0
         ? "published"
         : "failed";
 
@@ -244,14 +288,14 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     });
 
     logger.info("orchestrator", `Newswire cycle ${hourlyRun.id} complete`, {
-      publishedPosts: publishResult.posts.length,
+      publishedPosts: totalPublished,
       dryRun: options.dryRun,
     });
 
     return {
       hourlyRunId: hourlyRun.id,
       quietHoursOutcome: quietDecision.outcome,
-      publishedPostCount: publishResult.posts.length,
+      publishedPostCount: totalPublished,
       publishStatus,
       editionPreview: edition?.posts.map((p) => ({ text: p.text })) ?? null,
     };

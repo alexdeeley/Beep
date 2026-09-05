@@ -1,6 +1,4 @@
 import { DateTime } from "luxon";
-import { createBlueskySession, postThreadMessage, BLUESKY_MAX_POST_GRAPHEMES, type PostRef } from "../../bluesky/threadPublish.js";
-import { insertBlueskyPost } from "../db/postsRepo.js";
 import { getUnpostedAlbumItems, markMusicItemPosted, normalizeHeadline } from "../db/musicItemsRepo.js";
 import {
   getUnpostedIndustryReleaseItems,
@@ -8,47 +6,22 @@ import {
   markIndustryReleaseItemPosted,
 } from "../db/industryReleaseItemsRepo.js";
 import { hasRoundupForDate, recordRoundupRun } from "../db/weeklyRoundupRepo.js";
-import { contentHash } from "../duplicateCheck/duplicateCheckEdition.js";
-import { countGraphemes } from "../publishing/threadSplitter.js";
+import { buildCommaSeparatedPost } from "../publishing/multiPostChunker.js";
+import { publishStandalonePostThread } from "../publishing/publishStandalonePostThread.js";
 import { discoverIndustryReleases } from "../discovery/discoverIndustryReleases.js";
 import { verifyIndustryReleases } from "../verification/verifyIndustryReleases.js";
 import type { NewsRunContext } from "../runContext.js";
 import type { VerifiedIndustryRelease } from "../types.js";
 
-const HEADER = "WEEKLY NEW RELEASES";
+const HEADER_LABEL = "NEW MUSIC FRIDAY";
 const FRIDAY_ISO_WEEKDAY = 5;
+const TAG = "weekly-roundup";
 
-/** One roundup-eligible item, from either pool - carries just enough to build a line and mark it posted afterward. */
+/** One roundup-eligible item, from either pool - carries just enough to print its name and mark it posted afterward. */
 interface RoundupItem {
   source: "watchlist" | "industry";
   id: number;
   artistName: string;
-  line: string;
-}
-
-/** Chunks the roundup into grapheme-safe physical posts - the header only on the first post, one album per line, never splitting a line across posts. Throws if a single line alone exceeds the limit (should never happen for a headline-length line, but fail loudly rather than truncate). */
-export function buildRoundupPosts(header: string, lines: string[], maxGraphemes: number = BLUESKY_MAX_POST_GRAPHEMES): string[] {
-  if (countGraphemes(header) > maxGraphemes) {
-    throw new Error(`The roundup header alone exceeds ${maxGraphemes} graphemes: "${header}"`);
-  }
-
-  const posts: string[] = [];
-  let current = header;
-
-  for (const line of lines) {
-    if (countGraphemes(line) > maxGraphemes) {
-      throw new Error(`A single roundup line exceeds ${maxGraphemes} graphemes: "${line.slice(0, 80)}..."`);
-    }
-    const candidate = `${current}\n${line}`;
-    if (countGraphemes(candidate) <= maxGraphemes) {
-      current = candidate;
-    } else {
-      posts.push(current);
-      current = line;
-    }
-  }
-  posts.push(current);
-  return posts;
 }
 
 /** Persists a verified industry-wide candidate as an industry_release_items row, mirroring runNewswireCycle.ts's persistVerifiedItem. */
@@ -85,11 +58,12 @@ function markAllPosted(ctx: NewsRunContext, items: RoundupItem[]): void {
 }
 
 /**
- * Once a week - the first hourly cycle on a Friday, local time, at or
- * after NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL, that finds at least one unposted
- * major release - compiles everything accumulated since the last roundup
- * into one WEEKLY NEW RELEASES thread, rather than posting each album
- * individually as the hourly per-item flow does for singles/news.
+ * Once a week - the first cycle on a Friday, local time, at or after
+ * NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL, that finds at least one unposted major
+ * release - posts a simple "NEW MUSIC FRIDAY <date>" thread listing every
+ * artist with a major album/EP/compilation out, comma-separated, rather
+ * than posting each one individually as the hourly per-item flow does for
+ * singles/news.
  *
  * The roundup is industry-wide, not limited to watched-artists.txt: on
  * top of any watchlist album/EP/compilation items accumulated this week
@@ -99,7 +73,7 @@ function markAllPosted(ctx: NewsRunContext, items: RoundupItem[]): void {
  *
  * A no-op on any other day, before the configured hour, if a roundup
  * already posted today, or if there's simply nothing to report yet (in
- * which case no roundup is recorded, so a later hour the same Friday can
+ * which case no roundup is recorded, so a later cycle the same Friday can
  * still pick up anything discovered since - see weeklyRoundupRepo.ts).
  */
 export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
@@ -128,87 +102,22 @@ export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
   );
 
   const items: RoundupItem[] = [
-    ...watchlistItems.map((i) => ({ source: "watchlist" as const, id: i.id, artistName: i.artist_name, line: `- ${i.artist_name}: ${i.headline}` })),
-    ...dedupedIndustry.map((i) => ({ source: "industry" as const, id: i.id, artistName: i.artist_name, line: `- ${i.artist_name}: ${i.headline}` })),
+    ...watchlistItems.map((i) => ({ source: "watchlist" as const, id: i.id, artistName: i.artist_name })),
+    ...dedupedIndustry.map((i) => ({ source: "industry" as const, id: i.id, artistName: i.artist_name })),
   ];
 
   if (items.length === 0) {
-    ctx.logger.info(
-      "weekly-roundup",
-      "Friday, but no major releases found (watchlist or industry-wide) - staying silent, will keep checking later today"
-    );
+    ctx.logger.info(TAG, "Friday, but no major releases found (watchlist or industry-wide) - staying silent, will keep checking later today");
     return;
   }
 
-  const posts = buildRoundupPosts(HEADER, items.map((i) => i.line));
+  const header = `${HEADER_LABEL} ${dt.toFormat("M/d/yy")}`;
+  const posts = buildCommaSeparatedPost(header, items.map((i) => i.artistName));
 
-  if (ctx.dryRun) {
-    ctx.logger.info("weekly-roundup", `Dry run: would publish WEEKLY NEW RELEASES (${items.length} item(s), ${posts.length} post(s))`, {
-      posts,
-    });
-    let position = 0;
-    for (const text of posts) {
-      insertBlueskyPost(ctx.db, {
-        runId: ctx.hourlyRunId,
-        threadPosition: position++,
-        text,
-        contentHash: contentHash(text),
-        uri: null,
-        cid: null,
-        rootUri: null,
-        parentUri: null,
-        dryRun: true,
-      });
-    }
-    markAllPosted(ctx, items);
-    recordRoundupRun(ctx.db, { roundupDate, postedInRunId: ctx.hourlyRunId, itemCount: items.length });
-    return;
-  }
-
-  if (!ctx.config.bluesky.identifier || !ctx.config.bluesky.appPassword) {
-    ctx.logger.warn("weekly-roundup", "BLUESKY_IDENTIFIER / BLUESKY_APP_PASSWORD not configured; skipping WEEKLY NEW RELEASES");
-    return;
-  }
-
-  const session = await createBlueskySession(ctx.config);
-  let root: PostRef | null = null;
-  let parent: PostRef | null = null;
-  let position = 0;
-  let publishedAny = false;
-
-  for (const text of posts) {
-    try {
-      const ref = await postThreadMessage(ctx.config, ctx.logger, session, {
-        text,
-        reply: root && parent ? { root, parent } : null,
-      });
-      root = root ?? ref;
-      parent = ref;
-      publishedAny = true;
-
-      insertBlueskyPost(ctx.db, {
-        runId: ctx.hourlyRunId,
-        threadPosition: position++,
-        text,
-        contentHash: contentHash(text),
-        uri: ref.uri,
-        cid: ref.cid,
-        rootUri: root.uri,
-        parentUri: parent.uri,
-        dryRun: false,
-      });
-      ctx.logger.info("weekly-roundup", `Published: ${ref.uri}`);
-    } catch (err) {
-      ctx.logger.error("weekly-roundup", "WEEKLY NEW RELEASES thread stopped partway through after a failure", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-      break;
-    }
-  }
-
+  const publishedAny = await publishStandalonePostThread(ctx, TAG, posts);
   if (publishedAny) {
     markAllPosted(ctx, items);
     recordRoundupRun(ctx.db, { roundupDate, postedInRunId: ctx.hourlyRunId, itemCount: items.length });
-    ctx.logger.info("weekly-roundup", `WEEKLY NEW RELEASES posted: ${items.length} item(s) across ${posts.length} post(s)`);
+    ctx.logger.info(TAG, `${HEADER_LABEL} posted: ${items.length} item(s) across ${posts.length} post(s)`);
   }
 }

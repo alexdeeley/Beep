@@ -63,7 +63,7 @@ export async function discoverIndustryReleases(ctx: NewsRunContext): Promise<Ind
         stage: "industry-discovery",
         candidateSummary: candidate.headline,
         decision: "rejected",
-        reason: "singles are excluded from the WEEKLY NEW RELEASES roundup - only album/EP/compilation releases belong here",
+        reason: "singles are excluded from the NEW MUSIC FRIDAY roundup - only album/EP/compilation releases belong here",
         storyId: null,
       });
       continue;
