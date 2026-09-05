@@ -385,13 +385,6 @@
     "path": "OpArtToy.html"
   },
   {
-    "id": "neo-boomshine-minimal-glow",
-    "name": "Boomshine \u2014 Minimal Glow",
-    "description": "A game from the Neocities collection: \"Boomshine \u2014 Minimal Glow\".",
-    "category": "Games",
-    "path": "BoomshineMinimalGlow.html"
-  },
-  {
     "id": "neo-spiral-seed-art",
     "name": "Seeded Spiral Generator",
     "description": "A generative art / visual piece from the Neocities collection: \"Seeded Spiral Generator\".",
@@ -712,13 +705,6 @@
     "description": "A game from the Neocities collection: \"Unicorn Rainbow Blast\".",
     "category": "Games",
     "path": "UnicornRainbowBlast.html"
-  },
-  {
-    "id": "neo-arkanoid-flat-paddle-patterns",
-    "name": "Arkanoid \u2014 Flat Paddle + Level Toast + Patterns",
-    "description": "A game from the Neocities collection: \"Arkanoid \u2014 Flat Paddle + Level Toast + Patterns\".",
-    "category": "Games",
-    "path": "ArkanoidFlatPaddlePatterns.html"
   },
   {
     "id": "neo-noise-mic-visualizer",
@@ -1162,13 +1148,6 @@
     "path": "Voxmorph.html"
   },
   {
-    "id": "neo-crown-quest-v-inspired",
-    "name": "Crown Quest: The Silver Owl",
-    "description": "A game from the Neocities collection: \"Crown Quest: The Silver Owl\".",
-    "category": "Games",
-    "path": "CrownQuestVInspired.html"
-  },
-  {
     "id": "neo-spiral",
     "name": "Spiral",
     "description": "A generative art / visual piece from the Neocities collection: \"Spiral\".",
@@ -1540,27 +1519,6 @@
     "path": "SmoothV2.html"
   },
   {
-    "id": "neo-ballz-game-patterned-paths-nextduringflight",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGamePatternedPathsNextduringflight.html"
-  },
-  {
-    "id": "neo-ballz-game-rot2-random-next-sparks",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGameRot2RandomNextSparks.html"
-  },
-  {
-    "id": "neo-ballz-game-rotating-bricks-trajectory",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGameRotatingBricksTrajectory.html"
-  },
-  {
     "id": "neo-threes-minimal2",
     "name": "Threes",
     "description": "A game from the Neocities collection: \"Threes\".",
@@ -1573,33 +1531,5 @@
     "description": "A music tool from the Neocities collection: \"DSS1 - Digital Sound Studio\".",
     "category": "Music Tools",
     "path": "DSS12.html"
-  },
-  {
-    "id": "neo-ballz-game16bit-bombs-subtle",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGame16bitBombsSubtle.html"
-  },
-  {
-    "id": "neo-ballz-game-add-dots",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGameAddDots.html"
-  },
-  {
-    "id": "neo-ballz-game2",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGame2.html"
-  },
-  {
-    "id": "neo-ballz-game-fullscreen-firebtn",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGameFullscreenFirebtn.html"
   }
 ]
