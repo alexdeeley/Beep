@@ -189,13 +189,6 @@
     "path": "CheckerMorphs.html"
   },
   {
-    "id": "art-toy-clay-cube",
-    "name": "Art Toy \u2014 Clay Cube",
-    "description": "Spin and fling a voxel clay cube \u2014 it sheds wet clay blobs that pile up and dry on the ground.",
-    "category": "Art",
-    "path": "ArtToyClayCube.html"
-  },
-  {
     "id": "checkerburst",
     "name": "Checkerburst",
     "description": "A soft, checkerboard-filled blob you can grab and drag \u2014 it bursts into scattering pixels.",
@@ -462,25 +455,11 @@
     "path": "CanvasOk.html"
   },
   {
-    "id": "neo-art-toy-glitter-disco-tapburst",
-    "name": "Art Toy \u2014 Glitter Disco (Tap to Burst)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Tap to Burst)\".",
-    "category": "Art",
-    "path": "ArtToyGlitterDiscoTapburst.html"
-  },
-  {
     "id": "neo-hyper-bowling-chain",
     "name": "HYPER BOWLING \u2014 Chain Reactions",
     "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Chain Reactions\".",
     "category": "Games",
     "path": "HyperBowlingChain.html"
-  },
-  {
-    "id": "neo-art-toy-glass-cube",
-    "name": "Art Toy \u2014 Glass Cube (Spin = Break Rate)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glass Cube (Spin = Break Rate)\".",
-    "category": "Art",
-    "path": "ArtToyGlassCube.html"
   },
   {
     "id": "neo-snake-wormio",
@@ -546,13 +525,6 @@
     "path": "Goo.html"
   },
   {
-    "id": "neo-art-toy-pixel-cube-gray",
-    "name": "Art Toy \u2014 Pixel Cube (Gray + Shaded)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Pixel Cube (Gray + Shaded)\".",
-    "category": "Art",
-    "path": "ArtToyPixelCubeGray.html"
-  },
-  {
     "id": "neo-pattern-dna-growing-conveyor",
     "name": "Pattern DNA \u2014 Growing Conveyor",
     "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Growing Conveyor\".",
@@ -565,13 +537,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Wobbly Checkerboard \u2014 Exaggerated\".",
     "category": "Art",
     "path": "WobblyCheckerboardExaggerated.html"
-  },
-  {
-    "id": "neo-art-toy-tennis-ball-space",
-    "name": "Art Toy \u2014 Tennis Ball in Space",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Tennis Ball in Space\".",
-    "category": "Art",
-    "path": "ArtToyTennisBallSpace.html"
   },
   {
     "id": "neo-snake-one-hand-v3",
@@ -698,13 +663,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"One-Hand Moto \u2014 Auto & Ramps\".",
     "category": "Art",
     "path": "OneHandMotoAutojump.html"
-  },
-  {
-    "id": "neo-art-one-tap-gen",
-    "name": "ART \u2014 One\u2011Tap Generative Gallery",
-    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 One\u2011Tap Generative Gallery\".",
-    "category": "Art",
-    "path": "ArtOneTapGen.html"
   },
   {
     "id": "neo-rhythm-bubbles-happy-birthday",
@@ -1230,13 +1188,6 @@
     "description": "A music tool from the Neocities collection: \"OSCILLATE \u2014 Persistent\".",
     "category": "Music Tools",
     "path": "OscillatePersistent.html"
-  },
-  {
-    "id": "neo-art-seed-gen",
-    "name": "ART \u2014 Seed",
-    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 Seed\".",
-    "category": "Art",
-    "path": "ArtSeedGen.html"
   },
   {
     "id": "neo-lines-slow-long-trails",
