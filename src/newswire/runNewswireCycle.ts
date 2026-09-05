@@ -22,6 +22,8 @@ import { copyEditEdition } from "./copyEdit/copyEditEdition.js";
 import { factCheckEdition } from "./factCheck/factCheckEdition.js";
 import { duplicateCheckEdition } from "./duplicateCheck/duplicateCheckEdition.js";
 import { publishMusicItems } from "./publishing/publishMusicItems.js";
+import { buildLinkFacet } from "../bluesky/threadPublish.js";
+import { lookupSpotifyTrackUrl } from "./spotify/lookupTrack.js";
 import { postWeeklyRoundup } from "./weeklyRoundup/postWeeklyRoundup.js";
 import { postMusicHistory } from "./history/postMusicHistory.js";
 import { postBirthdays } from "./birthdays/postBirthdays.js";
@@ -113,14 +115,28 @@ function persistVerifiedItem(ctx: NewsRunContext, verified: VerifiedMusicItem): 
  * directly from already-verified structured fields, never through the writer/copy-edit/fact-check
  * stages (there's no new prose to check). Falls back to the full headline if releaseTitle is somehow
  * missing (only possible for a stale pre-migration backlog row) rather than skipping the item.
+ *
+ * Also best-effort attaches a canonical Spotify track link on its own line, via a live catalog
+ * lookup (see spotify/lookupTrack.ts) - never a hard dependency: when Spotify isn't configured, the
+ * lookup fails, or no confident match is found, the post goes out exactly as it always has, with no
+ * link. A wrong link is worse than none, so the lookup only ever adds to the post, never blocks it.
  */
 async function publishMechanicalSingles(ctx: NewsRunContext, items: UnpostedMusicItemRow[]): Promise<number> {
   if (items.length === 0) return 0;
   const edition: DraftEdition = {
-    posts: items.map((item) => ({
-      text: `NEW SINGLE: ${item.artist_name} - ${item.release_title ?? item.headline}`,
-      sourceItemIds: [item.id],
-    })),
+    posts: await Promise.all(
+      items.map(async (item) => {
+        const title = item.release_title ?? item.headline;
+        const base = `NEW SINGLE: ${item.artist_name} - ${title}`;
+        const spotifyUrl = await lookupSpotifyTrackUrl(ctx.config, ctx.logger, item.artist_name, title);
+        if (!spotifyUrl) {
+          return { text: base, sourceItemIds: [item.id] };
+        }
+        const text = `${base}\n${spotifyUrl}`;
+        const facet = buildLinkFacet(text, spotifyUrl);
+        return { text, sourceItemIds: [item.id], facets: facet ? [facet] : undefined };
+      })
+    ),
   };
   const result = await publishMusicItems(ctx, edition);
   return result.posts.length;

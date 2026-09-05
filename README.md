@@ -791,6 +791,7 @@ different posting paths:
 
   ```
   NEW SINGLE: The Strokes - Name Of Song
+  https://open.spotify.com/track/abc123
   ```
 
   `artistName` and `releaseTitle` (both captured at discovery, §18.1 step
@@ -798,6 +799,17 @@ different posting paths:
   discovery reporting the release's real title exactly, since nothing
   downstream rewrites or checks it. A priority artist's single instead
   goes through the writer with the `HUGE NEWS:` treatment - see §18.8.
+
+  The Spotify link is optional and best-effort (`spotify/lookupTrack.ts`):
+  a live Client Credentials catalog search (no user login) by artist +
+  title, attached as a clickable `app.bsky.richtext.facet#link` on its
+  own line via `bluesky/threadPublish.ts`'s `buildLinkFacet`. It's added
+  only when a result confidently matches both the artist and the title
+  *and* was itself released within the last 45 days - guarding against a
+  title collision with an old catalog track by the same artist. When
+  `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` aren't set, the lookup
+  fails, or no confident match is found, the single posts exactly as it
+  always has, with no second line - never a hard dependency.
 - **Albums, EPs, and compilations from your watchlist** are held back from
   the mechanical-single/writer paths entirely (`db/musicItemsRepo.ts`'s
   `getUnpostedIndividualItems` excludes them) and instead accumulate,
