@@ -2,7 +2,7 @@ import { requestJsonWithWebSearch } from "../../utils/openaiClient.js";
 import { insertRunCandidate } from "../db/researchRunsRepo.js";
 import { hasSimilarIndustryItem } from "../db/industryReleaseItemsRepo.js";
 import type { NewsRunContext } from "../runContext.js";
-import type { IndustryReleaseCandidate, RoundupReleaseFormat } from "../types.js";
+import type { IndustryReleaseCandidate, ReleaseFormat } from "../types.js";
 import {
   buildIndustryDiscoverySystemPrompt,
   buildIndustryDiscoveryUserPrompt,
@@ -11,7 +11,8 @@ import {
 
 interface RawCandidate {
   artistName: string;
-  releaseFormat: RoundupReleaseFormat;
+  /** The schema allows "single" too, honestly reported, so the model never has to mislabel a single as an album/EP just to report it - see the reject-on-single check below. */
+  releaseFormat: ReleaseFormat;
   headline: string;
   summary: string;
   eventTimeIso: string | null;
@@ -56,6 +57,17 @@ export async function discoverIndustryReleases(ctx: NewsRunContext): Promise<Ind
 
   const accepted: IndustryReleaseCandidate[] = [];
   for (const candidate of result.candidates) {
+    if (candidate.releaseFormat === "single") {
+      insertRunCandidate(ctx.db, {
+        runId: ctx.hourlyRunId,
+        stage: "industry-discovery",
+        candidateSummary: candidate.headline,
+        decision: "rejected",
+        reason: "singles are excluded from the WEEKLY NEW RELEASES roundup - only album/EP/compilation releases belong here",
+        storyId: null,
+      });
+      continue;
+    }
     if (candidate.sources.length === 0) {
       insertRunCandidate(ctx.db, {
         runId: ctx.hourlyRunId,
@@ -87,7 +99,8 @@ export async function discoverIndustryReleases(ctx: NewsRunContext): Promise<Ind
       reason: null,
       storyId: null,
     });
-    accepted.push(candidate);
+    // releaseFormat is narrowed to album/ep/compilation here - "single" was rejected above.
+    accepted.push({ ...candidate, releaseFormat: candidate.releaseFormat as "album" | "ep" | "compilation" });
   }
 
   ctx.logger.info(
