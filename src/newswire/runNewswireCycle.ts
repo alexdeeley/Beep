@@ -45,19 +45,34 @@ export interface NewswireCycleSummary {
 /** Cap on how many unposted items get carried into writing, regardless of maxPostsPerEdition - this just bounds cost; the writer/quiet-hours filter decide the final cut. */
 const MAX_ELIGIBLE_ITEMS = 12;
 
-function silentResult(hourlyRunId: number, quietHoursOutcome: string, candidatesFound: number, candidatesRejected: number, db: ReturnType<typeof openStoryDb>): NewswireCycleSummary {
+/**
+ * The writer had nothing left to work with this cycle - but that's not the same as "nothing
+ * published": a mechanical single may already have gone out before the writer path was even
+ * evaluated (see publishMechanicalSingles below), so mechanicalPublishedCount must still be
+ * reflected here rather than hardcoding "skipped"/0, or the run record and CLI summary would
+ * misreport a cycle that actually posted something.
+ */
+function silentResult(
+  hourlyRunId: number,
+  quietHoursOutcome: string,
+  candidatesFound: number,
+  candidatesRejected: number,
+  mechanicalPublishedCount: number,
+  db: ReturnType<typeof openStoryDb>
+): NewswireCycleSummary {
+  const publishStatus: NewswireCycleSummary["publishStatus"] = mechanicalPublishedCount > 0 ? "published" : "skipped";
   finishHourlyRun(db, hourlyRunId, {
     status: "silent",
     quiet_hours_outcome: quietHoursOutcome as "normal" | "slow" | "silent",
     candidates_found: candidatesFound,
     candidates_rejected: candidatesRejected,
-    publish_status: "skipped",
+    publish_status: publishStatus,
   });
   return {
     hourlyRunId,
     quietHoursOutcome,
-    publishedPostCount: 0,
-    publishStatus: "skipped",
+    publishedPostCount: mechanicalPublishedCount,
+    publishStatus,
     editionPreview: null,
   };
 }
@@ -212,12 +227,12 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
     if (effectiveOutcome === "silent" || eligiblePool.length === 0) {
       logger.info("orchestrator", "Nothing left for the writer this cycle beyond what already posted mechanically above");
-      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
+      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, mechanicalPublishedCount, db);
     }
 
     const filtered = eligiblePool.filter((r) => r.importanceScore >= minScore).slice(0, config.news.maxPostsPerEdition);
     if (filtered.length === 0) {
-      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, db);
+      return silentResult(hourlyRun.id, quietDecision.outcome, candidates.length, candidatesRejected, mechanicalPublishedCount, db);
     }
 
     const writingItems: WritingItem[] = filtered.map((r) => toWritingItem(r, priorityNames));
