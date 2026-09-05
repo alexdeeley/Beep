@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Bouncy Machine — Drift Edition</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; color:#fff; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  #c { display:block; width:100vw; height:100vh; touch-action:none; cursor:crosshair; }
+  .ui { position:fixed; top:12px; left:12px; display:flex; gap:8px; align-items:center; z-index:10; }
+  button {
+    background:#111; color:#fff; border:2px solid #fff; border-radius:12px;
+    padding:10px 14px; font-size:16px; font-weight:700; letter-spacing:.3px;
+  }
+  button:active{ transform:translateY(1px); }
+  .hint{ background:#111a; border:1px solid #fff3; border-radius:10px; padding:6px 10px; font-size:12px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div class="ui">
+    <button id="randomizeBtn" aria-label="Randomize Machine">🎲 Randomize</button>
+    <div class="hint">Tap anywhere to drop a ball. Fewer pieces, more motion.</div>
+  </div>
+  <canvas id="c"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let DPR = Math.max(1, Math.min(2, (window.devicePixelRatio||1)));
+  let W=0, H=0;
+
+  function resize(){
+    DPR = Math.max(1, Math.min(2, (window.devicePixelRatio||1)));
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W*DPR);
+    canvas.height = Math.floor(H*DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
+
+  // World
+  const gravity = 1800;
+  const airFriction = 0.0006;
+  const wallRest = 0.86;
+  const maxBalls = 70;
+
+  const balls = [];
+  const obstacles = []; // list of segments with drift & spin
+
+  // PRNG
+  const rng = {
+    seed: Math.floor(Math.random()*2**31),
+    next(){ let x=this.seed|=0; x^=x<<13; x^=x>>>17; x^=x<<5; return (this.seed=x)>>>0; },
+    norm(){ return this.next()/0xFFFFFFFF; },
+    range(a,b){ return a + (b-a)*this.norm(); },
+    pick(arr){ return arr[(this.next()%arr.length)|0]; }
+  };
+
+  // Backdrop
+  function drawBackdrop(){
+    ctx.fillStyle='#000';
+    ctx.fillRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha=0.07;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=1;
+    const step=48;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=step){ ctx.moveTo(x,0); ctx.lineTo(x,H); }
+    for(let y=0;y<=H;y+=step){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Balls
+  function addBall(x){
+    if(balls.length>maxBalls) balls.shift();
+    const r = rng.range(11,18);
+    balls.push({
+      x: Math.min(Math.max(x, r+4), W-r-4),
+      y: -r-10,
+      vx: rng.range(-80, 80),
+      vy: rng.range(0, 160),
+      r, rest: 0.92 + rng.range(0,0.12),
+      age: 0, alive: true
+    });
+  }
+
+  function onPointer(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX!==undefined? e.clientX : e.touches[0].clientX) - rect.left;
+    addBall(x);
+  }
+  canvas.addEventListener('pointerdown', onPointer);
+  canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); onPointer(e); }, { passive:false });
+
+  // Segment maker
+  function makeSegment(ax,ay,bx,by,t,e,opts={}){
+    const seg = {
+      type:'segment',
+      ax0:ax, ay0:ay, bx0:bx, by0:by, // base
+      t, e,
+      cx: opts.cx ?? 0, cy: opts.cy ?? 0,
+      a:  opts.a ?? 0, av: opts.av ?? 0, spin: !!opts.spin,
+      color: opts.color || '#fff',
+      // slow drifting motion (sinusoidal)
+      driftAmpX: opts.driftAmpX ?? rng.range(10, 50),
+      driftAmpY: opts.driftAmpY ?? rng.range(10, 50),
+      driftFx:   opts.driftFx   ?? rng.range(0.05, 0.18), // Hz
+      driftFy:   opts.driftFy   ?? rng.range(0.05, 0.18),
+      driftPhX:  rng.range(0, Math.PI*2),
+      driftPhY:  rng.range(0, Math.PI*2),
+    };
+    return seg;
+  }
+
+  function makePolyline(points, t, e){
+    const segs=[];
+    for(let i=0;i<points.length-1;i++){
+      const [ax,ay]=points[i]; const [bx,by]=points[i+1];
+      segs.push(makeSegment(ax,ay,bx,by,t,e));
+    }
+    return segs;
+  }
+
+  function makeStar(cx, cy, spikes, outerR, innerR, t, e, av){
+    const pts=[]; const step=Math.PI/spikes; let rot=-Math.PI/2;
+    for(let i=0;i<spikes*2;i++){
+      const r=(i%2===0)?outerR:innerR;
+      pts.push([cx+Math.cos(rot)*r, cy+Math.sin(rot)*r]);
+      rot+=step;
+    }
+    pts.push(pts[0].slice());
+    const segs = makePolyline(pts,t,e);
+    segs.forEach(s => { s.cx=cx; s.cy=cy; s.spin=true; s.a=0; s.av=av; });
+    return segs;
+  }
+
+  function makeSpinningBar(cx,cy,halfLen,t,e,av){
+    const ax=cx-halfLen, ay=cy, bx=cx+halfLen, by=cy;
+    const s = makeSegment(ax,ay,bx,by,t,e,{cx,cy,a:0,av,spin:true});
+    return [s];
+  }
+
+  function makeCurvingLine(x0,y0,x1,y1,x2,y2,x3,y3,t,e,steps=36){
+    const pts=[];
+    for(let i=0;i<=steps;i++){
+      const u=i/steps;
+      const x=cubic(x0,x1,x2,x3,u);
+      const y=cubic(y0,y1,y2,y3,u);
+      pts.push([x,y]);
+    }
+    return makePolyline(pts,t,e);
+  }
+  function cubic(p0,p1,p2,p3,u){
+    const b0=(1-u)*(1-u)*(1-u);
+    const b1=3*(1-u)*(1-u)*u;
+    const b2=3*(1-u)*u*u;
+    const b3=u*u*u;
+    return b0*p0 + b1*p1 + b2*p2 + b3*p3;
+  }
+
+  // Randomize machine with fewer, bigger, friendlier pieces
+  function randomizeMachine(){
+    obstacles.length = 0;
+    const count = 3 + (rng.next()%3); // 3..5
+    for(let i=0;i<count;i++){
+      const kind = rng.pick(['curve','bar','star']);
+      if(kind==='curve'){
+        const margin=60;
+        const x0=rng.range(margin,W-margin), y0=rng.range(80,H*0.5);
+        const x1=rng.range(margin,W-margin), y1=rng.range(80,H*0.85);
+        const x2=rng.range(margin,W-margin), y2=rng.range(60,H*0.5);
+        const x3=rng.range(margin,W-margin), y3=rng.range(120,H-130);
+        const t=rng.range(10,18); const e=0.96;
+        obstacles.push(...makeCurvingLine(x0,y0,x1,y1,x2,y2,x3,y3,t,e,32));
+      }else if(kind==='bar'){
+        const cx=rng.range(100,W-100), cy=rng.range(140,H-180);
+        const half=rng.range(90,160); const t=rng.range(10,18);
+        const e=0.98; const av=rng.range(-1.4,1.4);
+        obstacles.push(...makeSpinningBar(cx,cy,half,t,e,av));
+      }else{ // star
+        const cx=rng.range(120,W-120), cy=rng.range(160,H-220);
+        const spikes=(rng.next()%3)+5;
+        const outer=rng.range(60,100), inner=outer*rng.range(0.38,0.55);
+        const t=rng.range(10,18), e=1.08, av=rng.range(-1.1,1.1);
+        obstacles.push(...makeStar(cx,cy,spikes,outer,inner,t,e,av));
+      }
+    }
+    // Clear most balls so it feels airy
+    while(balls.length>25) balls.shift();
+  }
+
+  document.getElementById('randomizeBtn').addEventListener('click', () => {
+    randomizeMachine();
+  });
+
+  function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi,v)); }
+
+  function collideBallWithWalls(b){
+    if(b.y + b.r > H){ b.y = H - b.r; if(b.vy>0) b.vy *= -b.rest * wallRest; b.vx *= 0.985; b.age += 0.25; }
+    if(b.y - b.r < 0){ b.y = b.r;   if(b.vy<0) b.vy *= -b.rest * wallRest; }
+    if(b.x - b.r < 0){ b.x = b.r;   if(b.vx<0) b.vx *= -b.rest * wallRest; }
+    if(b.x + b.r > W){ b.x = W-b.r; if(b.vx>0) b.vx *= -b.rest * wallRest; }
+  }
+
+  function pointSegInfo(px,py, ax,ay, bx,by){
+    const abx=bx-ax, aby=by-ay, apx=px-ax, apy=py-ay;
+    const ab2=abx*abx+aby*aby || 1e-6;
+    let t=(apx*abx + apy*aby)/ab2; t = clamp(t,0,1);
+    const qx=ax+abx*t, qy=ay+aby*t;
+    const dx=px-qx, dy=py-qy; const d2=dx*dx+dy*dy; const d=Math.sqrt(d2);
+    const inv = d>1e-6 ? 1/d : 0;
+    return { qx, qy, d, nx:dx*inv, ny:dy*inv };
+  }
+
+  function rotatePoint(x,y,cx,cy,a){
+    const s=Math.sin(a), c=Math.cos(a); const dx=x-cx, dy=y-cy;
+    return [cx + c*dx - s*dy, cy + s*dx + c*dy];
+  }
+
+  // update transform with spin + slow sinusoidal drift
+  function transformedSegment(s, tSec){
+    const driftX = s.driftAmpX * Math.sin((s.driftPhX + tSec*2*Math.PI*s.driftFx));
+    const driftY = s.driftAmpY * Math.sin((s.driftPhY + tSec*2*Math.PI*s.driftFy));
+
+    let ax = s.ax0 + driftX, ay = s.ay0 + driftY;
+    let bx = s.bx0 + driftX, by = s.by0 + driftY;
+    if(s.spin){
+      const cx = s.cx + driftX, cy = s.cy + driftY;
+      // angle already integrated outside
+      [ax,ay] = rotatePoint(ax,ay,cx,cy,s.a);
+      [bx,by] = rotatePoint(bx,by,cx,cy,s.a);
+      return { ax,ay,bx,by, cx,cy };
+    }
+    return { ax,ay,bx,by };
+  }
+
+  // Main loop
+  let last = performance.now();
+  let tClock = 0;
+  function frame(now){
+    const dt = Math.min(0.033, (now-last)/1000); last = now; tClock += dt;
+
+    // physics
+    for(const b of balls){
+      b.vx *= (1 - airFriction*dt*1000);
+      b.vy *= (1 - airFriction*dt*1000);
+      b.vy += gravity*dt;
+      b.x += b.vx*dt;
+      b.y += b.vy*dt;
+      collideBallWithWalls(b);
+      b.age += dt*0.12; // gentle aging
+      // fade out and remove after long idle at bottom
+      if(b.age>12 && Math.abs(b.vx)+Math.abs(b.vy) < 12 && b.y > H - b.r - 2){ b.alive=false; }
+    }
+    // cull dead
+    for(let i=balls.length-1;i>=0;i--) if(!balls[i].alive) balls.splice(i,1);
+
+    // animate obstacles
+    for(const s of obstacles){ if(s.spin) s.a += s.av*dt; }
+
+    // build transforms once
+    const transforms = obstacles.map(s => transformedSegment(s, tClock));
+
+    // collisions
+    for(const b of balls){
+      for(let i=0;i<obstacles.length;i++){
+        const s=obstacles[i], tr=transforms[i];
+        const info = pointSegInfo(b.x,b.y, tr.ax,tr.ay, tr.bx,tr.by);
+        const effective = b.r + s.t*0.5;
+        if(info.d < effective){
+          const pen = (effective - info.d);
+          b.x += info.nx * pen;
+          b.y += info.ny * pen;
+          const vn = b.vx*info.nx + b.vy*info.ny;
+          const e = s.e * b.rest;
+          b.vx = b.vx - (1+e)*vn*info.nx;
+          b.vy = b.vy - (1+e)*vn*info.ny;
+          b.vx *= 0.996; b.vy *= 0.996;
+          b.age = Math.max(0, b.age - 0.1); // feel lively after bounce
+        }
+      }
+    }
+
+    // render
+    drawBackdrop();
+
+    // obstacles
+    ctx.lineCap='round';
+    for(let i=0;i<obstacles.length;i++){
+      const s=obstacles[i]; const tr=transforms[i];
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.t;
+      ctx.beginPath();
+      ctx.moveTo(tr.ax,tr.ay); ctx.lineTo(tr.bx,tr.by); ctx.stroke();
+    }
+
+    // balls
+    for(const b of balls){
+      ctx.beginPath();
+      ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.fillStyle='#000';
+      ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle='#fff7';
+      ctx.arc(b.x,b.y,Math.max(2,b.r*0.65),0,Math.PI*2); ctx.stroke();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  randomizeMachine();
+  for(let i=0;i<5;i++) addBall(rng.range(40, W-40));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OSCILLATE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --neon-green: #00ff9f;
+    --neon-cyan:  #00eeff;
+    --neon-pink:  #ff00aa;
+    --neon-yellow:#ffee00;
+    --bg:         #000407;
+  }
+
+  html, body { width: 100%; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--neon-green);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* CRT scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.8) 100%);
+    pointer-events: none;
+    z-index: 9;
+  }
+
+  header {
+    position: fixed;
+    top: 24px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 32px;
+    z-index: 20;
+    pointer-events: none;
+  }
+  header * { pointer-events: auto; }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 1.4rem;
+    letter-spacing: 0.3em;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan), 0 0 30px var(--neon-cyan);
+    animation: flicker 8s infinite;
+    white-space: nowrap;
+  }
+
+  .status {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--neon-green);
+    opacity: 0.7;
+    white-space: nowrap;
+  }
+
+  .status .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--neon-green);
+    margin-right: 6px;
+    animation: pulse 1s infinite;
+    box-shadow: 0 0 6px var(--neon-green);
+    vertical-align: middle;
+  }
+
+  canvas {
+    display: block;
+    width: min(900px, 100vw);
+    max-width: 900px;
+    image-rendering: crisp-edges;
+  }
+
+  .controls {
+    position: fixed;
+    bottom: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  button {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    padding: 10px 22px;
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button:hover {
+    background: rgba(0,238,255,0.1);
+    box-shadow: 0 0 16px var(--neon-cyan), inset 0 0 16px rgba(0,238,255,0.05);
+    color: #fff;
+  }
+
+  button.active {
+    background: rgba(0,238,255,0.15);
+    box-shadow: 0 0 20px var(--neon-cyan);
+  }
+
+  .mode-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: rgba(0,255,159,0.4);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  select {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    background: transparent;
+    border: 1px solid rgba(0,238,255,0.4);
+    color: var(--neon-cyan);
+    padding: 8px 12px;
+    cursor: pointer;
+    outline: none;
+  }
+  select option { background: #000c14; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  @keyframes flicker {
+    0%, 96%, 100% { opacity: 1; }
+    97% { opacity: 0.6; }
+    98% { opacity: 1; }
+    99% { opacity: 0.4; }
+  }
+
+  #start-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    z-index: 100;
+    gap: 20px;
+    transition: opacity 0.6s;
+  }
+
+  #start-overlay h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    letter-spacing: 0.4em;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px var(--neon-cyan), 0 0 60px var(--neon-cyan), 0 0 120px rgba(0,238,255,0.3);
+    animation: flicker 6s infinite;
+    text-align: center;
+    margin-left: 0.4em; /* visual centering with wide letter-spacing */
+  }
+
+  #start-overlay .sub {
+    font-size: 0.65rem;
+    color: rgba(0,238,255,0.3);
+    margin-top: -8px;
+    letter-spacing: 0.15em;
+    padding: 0 18px;
+    text-align: center;
+  }
+
+  .mic-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    padding: 14px 36px;
+    background: transparent;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: pulse 2s infinite;
+  }
+
+  .mic-btn:hover {
+    background: rgba(0,255,159,0.1);
+    box-shadow: 0 0 24px var(--neon-green), inset 0 0 16px rgba(0,255,159,0.05);
+    color: #fff;
+    animation: none;
+  }
+
+  .mic-btn svg {
+    width: 16px; height: 16px;
+    fill: currentColor;
+  }
+
+  /* Small mic button in header */
+  #mic-header-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid rgba(0,255,159,0.5);
+    color: rgba(0,255,159,0.7);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #mic-header-btn:hover {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    box-shadow: 0 0 12px rgba(0,255,159,0.4);
+  }
+
+  #mic-header-btn.visible { display: flex; }
+  #mic-header-btn.denied  { border-color: rgba(255,0,100,0.5); color: rgba(255,0,100,0.7); }
+  #mic-header-btn.denied:hover { border-color: #ff0055; color: #ff0055; box-shadow: 0 0 12px rgba(255,0,100,0.4); }
+
+  .hidden { opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="start-overlay">
+  <h1>OSCILLATE</h1>
+  <button class="mic-btn" id="mic-overlay-btn" onclick="initAudio()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 17.93V21H9v2h6v-2h-2v-2.07A8.001 8.001 0 0 0 20 11h-2a6 6 0 0 1-12 0H4a8.001 8.001 0 0 0 7 7.93z"/>
+    </svg>
+    Enable Microphone
+  </button>
+  <div class="sub">microphone access required for audio visualization</div>
+</div>
+
+<header>
+  <div class="logo">OSCILLATE</div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <button id="mic-header-btn" onclick="initAudio()" title="Re-enable microphone">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 17.93V21H9v2h6v-2h-2v-2.07A8.001 8.001 0 0 0 20 11h-2a6 6 0 0 1-12 0H4a8.001 8.001 0 0 0 7 7.93z"/>
+      </svg>
+      <span id="mic-btn-label">Mic</span>
+    </button>
+    <div class="status"><span class="dot"></span><span id="status-text">WAITING</span></div>
+  </div>
+</header>
+
+<canvas id="canvas"></canvas>
+
+<div class="controls">
+  <span class="mode-label">Mode:</span>
+  <button id="btn-wave" class="active" onclick="setMode('wave')">Waveform</button>
+  <button id="btn-dual" onclick="setMode('dual')">Dual</button>
+  <button id="btn-liss" onclick="setMode('lissajous')">Lissajous</button>
+  <span class="mode-label" style="margin-left:12px">Color:</span>
+  <select id="color-select" onchange="setColor(this.value)">
+    <option value="cyan">Cyan</option>
+    <option value="green">Green</option>
+    <option value="pink">Pink</option>
+    <option value="multi">Multi</option>
+  </select>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+let analyser, dataArray, bufferLength;
+let mode = 'wave';
+let colorMode = 'cyan';
+let animId = 0;
+let running = false;
+let audioCtx = null;
+let streamRef = null;
+
+const colors = {
+  cyan:  { main: '#00eeff', glow: 'rgba(0,238,255,', trail: 'rgba(0,4,7,' },
+  green: { main: '#00ff9f', glow: 'rgba(0,255,159,', trail: 'rgba(0,4,7,' },
+  pink:  { main: '#ff00aa', glow: 'rgba(255,0,170,', trail: 'rgba(0,4,7,' },
+  multi: { main: null,      glow: null,               trail: 'rgba(0,4,7,' },
+};
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssW = Math.min(900, window.innerWidth);
+  canvas.style.width = cssW + 'px';
+  const cssH = Math.max(220, Math.round(cssW * 0.45));
+  canvas.style.height = cssH + 'px';
+
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+}
+
+window.addEventListener('resize', resize, { passive: true });
+resize();
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + (m === 'wave' ? 'wave' : m === 'dual' ? 'dual' : 'liss')).classList.add('active');
+}
+
+function setColor(c) { colorMode = c; }
+
+async function initAudio() {
+  const overlay = document.getElementById('start-overlay');
+  const headerBtn = document.getElementById('mic-header-btn');
+  const micLabel = document.getElementById('mic-btn-label');
+  const statusText = document.getElementById('status-text');
+  const overlaySub = document.querySelector('#start-overlay .sub');
+  const overlayBtn = document.getElementById('mic-overlay-btn');
+
+  // Stop existing draw loop
+  if (running) {
+    running = false;
+    if (animId) cancelAnimationFrame(animId);
+  }
+
+  // Stop existing stream
+  try {
+    if (streamRef) streamRef.getTracks().forEach(t => t.stop());
+  } catch (_) {}
+
+  try {
+    // iOS/Safari requires secure context + user gesture (button click) -> OK
+    streamRef = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+
+    const source = audioCtx.createMediaStreamSource(streamRef);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.82;
+    source.connect(analyser);
+
+    bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+
+    running = true;
+
+    overlay.classList.add('hidden');
+    headerBtn.classList.add('visible');
+    headerBtn.classList.remove('denied');
+    micLabel.textContent = 'Live';
+    statusText.textContent = 'LIVE INPUT';
+    overlaySub.textContent = 'microphone access required for audio visualization';
+
+    // Clear once so we don't see old frame
+    ctx.fillStyle = 'rgb(0,4,7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    draw();
+  } catch(e) {
+    // Overlay button error state
+    overlayBtn.textContent = '⚠ Access Denied — Reload & Allow';
+    overlayBtn.style.borderColor = '#ff0055';
+    overlayBtn.style.color = '#ff0055';
+    overlayBtn.style.animation = 'none';
+    overlaySub.textContent = 'Check browser permissions and try again';
+
+    headerBtn.classList.add('visible', 'denied');
+    micLabel.textContent = 'Denied';
+    statusText.textContent = 'NO INPUT';
+  }
+}
+
+function getColor(i, total) {
+  if (colorMode !== 'multi') return colors[colorMode].main;
+  const hue = (i / Math.max(1,total)) * 280 + 160;
+  return `hsl(${hue}, 100%, 60%)`;
+}
+
+function getGlow(alpha) {
+  if (colorMode === 'multi') return `rgba(0,238,255,${alpha})`;
+  return colors[colorMode].glow + alpha + ')';
+}
+
+function draw() {
+  if (!running) return;
+  animId = requestAnimationFrame(draw);
+  analyser.getByteTimeDomainData(dataArray);
+
+  const W = canvas.width, H = canvas.height;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const trail = colors[colorMode]?.trail || 'rgba(0,4,7,';
+
+  // Trail effect
+  ctx.fillStyle = trail + '0.25)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.lineWidth = 2 * dpr;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (mode === 'wave') {
+    drawWave(W, H, dpr);
+  } else if (mode === 'dual') {
+    drawDual(W, H, dpr);
+  } else {
+    drawLissajous(W, H, dpr);
+  }
+}
+
+function drawWave(W, H, dpr) {
+  const sliceW = W / bufferLength;
+  let x = 0;
+
+  ctx.shadowBlur = 18 * dpr;
+  ctx.shadowColor = getGlow(0.9);
+
+  ctx.beginPath();
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = (v * H) / 2;
+    const c = getColor(i, bufferLength);
+
+    if (colorMode === 'multi') {
+      if (i > 0) {
+        ctx.strokeStyle = c;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - sliceW, y);
+      } else {
+        ctx.moveTo(x, y);
+      }
+    } else {
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    x += sliceW;
+  }
+
+  if (colorMode !== 'multi') {
+    ctx.strokeStyle = getColor(0, 1);
+    ctx.stroke();
+  }
+
+  // Center line glow
+  ctx.beginPath();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = getGlow(0.15);
+  ctx.lineWidth = 1 * dpr;
+  ctx.moveTo(0, H / 2);
+  ctx.lineTo(W, H / 2);
+  ctx.stroke();
+}
+
+function drawDual(W, H, dpr) {
+  const sliceW = W / bufferLength;
+
+  // Upper wave
+  ctx.shadowBlur = 14 * dpr;
+  ctx.shadowColor = getGlow(0.8);
+  ctx.beginPath();
+  let x = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = H * 0.25 + (v - 1) * (H * 0.22);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    x += sliceW;
+  }
+  ctx.strokeStyle = colorMode === 'multi' ? '#00eeff' : getColor(0, 1);
+  ctx.lineWidth = 2 * dpr;
+  ctx.stroke();
+
+  // Lower wave (inverted)
+  ctx.beginPath();
+  x = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = H * 0.75 - (v - 1) * (H * 0.22);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    x += sliceW;
+  }
+  ctx.strokeStyle = colorMode === 'multi' ? '#ff00aa' : getColor(0, 1);
+  ctx.stroke();
+}
+
+function drawLissajous(W, H, dpr) {
+  const cx = W / 2, cy = H / 2;
+  const r = Math.min(W, H) * 0.38;
+  const half = Math.floor(bufferLength / 2);
+
+  ctx.shadowBlur = 16 * dpr;
+  ctx.shadowColor = getGlow(0.8);
+  ctx.beginPath();
+
+  for (let i = 0; i < half; i++) {
+    const xVal = (dataArray[i] / 128.0 - 1) * r;
+    const yVal = (dataArray[i + half] / 128.0 - 1) * r;
+    const px = cx + xVal;
+    const py = cy + yVal;
+    const c = getColor(i, half);
+
+    if (colorMode === 'multi') {
+      if (i > 0) {
+        ctx.strokeStyle = c;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+      } else {
+        ctx.moveTo(px, py);
+      }
+    } else {
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+  }
+
+  if (colorMode !== 'multi') {
+    ctx.strokeStyle = getColor(0, 1);
+    ctx.stroke();
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>Gooey Blobs & Lines — RGB Isoflow</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  #c { position:fixed; inset:0; display:block; width:100vw; height:100vh; }
+  .ui {
+    position: fixed; left: 12px; bottom: 12px; right: 12px;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background: rgba(0,0,0,.5); border:1px solid #222; padding:10px; border-radius:10px;
+    user-select:none;
+  }
+  .ui label { font-size:12px; opacity:.9; display:flex; gap:8px; align-items:center; }
+  .ui input[type="range"] { width:140px; }
+  .ui button, .pill {
+    background:#111; color:#fff; border:1px solid #444; border-radius:999px; padding:6px 10px; font-size:12px;
+  }
+  .spacer { flex:1 }
+  a { color:#9cf; text-decoration:none }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div class="ui" id="ui">
+  <label>Scale <input id="scale" type="range" min="0.5" max="3.5" step="0.01" value="1.6"></label>
+  <label>Bands <input id="bands" type="range" min="3" max="40" step="1" value="18"></label>
+  <label>Line <input id="line" type="range" min="0.01" max="0.2" step="0.005" value="0.06"></label>
+  <label>Speed <input id="speed" type="range" min="0" max="2" step="0.01" value="0.8"></label>
+  <label><input id="rgb" type="checkbox" checked> RGB offset</label>
+  <label><input id="glow" type="checkbox" checked> Glow</label>
+  <div class="spacer"></div>
+  <button id="clear">Clear blobs</button>
+  <button id="save">Save frame</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl', {antialias:false, preserveDrawingBuffer:true});
+if(!gl){ alert('WebGL not supported.'); }
+
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+function resize(){
+  const w = Math.floor(innerWidth * DPR), h = Math.floor(innerHeight * DPR);
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  gl.viewport(0,0,w,h);
+}
+addEventListener('resize', resize);
+
+const vertSrc = `
+attribute vec2 p;
+void main(){ gl_Position = vec4(p,0.0,1.0); }`;
+
+const fragSrc = `
+precision highp float;
+uniform vec2 res;
+uniform float time;
+uniform float scale;
+uniform float bands;
+uniform float lineWidth;
+uniform float speed;
+uniform int rgbMode;
+uniform int glowMode;
+const int MAXP = 16;
+uniform int pCount;
+uniform vec2 pPos[MAXP];
+
+// 2D noise by iq
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0,0.0));
+  float c = hash(i + vec2(0.0,1.0));
+  float d = hash(i + vec2(1.0,1.0));
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+}
+float fbm(vec2 p){
+  float v = 0.0;
+  float a = .5;
+  for(int i=0;i<6;i++){
+    v += a * noise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+float field(vec2 uv){
+  // base field
+  float f = fbm(uv*1.2 + vec2(0.0, time*0.2*speed));
+  // swirl
+  float ang = time*0.1*speed;
+  mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
+  uv = R * uv;
+  f += 0.55*fbm(uv*0.8 + time*0.1*speed);
+  // metaballs from pointers
+  for(int i=0;i<MAXP;i++){
+    if(i>=pCount) break;
+    vec2 d = uv - pPos[i];
+    float r2 = dot(d,d);
+    f += 0.15 / (r2 + 0.05);
+  }
+  return f;
+}
+
+// line mask using periodic function
+float lines(float v){
+  float s = abs(sin(v * 3.14159265 * bands));
+  float m = 1.0 - smoothstep(1.0 - lineWidth, 1.0, s);
+  if(glowMode==1){
+    // subtle outer glow
+    float g = 1.0 - smoothstep(1.0 - lineWidth*3.0, 1.0, s);
+    m = m + g*0.25;
+  }
+  return m;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy*2.0 - res) / min(res.x,res.y);
+  uv *= scale;
+
+  float v = field(uv);
+
+  vec3 col;
+  if(rgbMode==1){
+    float r = lines(v + 0.00);
+    float g = lines(v + 0.33);
+    float b = lines(v + 0.66);
+    col = vec3(r,g,b);
+  }else{
+    float m = lines(v);
+    col = vec3(m);
+  }
+
+  // extra punch
+  col = pow(col, vec3(0.8));
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+function compile(type, src){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    throw gl.getShaderInfoLog(sh);
+  }
+  return sh;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vertSrc));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fragSrc));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+  throw gl.getProgramInfoLog(prog);
+}
+gl.useProgram(prog);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([ -1,-1, 1,-1, -1,1, 1,1 ]), gl.STATIC_DRAW);
+const locP = gl.getAttribLocation(prog, 'p');
+gl.enableVertexAttribArray(locP);
+gl.vertexAttribPointer(locP, 2, gl.FLOAT, false, 0, 0);
+
+const u = {
+  res: gl.getUniformLocation(prog, 'res'),
+  time: gl.getUniformLocation(prog, 'time'),
+  scale: gl.getUniformLocation(prog, 'scale'),
+  bands: gl.getUniformLocation(prog, 'bands'),
+  lineWidth: gl.getUniformLocation(prog, 'lineWidth'),
+  speed: gl.getUniformLocation(prog, 'speed'),
+  rgbMode: gl.getUniformLocation(prog, 'rgbMode'),
+  glowMode: gl.getUniformLocation(prog, 'glowMode'),
+  pCount: gl.getUniformLocation(prog, 'pCount'),
+  pPos: gl.getUniformLocation(prog, 'pPos')
+};
+
+resize();
+
+// UI bindings
+const $ = id => document.getElementById(id);
+const state = {
+  scale: parseFloat($('scale').value),
+  bands: parseFloat($('bands').value),
+  line: parseFloat($('line').value),
+  speed: parseFloat($('speed').value),
+  rgb: $('rgb').checked,
+  glow: $('glow').checked,
+};
+
+for(const k of ['scale','bands','line','speed']) {
+  $(k==='line'?'line':k).addEventListener('input', e => {
+    const key = (k==='line')?'line':k;
+    state[key] = parseFloat(e.target.value);
+  });
+}
+$('rgb').addEventListener('change', e => state.rgb = e.target.checked);
+$('glow').addEventListener('change', e => state.glow = e.target.checked);
+
+// Pointer blobs
+const MAXP = 16;
+const pointers = [];
+function addPointer(x,y, id){
+  if(pointers.length >= MAXP) pointers.shift();
+  // convert screen to shader uv-space
+  const u = ((x * DPR)*2 - canvas.width) / Math.min(canvas.width, canvas.height);
+  const v = ((y * DPR)*2 - canvas.height) / Math.min(canvas.width, canvas.height);
+  pointers.push({x:u*state.scale, y:v*state.scale, id, t:performance.now()});
+}
+function clearPointers(){ pointers.length = 0; }
+$('clear').addEventListener('click', clearPointers);
+
+let pointerDown = false;
+canvas.addEventListener('pointerdown', e => { pointerDown = true; addPointer(e.clientX, e.clientY, e.pointerId); });
+canvas.addEventListener('pointermove', e => { if(pointerDown) addPointer(e.clientX, e.clientY, e.pointerId); });
+addEventListener('pointerup', () => pointerDown=false);
+addEventListener('pointercancel', () => pointerDown=false);
+
+// Save frame
+$('save').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'gooey-frame.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+let t0 = performance.now();
+function frame(now){
+  const t = (now - t0) / 1000;
+  gl.uniform2f(u.res, canvas.width, canvas.height);
+  gl.uniform1f(u.time, t);
+  gl.uniform1f(u.scale, state.scale);
+  gl.uniform1f(u.bands, state.bands);
+  gl.uniform1f(u.lineWidth, state.line);
+  gl.uniform1f(u.speed, state.speed);
+  gl.uniform1i(u.rgbMode, state.rgb?1:0);
+  gl.uniform1i(u.glowMode, state.glow?1:0);
+
+  // feed pointers
+  const flat = new Float32Array(MAXP*2);
+  const nowms = performance.now();
+  // decay older blobs slowly so they keep influencing for a while
+  for(let i=0;i<pointers.length;i++){
+    const p = pointers[i];
+    const age = (nowms - p.t)/1000;
+    const decay = Math.max(0, 1 - age*0.12);
+    flat[i*2+0] = p.x * decay;
+    flat[i*2+1] = p.y * decay;
+  }
+  gl.uniform1i(u.pCount, Math.min(pointers.length, MAXP));
+  gl.uniform2fv(u.pPos, flat);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Try to request device motion permission (iOS)
+(async () => {
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      // Expose a tiny floating pill to trigger permission if user wants
+      const pill = document.createElement('button');
+      pill.className = 'pill';
+      pill.textContent = 'Tilt blobs';
+      pill.style.position='fixed'; pill.style.right='12px'; pill.style.top='12px';
+      document.body.appendChild(pill);
+      pill.onclick = async () => {
+        const perm = await DeviceMotionEvent.requestPermission();
+        if(perm === 'granted'){
+          window.addEventListener('deviceorientation', (e)=>{
+            // gently nudge fields with tilt
+            const x = (e.beta||0)/60, y = (e.gamma||0)/60;
+            addPointer(innerWidth*(0.5+y*0.5), innerHeight*(0.5+x*0.5), 9999);
+          });
+          pill.remove();
+        }
+      };
+    }
+  } catch(e){ /* ignore */ }
+})();
+</script>
+</body>
+</html>

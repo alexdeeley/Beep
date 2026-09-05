@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Infinite Quadrants – Stable Patterns</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;touch-action:none;}
+body{
+  width:100vw;height:100vh;overflow:hidden;background:#000;
+  display:flex;justify-content:center;align-items:center;
+}
+canvas{
+  display:block;width:100vmin;height:100vmin;max-width:100vh;max-height:100vh;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha:false });
+const size = 1000;
+canvas.width = size;
+canvas.height = size;
+
+let quadrants = [];
+
+function clamp255(v){ return Math.max(0, Math.min(255, v|0)); }
+function randInt(min, max){ return (min + Math.floor(Math.random()*(max-min+1))); }
+function gray(v){ v = clamp255(v); return `rgb(${v},${v},${v})`; }
+
+// Create a visually distinct but grayscale-only pair
+function makeGrayPair(){
+  const bg = randInt(10, 245);
+  // Ensure contrast
+  const delta = randInt(40, 140) * (Math.random() < 0.5 ? -1 : 1);
+  const fg = clamp255(bg + delta);
+  return { bg, fg };
+}
+
+function makePatternData(type, w, h){
+  // Keep patterns stable by storing all random decisions here.
+  // Scale some parameters with size so it still reads at many levels.
+  const minDim = Math.max(1, Math.min(w, h));
+  const base = Math.max(3, minDim / 10);
+
+  if (type === 0){ // vertical lines
+    const n = randInt(3, 10);
+    const jitter = Math.random() * 0.25;
+    const phase = Math.random();
+    return { n, jitter, phase };
+  }
+  if (type === 1){ // horizontal lines
+    const n = randInt(3, 10);
+    const jitter = Math.random() * 0.25;
+    const phase = Math.random();
+    return { n, jitter, phase };
+  }
+  if (type === 2){ // diagonal hatch
+    const n = randInt(2, 6);
+    const skew = (Math.random()*2 - 1) * 0.35;
+    const both = Math.random() < 0.7;
+    return { n, skew, both };
+  }
+  // dots / speckles
+  const count = randInt(6, 18);
+  const dots = [];
+  for (let i=0;i<count;i++){
+    dots.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.max(0.008, Math.random()*0.06),
+      g: randInt(0, 40) * (Math.random()<0.5 ? -1 : 1) // per-dot brightness offset
+    });
+  }
+  return { dots };
+}
+
+function drawPattern(q){
+  // Solid background
+  ctx.fillStyle = gray(q.bg);
+  ctx.fillRect(q.x, q.y, q.w, q.h);
+
+  // Pattern strokes/fills
+  const minDim = Math.max(1, Math.min(q.w, q.h));
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  ctx.strokeStyle = gray(q.fg);
+
+  // Line width scales gently but stays visible
+  ctx.lineWidth = Math.max(1, minDim * 0.045);
+
+  const x = q.x, y = q.y, w = q.w, h = q.h;
+
+  switch(q.type){
+    case 0: { // vertical lines
+      const { n, jitter, phase } = q.data;
+      const step = w / (n + 1);
+      for (let i=1;i<=n;i++){
+        const t = (i + phase) / (n + 1);
+        const j = (Math.random()*2-1) * jitter * step; // NOTE: do not use random here!
+        // Fix: replace random jitter with deterministic jitter using stored phase only
+      }
+      // Deterministic version:
+      for (let i=1;i<=n;i++){
+        const t = (i + phase) / (n + 1);
+        const j = (Math.sin((i+phase)*12.9898) * 43758.5453) % 1; // pseudo
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const xx = x + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(xx, y);
+        ctx.lineTo(xx, y + h);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 1: { // horizontal lines
+      const { n, jitter, phase } = q.data;
+      const step = h / (n + 1);
+      for (let i=1;i<=n;i++){
+        const t = (i + phase) / (n + 1);
+        const j = (Math.sin((i+phase)*78.233) * 24634.6345) % 1;
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const yy = y + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(x, yy);
+        ctx.lineTo(x + w, yy);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 2: { // diagonal hatch
+      const { n, skew, both } = q.data;
+      const step = (w + h) / (n + 2);
+      // Draw a set of diagonal lines sweeping across the rect
+      for (let i=0;i<n+3;i++){
+        const t = i*step;
+        const x1 = x - h*skew + t;
+        const y1 = y;
+        const x2 = x + t;
+        const y2 = y + h;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      if (both){
+        for (let i=0;i<n+3;i++){
+          const t = i*step;
+          const x1 = x + t;
+          const y1 = y;
+          const x2 = x + w + h*skew - t;
+          const y2 = y + h;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    default: { // dots
+      const { dots } = q.data;
+      for (const d of dots){
+        const rr = Math.max(1, d.r * minDim);
+        const gx = x + d.x * w;
+        const gy = y + d.y * h;
+        const g = clamp255(q.fg + d.g);
+        ctx.fillStyle = gray(g);
+        ctx.beginPath();
+        ctx.arc(gx, gy, rr, 0, Math.PI*2);
+        ctx.fill();
+      }
+      break;
+    }
+  }
+}
+
+class Quadrant{
+  constructor(x,y,w,h){
+    this.x=x; this.y=y; this.w=w; this.h=h;
+    const {bg, fg} = makeGrayPair();
+    this.bg = bg;
+    this.fg = fg;
+    this.type = randInt(0,3);
+    this.data = makePatternData(this.type, w, h);
+    this.children = null;
+    this.isLeaf = true;
+  }
+  split(){
+    if (!this.isLeaf) return;
+    const hw=this.w/2, hh=this.h/2;
+    this.children = [
+      new Quadrant(this.x, this.y, hw, hh),
+      new Quadrant(this.x+hw, this.y, hw, hh),
+      new Quadrant(this.x, this.y+hh, hw, hh),
+      new Quadrant(this.x+hw, this.y+hh, hw, hh),
+    ];
+    this.isLeaf = false;
+  }
+  contains(px,py){
+    return px>=this.x && px<this.x+this.w && py>=this.y && py<this.y+this.h;
+  }
+  draw(){
+    if (this.isLeaf) drawPattern(this);
+    else this.children.forEach(c=>c.draw());
+  }
+  find(px,py){
+    if (!this.contains(px,py)) return null;
+    if (this.isLeaf) return this;
+    for (const c of this.children){
+      const f = c.find(px,py);
+      if (f) return f;
+    }
+    return null;
+  }
+}
+
+function init(){
+  const h=size/2;
+  quadrants = [
+    new Quadrant(0,0,h,h),
+    new Quadrant(h,0,h,h),
+    new Quadrant(0,h,h,h),
+    new Quadrant(h,h,h,h),
+  ];
+  draw();
+}
+
+function draw(){
+  ctx.clearRect(0,0,size,size);
+  quadrants.forEach(q=>q.draw());
+}
+
+function coords(e){
+  const r=canvas.getBoundingClientRect();
+  const sx=size/r.width, sy=size/r.height;
+  const p = e.touches ? e.touches[0] : e;
+  return { x:(p.clientX-r.left)*sx, y:(p.clientY-r.top)*sy };
+}
+
+function handle(e){
+  const p=coords(e);
+  for (const q of quadrants){
+    const leaf=q.find(p.x,p.y);
+    if (leaf){
+      // Only the touched square changes (it splits into new squares),
+      // everything else keeps its exact stored pattern/colors.
+      leaf.split();
+      draw();
+      break;
+    }
+  }
+}
+
+canvas.addEventListener('click', handle);
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); handle(e); });
+
+init();
+</script>
+</body>
+</html>

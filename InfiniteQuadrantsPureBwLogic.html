@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Infinite Quadrants – Pure B/W Logic</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;touch-action:none;}
+body{
+  width:100vw;height:100vh;overflow:hidden;background:#000;
+  display:flex;justify-content:center;align-items:center;
+}
+canvas{
+  display:block;width:100vmin;height:100vmin;max-width:100vh;max-height:100vh;
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha:false });
+
+// HiDPI internal resolution (increase to 3072/4096 if your device can handle it)
+const BASE_RES = 2048;
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const size = Math.round(BASE_RES * DPR);
+
+canvas.width = size;
+canvas.height = size;
+
+let roots = [];
+
+// --- Pure B/W palette ---
+function bw(v){ return v ? "#fff" : "#000"; }
+
+// Deterministic pseudo-random in [0,1)
+function pseudo01(a){
+  const s = Math.sin(a) * 43758.5453123;
+  return s - Math.floor(s);
+}
+function randInt(min, max){ return min + Math.floor(Math.random()*(max-min+1)); }
+
+// Pattern parameters are stored so the look never changes unless the square is tapped (split).
+function makePatternData(type){
+  if (type === 0 || type === 1){
+    return {
+      n: randInt(3, 10),
+      phase: Math.random(),
+      jitter: Math.random() * 0.22
+    };
+  }
+  if (type === 2){
+    return {
+      n: randInt(2, 7),
+      skew: (Math.random()*2 - 1) * 0.35,
+      both: Math.random() < 0.65
+    };
+  }
+  // Dots
+  const count = randInt(6, 18);
+  const dots = [];
+  for (let i=0;i<count;i++){
+    dots.push({ x: Math.random(), y: Math.random(), r: Math.max(0.008, Math.random()*0.06) });
+  }
+  return { dots };
+}
+
+function drawPattern(q){
+  // Hard-fill background
+  ctx.fillStyle = bw(q.c);
+  ctx.fillRect(q.x, q.y, q.w, q.h);
+
+  // Pattern is always the opposite color (so black sits next to white inside the square too)
+  const ink = q.c ? 0 : 1;
+  ctx.strokeStyle = bw(ink);
+  ctx.fillStyle   = bw(ink);
+
+  const minDim = Math.max(1, Math.min(q.w, q.h));
+  // Keep patterns visible as squares shrink (but don't explode in thickness)
+  ctx.lineWidth = Math.max(1, Math.min(minDim * 0.06, 10));
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+
+  const x=q.x, y=q.y, w=q.w, h=q.h;
+
+  switch(q.type){
+    case 0: { // vertical lines
+      const { n, phase, jitter } = q.data;
+      const step = w / (n + 1);
+      for (let i=1;i<=n;i++){
+        const j = pseudo01((i+phase)*12.9898);
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const xx = x + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(xx, y);
+        ctx.lineTo(xx, y + h);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 1: { // horizontal lines
+      const { n, phase, jitter } = q.data;
+      const step = h / (n + 1);
+      for (let i=1;i<=n;i++){
+        const j = pseudo01((i+phase)*78.233);
+        const jitterPx = (j - 0.5) * 2 * jitter * step;
+        const yy = y + i*step + jitterPx;
+        ctx.beginPath();
+        ctx.moveTo(x, yy);
+        ctx.lineTo(x + w, yy);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 2: { // diagonal hatch
+      const { n, skew, both } = q.data;
+      const step = (w + h) / (n + 2);
+      for (let i=0;i<n+3;i++){
+        const t = i*step;
+        ctx.beginPath();
+        ctx.moveTo(x - h*skew + t, y);
+        ctx.lineTo(x + t, y + h);
+        ctx.stroke();
+      }
+      if (both){
+        for (let i=0;i<n+3;i++){
+          const t = i*step;
+          ctx.beginPath();
+          ctx.moveTo(x + t, y);
+          ctx.lineTo(x + w + h*skew - t, y + h);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    default: { // dots
+      const { dots } = q.data;
+      for (let k=0;k<dots.length;k++){
+        const d = dots[k];
+        const rr = Math.max(1, d.r * minDim);
+        ctx.beginPath();
+        ctx.arc(x + d.x*w, y + d.y*h, rr, 0, Math.PI*2);
+        ctx.fill();
+      }
+      break;
+    }
+  }
+
+  // Optional faint edge to keep structure readable at deep levels (still B/W)
+  // Uses opposite ink at low alpha via compositing trick: draw 1px edge every so often.
+  // (No gray used—only partial opacity of pure black/white.)
+  if (minDim >= 6){
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = bw(ink);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  }
+}
+
+class Quadrant{
+  constructor(x,y,w,h,colorBit){
+    this.x=x; this.y=y; this.w=w; this.h=h;
+    this.c=colorBit; // 0 black, 1 white
+    this.type = randInt(0,3);
+    this.data = makePatternData(this.type);
+    this.children=null;
+    this.isLeaf=true;
+  }
+  contains(px,py){
+    return px>=this.x && px<this.x+this.w && py>=this.y && py<this.y+this.h;
+  }
+  draw(){
+    if (this.isLeaf) drawPattern(this);
+    else this.children.forEach(ch=>ch.draw());
+  }
+  find(px,py){
+    if (!this.contains(px,py)) return null;
+    if (this.isLeaf) return this;
+    for (const ch of this.children){
+      const f = ch.find(px,py);
+      if (f) return f;
+    }
+    return null;
+  }
+  split(){
+    if (!this.isLeaf) return;
+    if (this.w < 2 || this.h < 2) return;
+
+    const hw=this.w/2, hh=this.h/2;
+
+    // --- Internal logic: checkerboard children so every shared edge is black/white ---
+    // TL and BR keep parent color; TR and BL are opposite.
+    // This guarantees immediate adjacency contrast inside this square.
+    const c = this.c, o = c ? 0 : 1;
+
+    this.children = [
+      new Quadrant(this.x,      this.y,      hw, hh, c), // TL
+      new Quadrant(this.x+hw,   this.y,      hw, hh, o), // TR
+      new Quadrant(this.x,      this.y+hh,   hw, hh, o), // BL
+      new Quadrant(this.x+hw,   this.y+hh,   hw, hh, c)  // BR
+    ];
+
+    this.isLeaf=false;
+  }
+}
+
+function init(){
+  const h = size/2;
+
+  // Start with a 2x2 checkerboard (max contrast immediately)
+  roots = [
+    new Quadrant(0, 0, h, h, 0),      // black
+    new Quadrant(h, 0, h, h, 1),      // white
+    new Quadrant(0, h, h, h, 1),      // white
+    new Quadrant(h, h, h, h, 0)       // black
+  ];
+  draw();
+}
+
+function draw(){
+  // background is black already; still clear for correctness
+  ctx.clearRect(0,0,size,size);
+  roots.forEach(r=>r.draw());
+}
+
+function coords(e){
+  const r = canvas.getBoundingClientRect();
+  const sx = size / r.width;
+  const sy = size / r.height;
+  const p = e.touches ? e.touches[0] : e;
+  return { x:(p.clientX-r.left)*sx, y:(p.clientY-r.top)*sy };
+}
+
+function handle(e){
+  const p = coords(e);
+  for (const r of roots){
+    const leaf = r.find(p.x,p.y);
+    if (leaf){
+      leaf.split();
+      draw();
+      break;
+    }
+  }
+}
+
+canvas.addEventListener('click', handle);
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); handle(e); }, {passive:false});
+
+init();
+</script>
+</body>
+</html>

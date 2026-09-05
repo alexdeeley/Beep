@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Hz Lab</title>
+  <style>
+    :root{
+      --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.65);
+      --border:3px;
+    }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body{ margin:0; padding:0; width:100%; height:100%; background:var(--bg); color:var(--fg); overflow:hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    canvas{ display:block; width:100vw; height:100vh; }
+
+    #overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.92);
+      display:flex; align-items:center; justify-content:center;
+      z-index:50; cursor:pointer; user-select:none;
+      padding:24px;
+    }
+    #overlay .box{
+      width:min(720px, 92vw);
+      border: var(--border) solid var(--fg);
+      border-radius: 18px;
+      padding: 20px 18px;
+      text-align:left;
+    }
+    #overlay h1{
+      margin:0 0 10px 0;
+      font-size: 28px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    #overlay p{
+      margin: 8px 0;
+      color: var(--dim);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    #overlay .cta{
+      margin-top: 14px;
+      display:inline-block;
+      border: var(--border) solid var(--fg);
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    #ui{
+      position:fixed; left:16px; top:16px; z-index:20;
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .panel{
+      border: var(--border) solid var(--fg);
+      border-radius: 16px;
+      padding: 10px 10px;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    input[type="number"]{
+      width: 150px;
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--border) solid var(--fg);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 22px;
+      outline: none;
+    }
+    button{
+      background: var(--fg);
+      color: var(--bg);
+      border: 0;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor:pointer;
+    }
+    button:active{ transform: translateY(1px); }
+    .tiny{
+      font-size: 12px;
+      color: var(--dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .row{ display:flex; gap:10px; align-items:center; }
+    input[type="range"]{
+      width: 170px;
+      accent-color: white;
+    }
+    .kbd{
+      border: 2px solid var(--fg);
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--dim);
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="overlay" role="button" aria-label="Tap to start audio">
+    <div class="box">
+      <h1>Hz Lab</h1>
+      <p>Tap to unlock audio. Type a frequency in Hz and press <span class="kbd">Enter</span>.</p>
+      <p>Tap a node to mute/unmute. Long-press (or right-click) a node to remove it.</p>
+      <span class="cta">Tap to Begin</span>
+    </div>
+  </div>
+
+  <div id="ui">
+    <div class="panel row">
+      <input type="number" id="hzInput" inputmode="decimal" placeholder="Hz" />
+      <button id="addBtn" title="Add tone">Add</button>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="gap:12px;">
+        <div>
+          <div class="tiny">Master</div>
+          <input id="master" type="range" min="0" max="1" step="0.01" value="0.22" />
+        </div>
+        <div>
+          <div class="tiny">Wave</div>
+          <div class="row" style="gap:8px;">
+            <button class="wave" data-wave="sine">S</button>
+            <button class="wave" data-wave="triangle">T</button>
+            <button class="wave" data-wave="square">Q</button>
+            <button class="wave" data-wave="sawtooth">A</button>
+          </div>
+        </div>
+        <div>
+          <div class="tiny">Clear</div>
+          <button id="clearBtn" title="Stop all tones">X</button>
+        </div>
+      </div>
+      <div class="tiny" style="margin-top:8px;">Tip: keep master low if you add lots of tones.</div>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const overlay = document.getElementById('overlay');
+
+  const input = document.getElementById('hzInput');
+  const addBtn = document.getElementById('addBtn');
+  const masterSlider = document.getElementById('master');
+  const clearBtn = document.getElementById('clearBtn');
+  const waveBtns = [...document.querySelectorAll('.wave')];
+
+  // --- Canvas sizing (HiDPI) ---
+  function resize(){
+    const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
+
+  // --- Audio (created lazily for iOS) ---
+  let audioCtx = null;
+  let masterGain = null;
+  let limiter = null;
+  let currentWave = 'sine';
+  const tones = []; // {osc, gain, pan, hz, x, y, r, alive, muted, bornAt, id}
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = parseFloat(masterSlider.value);
+
+    // Simple limiter-ish: DynamicsCompressor as safety net
+    limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -18;
+    limiter.knee.value = 18;
+    limiter.ratio.value = 10;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.2;
+
+    masterGain.connect(limiter);
+    limiter.connect(audioCtx.destination);
+  }
+
+  function now(){ return audioCtx ? audioCtx.currentTime : 0; }
+
+  function ramp(g, target, t=0.02){
+    const ct = now();
+    g.cancelScheduledValues(ct);
+    g.setValueAtTime(g.value, ct);
+    g.linearRampToValueAtTime(target, ct + t);
+  }
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function makeTone(freq){
+    ensureAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.00001;
+
+    // Panner (supported on iOS Safari)
+    const pan = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+    if (pan) pan.pan.value = (Math.random()*2 - 1) * 0.65;
+
+    osc.type = currentWave;
+    osc.frequency.setValueAtTime(freq, now());
+
+    // chain
+    osc.connect(gain);
+    if (pan){
+      gain.connect(pan);
+      pan.connect(masterGain);
+    } else {
+      gain.connect(masterGain);
+    }
+
+    osc.start();
+
+    // Soft fade in to avoid click
+    ramp(gain.gain, 0.12, 0.05);
+
+    const t = {
+      id: Math.random().toString(16).slice(2),
+      osc, gain, pan,
+      hz: freq,
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: 14 + Math.random()*18,
+      alive: true,
+      muted: false,
+      bornAt: performance.now()
+    };
+    return t;
+  }
+
+  function addToneFromInput(){
+    const v = parseFloat(input.value);
+    if (!isFinite(v) || v <= 0) return;
+    const hz = clamp(v, 10, 20000);
+    tones.push(makeTone(hz));
+    input.value = '';
+    input.blur(); // feels nicer on iOS after Enter
+  }
+
+  function stopTone(t, fast=false){
+    if (!t.alive) return;
+    t.alive = false;
+    const fade = fast ? 0.02 : 0.08;
+    try{ ramp(t.gain.gain, 0.00001, fade); }catch(e){}
+    try{
+      t.osc.stop(now() + fade + 0.01);
+    }catch(e){}
+    setTimeout(() => {
+      try{ t.osc.disconnect(); }catch(e){}
+      try{ t.gain.disconnect(); }catch(e){}
+      try{ if (t.pan) t.pan.disconnect(); }catch(e){}
+    }, (fade*1000)+100);
+  }
+
+  function clearAll(){
+    while(tones.length){
+      stopTone(tones.pop(), true);
+    }
+  }
+
+  // --- UI wiring ---
+  overlay.addEventListener('pointerdown', () => {
+    ensureAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    overlay.style.display = 'none';
+    setTimeout(() => input.focus(), 50);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addToneFromInput();
+    if (e.key === 'Escape') input.blur();
+  });
+
+  addBtn.addEventListener('click', addToneFromInput);
+  clearBtn.addEventListener('click', clearAll);
+
+  masterSlider.addEventListener('input', () => {
+    if (!masterGain) return;
+    masterGain.gain.value = parseFloat(masterSlider.value);
+  });
+
+  function setWave(w){
+    currentWave = w;
+    waveBtns.forEach(b => {
+      const on = b.dataset.wave === w;
+      b.style.opacity = on ? '1' : '0.45';
+    });
+    // apply to existing tones
+    tones.forEach(t => { if (t.alive) t.osc.type = w; });
+  }
+  waveBtns.forEach(b => b.addEventListener('click', () => setWave(b.dataset.wave)));
+  setWave('sine');
+
+  // --- Interaction with nodes ---
+  let pressTimer = null;
+  let pressedTone = null;
+
+  function hitTest(x,y){
+    // from topmost
+    for (let i = tones.length-1; i >= 0; i--){
+      const t = tones[i];
+      if (!t.alive) continue;
+      const dx = x - t.x, dy = y - t.y;
+      if (dx*dx + dy*dy <= (t.r+10)*(t.r+10)) return t;
+    }
+    return null;
+  }
+
+  function toggleMute(t){
+    if (!t || !t.alive) return;
+    t.muted = !t.muted;
+    const target = t.muted ? 0.00001 : 0.12;
+    ramp(t.gain.gain, target, 0.06);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const x = e.clientX, y = e.clientY;
+    const t = hitTest(x,y);
+    if (!t) return;
+
+    pressedTone = t;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      // long-press remove
+      const idx = tones.indexOf(t);
+      if (idx >= 0){
+        stopTone(t, false);
+        tones.splice(idx, 1);
+      }
+      pressedTone = null;
+    }, 520);
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    clearTimeout(pressTimer);
+    if (pressedTone){
+      toggleMute(pressedTone);
+    }
+    pressedTone = null;
+  });
+
+  canvas.addEventListener('pointercancel', () => {
+    clearTimeout(pressTimer);
+    pressedTone = null;
+  });
+
+  // prevent scroll / rubber band on iOS when interacting with canvas
+  window.addEventListener('touchmove', (e) => e.preventDefault(), { passive:false });
+
+  // --- Visuals ---
+  function draw(){
+    // background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0, window.innerWidth, window.innerHeight);
+
+    // master node
+    const cx = window.innerWidth/2, cy = window.innerHeight/2;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 60, 0, Math.PI*2);
+    ctx.stroke();
+
+    // draw faint lines from tones to center + tone nodes
+    const tNow = performance.now();
+    tones.forEach(t => {
+      if (!t.alive) return;
+
+      // gentle drift
+      const age = (tNow - t.bornAt) / 1000;
+      const wob = 0.9 + 0.1*Math.sin(age*0.7 + t.hz*0.01);
+      t.x += Math.sin(age*0.9 + t.hz*0.001) * 0.12 * wob;
+      t.y += Math.cos(age*0.8 + t.hz*0.0013) * 0.12 * wob;
+      // wrap
+      if (t.x < -20) t.x = window.innerWidth + 20;
+      if (t.x > window.innerWidth + 20) t.x = -20;
+      if (t.y < -20) t.y = window.innerHeight + 20;
+      if (t.y > window.innerHeight + 20) t.y = -20;
+
+      // line intensity based on frequency (log-ish)
+      const norm = Math.log10(clamp(t.hz, 10, 20000)) / Math.log10(20000);
+      const a = t.muted ? 0.12 : (0.15 + norm*0.45);
+
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(t.x, t.y);
+      ctx.lineTo(cx, cy);
+      ctx.stroke();
+
+      // node
+      const r = t.r * (t.muted ? 0.8 : 1.0);
+      ctx.fillStyle = t.muted ? 'rgba(255,255,255,0.35)' : '#fff';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r, 0, Math.PI*2);
+      ctx.fill();
+
+      // tiny ring
+      ctx.strokeStyle = t.muted ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,1)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r-5, 0, Math.PI*2);
+      ctx.stroke();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  // keyboard shortcut: C to clear, / to focus input
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'c') clearAll();
+    if (e.key === '/') { e.preventDefault(); input.focus(); }
+  });
+
+})();
+</script>
+</body>
+</html>

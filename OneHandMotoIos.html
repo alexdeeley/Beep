@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>One-Hand Moto (iOS fix)</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; color:#fff; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; overscroll-behavior: none; }
+  /* Use small viewport units for iOS address-bar shenanigans */
+  #wrap { width:100vw; height:100svh; position:fixed; inset:0; display:flex; flex-direction:column; }
+  header { padding: 8px 12px; font-size: 14px; opacity: 0.9; display:flex; justify-content:space-between; align-items:center; }
+  canvas { flex:1; width:100vw; height:100%; display:block; touch-action:none; }
+  #hud { position: fixed; left: 0; right: 0; top: 36px; display:flex; justify-content:space-between; padding: 0 12px; font-size: 16px; pointer-events:none; text-shadow: 0 2px 0 #000; }
+  .pill { display:inline-block; border:1px solid #444; padding:6px 10px; border-radius: 999px; margin-right:8px; background:rgba(0,0,0,0.5); }
+  #footerHelp { position: fixed; left:0; right:0; bottom:0; padding: 12px; font-size: 14px; opacity:0.85; text-align:center; background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.8) 100%); }
+  #overlay { position: fixed; inset:0; background: rgba(0,0,0,0.92); display:flex; align-items:center; justify-content:center; }
+  #overlay .card { text-align:center; max-width: 680px; padding: 24px; }
+  #overlay h1 { font-size: 28px; margin: 0 0 8px; }
+  #overlay p { margin: 8px 0; line-height:1.4; }
+  .btn { display:inline-block; border:2px solid #fff; padding: 12px 16px; border-radius:12px; margin-top: 16px; font-weight:700; color:#fff; text-decoration:none; }
+  #progressBar { position: fixed; top:0; left:0; height: 4px; background:#0f0; width:0%; transition: width 0.15s linear; }
+  #debug { position:fixed; left:8px; bottom:56px; font-size:12px; opacity:0.5; }
+  #touchViz { position:fixed; inset:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <div id="progressBar"></div>
+  <header>
+    <div>🏁 One-Hand Moto</div>
+    <div id="sound" style="border:1px solid #444; padding:6px 8px; border-radius:6px;">🔇</div>
+  </header>
+  <canvas id="game" aria-label="Motorcycle side-scroller"></canvas>
+  <canvas id="touchViz"></canvas>
+  <div id="hud">
+    <div><span class="pill">⏱ <span id="time">5:00</span></span><span class="pill">💰 <span id="coins">0</span></span></div>
+    <div><span class="pill">📏 <span id="dist">0 m</span></span><span class="pill">⚙️ <span id="speed">0</span></span></div>
+  </div>
+  <div id="footerHelp">
+    One-finger: HOLD = throttle • QUICK TAP on ground = jump • Collect coins • 5-minute run
+  </div>
+  <div id="overlay">
+    <div class="card">
+      <h1>One-Hand Moto</h1>
+      <p>Hold anywhere to accelerate. Quick tap (on ground) to jump. Ride the 16‑bit hills and scoop coins before time runs out.</p>
+      <a href="#" id="startBtn" class="btn">Tap to Start</a>
+      <p style="opacity:0.7; font-size:13px; margin-top:10px">If you saw a blank screen before, this build fixes iOS touch + sizing.</p>
+    </div>
+  </div>
+  <div id="debug"></div>
+</div>
+
+<script>
+(() => {
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d', { alpha:false, desynchronized:true });
+  const viz = document.getElementById('touchViz');
+  const vtx = viz.getContext('2d');
+  let W=0, H=0, DPR=1;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    W = Math.floor(document.getElementById('wrap').clientWidth);
+    H = Math.floor(document.getElementById('wrap').clientHeight);
+    for (const c of [cvs, viz]) {
+      c.width = Math.max(1, W * DPR);
+      c.height = Math.max(1, H * DPR);
+      c.style.width = W + 'px';
+      c.style.height = H + 'px';
+    }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    vtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+
+  // RNG
+  let seed = 1337;
+  function rand(){ seed ^= seed<<13; seed ^= seed>>>17; seed ^= seed<<5; return (seed>>>0)/0xffffffff; }
+  function srand(s){ seed = s|0; }
+
+  // Terrain
+  function terrainY(x) {
+    return H*0.68
+      + Math.sin(x*0.004)*36
+      + Math.sin(x*0.008 + 2)*22
+      + Math.sin(x*0.0012 + 3)*100;
+  }
+  function slopeAt(x) { const e=1; return (terrainY(x+e)-terrainY(x-e))/(2*e); }
+
+  // Game state
+  const S = {
+    running:false, last:0, timeLeft:300000, coins:0, dist:0, camX:0,
+    input:{throttle:false, justTap:false},
+  };
+  const bike = { x:60, y:0, vx:0, vy:0, a:0, av:0, on:false };
+
+  // Coins
+  const coins = [];
+  function spawnCoins() {
+    coins.length=0;
+    for (let x=280; x<220000; x += 240 + Math.floor(rand()*220)) {
+      coins.push({x, y: terrainY(x) - (40 + Math.floor(rand()*80)), got:false});
+    }
+  }
+
+  // Draw BG / terrain / coins / bike
+  function drawBg(cam) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    // Parallax ridges
+    function ridge(off, amp, base, rough, alpha){
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      for (let x=0; x<=W; x++){
+        const wx = x + cam*0.2 + off;
+        const y = base + Math.sin(wx*rough)*amp + Math.sin(wx*rough*0.33)*amp*0.5;
+        x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      ctx.fillStyle = '#0a0a0a'; ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ridge(0,20,H*0.35,0.01,1);
+    ridge(900,28,H*0.48,0.013,0.9);
+    ridge(1800,36,H*0.58,0.016,0.8);
+  }
+  function drawTerrain(cam){
+    ctx.beginPath();
+    for (let x=0;x<=W;x++){
+      const y = Math.round(terrainY(x+cam)/2)*2;
+      x===0 ? ctx.moveTo(0,y) : ctx.lineTo(x,y);
+    }
+    ctx.lineWidth=3; ctx.strokeStyle='#2a2a2a'; ctx.stroke();
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle='#111'; ctx.fill();
+  }
+  function drawCoins(cam){
+    for (const c of coins){
+      if (c.got) continue;
+      const sx = c.x - cam; if (sx<-40 || sx>W+40) continue;
+      const sy = c.y;
+      ctx.fillStyle='#ffd400';
+      const r=7;
+      for (let i=-r;i<=r;i++){
+        for (let j=-r;j<=r;j++){
+          if (Math.abs(i)+Math.abs(j)<=r) ctx.fillRect((sx+i)|0,(sy+j)|0,1.5,1.5);
+        }
+      }
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1;
+      ctx.strokeRect((sx-r-1)|0,(sy-r-1)|0,(r*2+2),(r*2+2));
+    }
+  }
+  function drawBike(){
+    const sx = bike.x - S.camX;
+    const sy = bike.y;
+    ctx.save(); ctx.translate(sx,sy); ctx.rotate(bike.a);
+    ctx.fillStyle='#fff'; ctx.fillRect(-14,-6,28,12);
+    function wh(x){ ctx.beginPath(); ctx.arc(x,10,8,0,Math.PI*2); ctx.fillStyle='#ccc'; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke(); }
+    wh(-16); wh(16);
+    ctx.fillStyle='#eee'; ctx.fillRect(-4,-18,8,12); ctx.fillRect(-2,-26,12,6);
+    ctx.restore();
+  }
+
+  // Audio (optional)
+  const AU = { ctx:null, on:false };
+  function aInit(){
+    if (AU.ctx) return;
+    try { AU.ctx = new (window.AudioContext||window.webkitAudioContext)(); AU.on=true; document.getElementById('sound').textContent='🔊'; } catch(e){}
+  }
+  function beep(f=880,d=0.07,g=0.04){
+    if (!AU.on || !AU.ctx) return;
+    const t=AU.ctx.currentTime, o=AU.ctx.createOscillator(), gn=AU.ctx.createGain();
+    o.type='square'; o.frequency.setValueAtTime(f,t);
+    gn.gain.setValueAtTime(g,t); gn.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(gn); gn.connect(AU.ctx.destination); o.start(t); o.stop(t+d);
+  }
+
+  // Physics
+  const GRAV=0.5, MAX=6.2, ACC=0.12, DRAG=0.01, JUMP=8.0;
+  function step(dt){
+    S.timeLeft -= dt;
+    if (S.timeLeft<=0){ over(); return; }
+
+    // input
+    if (S.input.throttle) bike.vx += ACC; else bike.vx -= DRAG;
+    bike.vx = Math.max(0, Math.min(MAX, bike.vx));
+    bike.vy += GRAV;
+    if (S.input.justTap && bike.on){ bike.vy = -JUMP; bike.on=false; beep(1300,0.06,0.06); }
+    S.input.justTap = false;
+
+    bike.x += bike.vx * 3;
+    bike.y += bike.vy;
+
+    const gy = terrainY(bike.x);
+    const sl = slopeAt(bike.x);
+    if (bike.y >= gy){
+      if (!bike.on && Math.abs(bike.vy)>2) beep(300,0.05,0.03);
+      bike.y = gy; bike.vy = 0; bike.on = true; bike.a = Math.atan2(sl,1)*0.7;
+    } else {
+      bike.on=false;
+      const target = 0; const diff = target - bike.a;
+      bike.av += diff*0.02; bike.av *= 0.92; bike.a += bike.av;
+    }
+
+    S.camX = bike.x - W*0.35;
+    S.dist = Math.max(S.dist, (bike.x/10)|0);
+
+    for (const c of coins){
+      if (c.got) continue;
+      if (Math.abs(c.x - bike.x) < 20 && Math.abs(c.y - bike.y) < 28){
+        c.got=true; S.coins++; beep(1600,0.07,0.06);
+      }
+    }
+  }
+
+  // HUD
+  const timeEl=document.getElementById('time'), coinsEl=document.getElementById('coins'), distEl=document.getElementById('dist'), speedEl=document.getElementById('speed'), bar=document.getElementById('progressBar'), dbg=document.getElementById('debug');
+  function fmt(ms){ ms=Math.max(0,ms|0); const s=(ms/1000)|0, m=(s/60)|0, r=s%60; return m+':' + (r<10?'0':'')+r; }
+  function draw(){
+    drawBg(S.camX);
+    drawTerrain(S.camX);
+    drawCoins(S.camX);
+    drawBike();
+    timeEl.textContent = fmt(S.timeLeft);
+    coinsEl.textContent = S.coins;
+    distEl.textContent = S.dist + ' m';
+    speedEl.textContent = Math.round(bike.vx*30);
+    const pct = 1 - (S.timeLeft / 300000); bar.style.width = Math.min(100,Math.max(0,pct*100)) + '%';
+  }
+
+  let raf=0;
+  function loop(t){
+    if (!S.running) return;
+    if (!S.last) S.last = t;
+    const dt = Math.min(32, t - S.last); S.last = t;
+    step(dt); draw(); raf = requestAnimationFrame(loop);
+  }
+
+  function over(){
+    S.running=false; cancelAnimationFrame(raf);
+    const ov=document.getElementById('overlay'), card=ov.querySelector('.card');
+    ov.style.display='flex';
+    card.innerHTML = `<h1>Time!</h1><p>You rode <b>${S.dist} m</b> and snagged <b>${S.coins}</b> coins.</p><a href="#" id="again" class="btn">Ride Again</a>`;
+    card.querySelector('#again').addEventListener('click', (e)=>{ e.preventDefault(); start(); });
+  }
+
+  function start(){
+    srand((Date.now()&0xffff)^Math.floor(Math.random()*1e9));
+    spawnCoins();
+    S.running=true; S.last=0; S.timeLeft=300000; S.coins=0; S.dist=0; S.camX=0;
+    bike.x=60; bike.y=terrainY(bike.x); bike.vx=0; bike.vy=0; bike.a=0; bike.av=0; bike.on=true;
+    document.getElementById('overlay').style.display='none';
+    resize(); draw(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+  }
+
+  // Pointer input (more reliable than touch/mouse combo on iOS)
+  let pressStart=0;
+  function showTouch(x,y,down){
+    vtx.clearRect(0,0,W,H);
+    if (!down) return;
+    vtx.beginPath(); vtx.arc(x,y,28,0,Math.PI*2);
+    vtx.lineWidth=3; vtx.strokeStyle='#fff'; vtx.stroke();
+    vtx.beginPath(); vtx.arc(x,y,10,0,Math.PI*2); vtx.fillStyle='#fff'; vtx.fill();
+  }
+  function onDown(e){
+    if (!S.running) return;
+    aInit(); // ensure audio unlock
+    S.input.throttle=true; pressStart=performance.now();
+    const r=cvs.getBoundingClientRect(); showTouch(e.clientX - r.left, e.clientY - r.top, true);
+    cvs.setPointerCapture?.(e.pointerId);
+  }
+  function onUp(e){
+    if (!S.running) return;
+    const dt = performance.now() - pressStart;
+    if (dt < 160) S.input.justTap = true;
+    S.input.throttle=false; showTouch(0,0,false);
+  }
+  function onMove(e){
+    if (!S.running) return;
+    const r=cvs.getBoundingClientRect(); showTouch(e.clientX - r.left, e.clientY - r.top, S.input.throttle);
+  }
+  cvs.addEventListener('pointerdown', (e)=>{ e.preventDefault(); onDown(e); }, {passive:false});
+  window.addEventListener('pointerup', (e)=>{ e.preventDefault(); onUp(e); }, {passive:false});
+  window.addEventListener('pointercancel', (e)=>{ e.preventDefault(); onUp(e); }, {passive:false});
+  window.addEventListener('pointermove', (e)=>{ onMove(e); });
+
+  // UI buttons
+  document.getElementById('startBtn').addEventListener('click', (e)=>{ e.preventDefault(); aInit(); start(); });
+  document.getElementById('sound').addEventListener('click', ()=>{
+    if (!AU.ctx){ aInit(); return; }
+    AU.on = !AU.on; document.getElementById('sound').textContent = AU.on ? '🔊' : '🔇';
+    if (AU.on) beep(880,0.05,0.03);
+  });
+
+  // Initial paint
+  resize(); drawBg(0);
+  // Helpful debug text if needed
+  setInterval(()=>{
+    dbg.textContent = `W:${W} H:${H} DPR:${DPR} vx:${bike.vx.toFixed(2)} on:${bike.on}`;
+  }, 500);
+})();</script>
+</body>
+</html>

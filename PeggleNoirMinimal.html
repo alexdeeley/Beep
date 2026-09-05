@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Peggle Noir Minimal</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;touch-action:none;}
+  canvas{display:block;width:100%;height:100%;background:#000;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<script>
+/*
+PEGGLE-LIKE MINIMAL
+- No text
+- Drag to aim, release to shoot (when ready)
+- Bigger, slower ball
+- Auto-advance levels; auto-retry on loss
+*/
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', {alpha:false});
+
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR = Math.min(2.5, window.devicePixelRatio||1);
+  W = Math.floor(innerWidth);
+  H = Math.floor(innerHeight);
+  canvas.width = Math.floor(W*DPR);
+  canvas.height = Math.floor(H*DPR);
+  canvas.style.width = W+"px";
+  canvas.style.height = H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize, {passive:true});
+resize();
+
+const COLORS = {
+  bg:"#000",
+  fg:"#fff",
+  accent:"#00ffea",
+  bonus:"#ff3dff",
+  goal:"#7CFF00",
+  dim:"rgba(255,255,255,.22)",
+  dim2:"rgba(255,255,255,.10)"
+};
+
+const PEG_R = 11;
+const BALL_R = 14;          // bigger ball
+const GRAV  = 720;          // slightly gentler gravity
+const AIR   = 0.9992;
+const REST  = 0.92;
+const PEG_REST = 0.96;
+
+const SPEED = 650;          // slower launch (was ~820+)
+const MAX_BALLS_PER_TURN = 1;
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+function rand(a,b){ return a + Math.random()*(b-a); }
+
+// tiny clicky audio (no UI)
+let audioCtx=null, audioOn=true;
+function blip(freq=420, dur=0.05, type="square", gain=0.06){
+  if(!audioOn) return;
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t+0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t);
+    o.stop(t+dur+0.01);
+  }catch(e){}
+}
+
+let timePrev = performance.now();
+
+let state = {
+  level: 0,
+  balls: 7,
+  inPlay: 0,
+  ready: true,
+  ended: false,
+  flash: 0,        // screen flash effect
+  winPulse: 0
+};
+
+let cannon = {x:0,y:0, ang: Math.PI/2};
+let pegs = [];
+let balls = [];
+let particles = [];
+let walls = [];
+let bucket = {x:0, y:0, w:160, h:18, vx:240, dir:1};
+
+function makeLevels(){
+  // normalized peg patterns (simple)
+  const ring = (cx, cy, rad, n, kind="goal", phase=0) => {
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const a = phase + i*(Math.PI*2/n);
+      arr.push({x: cx + Math.cos(a)*rad, y: cy + Math.sin(a)*rad, kind});
+    }
+    return arr;
+  };
+  const grid = (x0,y0,x1,y1,cols,rows,kind="goal")=>{
+    const arr=[];
+    for(let j=0;j<rows;j++){
+      const ty = rows===1?0.5:j/(rows-1);
+      for(let i=0;i<cols;i++){
+        const tx = cols===1?0.5:i/(cols-1);
+        arr.push({x: lerp(x0,x1,tx), y: lerp(y0,y1,ty), kind});
+      }
+    }
+    return arr;
+  };
+
+  return [
+    {pegs:[...grid(0.22,0.18,0.78,0.62,6,5,"goal"), ...ring(0.5,0.40,0.20,10,"bonus",0.1)]},
+    {pegs:[...ring(0.5,0.36,0.26,14,"goal",0.05), ...ring(0.5,0.36,0.14,8,"bonus",-0.12)]},
+    {pegs:[...grid(0.18,0.18,0.82,0.68,7,6,"goal").filter((_,k)=>k%2===0),
+           ...grid(0.18,0.18,0.82,0.68,7,6,"bonus").filter((_,k)=>k%7===0)]},
+    {pegs:[...ring(0.5,0.38,0.30,18,"goal",0.0),
+           ...ring(0.5,0.38,0.20,12,"goal",0.12),
+           ...ring(0.5,0.38,0.10,6,"bonus",0.0)]}
+  ];
+}
+
+function resetLevel(idx){
+  state.level = idx;
+  state.balls = 7;
+  state.inPlay = 0;
+  state.ready = true;
+  state.ended = false;
+  state.flash = 0;
+  state.winPulse = 0;
+
+  balls = [];
+  pegs = [];
+  particles = [];
+  walls = [];
+
+  // boundaries
+  const inset = 14;
+  walls.push({x1: inset, y1: inset, x2: W-inset, y2: inset});
+  walls.push({x1: inset, y1: inset, x2: inset, y2: H-inset});
+  walls.push({x1: W-inset, y1: inset, x2: W-inset, y2: H-inset});
+
+  // cannon
+  cannon.x = W*0.5;
+  cannon.y = Math.max(70, H*0.12);
+  cannon.ang = Math.PI/2;
+
+  // pegs
+  const L = makeLevels()[idx % 4];
+  const safeTop = Math.max(110, H*0.18);
+  const safeBot = H*0.82;
+  const toX = n => n*W;
+  const toY = n => lerp(safeTop, safeBot, n);
+
+  for(const p of L.pegs){
+    pegs.push({
+      x: toX(p.x), y: toY(p.y),
+      r: PEG_R,
+      kind: p.kind,
+      hit: false,
+      pulse: 0
+    });
+  }
+
+  // bucket
+  bucket = {
+    x: W*0.5,
+    y: H - Math.max(32, H*0.05),
+    w: clamp(W*0.22, 120, 190),
+    h: 18,
+    vx: lerp(190, 290, (idx%4)/3),
+    dir: Math.random()<0.5 ? -1 : 1
+  };
+}
+
+function goalLeft(){
+  let n=0;
+  for(const p of pegs) if(p.kind==="goal" && !p.hit) n++;
+  return n;
+}
+
+function burst(x,y,kind){
+  const n = kind==="bonus" ? 18 : 12;
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2;
+    const sp = rand(60, 320) * (kind==="bonus"?1.15:1);
+    particles.push({
+      x,y,
+      vx: Math.cos(a)*sp,
+      vy: Math.sin(a)*sp,
+      life: rand(0.25,0.75),
+      t:0,
+      kind
+    });
+  }
+}
+
+function collideBallWithSegment(ball, seg){
+  const x1=seg.x1,y1=seg.y1,x2=seg.x2,y2=seg.y2;
+  const vx=x2-x1, vy=y2-y1;
+  const wx=ball.x-x1, wy=ball.y-y1;
+  const len2=vx*vx+vy*vy || 1;
+  let t=(wx*vx+wy*vy)/len2;
+  t=clamp(t,0,1);
+  const cx=x1+vx*t, cy=y1+vy*t;
+  const dx=ball.x-cx, dy=ball.y-cy;
+  const d2=dx*dx+dy*dy;
+  const r=ball.r+1.5;
+  if(d2<r*r){
+    const d=Math.sqrt(d2)||0.001;
+    const nx=dx/d, ny=dy/d;
+    const pen=r-d;
+    ball.x += nx*pen;
+    ball.y += ny*pen;
+    const vn = ball.vx*nx + ball.vy*ny;
+    if(vn<0){
+      ball.vx -= (1+REST)*vn*nx;
+      ball.vy -= (1+REST)*vn*ny;
+      blip(220+Math.random()*140, 0.03, "triangle", 0.03);
+    }
+  }
+}
+
+function collideBallWithPeg(ball, peg){
+  if(peg.hit) return;
+  const r = ball.r + peg.r;
+  const d2 = dist2(ball.x, ball.y, peg.x, peg.y);
+  if(d2 >= r*r) return;
+
+  const d = Math.sqrt(d2)||0.001;
+  const nx = (ball.x - peg.x)/d;
+  const ny = (ball.y - peg.y)/d;
+
+  const pen = r - d;
+  ball.x += nx*pen;
+  ball.y += ny*pen;
+
+  const vn = ball.vx*nx + ball.vy*ny;
+  if(vn < 0){
+    ball.vx -= (1+PEG_REST)*vn*nx;
+    ball.vy -= (1+PEG_REST)*vn*ny;
+  }
+
+  peg.hit = true;
+  peg.pulse = 1;
+  burst(peg.x, peg.y, peg.kind);
+  if(peg.kind==="goal") blip(520+Math.random()*160, 0.03, "square", 0.05);
+  else blip(820+Math.random()*220, 0.04, "triangle", 0.06);
+}
+
+function checkBucket(ball){
+  const bx = bucket.x - bucket.w/2;
+  const by = bucket.y - bucket.h/2;
+  if(ball.x>bx && ball.x<bx+bucket.w && ball.y>by && ball.y<by+bucket.h+10 && ball.vy>0){
+    // bonus ball
+    state.balls++;
+    blip(980,0.06,"triangle",0.07);
+    state.flash = Math.min(1, state.flash + 0.35);
+    // prevent multiple triggers by moving bucket slightly
+    bucket.x += bucket.dir*12;
+  }
+}
+
+function shoot(){
+  if(!state.ready || state.ended) return;
+  if(state.balls<=0) return;
+  if(state.inPlay>=MAX_BALLS_PER_TURN) return;
+
+  state.balls--;
+  const nx = Math.cos(cannon.ang), ny = Math.sin(cannon.ang);
+  const x = cannon.x + nx*26;
+  const y = cannon.y + ny*26;
+
+  balls.push({
+    x,y, r:BALL_R,
+    vx: nx*SPEED,
+    vy: ny*SPEED,
+    trail:[]
+  });
+  state.inPlay++;
+  state.ready = false;
+  blip(740,0.05,"sawtooth",0.05);
+}
+
+let aiming=false, pointerDown=false;
+
+function setAim(x,y){
+  const dx = x - cannon.x;
+  const dy = y - cannon.y;
+  let a = Math.atan2(dy, dx);
+  a = clamp(a, 0.17*Math.PI, 0.83*Math.PI);
+  cannon.ang = a;
+}
+function pointerPos(e){
+  if(e.touches && e.touches.length) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+function down(e){
+  pointerDown = true;
+  aiming = true;
+  const p = pointerPos(e);
+  setAim(p.x,p.y);
+  if(audioCtx && audioCtx.state==="suspended") audioCtx.resume?.();
+  e.preventDefault?.();
+}
+function move(e){
+  if(!pointerDown) return;
+  const p = pointerPos(e);
+  setAim(p.x,p.y);
+  e.preventDefault?.();
+}
+function up(e){
+  if(!pointerDown) return;
+  pointerDown = false;
+  aiming = false;
+  // release-to-shoot
+  shoot();
+  e.preventDefault?.();
+}
+
+canvas.addEventListener('pointerdown', down);
+canvas.addEventListener('pointermove', move);
+addEventListener('pointerup', up);
+canvas.addEventListener('touchstart', down, {passive:false});
+canvas.addEventListener('touchmove', move, {passive:false});
+canvas.addEventListener('touchend', up, {passive:false});
+
+// render helpers
+function rr(x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawBackground(){
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0,0,W,H);
+
+  // subtle scanlines
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = COLORS.dim2;
+  ctx.lineWidth = 1;
+  for(let y=0;y<H;y+=16){
+    ctx.beginPath(); ctx.moveTo(0,y+0.5); ctx.lineTo(W,y+0.5); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawWalls(){
+  ctx.globalAlpha = 0.75;
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 3;
+  for(const w of walls){
+    ctx.beginPath(); ctx.moveTo(w.x1,w.y1); ctx.lineTo(w.x2,w.y2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBucket(dt){
+  const inset = 18;
+  bucket.x += bucket.dir * bucket.vx * dt;
+  if(bucket.x - bucket.w/2 < inset){ bucket.x = inset + bucket.w/2; bucket.dir*=-1; }
+  if(bucket.x + bucket.w/2 > W-inset){ bucket.x = W-inset - bucket.w/2; bucket.dir*=-1; }
+
+  const x = bucket.x - bucket.w/2;
+  const y = bucket.y - bucket.h/2;
+
+  ctx.globalAlpha = 0.95;
+  ctx.strokeStyle = COLORS.bonus;
+  ctx.fillStyle = "rgba(255,61,255,.08)";
+  ctx.lineWidth = 4;
+  rr(x,y,bucket.w,bucket.h,10);
+  ctx.fill(); ctx.stroke();
+
+  ctx.globalAlpha = 0.8;
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x+10,y+bucket.h/2); ctx.lineTo(x+bucket.w-10,y+bucket.h/2); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawCannon(){
+  const x=cannon.x, y=cannon.y, a=cannon.ang;
+
+  // aim line only while aiming
+  if(aiming){
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10,10]);
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*640,y+Math.sin(a)*640); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(a);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = COLORS.accent;
+  ctx.fillStyle = "rgba(0,255,234,.10)";
+  rr(0,-12,54,24,12);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = COLORS.fg;
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(x,y,16,0,Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawPegs(){
+  for(const p of pegs){
+    if(p.hit) continue;
+    let stroke = COLORS.goal;
+    let fill = "rgba(124,255,0,.10)";
+    if(p.kind==="bonus"){ stroke = COLORS.bonus; fill = "rgba(255,61,255,.10)"; }
+
+    if(p.pulse>0){
+      const pr = p.r + 10*p.pulse;
+      ctx.globalAlpha = 0.45 * p.pulse;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x,p.y,pr,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = stroke;
+    ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(2,p.r*0.22),0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawBalls(){
+  for(const b of balls){
+    // trail
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if(b.trail.length){
+      ctx.moveTo(b.trail[0].x,b.trail[0].y);
+      for(let i=1;i<b.trail.length;i++) ctx.lineTo(b.trail[i].x,b.trail[i].y);
+    }
+    ctx.stroke();
+
+    // ball
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,255,234,.16)";
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = COLORS.fg;
+    ctx.beginPath(); ctx.arc(b.x-b.r*0.25,b.y-b.r*0.25,Math.max(2.0,b.r*0.18),0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    let col = COLORS.fg;
+    if(p.kind==="goal") col = COLORS.goal;
+    if(p.kind==="bonus") col = COLORS.bonus;
+    const k = 1 - (p.t / p.life);
+    ctx.globalAlpha = clamp(k,0,1);
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.0+3.0*k,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function step(dt){
+  // pulses
+  for(const p of pegs) if(p.pulse>0) p.pulse = Math.max(0, p.pulse - dt*2.6);
+
+  // particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.t += dt;
+    p.vx *= 0.985;
+    p.vy += GRAV*0.30*dt;
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    if(p.t >= p.life) particles.splice(i,1);
+  }
+
+  // balls
+  for(let i=balls.length-1;i>=0;i--){
+    const b = balls[i];
+    b.vy += GRAV*dt;
+    b.vx *= Math.pow(AIR, dt*60);
+    b.vy *= Math.pow(AIR, dt*60);
+    b.x += b.vx*dt;
+    b.y += b.vy*dt;
+
+    b.trail.push({x:b.x,y:b.y});
+    if(b.trail.length>18) b.trail.shift();
+
+    for(const w of walls) collideBallWithSegment(b,w);
+    for(const p of pegs) collideBallWithPeg(b,p);
+    checkBucket(b);
+
+    if(b.y > H + 160 || b.x < -240 || b.x > W+240){
+      balls.splice(i,1);
+      state.inPlay--;
+      blip(120, 0.03, "sine", 0.02);
+    }
+  }
+
+  // end of turn
+  if(!state.ready && state.inPlay<=0 && !state.ended){
+    if(goalLeft()===0){
+      state.ended = true;
+      state.flash = 1;
+      state.winPulse = 1;
+      blip(660,0.08,"triangle",0.08);
+    } else if(state.balls<=0){
+      state.ended = true;
+      state.flash = 0.55;
+      blip(160,0.10,"sawtooth",0.05);
+    } else {
+      state.ready = true;
+    }
+  }
+
+  // auto transition when ended
+  if(state.ended){
+    state.winPulse = Math.max(0, state.winPulse - dt*1.6);
+    if(state.flash>0) state.flash = Math.max(0, state.flash - dt*2.2);
+
+    // after a short beat, advance/retry
+    if(state.flash <= 0.02){
+      if(goalLeft()===0){
+        resetLevel((state.level+1)%4);
+      } else {
+        resetLevel(state.level);
+      }
+    }
+  }
+}
+
+function drawOverlayEffects(){
+  // subtle vignette + win pulse
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+
+  // vignette
+  ctx.globalAlpha = 0.45;
+  const grd = ctx.createRadialGradient(W*0.5,H*0.45, Math.min(W,H)*0.10, W*0.5,H*0.45, Math.min(W,H)*0.75);
+  grd.addColorStop(0,"rgba(0,0,0,0)");
+  grd.addColorStop(1,"rgba(0,0,0,1)");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,W,H);
+
+  // screen flash
+  if(state.flash>0){
+    ctx.globalAlpha = state.flash*0.65;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // win ring
+  if(state.winPulse>0){
+    ctx.globalAlpha = state.winPulse*0.55;
+    ctx.strokeStyle = COLORS.goal;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(W*0.5, H*0.5, (1-state.winPulse)*Math.min(W,H)*0.55, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function tick(now){
+  const dt = clamp((now-timePrev)/1000, 0, 1/20);
+  timePrev = now;
+
+  drawBackground();
+  drawWalls();
+  drawBucket(dt);
+
+  step(dt);
+
+  drawPegs();
+  drawBalls();
+  drawParticles();
+  drawCannon();
+  drawOverlayEffects();
+
+  requestAnimationFrame(tick);
+}
+resetLevel(0);
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

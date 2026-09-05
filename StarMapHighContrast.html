@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>Star Map — High‑Contrast</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --muted:#9aa0a6;
+    --accent:#0ff;
+    --danger:#f66;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:Helvetica,Arial,sans-serif}
+  #ui{
+    position:fixed;inset:0;pointer-events:none;
+  }
+  .hud{
+    position:absolute;left:12px;top:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:auto;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(6px);padding:8px 10px;border:1px solid #222;border-radius:10px
+  }
+  .hud *{font-size:14px}
+  .btn,.file,label,input,select{
+    background:#111;color:var(--fg);border:1px solid #333;border-radius:999px;padding:8px 12px;
+    outline:none
+  }
+  .btn{cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .file{padding:6px 10px}
+  .pill{display:inline-flex;align-items:center;gap:6px}
+  #search{min-width:220px}
+  #side{
+    position:absolute;right:12px;top:68px;width:330px;max-width:calc(100% - 24px);pointer-events:auto;
+    background:rgba(0,0,0,.6);border:1px solid #222;border-radius:12px; padding:12px 14px; max-height:70vh; overflow:auto;
+  }
+  #side h2{margin:4px 0 8px 0;font-size:16px;letter-spacing:.08em}
+  #side .kv{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}
+  #side .name{font-size:20px;font-weight:700;letter-spacing:.08em}
+  #canvas{display:block;width:100vw;height:100vh;background:var(--bg);touch-action: none;}
+  #legend{
+    position:absolute;left:12px;bottom:12px;pointer-events:auto;background:rgba(0,0,0,.55);
+    border:1px solid #222;border-radius:10px;padding:8px 10px;color:var(--muted);font-size:12px
+  }
+  .toggle{display:inline-flex;align-items:center;gap:6px; padding:6px 10px; border-radius:999px; border:1px solid #333; background:#0b0b0b;}
+  .range{accent-color:var(--accent)}
+  .titlebar{position:absolute;left:12px;top:56px;color:#888;letter-spacing:.15em;font-weight:700;pointer-events:none}
+  .titlebar span{background:rgba(0,0,0,.35);padding:6px 10px;border-radius:12px;border:1px solid #222}
+  .kbd{border:1px solid #333;border-radius:6px;padding:1px 6px;font-size:12px}
+  a.link{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+  .caps{font-weight:700;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="canvas" aria-label="Interactive star map"></canvas>
+
+<div id="ui" aria-hidden="false">
+  <div class="hud" role="region" aria-label="Controls">
+    <input id="search" class="pill" type="text" placeholder="SEARCH STAR / CONSTELLATION (e.g., Vega, ORI)"/>
+    <button id="btnFind" class="btn caps">FIND</button>
+    <label class="pill"><input id="chkLabels" type="checkbox" checked/> <span class="caps">LABELS</span></label>
+    <label class="pill"><input id="chkConst" type="checkbox" checked/> <span class="caps">CONSTELLATION LINES</span></label>
+    <label class="pill"><input id="chkBdry" type="checkbox"/> <span class="caps">CONSTELLATION BOUNDARIES</span></label>
+    <label class="pill"><input id="chkEqGrid" type="checkbox"/> <span class="caps">EQ GRID</span></label>
+    <label class="pill"><input id="chkMilky" type="checkbox" checked/> <span class="caps">MILKY WAY</span></label>
+    <label class="pill"><input id="chkMotion" type="checkbox"/> <span class="caps">PROPER MOTION</span></label>
+    <label class="pill"><input id="chkParallax" type="checkbox"/> <span class="caps">PARALLAX SCALE</span></label>
+    <button id="btnReset" class="btn caps">RESET VIEW</button>
+    <button id="btnImport" class="btn caps">IMPORT CATALOG CSV</button>
+    <input id="fileCatalog" class="file" type="file" accept=".csv" style="display:none"/>
+    <button id="btnConstLines" class="btn caps">IMPORT CONSTELLATION LINES</button>
+    <input id="fileLines" class="file" type="file" accept=".json" style="display:none"/>
+    <button id="btnBdry" class="btn caps">IMPORT BOUNDARIES</button>
+    <input id="fileBdry" class="file" type="file" accept=".json" style="display:none"/>
+    <button id="btnPNG" class="btn caps">EXPORT PNG</button>
+  </div>
+
+  <div id="side" role="region" aria-label="Details" style="display:none"></div>
+  <div class="titlebar"><span>STAR MAP • HIGH‑CONTRAST</span></div>
+
+  <div id="legend">
+    <div><span class="caps">PAN:</span> drag • <span class="caps">ZOOM:</span> pinch / wheel • <span class="caps">CENTER:</span> double‑tap/click • <span class="caps">RESET:</span> <span class="kbd">R</span></div>
+  </div>
+</div>
+
+<script>
+/* 
+  STAR MAP — OFFLINE, HIGH‑CONTRAST
+  ------------------------------------------------
+  • Works offline with a small built‑in demo catalog (brightest stars).
+  • Import your own full catalogs (e.g., Hipparcos/Tycho/BSC) as CSV with headers:
+      hip,id,name,ra,dec,mag,dist,sp,constellation,pmra,pmdec,rv,parallax
+    Units:
+      ra in degrees [0..360), dec in degrees [-90..+90], mag in Vmag,
+      dist in light years (or parsecs—string accepted), sp spectral class string,
+      pmra/pmdec in mas/yr, rv km/s, parallax in mas. Extra columns preserved.
+  • Constellation lines JSON: {"lines":[["ORI","Betelgeuse","Bellatrix"],["ORI","Alnitak","Alnilam"], ...]}
+    Either by Bayer/Name or HIP number (auto‑resolved).
+  • Boundaries JSON: {"polys":[{"abbr":"ORI","poly":[[raDeg,decDeg], ...]}, ...]}
+  • Search supports names, HIP numbers, and constellation abbreviations (IAU 3‑letter).
+*/
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d',{alpha:false,desynchronized:true});
+let W=0,H=0, DPR= Math.max(1, window.devicePixelRatio||1);
+let dirty=true;
+function resize(){W=canvas.clientWidth;H=canvas.clientHeight;canvas.width=W*DPR;canvas.height=H*DPR; dirty=true;}
+window.addEventListener('resize', resize); resize();
+
+// View state (equirectangular projection with pan/zoom)
+let view = { cx:180, cy:0, scale: H? (H*0.48):400, rot:0 }; // center RA/Dec in deg
+
+// Interaction
+let isDown=false, lx=0, ly=0, startView=null, touchDist=0, startScale=0;
+canvas.addEventListener('pointerdown',e=>{isDown=true; canvas.setPointerCapture(e.pointerId); lx=e.clientX; ly=e.clientY; startView={...view}; dirty=true;});
+canvas.addEventListener('pointerup',e=>{isDown=false; canvas.releasePointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{
+  if(!isDown) return;
+  const dx=(e.clientX-lx), dy=(e.clientY-ly);
+  const px = dx / (view.scale); // deg per pixel at equator ~ adjusted below
+  const py = dy / (view.scale);
+  view.cx = wrapRA(startView.cx - px*180/Math.PI*1.2);
+  view.cy = clamp(startView.cy + py*90/Math.PI*1.2, -85, 85);
+  dirty=true;
+});
+canvas.addEventListener('dblclick', e=>{
+  const {ra,dec} = screenToRADec(e.clientX, e.clientY);
+  view.cx=ra; view.cy=dec; dirty=true;
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const mx=e.clientX, my=e.clientY;
+  const before=screenToRADec(mx,my);
+  const s = Math.exp(-e.deltaY*0.001);
+  view.scale = clamp(view.scale*s, 120, 8000);
+  const after=screenToRADec(mx,my);
+  view.cx=wrapRA(view.cx + (before.ra-after.ra));
+  view.cy=clamp(view.cy + (before.dec-after.dec), -85, 85);
+  dirty=true;
+},{passive:false});
+
+// Keyboard
+window.addEventListener('keydown', e=>{
+  if(e.key==='r' || e.key==='R'){ resetView(); }
+});
+
+function resetView(){
+  view = { cx:180, cy:0, scale: Math.min(W,H)*0.48 };
+  dirty=true;
+}
+
+// Controls
+const $ = sel=>document.querySelector(sel);
+$('#btnReset').onclick=resetView;
+$('#btnPNG').onclick=()=>{
+  const a=document.createElement('a');
+  a.download=`starmap-${Date.now()}.png`;
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+};
+$('#btnFind').onclick=()=> doSearch($('#search').value.trim());
+$('#search').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(e.target.value.trim()); });
+
+$('#btnImport').onclick=()=> $('#fileCatalog').click();
+$('#fileCatalog').onchange= async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const text = await file.text();
+  const rows = CSV.parse(text);
+  importCatalog(rows);
+};
+
+$('#btnConstLines').onclick=()=> $('#fileLines').click();
+$('#fileLines').onchange= async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const json = JSON.parse(await file.text());
+  importConstellationLines(json);
+};
+$('#btnBdry').onclick=()=> $('#fileBdry').click();
+$('#fileBdry').onchange= async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const json = JSON.parse(await file.text());
+  importBoundaries(json);
+};
+
+// Toggles
+const chk = id => { const el=$(id); el.addEventListener('change', ()=>dirty=true); return el; }
+const chkLabels = chk('#chkLabels');
+const chkConst  = chk('#chkConst');
+const chkBdry   = chk('#chkBdry');
+const chkEqGrid = chk('#chkEqGrid');
+const chkMilky  = chk('#chkMilky');
+const chkMotion = chk('#chkMotion');
+const chkParallax = chk('#chkParallax');
+
+// Helpers
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function wrapRA(ra){ ra%=360; if(ra<0) ra+=360; return ra; }
+function deg2rad(d){return d*Math.PI/180;}
+function rad2deg(r){return r*180/Math.PI;}
+function proj(ra,dec){ // equirectangular centered at view.cx, view.cy
+  // Convert to x,y in canvas pixels
+  let x = (wrapRA(ra - view.cx + 540)-180); // [-180,180]
+  let y = (dec - view.cy);
+  const fx = (x/180)*view.scale;
+  const fy = (-y/90)*view.scale;
+  return {x:(W/2 + fx)*DPR, y:(H/2 + fy)*DPR};
+}
+function screenToRADec(px,py){
+  const fx = (px - W/2) / (view.scale);
+  const fy = (py - H/2) / (view.scale);
+  const xdeg = fx*180;
+  const ydeg = -fy*90;
+  return { ra: wrapRA(view.cx + xdeg), dec: clamp(view.cy + ydeg, -90, 90) };
+}
+
+// Small CSV parser
+const CSV = {
+  parse(text){
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    const headers = lines.shift().split(',').map(h=>h.trim());
+    return lines.map(line=>{
+      const parts = parseCSVLine(line);
+      const rec={};
+      headers.forEach((h,i)=> rec[h]=parts[i]);
+      return rec;
+    });
+  }
+};
+function parseCSVLine(line){
+  const out=[]; let cur=''; let inq=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c=='"'){ if(inq && line[i+1]=='"'){ cur+='"'; i++; } else inq=!inq; }
+    else if(c==',' && !inq){ out.push(cur); cur=''; }
+    else cur+=c;
+  }
+  out.push(cur); return out.map(s=>s.trim());
+}
+
+// Data
+let stars=[];           // normalized stars
+let starByName=new Map();
+let starByHIP=new Map();
+let lines=[];           // constellation lines [{from:star,to:star,abbr}]
+let boundaries=[];      // [{abbr, poly:[{ra,dec},...]}]
+
+function normalizeStar(r){
+  // Tolerant parsing
+  const name = r.name?.trim() || r.proper?.trim() || r.bayer?.trim() || r.designation?.trim() || '';
+  const hip = (r.hip || r.HIP || r.id || '').toString().trim();
+  const ra = parseFloat(r.ra || r.RA || r.ra_deg || r.RAdeg);
+  const dec = parseFloat(r.dec || r.DEC || r.dec_deg || r.DECdeg);
+  const mag = parseFloat(r.mag || r.vmag || r.Vmag || r.MAG);
+  const dist = parseFloat(r.dist || r.distance_ly || r.dist_ly || r.distance || r.d) || NaN;
+  const sp = (r.sp || r.spc || r.spectral || r.sptype || '').toString();
+  const abbr = (r.constellation || r.const || r.iau || r.abbr || '').toString().toUpperCase();
+  const pmra = parseFloat(r.pmra || r.pm_ra || r.pmRA || 0);
+  const pmdec = parseFloat(r.pmdec || r.pm_dec || r.pmDE || 0);
+  const rv = parseFloat(r.rv || r.radial_velocity || 0);
+  const parallax = parseFloat(r.parallax || r.plx || 0);
+  return { name, hip, ra, dec, mag, dist, sp, abbr, pmra, pmdec, rv, parallax, raw:r };
+}
+
+function importCatalog(rows){
+  stars = rows.map(normalizeStar).filter(s=>isFinite(s.ra)&&isFinite(s.dec)&&isFinite(s.mag));
+  starByName.clear(); starByHIP.clear();
+  for(const s of stars){
+    if(s.name) starByName.set(s.name.toLowerCase(), s);
+    if(s.hip) starByHIP.set(s.hip, s);
+  }
+  // auto-attach demo constellation lines by names if present
+  dirty=true;
+  flash(`Imported ${stars.length.toLocaleString()} stars`);
+}
+
+// Demo: a tiny set of bright stars so it works offline immediately
+const DEMO_CSV = `hip,name,ra,dec,mag,dist,sp,constellation,pmra,pmdec,rv,parallax
+32349,Sirius,101.2875,-16.7161,-1.46,8.6,A1V,CMA,-546.0,-1223.0,-5.5,379.21
+30438,Canopus,95.9879,-52.6957,-0.74,310.0,A9II,CAR,19.9,23.2,20.3,10.43
+24608,Capella,79.1723,45.9979,0.08,42.9,G8III,AUR,76.2,-427.1,29.8,76.2
+69673,Arcturus,213.9153,19.1825,-0.05,36.7,K1.5III,BOO,-1093.4,-1999.4,-5.2,88.83
+17702,Achernar,24.4286,-57.2367,0.46,139.0,B6V,ERI,90.6,-38.4,16.0,22.68
+91262,Vega,279.2347,38.7837,0.03,25.0,A0V,LYR,200.9,286.2,-13.9,130.23
+37279,Betelgeuse,88.7929,7.4071,0.42,548.0,M1-2Ia,ORI,24.95,9.56,21.9,1.51
+24436,Aldebaran,68.9800,16.5093,0.87,65.3,K5III,TAU,62.8,-189.4,54.2,48.94
+27989,Pollux,116.3289,28.0263,1.14,33.7,K0III,GEM,-625.7,-45.9,3.3,96.54
+71683,Alpha Centauri,219.9021,-60.8339,-0.27,4.37,G2V,CEN,-3679.3,481.8,-21.6,747.17
+80763,Spica,201.2983,-11.1614,0.98,250.0,B1III,TRA,-42.3,-31.6,1.0,12.44
+113368,Deneb,310.3579,45.2803,1.25,2615.0,A2Ia, CYG,1.0,1.9,-4.5,1.01
+97649,Fomalhaut,344.4128,-29.6222,1.16,25.1,A3V,PSA,329.2,-164.9,6.5,129.81
+85822,Altair,297.6958,8.8683,0.77,16.7,A7V,AQL,536.8,385.5,-26.1,194.95
+24436,Antares,247.3519,-26.4320,1.09,553.0,M1.5Iab,SCO,-10.2,-23.2,-3.0,5.4
+54539,Regulus,152.0929,11.9672,1.35,79.3,B7V,LEO,-249.8,5.6,5.9,41.13
+65474,Alioth,193.5073,55.9598,1.77,80.0,A0p,UMa,111.8,-8.6,-12.0,40.3
+67301,Alkaid,206.8856,49.3133,1.85,104.0,B3V,UMa,-121.2,14.9,-1.3,31.4
+54061,Procyon,114.8255,5.2250,0.38,11.5,F5IV-V,CMA,-716.6,-1036.8,-3.2,284.56
+11767,Rigel,78.6345,-8.2016,0.18,863.0,B8Iab,ORI,1.9,0.5,20.7,3.78
+`;
+
+importCatalog(CSV.parse(DEMO_CSV));
+
+function importConstellationLines(json){
+  lines.length=0;
+  const L = json.lines||json || [];
+  const nameOrHIP = (id)=>{
+    if(typeof id==='number' || /^\d+$/.test(id)) return starByHIP.get(String(id));
+    return starByName.get(String(id).toLowerCase());
+  };
+  for(const ent of L){
+    // format: ["ORI","Sirius","Rigel"] or {"abbr":"ORI","from":"Betelgeuse","to":"Bellatrix"}
+    const abbr = (Array.isArray(ent)? ent[0]: (ent.abbr||'')).toUpperCase();
+    const fromId = Array.isArray(ent)? ent[1] : ent.from;
+    const toId   = Array.isArray(ent)? ent[2] : ent.to;
+    const a = nameOrHIP(fromId);
+    const b = nameOrHIP(toId);
+    if(a&&b) lines.push({a,b,abbr});
+  }
+  dirty=true;
+  flash(`Constellation lines loaded (${lines.length})`);
+}
+
+function importBoundaries(json){
+  boundaries.length=0;
+  const polys = json.polys || [];
+  for(const p of polys){
+    const abbr = (p.abbr||'').toUpperCase();
+    const poly = (p.poly||[]).map(([ra,dec])=>({ra,dec}));
+    if(poly.length>1) boundaries.push({abbr,poly});
+  }
+  dirty=true;
+  flash(`Boundaries loaded (${boundaries.length})`);
+}
+
+// Hit testing
+function hitTest(mx,my){
+  const radiusPx = 8*DPR;
+  let best=null, bestd=1e9;
+  for(const s of stars){
+    const p=proj(s.ra,s.dec);
+    const dx=p.x - mx*DPR, dy=p.y - my*DPR;
+    const d2=dx*dx+dy*dy;
+    if(d2<radiusPx*radiusPx && d2<bestd){
+      best=s; bestd=d2;
+    }
+  }
+  return best;
+}
+
+canvas.addEventListener('click', e=>{
+  const s = hitTest(e.clientX, e.clientY);
+  if(s) showDetails(s);
+});
+
+function doSearch(q){
+  if(!q) return;
+  const qq=q.toLowerCase();
+  let s = starByName.get(qq);
+  if(!s && /^\d+$/.test(q)) s = starByHIP.get(q);
+  if(!s){
+    // constellation center by abbr
+    const abbr = q.toUpperCase();
+    const subset = stars.filter(x=>x.abbr===abbr);
+    if(subset.length){
+      const ra = subset.reduce((a,b)=>a+b.ra,0)/subset.length;
+      const dec= subset.reduce((a,b)=>a+b.dec,0)/subset.length;
+      view.cx=wrapRA(ra); view.cy=dec; dirty=true;
+      flash(`Centered on constellation ${abbr}`);
+      return;
+    }
+    flash(`Not found: ${q}`,'danger'); return;
+  }
+  view.cx = s.ra; view.cy = s.dec; dirty=true;
+  showDetails(s);
+}
+
+function showDetails(s){
+  const side = document.getElementById('side');
+  side.style.display='block';
+  side.innerHTML = `
+    <div class="name">${(s.name||'Unnamed Star').toUpperCase()}</div>
+    <div class="kv">HIP: ${s.hip||'—'}</div>
+    <div class="kv">Constellation: ${s.abbr||'—'}</div>
+    <div class="kv">Spectral: ${s.sp||'—'}</div>
+    <div class="kv">Vmag: ${fmt(s.mag)} • Distance: ${s.dist? s.dist+' ly':'—'} • Parallax: ${fmt(s.parallax)} mas</div>
+    <div class="kv">RA: ${fmt(s.ra)}° • Dec: ${fmt(s.dec)}°</div>
+    <div class="kv">PM: ${fmt(s.pmra)} / ${fmt(s.pmdec)} mas/yr • RV: ${fmt(s.rv)} km/s</div>
+    <hr style="border-color:#222">
+    <div class="kv">Raw fields:</div>
+    <pre class="kv" style="white-space:pre-wrap">${escapeHTML(JSON.stringify(s.raw,null,2))}</pre>
+  `;
+}
+
+function fmt(v){
+  if(v===undefined || v===null || Number.isNaN(v)) return '—';
+  const n=Number(v); if(!Number.isFinite(n)) return String(v);
+  return (Math.abs(n)>1000)? n.toFixed(0) : n.toFixed(2);
+}
+function escapeHTML(s){return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+
+function flash(msg, tone){
+  const div=document.createElement('div');
+  div.textContent=msg;
+  div.style.position='fixed'; div.style.left='50%'; div.style.top='20px'; div.style.transform='translateX(-50%)';
+  div.style.background='rgba(0,0,0,.85)'; div.style.border='1px solid #333'; div.style.padding='8px 12px'; div.style.borderRadius='999px';
+  div.style.color = tone==='danger'? 'var(--danger)': 'var(--fg)';
+  div.style.zIndex=9999; document.body.appendChild(div);
+  setTimeout(()=>div.remove(), 2000);
+}
+
+// Rendering
+function draw(){
+  if(!dirty){ requestAnimationFrame(draw); return; }
+  dirty=false;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(chkMilky.checked) drawMilkyWay();
+  if(chkEqGrid.checked) drawGrid();
+  if(chkBdry.checked) drawBoundaries();
+  if(chkConst.checked) drawConstLines();
+
+  drawStars();
+
+  if(chkLabels.checked) drawLabels();
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+function drawGrid(){
+  ctx.save();
+  ctx.lineWidth=1*DPR; ctx.strokeStyle='rgba(255,255,255,.2)';
+  // RA every 1h (15°), Dec every 10°
+  for(let h=0;h<24;h++){
+    const ra = h*15;
+    const p1=proj(ra, -80), p2=proj(ra, 80);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  }
+  for(let d=-80; d<=80; d+=10){
+    const p1=proj(0,d), p2=proj(360,d);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMilkyWay(){
+  // simple band around galactic equator (approximate visual flourish)
+  ctx.save();
+  ctx.globalAlpha=0.12;
+  const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, Math.max(canvas.width,canvas.height));
+  gradient.addColorStop(0,'#0ff'); gradient.addColorStop(1,'#000');
+  ctx.fillStyle=gradient;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+}
+
+function drawConstLines(){
+  ctx.save();
+  ctx.lineWidth=1.2*DPR; ctx.strokeStyle='rgba(0,255,255,.6)';
+  for(const L of lines){
+    const a=proj(L.a.ra,L.a.dec), b=proj(L.b.ra,L.b.dec);
+    // Skip long wrap lines
+    const dx=Math.abs(L.a.ra-L.b.ra); if(dx>40) continue;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBoundaries(){
+  ctx.save();
+  ctx.lineWidth=0.8*DPR; ctx.strokeStyle='rgba(255,255,255,.25)';
+  for(const B of boundaries){
+    ctx.beginPath();
+    for(let i=0;i<B.poly.length;i++){
+      const p=proj(B.poly[i].ra,B.poly[i].dec);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function starSizeFromMag(m){
+  // Map Vmag -> pixel radius
+  // m=-1.5 -> 4px; m=6 -> 0.2px
+  const clamped = Math.min(6, Math.max(-1.5, m));
+  return ((6 - (clamped+1.5)) / 7.5) * 3.5 + 0.2;
+}
+
+function drawStars(){
+  ctx.save();
+  ctx.fillStyle='#fff';
+  for(const s of stars){
+    const p=proj(s.ra,s.dec);
+    const r = starSizeFromMag(s.mag) * DPR * (chkParallax.checked ? (1 + (s.parallax||0)/1000) : 1);
+    ctx.beginPath();
+    ctx.arc(p.x,p.y, r, 0, Math.PI*2);
+    ctx.fill();
+    if(chkMotion.checked && (s.pmra||s.pmdec)){
+      ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1*DPR;
+      const scale = 0.002 * view.scale; // visual scaling for proper motion vectors
+      const dx = scale * (s.pmra||0)/1000;
+      const dy = -scale * (s.pmdec||0)/1000;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+dx, p.y+dy); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawLabels(){
+  ctx.save();
+  ctx.fillStyle='#0ff'; ctx.strokeStyle='#000'; ctx.lineWidth=3*DPR;
+  ctx.font = `${Math.round(11*DPR)}px Helvetica,Arial,sans-serif`;
+  for(const s of stars){
+    if(s.mag>3.2) continue;
+    const p=proj(s.ra,s.dec);
+    const text = (s.name||s.hip||'').toUpperCase();
+    if(!text) continue;
+    ctx.strokeText(text, p.x+6*DPR, p.y-6*DPR);
+    ctx.fillText(text, p.x+6*DPR, p.y-6*DPR);
+  }
+  ctx.restore();
+}
+
+</script>
+</body>
+</html>

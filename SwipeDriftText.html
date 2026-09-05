@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Swipe & Drift Text</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --accent: #888;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .screen {
+    display: none;
+    height: 100%;
+    width: 100%;
+  }
+  .screen.active { display: block; }
+
+  /* Intro screen */
+  #intro {
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    gap: 16px;
+  }
+  #intro .card {
+    width: min(900px, 92vw);
+    background: #111;
+    border: 2px solid #333;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 0 0 2px #000 inset;
+  }
+  #textInput {
+    width: 100%;
+    min-height: 160px;
+    background: #000;
+    color: #fff;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 18px;
+    line-height: 1.4;
+    outline: none;
+  }
+  .row {
+    display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .btn {
+    appearance: none;
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .btn:active { transform: translateY(1px); }
+
+  .hint {
+    font-size: 14px; color: #aaa;
+  }
+
+  /* Play screen */
+  #play {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+  }
+  #toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #222;
+    background: #0a0a0a;
+  }
+  #toolbar .btn { padding: 8px 12px; font-size: 14px; }
+  #contentWrap {
+    position: relative;
+    overflow: hidden;
+  }
+  #stage {
+    height: 100%;
+    width: 100%;
+    padding: 24px;
+    display: flex;
+    align-content: start;
+    align-items: start;
+    flex-wrap: wrap;
+    gap: 0.05em 0.25em;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none; /* allow custom pan */
+  }
+
+  /* Each character */
+  .ch {
+    display: inline-block;
+    position: relative;
+    will-change: transform;
+    font-size: clamp(28px, 7vw, 80px); /* responsive size */
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    transition: filter 120ms;
+  }
+  .ch.sp { width: 0.5em; } /* space width */
+  .ch.punct { padding-right: 0.02em; }
+  .ch:focus { outline: none; }
+  #stage.dragging { cursor: grabbing; }
+
+  /* Optional glow on impact */
+  .impact {
+    filter: drop-shadow(0 0 6px #fff);
+  }
+
+  /* Accessibility toggle area */
+  .small { font-size: 12px; color: #aaa; }
+  input[type="range"] { width: 140px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <section id="intro" class="screen active">
+    <div class="card">
+      <h1 style="margin:0 0 10px 0; font-size: 22px;">Swipe &amp; Drift Text</h1>
+      <p class="hint" style="margin-top:0">Type your text, then tap <b>Start</b>. On the next screen, swipe through the letters—knock them away and watch them drift back.</p>
+      <textarea id="textInput" placeholder="Type here...">SPIDER KINGDOM</textarea>
+      <div class="row">
+        <div class="small">Font size</div>
+        <input id="sizeRange" type="range" min="24" max="120" value="64" step="2" aria-label="Font size">
+        <div style="flex:1"></div>
+        <button id="startBtn" class="btn">Start</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="play" class="screen">
+    <div id="toolbar">
+      <button id="editBtn" class="btn" title="Edit text">Edit</button>
+      <button id="resetBtn" class="btn" title="Reset positions">Reset</button>
+      <div style="flex:1"></div>
+      <span class="small">Intensity</span>
+      <input id="intensityRange" type="range" min="0" max="200" value="110" step="1" aria-label="Impact strength">
+      <span class="small">Spring</span>
+      <input id="springRange" type="range" min="1" max="40" value="16" step="1" aria-label="Return springiness">
+      <span class="small">Damp</span>
+      <input id="dampRange" type="range" min="1" max="40" value="14" step="1" aria-label="Damping">
+    </div>
+    <div id="contentWrap">
+      <div id="stage" aria-label="Interactive text area"></div>
+    </div>
+  </section>
+
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+  const intro = $('#intro');
+  const play = $('#play');
+  const stage = $('#stage');
+  const startBtn = $('#startBtn');
+  const editBtn = $('#editBtn');
+  const resetBtn = $('#resetBtn');
+  const textInput = $('#textInput');
+  const sizeRange = $('#sizeRange');
+  const intensityRange = $('#intensityRange');
+  const springRange = $('#springRange');
+  const dampRange = $('#dampRange');
+
+  let chars = []; // {el, x, y, vx, vy}
+  let running = false;
+  let rafId = null;
+  let dragging = false;
+  let lastPointer = {x: 0, y: 0, t: 0, vx: 0, vy: 0};
+
+  function toPlay() {
+    intro.classList.remove('active');
+    play.classList.add('active');
+    build(textInput.value);
+    setFontSize(parseInt(sizeRange.value, 10));
+    startLoop();
+  }
+
+  function toIntro() {
+    play.classList.remove('active');
+    intro.classList.add('active');
+    stopLoop();
+    stage.innerHTML = '';
+    chars = [];
+  }
+
+  function setFontSize(px) {
+    stage.style.setProperty('--fs', px + 'px');
+    stage.querySelectorAll('.ch').forEach(ch => {
+      ch.style.fontSize = px + 'px';
+    });
+  }
+
+  function build(text) {
+    stage.innerHTML = '';
+    chars = [];
+    const frag = document.createDocumentFragment();
+    const makeChar = (c) => {
+      const span = document.createElement('span');
+      span.className = 'ch';
+      if (c === ' ') { span.classList.add('sp'); span.textContent = ' '; }
+      else { 
+        span.textContent = c;
+        if (/[\.,;:!?]/.test(c)) span.classList.add('punct');
+      }
+      span.style.transform = 'translate3d(0px,0px,0)';
+      frag.appendChild(span);
+      chars.push({ el: span, x: 0, y: 0, vx: 0, vy: 0 });
+    };
+    // Split preserving newlines
+    const lines = (text || '').split(/\n/);
+    lines.forEach((line, i) => {
+      for (const c of line) makeChar(c);
+      if (i < lines.length - 1) {
+        const br = document.createElement('br');
+        frag.appendChild(br);
+      }
+    });
+    stage.appendChild(frag);
+  }
+
+  function startLoop() {
+    if (running) return;
+    running = true;
+    const step = () => {
+      update();
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+  }
+  function stopLoop() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
+  function update() {
+    const k = parseFloat(springRange.value) / 100;  // spring constant (toward 0,0)
+    const d = parseFloat(dampRange.value) / 100;    // damping
+    for (const p of chars) {
+      // Spring back to origin (0,0)
+      const ax = -k * p.x - d * p.vx;
+      const ay = -k * p.y - d * p.vy;
+      p.vx += ax;
+      p.vy += ay;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Snap tiny values to zero to avoid shimmer
+      if (Math.abs(p.x) < 0.001) p.x = 0;
+      if (Math.abs(p.y) < 0.001) p.y = 0;
+      if (Math.abs(p.vx) < 0.001) p.vx = 0;
+      if (Math.abs(p.vy) < 0.001) p.vy = 0;
+
+      p.el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+    }
+  }
+
+  function pointerPos(e) {
+    if (e.touches && e.touches[0]) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY, t: performance.now() };
+    }
+    return { x: e.clientX, y: e.clientY, t: performance.now() };
+  }
+
+  function applyImpulse(px, py, pvx, pvy) {
+    const rect = stage.getBoundingClientRect();
+    const strength = parseFloat(intensityRange.value); // user controlled
+    const radius = Math.max(60, Math.min(rect.width, rect.height) * 0.12); // interaction radius
+    const r2 = radius * radius;
+
+    for (const p of chars) {
+      const b = p.el.getBoundingClientRect();
+      const cx = b.left + b.width * 0.5;
+      const cy = b.top + b.height * 0.5;
+      const dx = cx - px;
+      const dy = cy - py;
+      const dist2 = dx*dx + dy*dy;
+      if (dist2 < r2) {
+        const dist = Math.max(0.001, Math.sqrt(dist2));
+        const falloff = 1 - (dist / radius); // 1 at center -> 0 at edge
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        // Outward blast + a bit of swipe velocity coupling
+        const impulse = strength * (0.6 + 0.4 * Math.hypot(pvx, pvy)) * falloff;
+        p.vx += nx * impulse * 0.06 + pvx * 0.15 * falloff;
+        p.vy += ny * impulse * 0.06 + pvy * 0.15 * falloff;
+
+        p.el.classList.add('impact');
+        clearTimeout(p._impactTid);
+        p._impactTid = setTimeout(() => p.el.classList.remove('impact'), 120);
+      }
+    }
+  }
+
+  function onPointerDown(e) {
+    dragging = true;
+    stage.classList.add('dragging');
+    const p = pointerPos(e);
+    lastPointer = {...p, vx: 0, vy: 0};
+    applyImpulse(p.x, p.y, 0, 0);
+  }
+
+  function onPointerMove(e) {
+    if (!dragging) return;
+    const p = pointerPos(e);
+    const dt = Math.max(1, p.t - lastPointer.t);
+    const vx = (p.x - lastPointer.x) / dt;
+    const vy = (p.y - lastPointer.y) / dt;
+    applyImpulse(p.x, p.y, vx, vy);
+    lastPointer = {...p, vx, vy};
+  }
+
+  function onPointerUp() {
+    dragging = false;
+    stage.classList.remove('dragging');
+  }
+
+  // Events
+  startBtn.addEventListener('click', toPlay);
+  editBtn.addEventListener('click', toIntro);
+  resetBtn.addEventListener('click', () => {
+    for (const p of chars) { p.x = p.y = p.vx = p.vy = 0; p.el.style.transform = 'translate3d(0,0,0)'; }
+  });
+  sizeRange.addEventListener('input', () => setFontSize(parseInt(sizeRange.value,10)));
+
+  // Pointer / touch listeners
+  stage.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove, { passive: true });
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+  window.addEventListener('pointerleave', onPointerUp);
+
+  // Keyboard: space to reset
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      for (const p of chars) { p.x = p.y = p.vx = p.vy = 0; p.el.style.transform = 'translate3d(0,0,0)'; }
+    }
+  });
+
+  // Start with sample ready, but keep intro visible
+  // (User taps Start to render & begin loop.)
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>POLY FUZZ DRUMS</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --pad:12px;
+    --gap:10px;
+    --stroke:4px;
+    --radius:12px;
+
+    --seqStroke:3px;
+    --seqRadius:10px;
+  }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;
+    position:fixed;
+  }
+  *{
+    box-sizing:border-box;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+  }
+
+  /* Start screen */
+  #start{
+    position:fixed; inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--bg);
+  }
+  #playBtn{
+    width:min(56vmin, 340px);
+    aspect-ratio:1/1;
+    border: calc(var(--stroke) * 2) solid var(--fg);
+    border-radius: 24px;
+    background: var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    outline:none;
+  }
+  #playBtn:active{ transform:scale(0.995); }
+  #playIcon{
+    width:0; height:0;
+    border-top: 52px solid transparent;
+    border-bottom: 52px solid transparent;
+    border-left: 86px solid var(--fg);
+    transform: translateX(10px);
+  }
+  @media (max-width: 420px){
+    #playIcon{
+      border-top: 40px solid transparent;
+      border-bottom: 40px solid transparent;
+      border-left: 66px solid var(--fg);
+      transform: translateX(8px);
+    }
+  }
+
+  /* Main */
+  #wrap{
+    width:100vw; height:100vh;
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
+    padding:var(--pad);
+    background:var(--bg);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 160ms linear;
+  }
+  #wrap.on{ opacity:1; pointer-events:auto; }
+
+  /* Controls: 3x3 squares (no words) */
+  #controls{
+    flex: 0 0 auto;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:var(--gap);
+  }
+  .ctrl{
+    border:var(--stroke) solid var(--fg);
+    border-radius:var(--radius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    outline:none;
+    height: clamp(52px, 10.5vh, 110px);
+  }
+  .ctrl:active{ transform:scale(0.995); }
+  .fill{
+    position:absolute; left:0; bottom:0; width:100%;
+    height:50%;
+    background:var(--fg);
+  }
+  .ctrl.armed{ background:var(--fg); }
+  .ctrl.armed .fill{ background:var(--bg); }
+
+  /* Distinct patterns per control (still B/W, no text) */
+  .ctrl::after{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0.14;
+    mix-blend-mode:difference;
+    pointer-events:none;
+    background: repeating-linear-gradient(45deg, var(--fg) 0 2px, transparent 2px 12px);
+  }
+  .ctrl[data-param="bpmMin"]::after{ background:repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .ctrl[data-param="bpmMax"]::after{ background:repeating-linear-gradient(0deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .ctrl[data-param="drift"]::after{ background:repeating-linear-gradient(135deg, var(--fg) 0 2px, transparent 2px 14px); }
+  .ctrl[data-param="fuzz"]::after{ background:repeating-linear-gradient(20deg, var(--fg) 0 2px, transparent 2px 10px); }
+  .ctrl[data-param="tone"]::after{ background:repeating-linear-gradient(70deg, var(--fg) 0 2px, transparent 2px 16px); }
+  .ctrl[data-param="pitch"]::after{ background:repeating-linear-gradient(160deg, var(--fg) 0 2px, transparent 2px 11px); }
+  .ctrl[data-param="swing"]::after{ background:repeating-linear-gradient(110deg, var(--fg) 0 2px, transparent 2px 13px); }
+  .ctrl[data-param="poly"]::after{ background:repeating-linear-gradient(200deg, var(--fg) 0 2px, transparent 2px 15px); }
+  .ctrl[data-param="rand"]::after{ background:repeating-linear-gradient(25deg, var(--fg) 0 2px, transparent 2px 9px); opacity:0.18; }
+
+  /* Sequencer */
+  #seq{
+    flex: 1 1 auto;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .row{
+    display:grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap:8px;
+    flex: 1 1 0;
+    position:relative;
+  }
+
+  /* Row identity patterns (no words) */
+  .row::before{
+    content:"";
+    position:absolute; inset:-6px -6px -6px -6px;
+    border-radius: 14px;
+    opacity:0.06;
+    pointer-events:none;
+    mix-blend-mode:difference;
+    background: repeating-linear-gradient(45deg, var(--fg) 0 2px, transparent 2px 14px);
+  }
+  .row[data-row="kick"]::before{ background:repeating-linear-gradient(0deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .row[data-row="snare"]::before{ background:repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .row[data-row="hat"]::before{ background:repeating-linear-gradient(25deg, var(--fg) 0 2px, transparent 2px 12px); }
+  .row[data-row="clav"]::before{ background:repeating-linear-gradient(135deg, var(--fg) 0 2px, transparent 2px 12px); }
+
+  .step{
+    border:var(--seqStroke) solid var(--fg);
+    border-radius:var(--seqRadius);
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+    outline:none;
+    min-height: clamp(40px, 7.6vh, 76px);
+  }
+  .step.on{ background:var(--fg); }
+  .step.on::after{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(135deg, var(--bg) 0 2px, transparent 2px 10px);
+    opacity:0.25;
+    pointer-events:none;
+  }
+  .step.playing{ box-shadow: 0 0 0 3px var(--fg) inset; }
+  .step.offgrid{ opacity:0.20; }
+  .step.offgrid.on{ opacity:0.55; }
+
+  /* Responsive */
+  @media (max-height: 760px){
+    :root{ --pad:10px; --gap:8px; --stroke:4px; }
+    .row{ gap:7px; }
+    .ctrl{ height: clamp(48px, 9.5vh, 96px); }
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="start" aria-label="Start">
+    <button id="playBtn" aria-label="Play">
+      <div id="playIcon" aria-hidden="true"></div>
+    </button>
+  </div>
+
+  <div id="wrap" aria-label="Poly fuzz drum machine">
+    <div id="controls" aria-label="Controls">
+      <div class="ctrl" data-param="bpmMin" role="button" aria-label="Control 1"><div class="fill"></div></div>
+      <div class="ctrl" data-param="bpmMax" role="button" aria-label="Control 2"><div class="fill"></div></div>
+      <div class="ctrl" data-param="drift"  role="button" aria-label="Control 3"><div class="fill"></div></div>
+
+      <div class="ctrl" data-param="fuzz"   role="button" aria-label="Control 4"><div class="fill"></div></div>
+      <div class="ctrl" data-param="tone"   role="button" aria-label="Control 5"><div class="fill"></div></div>
+      <div class="ctrl" data-param="pitch"  role="button" aria-label="Control 6"><div class="fill"></div></div>
+
+      <div class="ctrl" data-param="swing"  role="button" aria-label="Control 7"><div class="fill"></div></div>
+      <div class="ctrl" data-param="poly"   role="button" aria-label="Control 8"><div class="fill"></div></div>
+      <div class="ctrl" data-param="rand"   role="button" aria-label="Control 9"><div class="fill"></div></div>
+    </div>
+
+    <div id="seq" aria-label="Sequencer">
+      <div class="row" data-row="kick" aria-label="Row 1"></div>
+      <div class="row" data-row="snare" aria-label="Row 2"></div>
+      <div class="row" data-row="hat" aria-label="Row 3"></div>
+      <div class="row" data-row="clav" aria-label="Row 4"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== UI =====
+  const startScreen = document.getElementById("start");
+  const playBtn = document.getElementById("playBtn");
+  const wrap = document.getElementById("wrap");
+
+  const ctrlEls = Array.from(document.querySelectorAll(".ctrl"));
+  const ctrlState = new Map();
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function setFill(el, v){ el.querySelector(".fill").style.height = (clamp01(v)*100).toFixed(2) + "%"; }
+
+  // ===== Controls (0..1) =====
+  // bpmMin/bpmMax define range, drift defines how long it takes to slide between random tempos.
+  // fuzz adds saturation/crush/noise + stronger comp/delay
+  // tone bright/dark, pitch global, swing timing, poly enables per-row independent cycle lengths & rates
+  // rand: randomizes pattern density (tap/drag) and can re-roll patterns (quick tap)
+  const C = {
+    bpmMin: 0.30, // ~80
+    bpmMax: 0.80, // ~190
+    drift:  0.65, // long
+    fuzz:   0.72,
+    tone:   0.55,
+    pitch:  0.50,
+    swing:  0.18,
+    poly:   0.85,
+    rand:   0.45
+  };
+
+  // ===== Audio =====
+  let ctx = null;
+
+  // Patterns are stored as arrays up to 16; effective length can be shorter for polyrhythm
+  const MAX = 16;
+  const ROWS = ["kick","snare","hat","clav"];
+  const pat = Object.fromEntries(ROWS.map(r => [r, new Array(MAX).fill(0)]));
+  const rowLen = { kick: 8, snare: 8, hat: 16, clav: 12 };  // default polyrhythm
+  const rowRate = { kick: 1, snare: 1, hat: 2, clav: 3 };   // steps per base-8th (1=8th,2=16th,3=triplet feel)
+  // When poly control is low, we lock everyone to 8 steps @ rate 1 (simple mode)
+  const LOCK_LEN = 8, LOCK_RATE = 1;
+
+  // Nodes
+  let masterGain, preGain, shaper1, shaper2, comp, hp, lp, crushNode;
+  let delay, fbGain, wetGain, dryGain;
+  let drumBus, noiseBed, noiseGain;
+  let dcBlock;
+
+  // Scheduler per row
+  const lookAhead = 0.25;
+  const timerInt = 20;
+  let schedTimer = null;
+  const nextTime = { kick:0, snare:0, hat:0, clav:0 };
+  const stepIx = { kick:0, snare:0, hat:0, clav:0 };
+  let bpmNow = 120;
+  let bpmStart = 120;
+  let bpmTarget = 140;
+  let bpmT0 = 0;
+  let bpmT1 = 1;
+
+  function expMap(x, a=1.8){ return Math.pow(clamp01(x), a); }
+
+  function bpmRange(){
+    // 55..240 mapped
+    const mn = 55 + expMap(C.bpmMin, 1.4) * 185;
+    const mx = 55 + expMap(C.bpmMax, 1.4) * 185;
+    return [Math.min(mn, mx), Math.max(mn, mx)];
+  }
+
+  function driftSeconds(){
+    // 20..240 seconds
+    return 20 + expMap(C.drift, 1.8) * 220;
+  }
+
+  function swingAmt(){
+    return expMap(C.swing, 1.6) * 0.48; // up to heavy swing
+  }
+
+  function pitchFactor(){
+    const semis = (C.pitch - 0.5) * 24; // -12..+12
+    return Math.pow(2, semis/12);
+  }
+
+  function base8thDur(bpm){
+    return (60 / bpm) / 2;
+  }
+
+  function stepDurFor(row, bpm){
+    const rate = isPoly() ? rowRate[row] : LOCK_RATE;
+    // rate 1 => 8ths; 2 => 16ths; 3 => triplet-ish over 8th window
+    return base8thDur(bpm) / rate;
+  }
+
+  function isPoly(){
+    return C.poly >= 0.50;
+  }
+
+  function effectiveLen(row){
+    return isPoly() ? rowLen[row] : LOCK_LEN;
+  }
+
+  function makeNoiseBuffer(seconds=1.5){
+    const sr = ctx.sampleRate;
+    const len = Math.floor(seconds * sr);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    let rw = 0;
+    for(let i=0;i<len;i++){
+      const w = (Math.random()*2-1);
+      rw = 0.995*rw + 0.005*(Math.random()*2-1);
+      data[i] = 0.7*w + 0.55*rw;
+    }
+    return buf;
+  }
+
+  function makeShaperCurve(amount){
+    const k = 1 + amount * 320;
+    const n = 44100;
+    const curve = new Float32Array(n);
+    for (let i=0;i<n;i++){
+      const x = (i*2/(n-1))-1;
+      // two-stage-ish saturation shape
+      const y = (1+k)*x/(1+k*Math.abs(x));
+      curve[i] = Math.tanh(y*(1.2 + amount*2.6));
+    }
+    return curve;
+  }
+
+  function createBitCrusher(){
+    const sp = ctx.createScriptProcessor(4096, 1, 1);
+    let ph = 0, last = 0;
+    sp.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0);
+      const output = e.outputBuffer.getChannelData(0);
+      const f = expMap(C.fuzz, 1.05);
+      const bits = 16 - Math.floor(f * 13);    // 16..3
+      const step = Math.pow(0.5, bits);
+      const rateDiv = 1 + Math.floor(f * 80);  // 1..81
+      for(let i=0;i<input.length;i++){
+        ph++;
+        if(ph >= rateDiv){
+          ph = 0;
+          last = Math.round(input[i] / step) * step;
+        }
+        output[i] = last;
+      }
+    };
+    return sp;
+  }
+
+  // ===== Drum synths =====
+  function drumKick(time, vel=1){
+    const pf = pitchFactor();
+    const fuzz = expMap(C.fuzz, 1.1);
+
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(150*pf, time);
+    o.frequency.exponentialRampToValueAtTime((42*pf) * (1+0.2*fuzz), time + 0.13);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(1.0*vel, time + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.20);
+    o.connect(g); g.connect(drumBus);
+    o.start(time); o.stop(time + 0.24);
+
+    // click
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.04);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(2000*pf, time);
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.0001, time);
+    cg.gain.exponentialRampToValueAtTime((0.22 + 0.20*fuzz) * vel, time + 0.001);
+    cg.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
+    b.connect(hpf); hpf.connect(cg); cg.connect(drumBus);
+    b.start(time); b.stop(time + 0.05);
+  }
+
+  function drumSnare(time, vel=1){
+    const pf = pitchFactor();
+    const fuzz = expMap(C.fuzz, 1.1);
+
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.22);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(850*pf, time);
+    const bpf = ctx.createBiquadFilter();
+    bpf.type = "bandpass"; bpf.frequency.setValueAtTime(1800*pf, time); bpf.Q.setValueAtTime(0.8, time);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime((0.85 + 0.35*fuzz) * vel, time + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.17);
+
+    b.connect(hpf); hpf.connect(bpf); bpf.connect(g); g.connect(drumBus);
+    b.start(time); b.stop(time + 0.20);
+
+    const o = ctx.createOscillator();
+    const tg = ctx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(205*pf*(1+0.15*fuzz), time);
+    tg.gain.setValueAtTime(0.0001, time);
+    tg.gain.exponentialRampToValueAtTime((0.25 + 0.20*fuzz) * vel, time + 0.0015);
+    tg.gain.exponentialRampToValueAtTime(0.0001, time + 0.10);
+    o.connect(tg); tg.connect(drumBus);
+    o.start(time); o.stop(time + 0.12);
+  }
+
+  function drumHat(time, vel=1){
+    const pf = pitchFactor();
+    const fuzz = expMap(C.fuzz, 1.1);
+
+    const b = ctx.createBufferSource();
+    b.buffer = makeNoiseBuffer(0.12);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = "highpass"; hpf.frequency.setValueAtTime(6200*pf*(1+0.25*fuzz), time);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime((0.42 + 0.18*fuzz) * vel, time + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + (0.045 + 0.03*fuzz));
+    b.connect(hpf); hpf.connect(g); g.connect(drumBus);
+    b.start(time); b.stop(time + 0.10);
+  }
+
+  function drumClav(time, vel=1){
+    const pf = pitchFactor();
+    const fuzz = expMap(C.fuzz, 1.1);
+
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const bp = ctx.createBiquadFilter();
+    const hp2 = ctx.createBiquadFilter();
+
+    o.type = "square";
+    const base = 420 * pf;
+    // slight random per hit for "fuzziness"
+    const det = (Math.random()*2-1) * (8 + 22*fuzz);
+    o.frequency.setValueAtTime(Math.max(60, base + det), time);
+
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(1200 * pf, time);
+    bp.Q.setValueAtTime(0.9 + 2.0*fuzz, time);
+
+    hp2.type = "highpass";
+    hp2.frequency.setValueAtTime(180 * pf, time);
+
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime((0.38 + 0.24*fuzz) * vel, time + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + (0.08 + 0.05*fuzz));
+
+    o.connect(bp); bp.connect(hp2); hp2.connect(g); g.connect(drumBus);
+    o.start(time);
+    o.stop(time + 0.14);
+  }
+
+  function build(){
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+
+    drumBus = ctx.createGain();
+    drumBus.gain.value = 1.0;
+
+    // Constant noise bed for extra fuzziness (controlled by fuzz)
+    noiseBed = ctx.createBufferSource();
+    noiseBed.buffer = makeNoiseBuffer(2.0);
+    noiseBed.loop = true;
+    noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.0;
+    noiseBed.connect(noiseGain);
+    noiseGain.connect(drumBus);
+
+    preGain = ctx.createGain();
+    preGain.gain.value = 1.0;
+
+    shaper1 = ctx.createWaveShaper();
+    shaper1.oversample = "4x";
+    shaper2 = ctx.createWaveShaper();
+    shaper2.oversample = "2x";
+
+    crushNode = createBitCrusher();
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -24;
+    comp.knee.value = 22;
+    comp.ratio.value = 14;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.16;
+
+    hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 40;
+    hp.Q.value = 0.7;
+
+    lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 15000;
+    lp.Q.value = 0.85;
+
+    // Tiny "slap" delay to thicken
+    delay = ctx.createDelay(0.12);
+    delay.delayTime.value = 0.010;
+
+    fbGain = ctx.createGain();
+    fbGain.gain.value = 0.0;
+
+    wetGain = ctx.createGain();
+    dryGain = ctx.createGain();
+
+    // DC blocker
+    dcBlock = ctx.createBiquadFilter();
+    dcBlock.type = "highpass";
+    dcBlock.frequency.value = 18;
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.001;
+
+    // Routing
+    drumBus.connect(preGain);
+    preGain.connect(shaper1);
+    shaper1.connect(shaper2);
+    shaper2.connect(crushNode);
+    crushNode.connect(comp);
+    comp.connect(hp);
+    hp.connect(lp);
+
+    lp.connect(dryGain);
+    dryGain.connect(dcBlock);
+
+    lp.connect(delay);
+    delay.connect(wetGain);
+    wetGain.connect(dcBlock);
+
+    delay.connect(fbGain);
+    fbGain.connect(delay);
+
+    dcBlock.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    // start sources
+    const now = ctx.currentTime + 0.01;
+    noiseBed.start(now);
+
+    // tempo drift init
+    bpmNow = 120;
+    bpmStart = bpmNow;
+    pickNewTempo(now);
+
+    // init sched times per row
+    for(const r of ROWS){
+      stepIx[r] = 0;
+      nextTime[r] = ctx.currentTime + 0.06;
+    }
+
+    applyFX(true);
+    startScheduler();
+    animateTempo();
+  }
+
+  function pickNewTempo(now){
+    const [mn, mx] = bpmRange();
+    bpmStart = bpmNow;
+    bpmTarget = mn + Math.random() * (mx - mn);
+    const dur = driftSeconds() * (0.65 + Math.random()*0.9); // random long-ish
+    bpmT0 = now;
+    bpmT1 = now + dur;
+  }
+
+  function animateTempo(){
+    if(!ctx) return;
+    const t = ctx.currentTime;
+    if(t >= bpmT1){
+      bpmNow = bpmTarget;
+      pickNewTempo(t);
+    } else {
+      const u = (t - bpmT0) / Math.max(0.001, (bpmT1 - bpmT0));
+      // smoothstep
+      const s = u*u*(3-2*u);
+      bpmNow = bpmStart + (bpmTarget - bpmStart) * s;
+    }
+    requestAnimationFrame(animateTempo);
+  }
+
+  function applyFX(immediate=false){
+    if(!ctx) return;
+    const t = ctx.currentTime;
+    const fuzz = expMap(C.fuzz, 1.12);
+    const tone = expMap(C.tone, 1.25);
+    const pf = pitchFactor();
+
+    const set = (param, v, tc=0.04) => {
+      if(immediate) param.setValueAtTime(v, t);
+      else param.setTargetAtTime(v, t, tc);
+    };
+
+    // Pre gain rises with fuzz
+    set(preGain.gain, 1.0 + fuzz * 14.0, 0.07);
+
+    // Two-stage distortion
+    shaper1.curve = makeShaperCurve(0.18 + fuzz * 0.92);
+    shaper2.curve = makeShaperCurve(0.08 + fuzz * 0.70);
+
+    // Comp becomes meaner
+    comp.threshold.setTargetAtTime(-20 + fuzz * -28, t, 0.06); // -20..-48
+    comp.ratio.setTargetAtTime(8 + fuzz * 16, t, 0.06);       // 8..24
+
+    // Tone control: bright to dark; fuzz also darkens; pitch slightly scales tone
+    const lpHz = (21000 - tone*15000) * (0.85 + 0.75*pf) * (1.0 - 0.15*fuzz);
+    const hpHz = (22 + (1.0-tone)*260) * (0.8 + 0.6*pf);
+
+    lp.frequency.setTargetAtTime(Math.max(600, Math.min(20000, lpHz)), t, 0.06);
+    hp.frequency.setTargetAtTime(Math.max(18, Math.min(800, hpHz)), t, 0.06);
+
+    // Noise bed
+    set(noiseGain.gain, fuzz * 0.22, 0.09);
+
+    // Slap delay density
+    delay.delayTime.setTargetAtTime(0.006 + fuzz * 0.060, t, 0.08);
+    fbGain.gain.setTargetAtTime(Math.min(0.88, fuzz * 0.78), t, 0.09);
+    wetGain.gain.setTargetAtTime(0.10 + fuzz * 0.85, t, 0.10);
+    dryGain.gain.setTargetAtTime(1.0 - (0.10 + fuzz * 0.62), t, 0.10);
+
+    // Master always audible
+    set(masterGain.gain, 0.20 + fuzz * 0.55, 0.12);
+  }
+
+  // ===== Scheduler =====
+  function startScheduler(){
+    if(schedTimer) clearInterval(schedTimer);
+    schedTimer = setInterval(() => {
+      if(!ctx || ctx.state !== "running") return;
+
+      const now = ctx.currentTime;
+      const swing = swingAmt();
+
+      for(const r of ROWS){
+        let nt = nextTime[r];
+        while(nt < now + lookAhead){
+          const len = effectiveLen(r);
+          const ix = stepIx[r] % len;
+
+          // swing: delay every "off" step in that row's local grid
+          const isOff = (ix % 2) === 1;
+          const swingDelay = isOff ? (stepDurFor(r, bpmNow) * swing) : 0;
+
+          // play if active
+          if(pat[r][ix]){
+            const tt = nt + swingDelay;
+            if(r==="kick") drumKick(tt, 1.0);
+            else if(r==="snare") drumSnare(tt, 1.0);
+            else if(r==="hat") drumHat(tt, 1.0);
+            else if(r==="clav") drumClav(tt, 1.0);
+          }
+
+          // visual playhead update (throttled-ish)
+          setPlayhead(r, ix);
+
+          // advance
+          nt += stepDurFor(r, bpmNow);
+          stepIx[r] = (stepIx[r] + 1) % len;
+        }
+        nextTime[r] = nt;
+      }
+    }, timerInt);
+  }
+
+  // ===== UI: build grid =====
+  const rowEls = {};
+  const stepEls = {};
+  ROWS.forEach(r => { stepEls[r] = []; });
+
+  function buildRows(){
+    for(const r of ROWS){
+      const el = document.querySelector(`.row[data-row="${r}"]`);
+      rowEls[r] = el;
+      el.innerHTML = "";
+      stepEls[r] = [];
+      for(let i=0;i<MAX;i++){
+        const d = document.createElement("div");
+        d.className = "step";
+        d.dataset.row = r;
+        d.dataset.ix = String(i);
+        d.setAttribute("role","button");
+        d.setAttribute("aria-label", r + " step " + (i+1));
+        d.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          if(!ctx) return;
+
+          const ix = i;
+          const len = effectiveLen(r);
+          if(ix >= len){
+            // tap on off-grid area: cycle row length or rate (polyrhythm edits)
+            if(isPoly()){
+              cycleRowShape(r);
+              refreshOffgrid();
+            }
+            return;
+          }
+
+          pat[r][ix] = pat[r][ix] ? 0 : 1;
+          d.classList.toggle("on", !!pat[r][ix]);
+
+          // audition
+          const t = ctx.currentTime + 0.002;
+          if(r==="kick") drumKick(t, 1);
+          else if(r==="snare") drumSnare(t, 1);
+          else if(r==="hat") drumHat(t, 1);
+          else if(r==="clav") drumClav(t, 1);
+        }, {passive:false});
+
+        // double-tap row (any step) to cycle rate when poly enabled
+        let lastTap = 0;
+        d.addEventListener("pointerup", (e) => {
+          const now = performance.now();
+          if(now - lastTap < 320){
+            if(isPoly()){
+              cycleRowRate(r);
+              refreshOffgrid();
+            }
+          }
+          lastTap = now;
+        });
+
+        el.appendChild(d);
+        stepEls[r].push(d);
+      }
+    }
+    refreshOffgrid();
+  }
+
+  function refreshOffgrid(){
+    for(const r of ROWS){
+      const len = effectiveLen(r);
+      for(let i=0;i<MAX;i++){
+        stepEls[r][i].classList.toggle("offgrid", i>=len);
+      }
+    }
+  }
+
+  function setPlayhead(row, ix){
+    // Only highlight within row; keep it light
+    const len = effectiveLen(row);
+    for(let i=0;i<len;i++){
+      stepEls[row][i].classList.toggle("playing", i===ix);
+    }
+  }
+
+  function cycleRowShape(row){
+    // Cycle through lengths for polyrhythm feel
+    const options = (row==="hat") ? [8,12,16,9,15] :
+                    (row==="clav") ? [7,9,12,11,16] :
+                    [5,7,8,9,11,12,16];
+    const cur = rowLen[row];
+    const idx = options.indexOf(cur);
+    rowLen[row] = options[(idx+1) % options.length];
+    // keep step counters within new len
+    stepIx[row] = stepIx[row] % rowLen[row];
+  }
+
+  function cycleRowRate(row){
+    // 1=8th,2=16th,3=triplet-ish,4=32nd-ish
+    const opts = [1,2,3,4];
+    const cur = rowRate[row];
+    const idx = opts.indexOf(cur);
+    rowRate[row] = opts[(idx+1) % opts.length];
+  }
+
+  // ===== Random pattern =====
+  function rnd(p){ return Math.random() < p ? 1 : 0; }
+
+  function randomizeAll(strength){
+    // strength 0..1 controls density + weirdness
+    const s = clamp01(strength);
+
+    // density baselines
+    const hatD = 0.55 + s*0.40;
+    const clavD = 0.18 + s*0.35;
+    const kickD = 0.18 + s*0.25;
+    const snrD = 0.12 + s*0.20;
+
+    // clear
+    for(const r of ROWS){
+      for(let i=0;i<MAX;i++) pat[r][i]=0;
+    }
+
+    const poly = isPoly();
+
+    // choose some "anchor" hits
+    if(!poly){
+      pat.kick[0]=1; pat.kick[4]=1;
+      pat.snare[2]=1; pat.snare[6]=1;
+      for(let i=0;i<8;i++) pat.hat[i]=1;
+      for(let i=0;i<8;i++) pat.clav[i]=rnd(clavD);
+    } else {
+      // poly anchors within each row length
+      const lk = effectiveLen("kick");
+      const ls = effectiveLen("snare");
+      const lh = effectiveLen("hat");
+      const lc = effectiveLen("clav");
+
+      pat.kick[0]=1; pat.kick[Math.floor(lk/2)]=1;
+      pat.snare[Math.floor(ls/3)]=1; pat.snare[Math.floor((2*ls)/3)]=1;
+
+      for(let i=0;i<lh;i++) pat.hat[i]=rnd(hatD);
+      for(let i=0;i<lc;i++) pat.clav[i]=rnd(clavD);
+    }
+
+    // sprinkle more
+    const lk = effectiveLen("kick");
+    const ls = effectiveLen("snare");
+    for(let i=0;i<lk;i++) if(!pat.kick[i]) pat.kick[i]=rnd(kickD);
+    for(let i=0;i<ls;i++) if(!pat.snare[i]) pat.snare[i]=rnd(snrD);
+
+    // Ensure at least one per row
+    for(const r of ROWS){
+      const len = effectiveLen(r);
+      let sum = 0;
+      for(let i=0;i<len;i++) sum += pat[r][i];
+      if(sum===0) pat[r][Math.min(len-1, 0)] = 1;
+    }
+
+    refreshSeq();
+  }
+
+  function refreshSeq(){
+    for(const r of ROWS){
+      const len = effectiveLen(r);
+      for(let i=0;i<MAX;i++){
+        const on = (i<len) ? !!pat[r][i] : !!pat[r][i] && isPoly();
+        stepEls[r][i].classList.toggle("on", on);
+      }
+    }
+    refreshOffgrid();
+  }
+
+  // ===== Controls Interaction =====
+  function ctrlDown(e, el){
+    e.preventDefault();
+    if(!ctx) return;
+
+    const p = el.dataset.param;
+    const rect = el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    if(p === "rand"){
+      // quick poke: reroll pattern. drag: sets randomness density
+      const now = performance.now();
+      const last = el._lastTap || 0;
+      el._lastTap = now;
+      if(now - last < 350){
+        randomizeAll(C.rand);
+        return;
+      }
+    }
+
+    C[p] = clamp01(0.65*C[p] + 0.35*v);
+    setFill(el, C[p]);
+    el.classList.add("armed");
+
+    if(p === "fuzz" || p === "tone" || p === "pitch"){
+      applyFX(false);
+    }
+    if(p === "bpmMin" || p === "bpmMax" || p === "drift"){
+      // pick new target so drift responds soon
+      pickNewTempo(ctx.currentTime);
+    }
+    if(p === "poly"){
+      // refresh offgrid and re-randomize lightly so it "snaps"
+      refreshOffgrid();
+      randomizeAll(C.rand);
+    }
+    if(p === "swing"){
+      // no immediate fx
+    }
+    if(p === "rand"){
+      randomizeAll(C.rand);
+    }
+
+    ctrlState.set(e.pointerId, { el, p, lastMove: performance.now() });
+    el.setPointerCapture(e.pointerId);
+  }
+
+  function ctrlMove(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+
+    const rect = st.el.getBoundingClientRect();
+    const v = 1 - ((e.clientY - rect.top) / rect.height);
+
+    const now = performance.now();
+    const dt = Math.max(1, now - st.lastMove);
+    st.lastMove = now;
+    const alpha = Math.min(1, dt / 32);
+
+    C[st.p] = clamp01((1-alpha)*C[st.p] + alpha*v);
+    setFill(st.el, C[st.p]);
+
+    if(st.p === "fuzz" || st.p === "tone" || st.p === "pitch"){
+      applyFX(false);
+    }
+    if(st.p === "bpmMin" || st.p === "bpmMax" || st.p === "drift"){
+      // let it drift to new range smoothly
+      // (we don't pick every move to avoid jitter; pick occasionally)
+      if(Math.random() < 0.08) pickNewTempo(ctx.currentTime);
+    }
+    if(st.p === "rand"){
+      randomizeAll(C.rand);
+    }
+    if(st.p === "poly"){
+      refreshOffgrid();
+    }
+  }
+
+  function ctrlUp(e){
+    const st = ctrlState.get(e.pointerId);
+    if(!st) return;
+    e.preventDefault();
+    st.el.classList.remove("armed");
+    ctrlState.delete(e.pointerId);
+    // re-apply fx on end
+    if(st.p === "fuzz" || st.p === "tone" || st.p === "pitch") applyFX(false);
+  }
+
+  ctrlEls.forEach(el => el.addEventListener("pointerdown", (e)=>ctrlDown(e, el), {passive:false}));
+  window.addEventListener("pointermove", ctrlMove, {passive:false});
+  window.addEventListener("pointerup", ctrlUp, {passive:false});
+  window.addEventListener("pointercancel", ctrlUp, {passive:false});
+
+  // ===== Start flow =====
+  async function start(){
+    if(!ctx) build();
+    try { await ctx.resume(); } catch(_){}
+
+    buildRows();
+    // initial pattern: fuzzy + poly-ish
+    randomizeAll(C.rand);
+
+    // init fills
+    ctrlEls.forEach(el => setFill(el, C[el.dataset.param] ?? 0));
+
+    startScreen.style.display = "none";
+    wrap.classList.add("on");
+  }
+
+  playBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); start(); }, {passive:false});
+
+  // Keep alive on iOS
+  document.addEventListener("pointerdown", async () => {
+    if(!ctx) return;
+    if(ctx.state === "suspended"){
+      try { await ctx.resume(); } catch(_){}
+      startScheduler();
+    }
+  }, {passive:false});
+
+  document.addEventListener("visibilitychange", () => {
+    if(!ctx) return;
+    if(document.hidden) ctx.suspend();
+  });
+
+})();
+</script>
+</body>
+</html>

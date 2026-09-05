@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>heart-canvas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+  }
+  body {
+    position: fixed;
+    inset: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+    font-family: system-ui, sans-serif;
+  }
+  #app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+  }
+  .layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .heart-wrap, .ripple {
+    position: absolute;
+    pointer-events: none;
+    transform-origin: center center;
+    will-change: transform, opacity, left, top;
+  }
+  svg {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="app" aria-label="Heart burst canvas"></div>
+
+<script>
+(() => {
+  const HEART_COUNT = 18;
+  const LIFETIME = 10000;
+  const RIPPLE_LIFETIME = 800;
+
+  const COLORS = [
+    { fill: "#ffffff", glow: "#ffffff" },
+    { fill: "#f8b4d9", glow: "#f472b6" },
+    { fill: "#e879a0", glow: "#db2777" },
+    { fill: "#c084fc", glow: "#a855f7" },
+    { fill: "#f0abfc", glow: "#e879f9" },
+  ];
+
+  const app = document.getElementById("app");
+  const bursts = [];
+  let burstId = 0;
+
+  function createHeart(x, y, id, born) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.2 + Math.random() * 2.8;
+    const size = 14 + Math.random() * 28;
+    const delay = Math.random() * 600;
+    const drift = (Math.random() - 0.5) * 0.8;
+    const colorIndex = Math.floor(Math.random() * COLORS.length);
+
+    const wrap = document.createElement("div");
+    wrap.className = "heart-wrap";
+    wrap.style.left = x + "px";
+    wrap.style.top = y + "px";
+
+    const color = COLORS[colorIndex];
+    wrap.innerHTML = `
+      <svg width="${size}" height="${size}" viewBox="0 0 100 90" aria-hidden="true">
+        <path
+          d="M50 85 C50 85 5 55 5 28 C5 14 16 5 30 5 C39 5 47 10 50 18 C53 10 61 5 70 5 C84 5 95 14 95 28 C95 55 50 85 50 85Z"
+          fill="${color.fill}"
+        />
+      </svg>
+    `;
+
+    return {
+      x, y, id, angle, speed, size, delay, drift, colorIndex, born, el: wrap
+    };
+  }
+
+  function createRipple(x, y, born) {
+    const el = document.createElement("div");
+    el.className = "ripple";
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    return { x, y, born, el };
+  }
+
+  function spawnBurst(x, y) {
+    const born = performance.now();
+    const id = burstId++;
+
+    const layer = document.createElement("div");
+    layer.className = "layer";
+
+    const ripple = createRipple(x, y, born);
+    layer.appendChild(ripple.el);
+
+    const hearts = [];
+    for (let i = 0; i < HEART_COUNT; i++) {
+      const heart = createHeart(x, y, `${id}-${i}`, born);
+      hearts.push(heart);
+      layer.appendChild(heart.el);
+    }
+
+    bursts.push({ id, x, y, born, hearts, ripple, layer });
+    app.appendChild(layer);
+  }
+
+  function updateRipple(ripple, now) {
+    const elapsed = now - ripple.born;
+    const progress = Math.min(elapsed / RIPPLE_LIFETIME, 1);
+
+    if (progress >= 1) {
+      ripple.el.style.opacity = "0";
+      return false;
+    }
+
+    const size = progress * 120;
+    const opacity = (1 - progress) * 0.6;
+    const el = ripple.el;
+    el.style.width = size + "px";
+    el.style.height = size + "px";
+    el.style.transform = "translate(-50%, -50%)";
+    el.style.borderRadius = "50%";
+    el.style.border = `2px solid rgba(200, 100, 255, ${opacity})`;
+    el.style.boxShadow = `0 0 12px rgba(200, 100, 255, ${opacity * 0.6}), inset 0 0 8px rgba(255, 180, 255, ${opacity * 0.3})`;
+    return true;
+  }
+
+  function updateHeart(heart, now) {
+    const elapsed = now - heart.born - heart.delay;
+    if (elapsed < 0) {
+      heart.el.style.opacity = "0";
+      return true;
+    }
+
+    const progress = Math.min(elapsed / LIFETIME, 1);
+    if (progress >= 1) {
+      heart.el.style.opacity = "0";
+      return false;
+    }
+
+    const dist = heart.speed * elapsed * 0.06;
+    const px = heart.x + Math.cos(heart.angle) * dist + heart.drift * elapsed * 0.02;
+    const py = heart.y + Math.sin(heart.angle) * dist - elapsed * 0.04;
+
+    let opacity = 1;
+    if (progress < 0.08) opacity = progress / 0.08;
+    else if (progress > 0.6) opacity = 1 - (progress - 0.6) / 0.4;
+
+    const scale = 0.4 + progress * 0.7 + Math.sin(progress * Math.PI) * 0.3;
+    const color = COLORS[heart.colorIndex];
+    const blur = 4 + (1 - progress) * 10;
+
+    const el = heart.el;
+    el.style.left = px + "px";
+    el.style.top = py + "px";
+    el.style.opacity = opacity;
+    el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    el.style.filter = `drop-shadow(0 0 ${blur}px ${color.glow}) drop-shadow(0 0 ${blur * 2}px ${color.glow})`;
+    return true;
+  }
+
+  function animate(now) {
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const burst = bursts[i];
+      const age = now - burst.born;
+
+      updateRipple(burst.ripple, now);
+      for (let j = 0; j < burst.hearts.length; j++) {
+        updateHeart(burst.hearts[j], now);
+      }
+
+      if (age > LIFETIME + RIPPLE_LIFETIME + 700) {
+        burst.layer.remove();
+        bursts.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  function getPointFromEvent(e) {
+    const rect = app.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  }
+
+  app.addEventListener("pointerdown", (e) => {
+    const p = getPointFromEvent(e);
+    spawnBurst(p.x, p.y);
+  }, { passive: true });
+
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pattern DNA — Infinite Repeater</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; color:#fff; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .ui {
+    position: fixed; left: 12px; bottom: 12px; right: 12px;
+    display: flex; justify-content: space-between; gap: 10px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12px; opacity: .7; user-select: none; pointer-events: none; color:#bbb;
+  }
+  .ui strong { color:#fff; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c" aria-label="Interactive canvas"></canvas>
+<div class="ui"><div><strong>Draw your shape</strong> (drag) → release to seed DNA. Double‑tap or press R to reset.</div><div>High‑contrast, infinite repetition.</div></div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  function resize(){
+    canvas.width = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ----- State -----
+  let drawing = false;
+  let points = [];      // raw points while drawing
+  let dna = null;       // normalized motif path + metrics
+  let path2d = null;    // Path2D for fast stamping
+  let t = 0, lastTS = 0;
+
+  // Animation params
+  let omega = 0.4;          // base angular speed (rad/s)
+  let omegaMax = 5.0;       // cap
+  let accel = 0.035;        // rad/s^2
+  let radialStep = 12;      // px spacing between rings (screen px @ DPR=1)
+  let spokeCount = 8;       // number of rotated copies per ring
+  let scaleBase = 1.0;      // base stamp scale
+  let scaleJitter = 0.04;   // tiny variation
+  let fadeTrail = 0.12;     // background fade for motion trails
+  let glowMax = 14;         // px
+  let reverseEachRing = true; // alternate spin direction for pleasing interference
+
+  // Utility
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const mix = (a,b,k)=>a+(b-a)*k;
+
+  // Build a Path2D from the drawn points and normalize to unit size
+  function buildDNA(pts){
+    if (pts.length < 2) return null;
+
+    // Simplify with Ramer–Douglas–Peucker for smoother DNA
+    const simplified = simplifyRDP(pts, 2 * DPR);
+
+    // Bounds
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,sumX=0,sumY=0;
+    for (const p of simplified){ minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); sumX+=p.x; sumY+=p.y; }
+    const cx = sumX / simplified.length;
+    const cy = sumY / simplified.length;
+    const w = Math.max(1, maxX - minX);
+    const h = Math.max(1, maxY - minY);
+    const size = Math.max(w, h);
+
+    // Normalize points to roughly 100 px unit for consistent stamping
+    const target = 100 * DPR;
+    const s = target / size;
+
+    // Create Path2D
+    const p2 = new Path2D();
+    p2.moveTo( (simplified[0].x - cx) * s, (simplified[0].y - cy) * s );
+    for (let i=1;i<simplified.length;i++){
+      const p = simplified[i];
+      p2.lineTo( (p.x - cx) * s, (p.y - cy) * s );
+    }
+
+    return {
+      path: p2,
+      scale: 1,
+      normScale: s,
+      cx, cy,
+      bbox: {w, h, size},
+      raw: simplified
+    };
+  }
+
+  // Ramer-Douglas-Peucker simplification
+  function simplifyRDP(pts, epsilon){
+    if (pts.length < 3) return pts.slice();
+    const first = 0, last = pts.length-1;
+    const stack = [[first,last]];
+    const keep = new Array(pts.length).fill(false);
+    keep[first] = keep[last] = true;
+
+    function perpDist(p,a,b){
+      const dx=b.x-a.x, dy=b.y-a.y;
+      if (dx===0 && dy===0) return Math.hypot(p.x-a.x, p.y-a.y);
+      const t = ((p.x-a.x)*dx + (p.y-a.y)*dy)/(dx*dx+dy*dy);
+      const px = a.x + t*dx, py = a.y + t*dy;
+      return Math.hypot(p.x-px, p.y-py);
+    }
+
+    while(stack.length){
+      const [i,j] = stack.pop();
+      let maxD = -1, idx = -1;
+      for (let k=i+1;k<j;k++){
+        const d = perpDist(pts[k], pts[i], pts[j]);
+        if (d>maxD){ maxD=d; idx=k; }
+      }
+      if (maxD > epsilon){
+        keep[idx] = true;
+        stack.push([i,idx],[idx,j]);
+      }
+    }
+    const out = [];
+    for (let i=0;i<pts.length;i++) if (keep[i]) out.push(pts[i]);
+    return out;
+  }
+
+  // Drawing handlers
+  const getXY = e => {
+    if (e.touches && e.touches.length){
+      return {x:e.touches[0].clientX * DPR, y:e.touches[0].clientY * DPR};
+    } else {
+      return {x:e.clientX * DPR, y:e.clientY * DPR};
+    }
+  };
+  let lastTap = 0;
+  function onDown(e){
+    const now = performance.now();
+    if (now - lastTap < 260){ // double tap to reset
+      dna = null; path2d = null; points = [];
+      omega = 0.4; // reset speed
+      return;
+    }
+    lastTap = now;
+
+    drawing = true;
+    points = [];
+    const p = getXY(e);
+    points.push(p);
+  }
+  function onMove(e){
+    if (!drawing) return;
+    const p = getXY(e);
+    points.push(p);
+    e.preventDefault();
+  }
+  function onUp(e){
+    if (!drawing) return;
+    drawing = false;
+    dna = buildDNA(points);
+    path2d = dna ? dna.path : null;
+  }
+
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove, {passive:false});
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', ()=> drawing=false);
+  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase()==='r'){ dna=null; path2d=null; points=[]; omega=0.4; } });
+
+  // Render
+  function draw(ts){
+    const W = canvas.width, H = canvas.height;
+    const cx = W*0.5, cy = H*0.5;
+    const dt = ((ts - (lastTS||ts)) || 16) / 1000;
+    lastTS = ts;
+    t += dt;
+
+    // background fade (trail)
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${fadeTrail})`;
+    ctx.fillRect(0,0,W,H);
+
+    // While drawing, show the stroke live
+    if (drawing && points.length){
+      ctx.save();
+      ctx.translate(0,0);
+      ctx.lineWidth = 3 * DPR;
+      ctx.strokeStyle = '#fff';
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i=1;i<points.length;i++){
+        const p = points[i];
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+      requestAnimationFrame(draw);
+      return;
+    }
+
+    // If we have DNA, stamp it forever
+    if (path2d){
+      // speed up until cap
+      omega = Math.min(omegaMax, omega + accel * dt);
+
+      const time = t;
+      const ringSpacing = radialStep * DPR;
+      const maxR = Math.hypot(W, H) * 0.75;
+
+      // pretty glow
+      const glow = glowMax * Math.min(1, omega/omegaMax) * DPR;
+      ctx.shadowColor = 'rgba(255,255,255,0.25)';
+      ctx.shadowBlur = glow;
+
+      // draw multiple concentric rings of the motif
+      ctx.lineWidth = 2 * DPR;
+      ctx.strokeStyle = '#fff';
+      ctx.fillStyle = '#fff';
+
+      // base angle advances with omega; each ring offsets a bit
+      const baseAng = time * omega;
+
+      for (let r = ringSpacing; r < maxR; r += ringSpacing){
+        const spins = reverseEachRing && ((r / ringSpacing) % 2 >= 1) ? -1 : 1;
+        const angStep = (Math.PI * 2) / spokeCount;
+        const rot = baseAng * spins + r * 0.002; // subtle twist per radius
+        const s = scaleBase * mix(0.92, 1.08, (Math.sin(r*0.03 + time*1.7)*0.5+0.5)); // tiny pulsing
+        for (let i=0;i<spokeCount;i++){
+          const ang = rot + i * angStep;
+          const x = cx + Math.cos(ang) * r;
+          const y = cy + Math.sin(ang) * r;
+
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(ang + Math.sin(time + r*0.01) * 0.2); // gentle spin
+          ctx.scale(s + (Math.random()-0.5)*scaleJitter, s + (Math.random()-0.5)*scaleJitter);
+          ctx.stroke(path2d);
+          ctx.restore();
+        }
+      }
+      // center cluster for density
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(baseAng*0.5);
+      const centerCopies = 8;
+      for (let i=0;i<centerCopies;i++){
+        ctx.rotate((Math.PI*2)/centerCopies);
+        ctx.scale(0.9, 0.9);
+        ctx.stroke(path2d);
+      }
+      ctx.restore();
+
+      // reset drawing state
+      ctx.shadowBlur = 0;
+    } else {
+      // Idle screen: simple prompt crosshair
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1 * DPR;
+      ctx.beginPath();
+      ctx.moveTo(-40*DPR, 0); ctx.lineTo(40*DPR, 0);
+      ctx.moveTo(0, -40*DPR); ctx.lineTo(0, 40*DPR);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

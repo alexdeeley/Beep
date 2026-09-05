@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>smooth</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; touch-action:none; -webkit-user-select:none; user-select:none; }
+  canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c" aria-hidden="true"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  const DPR = Math.min(2, Math.max(1, window.devicePixelRatio || 1)); // cap for perf
+  let W=0, H=0;
+  function resize(){
+    W = Math.floor(innerWidth); H = Math.floor(innerHeight);
+    canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    rebuildGrids(); rebuildHilbert(); rebuildPost();
+  }
+  addEventListener('resize', resize, {passive:true});
+
+  // ---------- State ----------
+  let MODE = 0;              // 0 triangles, 1 circles, 2 squares, 3 pixels, 4 mirror-tris
+  let VIVID = true;          // vivid color vs B/W
+  let INVERT = false;        // invert B/W
+  let ORDER = 7;             // 128px Hilbert
+  let CELL = 10;
+  let TRI = 22;
+  const ripples = []; const MAX_R = 64;
+  const nowSec = () => performance.now()*0.001;
+
+  // Wave params
+  let BASE_SPEED = 0.045;
+  let WAVE_SPEED = 0.45;
+  let WAVE_NUM   = 0.020;
+  let DECAY      = 3.4;
+  let FALLOFF    = 0.0025;
+
+  // ---------- Gestures via Pointer Events ----------
+  let activePointers = new Map();
+  let lastTapTime = 0, tapCount = 0;
+  let lastMoveT = 0, lastMoveP = null;
+  let longPressTimer = null;
+
+  function addRipple(x,y,amp=1){
+    ripples.push({x,y,t0:nowSec(), amp});
+    if (ripples.length>MAX_R) ripples.splice(0, ripples.length - MAX_R);
+  }
+
+  function pointerPos(e){
+    const r = canvas.getBoundingClientRect();
+    return { x:e.clientX - r.left, y:e.clientY - r.top };
+  }
+
+  function onPointerDown(e){
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    activePointers.set(e.pointerId, pointerPos(e));
+
+    // multi-tap detection
+    const t = performance.now();
+    tapCount = (t - lastTapTime < 300) ? tapCount + 1 : 1;
+    lastTapTime = t;
+
+    // long-press burst
+    const p = pointerPos(e);
+    addRipple(p.x, p.y, 1.15);
+    if (longPressTimer) clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      const n=14, r0=14;
+      for(let i=0;i<n;i++){
+        const a=i/n*Math.PI*2, r=r0+i*4;
+        addRipple(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r, 0.9);
+      }
+    }, 450);
+
+    // Two-finger tap switches renderer
+    if (activePointers.size===2){
+      nextRenderer();
+      tapCount = 0;
+    }
+
+    // tap combos
+    if (tapCount===2){ ripples.length = 0; }            // double: clear
+    else if (tapCount===3){ toggleDensity(); tapCount=0; }
+    else if (tapCount===5){ INVERT = !INVERT; tapCount=0; }
+    else if (tapCount===6){ VIVID  = !VIVID;  tapCount=0; }
+  }
+
+  function onPointerMove(e){
+    if (!activePointers.has(e.pointerId)) return;
+    const p = pointerPos(e);
+    activePointers.set(e.pointerId, p);
+    if (e.pressure>0 || e.buttons){
+      const t = performance.now();
+      const dt = Math.max(1, t - (lastMoveT || t));
+      const last = lastMoveP || p;
+      const v = Math.hypot(p.x-last.x, p.y-last.y)/dt;
+      const amp = Math.min(2.2, 0.35 + v*1.6);
+      addRipple(p.x, p.y, amp);
+      lastMoveP = p; lastMoveT = t;
+    }
+
+    // pinch scale when exactly two pointers are down
+    if (activePointers.size===2){
+      const it = activePointers.values();
+      const p1 = it.next().value, p2 = it.next().value;
+      if (p1 && p2){
+        const d = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+        if (onPointerMove._lastD){
+          const scale = Math.pow(d / onPointerMove._lastD, 0.5);
+          CELL = clamp(CELL*scale, 8, 96);
+          TRI  = clamp(TRI*scale, 8, 80);
+          rebuildGrids(); rebuildHilbert();
+        }
+        onPointerMove._lastD = d;
+      }
+    }
+  }
+
+  function onPointerUp(e){
+    activePointers.delete(e.pointerId);
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer=null; }
+    if (activePointers.size<2) onPointerMove._lastD = null;
+    lastMoveP = null;
+  }
+
+  addEventListener('pointerdown', onPointerDown, {passive:false});
+  addEventListener('pointermove', onPointerMove, {passive:false});
+  addEventListener('pointerup', onPointerUp, {passive:true});
+  addEventListener('pointercancel', onPointerUp, {passive:true});
+  addEventListener('pointerout', onPointerUp, {passive:true});
+  addEventListener('pointerleave', onPointerUp, {passive:true});
+
+  // Wheel for desktop scaling
+  addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    CELL = clamp(CELL + delta*2, 8, 96);
+    TRI  = clamp(TRI + delta*1.5, 8, 80);
+    rebuildGrids(); rebuildHilbert();
+  }, {passive:false});
+
+  function nextRenderer(){ MODE = (MODE+1)%5; }
+  function toggleDensity(){
+    ORDER = (ORDER===7) ? 6 : 7;
+    CELL  = (ORDER===7) ? 10 : 14;
+    TRI   = (ORDER===7) ? 22 : 28;
+    rebuildGrids(); rebuildHilbert();
+  }
+
+  // ---------- Utils ----------
+  const clamp = (v,lo,hi)=>Math.max(lo, Math.min(hi,v));
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  // ---------- Grids ----------
+  let triGrid=[], triCols=0, triRows=0;
+  let circleGrid=[]; let sqCols=0, sqRows=0;
+
+  function rebuildGrids(){
+    // triangles
+    const s=TRI, h=Math.sin(Math.PI/3)*s;
+    triCols = Math.ceil(W/s)+3; triRows = Math.ceil(H/h)+3;
+    triGrid = [];
+    for (let r=0;r<triRows;r++){
+      for (let c=0;c<triCols;c++){
+        const x = c*s + (r%2 ? s/2 : 0) - s;
+        const y = r*h - h;
+        const up = ((r+c)&1)===0;
+        triGrid.push({x,y,up});
+      }
+    }
+    // circles hex-pack
+    circleGrid = [];
+    const spacing = Math.max(16, Math.min(W,H)/32);
+    const stepX = spacing, stepY = spacing*Math.sqrt(3)/2, r = spacing*0.42;
+    const cols = Math.ceil(W/stepX)+2, rows = Math.ceil(H/stepY)+2;
+    for(let row=0; row<rows; row++){
+      const y = row*stepY, off=(row%2)? stepX*0.5 : 0;
+      for(let col=0; col<cols; col++){
+        const x = col*stepX + off;
+        if (x>-stepX && x<W+stepX && y>-stepY && y<H+stepY) circleGrid.push({x,y,r});
+      }
+    }
+    // squares
+    sqCols = Math.ceil(W/CELL)+2; sqRows = Math.ceil(H/CELL)+2;
+  }
+
+  // ---------- Hilbert setup ----------
+  let N=1<<ORDER, xs=null, ys=null, off=null, octx=null, img=null, data=null;
+  function d2xy(N,d){
+    let x=0,y=0,t=d;
+    for (let s=1; s<N; s<<=1){
+      const rx = 1 & (t>>1);
+      const ry = 1 & (t ^ rx);
+      if (ry===0){
+        if (rx===1){ x = s-1-x; y = s-1-y; }
+        const tmp=x; x=y; y=tmp;
+      }
+      x += s*rx; y += s*ry; t >>= 2;
+    }
+    return [x,y];
+  }
+  function rebuildHilbert(){
+    N = 1<<ORDER;
+    xs = new Uint16Array(N*N);
+    ys = new Uint16Array(N*N);
+    for (let d=0; d<N*N; d++){ const p=d2xy(N,d); xs[d]=p[0]; ys[d]=p[1]; }
+    off = document.createElement('canvas');
+    off.width=N; off.height=N;
+    octx = off.getContext('2d', {alpha:false});
+    img = octx.createImageData(N,N);
+    data = img.data;
+  }
+
+  // ---------- Post (simple bloom) ----------
+  let post=null, pctx=null;
+  function rebuildPost(){
+    post = document.createElement('canvas');
+    post.width = Math.max(1, Math.floor(W*DPR));
+    post.height= Math.max(1, Math.floor(H*DPR));
+    pctx = post.getContext('2d', {alpha:false});
+  }
+  function bloomPass(){
+    // copy main -> post (in device pixels)
+    pctx.setTransform(1,0,0,1,0,0);
+    pctx.clearRect(0,0,post.width, post.height);
+    pctx.drawImage(canvas, 0,0, post.width, post.height);
+
+    // soften
+    pctx.filter = 'blur(5px) brightness(1.2)';
+    const tmp = document.createElement('canvas');
+    tmp.width = post.width>>1; tmp.height = post.height>>1;
+    const tctx = tmp.getContext('2d', {alpha:false});
+    tctx.drawImage(post, 0,0, tmp.width, tmp.height);
+    tctx.filter = 'blur(4px)';
+    tctx.drawImage(tmp, 0,0, tmp.width, tmp.height);
+    pctx.filter = 'none';
+
+    // additive blend back to main
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.33;
+    ctx.drawImage(tmp, 0,0, tmp.width, tmp.height, 0,0, W, H);
+    ctx.restore();
+  }
+
+  // ---------- Shaders (CPU) ----------
+  function waveField(x,y,t){
+    const base = t * BASE_SPEED * 2*Math.PI;
+    let rsum = 0;
+    for (let i=0;i<ripples.length;i++){
+      const rp = ripples[i]; const age = t - rp.t0;
+      if (age > DECAY) continue;
+      const dx = x - rp.x, dy = y - rp.y;
+      const dist = Math.hypot(dx,dy);
+      const env = Math.exp(-age/DECAY) * Math.exp(-dist*FALLOFF) * rp.amp;
+      rsum += env * Math.sin(dist*WAVE_NUM + age*WAVE_SPEED*2*Math.PI);
+    }
+    return base + rsum;
+  }
+  function bwFromPhase(ph){
+    const s = 0.5 + 0.5*Math.sin(ph);
+    const k = 6.0;
+    const v = Math.pow(s,k) / (Math.pow(s,k)+Math.pow(1-s,k));
+    return INVERT ? (1-v) : v;
+  }
+  function colorFromPhase(ph){
+    const h = ((ph/(2*Math.PI)) % 1 + 1) % 1, S=0.85, L=0.5;
+    const q = L < 0.5 ? L*(1+S) : L + S - L*S, p = 2*L - q;
+    function hue2rgb(p,q,t){ if(t<0)t+=1; if(t>1)t-=1;
+      if(t<1/6)return p+(q-p)*6*t;
+      if(t<1/2)return q;
+      if(t<2/3)return p+(q-p)*(2/3-t)*6;
+      return p;
+    }
+    const r = Math.round(255*hue2rgb(p,q,h+1/3));
+    const g = Math.round(255*hue2rgb(p,q,h));
+    const b = Math.round(255*hue2rgb(p,q,h-1/3));
+    return [r,g,b];
+  }
+
+  function strokeShiny(a){ ctx.globalAlpha=a; ctx.lineCap='round'; ctx.lineJoin='round'; }
+
+  function drawTriangles(t){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth = Math.max(0.9, TRI*0.07);
+    strokeShiny(1);
+    const s=TRI, h=Math.sin(Math.PI/3)*s;
+    for (let i=0;i<triGrid.length;i++){
+      const {x,y,up}=triGrid[i];
+      const ph = waveField(x,y,t);
+      if (VIVID){ const [r,g,b]=colorFromPhase(ph); ctx.strokeStyle=`rgb(${r},${g},${b})`; }
+      else { const v = (255*bwFromPhase(ph))|0; ctx.strokeStyle=`rgb(${v},${v},${v})`; }
+      ctx.beginPath();
+      if (up){ ctx.moveTo(x, y-h/2); ctx.lineTo(x-s/2, y+h/2); ctx.lineTo(x+s/2, y+h/2); }
+      else   { ctx.moveTo(x, y+h/2); ctx.lineTo(x-s/2, y-h/2); ctx.lineTo(x+s/2, y-h/2); }
+      ctx.closePath(); ctx.stroke();
+    }
+    bloomPass();
+  }
+
+  function drawCircles(t){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth = Math.max(0.9, Math.min(2.2, CELL*0.08));
+    strokeShiny(0.95);
+    for (let i=0;i<circleGrid.length;i++){
+      const {x,y,r} = circleGrid[i];
+      const ph = waveField(x,y,t);
+      const rad = r * (0.9 + 0.1*Math.sin(ph));
+      if (VIVID){ const [R,G,B]=colorFromPhase(ph+0.4); ctx.strokeStyle=`rgb(${R},${G},${B})`; }
+      else { const v=(255*bwFromPhase(ph))|0; ctx.strokeStyle=`rgb(${v},${v},${v})`; }
+      ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.stroke();
+    }
+    bloomPass();
+  }
+
+  function drawSquares(t){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth = Math.max(1, CELL*0.08);
+    strokeShiny(0.95);
+    for (let ry=-1; ry<sqRows; ry++){
+      for (let rx=-1; rx<sqCols; rx++){
+        const cx = rx*CELL + CELL*0.5;
+        const cy = ry*CELL + CELL*0.5;
+        const ph = waveField(cx,cy,t);
+        const s = CELL*(0.82 + 0.12*Math.sin(ph*0.5)), half=s*0.5;
+        if (VIVID){ const [R,G,B]=colorFromPhase(ph+0.2); ctx.strokeStyle=`rgb(${R},${G},${B})`; }
+        else { const v=(255*bwFromPhase(ph))|0; ctx.strokeStyle=`rgb(${v},${v},${v})`; }
+        ctx.strokeRect(cx-half, cy-half, s, s);
+      }
+    }
+    bloomPass();
+  }
+
+  // Pixel mode (Hilbert sampling)
+  function drawPixels(t){
+    const N2=N*N; let k=0;
+    for (let i=0;i<N2;i++){
+      const x = (xs[i]/(N-1))*W, y=(ys[i]/(N-1))*H;
+      const ph = waveField(x,y,t);
+      if (VIVID){ const rgb=colorFromPhase(ph); data[k++]=rgb[0]; data[k++]=rgb[1]; data[k++]=rgb[2]; data[k++]=255; }
+      else { const v=(255*bwFromPhase(ph))|0; data[k++]=v; data[k++]=v; data[k++]=v; data[k++]=255; }
+    }
+    octx.putImageData(img,0,0);
+    ctx.clearRect(0,0,W,H);
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(off, 0,0, N,N, 0,0, W,H);
+    bloomPass();
+  }
+
+  function drawTriMirror(t){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth = Math.max(0.9, TRI*0.06);
+    strokeShiny(0.95);
+    const mid = W*0.5, s=TRI, h=Math.sin(Math.PI/3)*s;
+    for (let i=0;i<triGrid.length;i++){
+      const {x,y,up}=triGrid[i];
+      const cx = Math.min(x, 2*mid - x);
+      const ph = waveField(cx,y,t);
+      if (VIVID){ const [r,g,b]=colorFromPhase(ph+0.65); ctx.strokeStyle=`rgb(${r},${g},${b})`; }
+      else { const v=(255*bwFromPhase(ph))|0; ctx.strokeStyle=`rgb(${v},${v},${v})`; }
+      ctx.beginPath();
+      if (up){ ctx.moveTo(cx, y-h/2); ctx.lineTo(cx-s/2, y+h/2); ctx.lineTo(cx+s/2, y+h/2); }
+      else   { ctx.moveTo(cx, y+h/2); ctx.lineTo(cx-s/2, y-h/2); ctx.lineTo(cx+s/2, y-h/2); }
+      ctx.closePath(); ctx.stroke();
+    }
+    // subtle spine
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    const grad = ctx.createLinearGradient(mid,0,mid,H);
+    grad.addColorStop(0,'rgba(255,255,255,0.05)');
+    grad.addColorStop(0.5,'rgba(255,255,255,0.2)');
+    grad.addColorStop(1,'rgba(255,255,255,0.05)');
+    ctx.strokeStyle = grad; ctx.lineWidth = Math.max(1.5, W*0.002);
+    ctx.beginPath(); ctx.moveTo(mid,0); ctx.lineTo(mid,H); ctx.stroke();
+    ctx.restore();
+    bloomPass();
+  }
+
+  // ---------- Loop ----------
+  function frame(){
+    const t = nowSec();
+    try {
+      switch(MODE){
+        case 0: drawTriangles(t); break;
+        case 1: drawCircles(t); break;
+        case 2: drawSquares(t); break;
+        case 3: drawPixels(t); break;
+        case 4: drawTriMirror(t); break;
+      }
+    } catch (err){
+      // minimal fallback to avoid a blank screen
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1,1);
+      console.log('smooth error:', err);
+    }
+    requestAnimationFrame(frame);
+  }
+  resize();
+  frame();
+})();
+</script>
+</body>
+</html>

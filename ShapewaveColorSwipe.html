@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ShapeWave — color swipe</title>
+<style>
+  :root { 
+    --bg: #000;
+    --fg: #fff;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  /* Minimal icon buttons */
+  .ui { position: fixed; inset: 0; pointer-events: none; }
+  .btn {
+    position: absolute; width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(255,255,255,.06); outline: 2px solid rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center;
+    font: 700 20px/1 Helvetica, Arial, system-ui, -apple-system, sans-serif;
+    color: var(--fg); pointer-events: auto; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn[aria-label="download"] { right: 16px; bottom: 16px; }
+  .btn[aria-label="switch shapes"] { left: 16px; bottom: 16px; }
+  .btn[aria-label="toggle mono"] { left: 16px; bottom: 86px; }
+  .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div class="ui" aria-hidden="false">
+  <button class="btn" aria-label="switch shapes" title="Switch Shapes" id="shapeBtn">🔷</button>
+  <button class="btn" aria-label="toggle mono" title="Toggle Color / Mono" id="monoBtn">◐</button>
+  <button class="btn" aria-label="download" title="Save Image" id="dlBtn">⬇︎</button>
+</div>
+
+<script>
+(() => {
+  const PR = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W=0,H=0, grid=[], cols=24, rows=16, cell=0, t=0;
+  let mono=false;
+  // shape modes: 0=circle,1=square,2=diamond,3=plus,4=star,5=hexagon
+  let shapeMode=0;
+  const SHAPES = 6;
+
+  // swipe trails (echo)
+  const swipes = []; // {x,y,age,life,strength,dir}
+  const MAX_LIFE = 20.0; // seconds for echo to fully decay
+  const DRAG = 0.985;
+
+  const palettes = [
+    // high-contrast sets (will be modulated on black bg)
+    ['#ffffff','#ff0055','#00f0ff','#ffee00','#7cff00'],
+    ['#ffffff','#00ff99','#ff00ee','#00aaff','#ffcc00'],
+    ['#ffffff','#9bff00','#ff0066','#7a5cff','#00ffd5'],
+    ['#ffffff','#ff3b30','#34c759','#007aff','#ffcc00'],
+  ];
+
+  let pal = 0;
+
+  function resize() {
+    const vw = Math.max(1, (window.innerWidth || 1));
+    const vh = Math.max(1, (window.innerHeight || 1));
+    canvas.width = Math.floor(vw * PR);
+    canvas.height = Math.floor(vh * PR);
+    canvas.style.width = vw + 'px';
+    canvas.style.height = vh + 'px';
+    W = canvas.width; H = canvas.height;
+    // choose grid based on aspect
+    const targetCell = Math.max(28, Math.min(80, Math.floor(Math.min(W,H)/20)));
+    cols = Math.floor(W / targetCell);
+    rows = Math.floor(H / targetCell);
+    cell = Math.min(W/cols, H/rows);
+    buildGrid();
+  }
+
+  function buildGrid() {
+    grid.length = 0;
+    for (let j=0;j<rows;j++) {
+      for (let i=0;i<cols;i++) {
+        const x = (i+0.5)*cell;
+        const y = (j+0.5)*cell;
+        const id = j*cols+i;
+        grid.push({ x0:x, y0:y, rot: 0, id });
+      }
+    }
+  }
+
+  // util
+  const rand = (a=1,b=0)=>a + (b-a)*Math.random();
+  const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+
+  // perlin-ish noise (simple hash)
+  function hash(n){ return Math.sin(n*1e3)*43758.5453 % 1; }
+  function n2(x,y){ return hash(x*12.9898 + y*78.233); }
+
+  function field(x,y,tt){
+    // Displacement vector field from swipes + slow orbital drift
+    let dx=0, dy=0;
+    for (let s of swipes){
+      const age = (tt - s.t0);
+      if (age> s.life) continue;
+      const k = (1 - age/s.life);
+      // radial ripple
+      const rx = x - s.x, ry = y - s.y;
+      const r2 = rx*rx + ry*ry + 1;
+      const r = Math.sqrt(r2);
+      const fall = (s.strength * k) / (1 + r*0.02);
+      // angular component to create swirl
+      dx += (-ry/r) * fall;
+      dy += ( rx/r) * fall;
+    }
+    // slow drift
+    const nx = (n2(x*0.002, y*0.002 + tt*0.02)-0.5)*0.8;
+    const ny = (n2(x*0.002+111.1, y*0.002 + tt*0.02)-0.5)*0.8;
+    dx += nx * cell*0.15;
+    dy += ny * cell*0.15;
+    return {dx,dy};
+  }
+
+  function star(ctx, r, points=5, inner=0.5){
+    const step = Math.PI / points;
+    ctx.moveTo(r,0);
+    for (let i=0;i<2*points;i++){
+      const ang = i * step;
+      const rad = (i%2===0)? r : r*inner;
+      ctx.lineTo(Math.cos(ang)*rad, Math.sin(ang)*rad);
+    }
+    ctx.closePath();
+  }
+
+  function drawShape(x,y, size, rot, mode){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(rot);
+    const s = size;
+    ctx.beginPath();
+    switch(mode){
+      case 0: // circle
+        ctx.arc(0,0,s*0.5,0,Math.PI*2); break;
+      case 1: // square
+        ctx.rect(-s*0.5,-s*0.5,s,s); break;
+      case 2: // diamond
+        ctx.moveTo(0,-s*0.6); ctx.lineTo(s*0.6,0); ctx.lineTo(0,s*0.6); ctx.lineTo(-s*0.6,0); ctx.closePath(); break;
+      case 3: // plus
+        const w = s*0.2, l=s*0.6;
+        ctx.rect(-w/2,-l/2,w,l);
+        ctx.rect(-l/2,-w/2,l,w);
+        break;
+      case 4: // star
+        star(ctx, s*0.55, 5, 0.45); break;
+      case 5: // hexagon
+        const r = s*0.58;
+        for(let i=0;i<6;i++){
+          const a = i*Math.PI/3;
+          const px = Math.cos(a)*r, py = Math.sin(a)*r;
+          (i?ctx.lineTo:px=>ctx.moveTo)(px,py);
+          if(!i) ctx.moveTo(px,py);
+        }
+        ctx.closePath();
+        break;
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function colorAt(i,j, time){
+    if (mono) return '#ffffff';
+    const P = palettes[pal];
+    // animated pick across palette with grid offset
+    const idx = Math.abs(Math.floor((i*0.7 + j*0.9 + time*0.6)) % P.length);
+    return P[idx];
+  }
+
+  function tick(now){
+    const sec = now*0.001;
+    t = sec;
+    // decay swipes
+    for (let s of swipes){
+      const age = sec - s.t0;
+      s.age = age;
+    }
+    // clear
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // draw grid
+    const size = cell*0.7;
+    for (let j=0;j<rows;j++){
+      for (let i=0;i<cols;i++){
+        const g = grid[j*cols+i];
+        const baseX = g.x0, baseY = g.y0;
+        const {dx, dy} = field(baseX, baseY, sec);
+        const x = baseX + dx, y = baseY + dy;
+        // subtle rotation based on flow curl
+        const rot = (dx - dy) * 0.002 + (i^j)*0.001 + sec*0.05;
+        ctx.fillStyle = colorAt(i,j, sec);
+        drawShape(x, y, size, rot, shapeMode);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  // input handling
+  let lastX=null, lastY=null, lastT=0;
+  function addSwipe(x,y, v){
+    swipes.push({
+      x, y, t0: t, life: MAX_LIFE * (0.6 + Math.random()*0.6),
+      strength: clamp(120 + (v||0)*0.5, 80, 320),
+    });
+    if (swipes.length>64) swipes.shift();
+  }
+
+  function posFromEvent(e){
+    if (e.touches && e.touches.length){
+      const rect = canvas.getBoundingClientRect();
+      const tx = (e.touches[0].clientX - rect.left) * PR;
+      const ty = (e.touches[0].clientY - rect.top) * PR;
+      return {x: tx, y: ty};
+    } else {
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * PR;
+      const my = (e.clientY - rect.top) * PR;
+      return {x: mx, y: my};
+    }
+  }
+
+  function start(e){
+    const p = posFromEvent(e);
+    lastX = p.x; lastY = p.y; lastT = performance.now();
+    addSwipe(p.x, p.y, 0);
+  }
+  function move(e){
+    const p = posFromEvent(e);
+    if (lastX==null) return;
+    const dt = Math.max(1, performance.now()-lastT);
+    const dx = p.x - lastX, dy = p.y - lastY;
+    const v = Math.hypot(dx,dy)/dt*1000;
+    addSwipe(p.x, p.y, v);
+    lastX = p.x; lastY = p.y; lastT = performance.now();
+  }
+  function end(){ lastX=null; lastY=null; }
+
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); start(e); }, {passive:false});
+  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); move(e); }, {passive:false});
+  canvas.addEventListener('touchend', e=>{ e.preventDefault(); end(e); }, {passive:false});
+  canvas.addEventListener('mousedown', e=>{ start(e); });
+  canvas.addEventListener('mousemove', e=>{ if (lastX!=null) move(e); });
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+
+  // Buttons
+  document.getElementById('shapeBtn').addEventListener('click', ()=>{
+    shapeMode = (shapeMode + 1) % SHAPES;
+  });
+  document.getElementById('monoBtn').addEventListener('click', ()=>{
+    mono = !mono;
+    if (!mono) pal = (pal+1)%palettes.length; // also hop palette when returning to color
+  });
+  document.getElementById('dlBtn').addEventListener('click', ()=>{
+    // export at current resolution
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    link.download = `shapewave-${stamp}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(()=>link.remove(), 0);
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

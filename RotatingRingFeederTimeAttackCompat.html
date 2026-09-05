@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Rotating Ring Feeder — Time Attack (Compat)</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; color:#fff; height:100%; overflow:hidden; touch-action:none; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; gap:8px; justify-content:space-between; padding:10px 14px; background:rgba(0,0,0,0.25); font-weight:700; }
+  .pill { border:2px solid #fff; border-radius:999px; padding:6px 10px; }
+  #canvas { display:block; width:100vw; height:100vh; }
+  #overlay, #start { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); text-align:center; }
+  .card { border:2px solid #fff; border-radius:16px; padding:24px 28px; max-width:min(92vw,560px); }
+  h1 { margin:0 0 10px 0; font-size:28px; }
+  button { margin-top:14px; padding:10px 16px; font-size:16px; background:#000; color:#fff; border:2px solid #fff; border-radius:999px; }
+  #hint { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); opacity:.6; font-size:12px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="hud">
+    <div class="pill" id="timer">45.0s</div>
+    <div class="pill" id="score">0 delivered</div>
+    <div class="pill" id="angle">tilt 0°</div>
+    <div class="pill" id="level">Time Attack</div>
+  </div>
+  <canvas id="canvas" width="1920" height="1080" aria-label="ring-feeder game"></canvas>
+
+  <div id="start" role="dialog" aria-modal="true" style="display:flex">
+    <div class="card">
+      <h1>Rotating Ring — Time Attack</h1>
+      <p>Guide balls from the blue feeder into the green chute by rotating the orange ring.<br/>Tilt your phone or drag left/right. You have 45 seconds.</p>
+      <button id="startBtn">Tap to Start</button>
+      <p style="opacity:.7; font-size:13px; margin-top:10px;">On iPhone, you may be asked for motion permission.</p>
+    </div>
+  </div>
+
+  <div id="overlay" role="dialog" aria-modal="true">
+    <div class="card">
+      <h1 id="title">Time!</h1>
+      <p id="details">Delivered: 0</p>
+      <button id="again">Play again</button>
+    </div>
+  </div>
+
+  <div id="hint">Tilt your phone or drag left/right • ◀ ▶ / A D keys also rotate</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const timerEl = document.getElementById('timer');
+  const scoreEl = document.getElementById('score');
+  const angleEl = document.getElementById('angle');
+  const overlay = document.getElementById('overlay');
+  const againBtn = document.getElementById('again');
+  const detailsEl = document.getElementById('details');
+  const startScreen = document.getElementById('start');
+  const startBtn = document.getElementById('startBtn');
+
+  let W = innerWidth, H = innerHeight;
+
+  // Layout
+  const center = {x:0, y:0}, ring = {R:0, r:0};
+  const inlet = { angle: -Math.PI*0.25, width: Math.PI*0.18 };
+  const outlet = { angle:  Math.PI*0.5,  width: Math.PI*0.22 };
+  const feeder = { x:0, y:0, w:0, h:0 };
+  const chute = { x:0, y:0, w:0, h:0 };
+
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    layout();
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  function layout(){
+    center.x = W*0.52; center.y = H*0.52;
+    ring.R = Math.min(W,H) * 0.34;
+    ring.r = ring.R - Math.min(W,H) * 0.03;
+    feeder.w = ring.R*0.4; feeder.h = ring.R*0.26;
+    const fx = center.x + Math.cos(inlet.angle - Math.PI*0.28) * (ring.R + feeder.h*0.4);
+    const fy = center.y + Math.sin(inlet.angle - Math.PI*0.28) * (ring.R + feeder.h*0.4);
+    feeder.x = fx - feeder.w*0.6; feeder.y = fy - feeder.h*0.7;
+    chute.w = ring.R*0.5; chute.h = ring.R*0.3;
+    chute.x = center.x - chute.w/2; chute.y = center.y + ring.R + 8;
+  }
+
+  // Controls
+  let tiltAngle = 0;
+  const stepAngle = Math.PI/180 * 3;
+  addEventListener('keydown', (e)=>{
+    const k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') tiltAngle -= stepAngle;
+    if (k === 'arrowright' || k === 'd') tiltAngle += stepAngle;
+  });
+
+  // Pointer + touch + mouse fallback
+  let dragging = false, lastX = 0;
+  function dragStart(x){ dragging = true; lastX = x; }
+  function dragMove(x){ if (!dragging) return; const dx = x - lastX; tiltAngle += dx * 0.005; lastX = x; }
+  function dragEnd(){ dragging = false; }
+
+  canvas.addEventListener('pointerdown', e => { dragStart(e.clientX); e.preventDefault(); }, {passive:false});
+  addEventListener('pointermove', e => { dragMove(e.clientX); }, {passive:true});
+  addEventListener('pointerup', dragEnd);
+  addEventListener('pointercancel', dragEnd);
+
+  // Touch fallback (older Safari without PointerEvents)
+  canvas.addEventListener('touchstart', e => { if (e.touches.length) dragStart(e.touches[0].clientX); e.preventDefault(); }, {passive:false});
+  addEventListener('touchmove', e => { if (e.touches.length) dragMove(e.touches[0].clientX); }, {passive:true});
+  addEventListener('touchend', dragEnd);
+
+  // Mouse fallback
+  canvas.addEventListener('mousedown', e => { dragStart(e.clientX); });
+  addEventListener('mousemove', e => { dragMove(e.clientX); });
+  addEventListener('mouseup', dragEnd);
+
+  // Device orientation (request permission when starting on iOS)
+  function enableMotion(){
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(r => {
+          if (r === 'granted') hookMotion();
+        }).catch(()=>{});
+      } else {
+        hookMotion();
+      }
+    } catch(e){}
+  }
+  function hookMotion(){
+    if (!window.DeviceOrientationEvent) return;
+    addEventListener('deviceorientation', (e)=>{
+      const g = (e.gamma || 0) / 90;
+      tiltAngle += g * 0.02;
+    }, {passive:true});
+  }
+
+  // Game state
+  const TIME_LIMIT = 45.0;
+  let timeLeft = TIME_LIMIT;
+  let delivered = 0;
+  let running = false;
+
+  function startGame(){
+    enableMotion();
+    timeLeft = TIME_LIMIT; delivered = 0; running = true;
+    balls.length = 0; spawnBurst();
+    overlay.style.display = 'none';
+    startScreen.style.display = 'none';
+  }
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', startGame);
+
+  // Balls
+  const balls = [];
+  const G = 1200;
+  const damping = 0.998;
+  function spawnBall(){
+    const spread = inlet.width * 0.5;
+    const a = inlet.angle + (Math.random()*spread - spread/2) + tiltAngle;
+    const radius = 6;
+    const r = ring.R - radius*2;
+    const x = center.x + Math.cos(a) * (r - 2);
+    const y = center.y + Math.sin(a) * (r - 2);
+    balls.push({x,y,vx:0,vy:0,r:radius});
+  }
+  function spawnBurst(n=10){ for (let i=0;i<n;i++) spawnBall(); }
+  let spawnTimer = 0;
+  const spawnInterval = 0.6;
+
+  // Helpers
+  function norm(a){ a = (a + Math.PI*2) % (Math.PI*2); return a; }
+  function withinPortal(angle, portal){
+    const rel = norm(angle - tiltAngle);
+    const p = norm(portal.angle);
+    let d = Math.abs(rel - p);
+    d = Math.min(d, Math.PI*2 - d);
+    return d < portal.width * 0.5;
+  }
+
+  // Loop
+  let last = performance.now();
+  function step(now){
+    const dt = Math.min(0.033, (now - last)/1000);
+    last = now;
+
+    if (running){
+      timeLeft = Math.max(0, timeLeft - dt);
+      if (timeLeft <= 0){ running = false; endRound(); }
+      spawnTimer += dt;
+      if (spawnTimer >= spawnInterval){ spawnTimer = 0; spawnBall(); }
+    }
+
+    updatePhysics(dt);
+    draw();
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  function updatePhysics(dt){
+    const ax = 0, ay = 1200;
+    for (let i=balls.length-1;i>=0;i--){
+      const b = balls[i];
+      if (running){ b.vx += ax*dt; b.vy += ay*dt; }
+      b.vx *= damping; b.vy *= damping;
+      b.x += b.vx*dt; b.y += b.vy*dt;
+
+      const dx = b.x - center.x, dy = b.y - center.y;
+      const dist = Math.hypot(dx,dy);
+      const limit = ring.R - b.r - 4;
+      const ang = Math.atan2(dy,dx);
+
+      if (withinPortal(ang, outlet) && dist >= limit + 1){
+        if (b.y > center.y + ring.R && b.x > chute.x && b.x < chute.x + chute.w){
+          delivered++; balls.splice(i,1); continue;
+        }
+      }
+
+      const nearWall = dist > limit;
+      if (nearWall && !withinPortal(ang, inlet) && !withinPortal(ang, outlet)){
+        const nx = dx / (dist || 1), ny = dy / (dist || 1);
+        const overlap = dist - limit;
+        b.x -= nx * overlap; b.y -= ny * overlap;
+        const vn = b.vx*nx + b.vy*ny;
+        b.vx -= 1.2 * vn * nx;
+        b.vy -= 1.2 * vn * ny;
+      }
+      if (b.y > H + 200){ balls.splice(i,1); }
+    }
+  }
+
+  function endRound(){
+    overlay.style.display = 'flex';
+    document.getElementById('details').innerHTML = `Delivered: <strong>${delivered}</strong>`;
+  }
+
+  function drawRing(){
+    ctx.strokeStyle = '#ffa500';
+    ctx.lineWidth = Math.max(6, Math.floor(ring.R*0.06));
+    ctx.beginPath(); ctx.arc(center.x, center.y, ring.R, 0, Math.PI*2); ctx.stroke();
+
+    // erase inlet/outlet arcs
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineWidth = Math.max(8, ctx.lineWidth + 4);
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, ring.R, inlet.angle + tiltAngle - inlet.width/2, inlet.angle + tiltAngle + inlet.width/2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, ring.R, outlet.angle + tiltAngle - outlet.width/2, outlet.angle + tiltAngle + outlet.width/2);
+    ctx.stroke();
+    ctx.restore();
+
+    // thin outline on top
+    ctx.strokeStyle = '#ffa500'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(center.x, center.y, ring.R, 0, Math.PI*2); ctx.stroke();
+  }
+
+  function drawFeederAndChute(){
+    // Feeder
+    ctx.strokeStyle = '#00bfff'; ctx.lineWidth = 6;
+    ctx.strokeRect(feeder.x, feeder.y, feeder.w, feeder.h);
+    // dotted stream
+    ctx.fillStyle = '#fff';
+    for (let i=0;i<18;i++){
+      const t = i/18;
+      const a = inlet.angle + tiltAngle - Math.PI*0.15 + t*0.3;
+      const rr = ring.R + 10 - t * (ring.R*0.35);
+      const x = center.x + Math.cos(a) * rr;
+      const y = center.y + Math.sin(a) * rr;
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    }
+    // Chute
+    ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 6;
+    ctx.strokeRect(chute.x, chute.y, chute.w, chute.h);
+  }
+
+  function drawBalls(){
+    ctx.fillStyle = '#fff';
+    for (const b of balls){ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); }
+  }
+
+  function drawHUD(){
+    timerEl.textContent = timeLeft.toFixed(1) + 's';
+    scoreEl.textContent = delivered + ' delivered';
+    let deg = ((tiltAngle*180/Math.PI + 180) % 360 + 360) % 360 - 180;
+    angleEl.textContent = 'tilt ' + deg.toFixed(0) + '°';
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    drawFeederAndChute();
+    drawRing();
+    drawBalls();
+    drawHUD();
+  }
+})();
+</script>
+</body>
+</html>

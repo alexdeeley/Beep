@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>OilSeed — Landscape Generator</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; padding:0; height:100%; background:#000; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  #ui {
+    position: fixed; inset: env(safe-area-inset-top) auto auto env(safe-area-inset-left);
+    display:flex; gap:8px; align-items:center; padding:12px 12px; z-index:10;
+    background: rgba(0,0,0,0.45); backdrop-filter: blur(6px);
+    border-bottom-right-radius:12px;
+  }
+  #seed, button {
+    font-weight: 700; letter-spacing: .5px;
+  }
+  #seed {
+    width: 180px; padding:10px 12px; border-radius:10px; border:1px solid #333;
+    background:#111; color:#fff; outline:none;
+  }
+  button {
+    padding:10px 14px; border-radius:999px; border:1px solid #333; background:#111; color:#fff; cursor:pointer;
+  }
+  button:active { transform: translateY(1px); }
+  #canvas { display:block; width:100vw; height:100vh; }
+  #note {
+    position: fixed; right: 12px; bottom: 12px; color:#aaa; font-size:12px; letter-spacing:.6px; 
+    font-weight: 700;
+    background: rgba(0,0,0,0.45); padding:6px 10px; border-radius:8px; border:1px solid #222;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="ui" role="group" aria-label="CONTROLS">
+    <input id="seed" aria-label="SEED" placeholder="SEED" />
+    <button id="generate" aria-label="GENERATE">GENERATE</button>
+    <button id="download" aria-label="DOWNLOAD">DOWNLOAD</button>
+  </div>
+  <canvas id="canvas" width="1280" height="720"></canvas>
+  <div id="note">OIL PAINTING STYLE — LANDSCAPE • Seed-locked • High‑res export</div>
+
+<script>
+/* =========================
+   OilSeed — Landscape Generator
+   (c) 2025 Alex + ChatGPT
+   ========================= */
+
+/* ---------- Seeded RNG ---------- */
+function cyrb128(str){
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i=0, k; i<str.length; i++){
+    k = str.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1>>>18), 597399067);
+  h2 = Math.imul(h4 ^ (h2>>>22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3>>>17), 951274213);
+  h4 = Math.imul(h2 ^ (h4>>>19), 2716044179);
+  return [(h1^h2^h3^h4)>>>0, h2>>>0, h3>>>0, h4>>>0];
+}
+function mulberry32(a){ return function(){let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15, t|1); t^=t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296; }}
+
+/* ---------- Simplex Noise (2D) ---------- */
+// Lightweight 2D simplex noise (Stefan Gustavson’s permutation, adapted).
+const Simplex = (function(){
+  const F2 = 0.5*(Math.sqrt(3.0)-1.0);
+  const G2 = (3.0-Math.sqrt(3.0))/6.0;
+  let perm = new Uint8Array(512);
+  let grad3 = new Float32Array([1,1,-1,1,1,-1,-1,-1, 1,0,-1,0,1,0,-1,0, 0,1,0,-1,0,1,0,-1]);
+  function reseed(rand){
+    let p = new Uint8Array(256);
+    for(let i=0;i<256;i++) p[i]=i;
+    for(let i=255;i>0;i--){
+      let n = Math.floor(rand()*(i+1));
+      let tmp = p[i]; p[i]=p[n]; p[n]=tmp;
+    }
+    for(let i=0;i<512;i++) perm[i]=p[i&255];
+  }
+  function noise2D(xin,yin){
+    let n0,n1,n2;
+    let s=(xin+yin)*F2;
+    let i=Math.floor(xin+s);
+    let j=Math.floor(yin+s);
+    let t=(i+j)*G2;
+    let X0=i-t; let Y0=j-t;
+    let x0=xin-X0; let y0=yin-Y0;
+    let i1, j1;
+    if(x0>y0){i1=1; j1=0;} else {i1=0; j1=1;}
+    let x1=x0 - i1 + G2;
+    let y1=y0 - j1 + G2;
+    let x2=x0 - 1.0 + 2.0*G2;
+    let y2=y0 - 1.0 + 2.0*G2;
+    let ii=i & 255; let jj=j & 255;
+    let gi0 = perm[ii+perm[jj]] % 12;
+    let gi1 = perm[ii+i1+perm[jj+j1]] % 12;
+    let gi2 = perm[ii+1+perm[jj+1]] % 12;
+    let t0 = 0.5 - x0*x0 - y0*y0;
+    if(t0<0) n0=0.0; else { t0*=t0; let gi=gi0*2; n0 = t0*t0*(grad3[gi]*x0 + grad3[gi+1]*y0); }
+    let t1 = 0.5 - x1*x1 - y1*y1;
+    if(t1<0) n1=0.0; else { t1*=t1; let gi=gi1*2; n1 = t1*t1*(grad3[gi]*x1 + grad3[gi+1]*y1); }
+    let t2 = 0.5 - x2*x2 - y2*y2;
+    if(t2<0) n2=0.0; else { t2*=t2; let gi=gi2*2; n2 = t2*t2*(grad3[gi]*x2 + grad3[gi+1]*y2); }
+    return 70.0*(n0+n1+n2);
+  }
+  return { reseed, noise2D };
+})();
+
+/* ---------- Brush stamp ---------- */
+function makeBrush(rand, size=28){
+  const b = document.createElement('canvas');
+  b.width = b.height = size;
+  const ctx = b.getContext('2d');
+  ctx.clearRect(0,0,size,size);
+  // Base oval
+  ctx.save();
+  ctx.translate(size/2, size/2);
+  const rX = size*0.48, rY = size*0.34;
+  ctx.beginPath();
+  ctx.ellipse(0,0,rX,rY,0,0,Math.PI*2);
+  // Make irregular alpha using noisy clipping
+  ctx.clip();
+  // Paint bristly texture
+  for(let i=0;i<220;i++){
+    const a = rand()*Math.PI*2;
+    const r = (rand()*0.5+0.5)*rX;
+    const x = Math.cos(a)*r;
+    const y = Math.sin(a)*r*(rY/rX);
+    const alpha = 0.045 + rand()*0.05;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(x-1,y-1,2,2);
+  }
+  ctx.restore();
+  return b;
+}
+
+/* ---------- Color utilities ---------- */
+function hsl(h,s,l){ return `hsl(${h},${s}%,${l}%)`; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function mixColor(c1, c2, t){ // simple numeric HSL mix when given as [h,s,l]
+  return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+}
+
+/* ---------- Palette based on seed/time ---------- */
+function makePalette(rand){
+  // Times: 0 dawn, 1 day, 2 golden hour, 3 dusk, 4 night
+  const timeIdx = Math.floor(rand()*5);
+  const palettes = [
+    { name:"dawn", sky1:[12,75,12], sky2:[210,80,65], land:[110,45,28], accent:[35,85,62] },
+    { name:"day", sky1:[205,80,80], sky2:[215,85,65], land:[110,35,34], accent:[140,45,40] },
+    { name:"golden", sky1:[30,90,70], sky2:[8,80,55], land:[100,35,34], accent:[28,90,56] },
+    { name:"dusk", sky1:[260,45,40], sky2:[10,75,38], land:[110,30,28], accent:[220,50,48] },
+    { name:"night", sky1:[220,55,16], sky2:[205,50,10], land:[120,18,18], accent:[210,70,65] }
+  ];
+  const p = palettes[timeIdx];
+  const sunDir = (rand()*Math.PI*2); // lighting direction in radians
+  return { ...p, sunDir };
+}
+
+/* ---------- Landscape heightfields ---------- */
+function makeHeight(rand, width, octaves=4, scale=0.002){
+  const hs = new Float32Array(width);
+  const ox = rand()*1000, oy = rand()*1000;
+  for(let x=0;x<width;x++){
+    let n=0, amp=1, freq=1;
+    for(let o=0;o<octaves;o++){
+      n += Simplex.noise2D((x+ox)*scale*freq, oy*scale*freq)*amp;
+      amp *= 0.55; freq *= 2;
+    }
+    hs[x] = n;
+  }
+  return hs;
+}
+
+/* ---------- Stroke helper ---------- */
+function paintStroke(ctx, brush, x, y, len, ang, color, alpha, highlight, lightAngle){
+  ctx.globalAlpha = alpha;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(ang);
+  // Base stroke — multiple stamps along length
+  const steps = Math.max(2, Math.floor(len / (brush.width*0.4)));
+  ctx.fillStyle = color;
+  for(let i=0;i<steps;i++){
+    const t = i/(steps-1);
+    ctx.globalAlpha = alpha * (0.85 + 0.3*Math.sin(t*Math.PI));
+    ctx.drawImage(brush, -brush.width/2 + (t-0.5)*len, -brush.height/2);
+  }
+  // Impasto highlight (fake lighting): slight offset with lighter color
+  if(highlight){
+    ctx.globalAlpha = alpha*0.4;
+    ctx.translate(Math.cos(lightAngle)*1.2, Math.sin(lightAngle)*1.2);
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i=0;i<steps;i++){
+      const t = i/(steps-1);
+      ctx.drawImage(brush, -brush.width/2 + (t-0.5)*len, -brush.height/2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- Scene render ---------- */
+function render(seed, targetCanvas, hires=false){
+  const c = targetCanvas;
+  const ctx = c.getContext('2d', { alpha:false, desynchronized:true });
+  const w = c.width, h = c.height;
+
+  // Seed & RNG
+  const s = cyrb128(String(seed));
+  const rand = mulberry32(s[0]);
+  Simplex.reseed(rand);
+
+  // Palette & lighting
+  const palette = makePalette(rand);
+  const lightAngle = palette.sunDir;
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0,0,0,h*0.75);
+  const skyTop = palette.sky1; const skyBot = palette.sky2;
+  skyGrad.addColorStop(0, hsl(...skyTop));
+  skyGrad.addColorStop(1, hsl(...skyBot));
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0,0,w,h);
+
+  // Clouds (noise billows)
+  ctx.save();
+  const cloudLayers = 3 + Math.floor(rand()*3);
+  for(let L=0; L<cloudLayers; L++){
+    const yBase = h*0.1 + L*(h*0.12);
+    const scale = 0.004 + L*0.0015;
+    ctx.globalAlpha = 0.07 + 0.04*(cloudLayers-L);
+    for(let x=0; x<w; x+=4){
+      const n = Simplex.noise2D(x*scale, yBase*scale + L*10);
+      const y = yBase + n*40;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(x, y, 6, 16);
+    }
+  }
+  ctx.restore();
+
+  // Distant mountains
+  const ridge = makeHeight(rand, w, 5, 0.0019);
+  for(let yBand=0; yBand<3; yBand++){
+    let baseY = h*0.45 + yBand*35;
+    const tint = mixColor(palette.land, [palette.land[0], palette.land[1]*0.9, palette.land[2]+(yBand*8)], 0.6);
+    ctx.fillStyle = hsl(...tint);
+    ctx.beginPath();
+    ctx.moveTo(0,h);
+    for(let x=0;x<w;x++){
+      const y = baseY + ridge[x]* (28 - yBand*6);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w,h); ctx.closePath(); ctx.fill();
+  }
+
+  // Midground rolling hills with broad strokes
+  const rand2 = mulberry32(s[1]);
+  const brushBig = makeBrush(rand2, hires?64:36);
+  for(let i=0;i<900;i++){
+    const t = i/900;
+    const y = lerp(h*0.5, h*0.92, t*t);
+    const x = (rand2()*w);
+    const hueJitter = (rand2()*8 - 4);
+    const base = palette.land;
+    const col = [ (base[0]+hueJitter), base[1]*0.95, clamp(base[2] + (t*22), 12, 58) ];
+    const len = (hires?36:22) + rand2()*18;
+    const ang = (Math.sin((x+y)*0.002)*0.2) + (rand2()*0.3-0.15);
+    paintStroke(ctx, brushBig, x, y, len, ang, hsl(...col), 0.35, true, lightAngle);
+  }
+
+  // Water or path (seed toggled)
+  if ((s[2] & 1) === 1){
+    ctx.save();
+    const riverY = h*0.72;
+    const grad = ctx.createLinearGradient(0,riverY-40,0,riverY+80);
+    const waterTop = mixColor(palette.sky2, [210,50,40], 0.5);
+    const waterBot = [210,45,18];
+    grad.addColorStop(0, hsl(...waterTop));
+    grad.addColorStop(1, hsl(...waterBot));
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(0, riverY);
+    for(let x=0;x<w;x++){
+      const y = riverY + Simplex.noise2D(x*0.006, 0)*8 + Math.sin(x*0.01)*2;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(w, h); ctx.lineTo(0,h); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // Foreground trees/dabs
+  const rand3 = mulberry32(s[2]);
+  const brushSmall = makeBrush(rand3, hires?40:26);
+  const trees = 40 + Math.floor(rand3()*30);
+  for(let i=0;i<trees;i++){
+    const x = rand3()*w;
+    const y = lerp(h*0.58, h*0.95, Math.pow(rand3(), 1.5));
+    const base = [palette.land[0]+(rand3()*6-3), palette.land[1]*0.9, clamp(palette.land[2]-8, 8, 50)];
+    const len = (hires?38:24) + rand3()*20;
+    const ang = -0.02 + rand3()*0.04;
+    // darker core
+    paintStroke(ctx, brushSmall, x, y, len*0.6, ang, hsl(base[0], base[1], clamp(base[2]-10, 6, 40)), 0.55, false, lightAngle);
+    // leafy highlight
+    paintStroke(ctx, brushSmall, x, y-4, len, ang, hsl(base[0], base[1], clamp(base[2]+8, 12, 62)), 0.35, true, lightAngle);
+  }
+
+  // Vignette to ground the scene
+  const vg = ctx.createRadialGradient(w*0.5,h*0.65, Math.min(w,h)*0.1, w*0.5,h*0.65, Math.max(w,h)*0.8);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,w,h);
+
+  // Seed label (tiny)
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = "700 11px Helvetica, Arial, sans-serif";
+  ctx.fillText(String(seed).toUpperCase(), 10, h-10);
+}
+
+/* ---------- App wiring ---------- */
+const canvas = document.getElementById('canvas');
+const generateBtn = document.getElementById('generate');
+const downloadBtn = document.getElementById('download');
+const seedInput = document.getElementById('seed');
+
+function fitCanvas(){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+}
+window.addEventListener('resize', ()=>{
+  fitCanvas();
+  if(seedInput.value) render(seedInput.value, canvas, false);
+});
+
+function randomSeed(){
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function generate(){
+  const seed = (seedInput.value || randomSeed()).trim();
+  seedInput.value = seed;
+  fitCanvas();
+  render(seed, canvas, false);
+}
+
+function downloadHiRes(){
+  const seed = (seedInput.value || randomSeed()).trim();
+  seedInput.value = seed;
+  // Render at high resolution offscreen (e.g., 2048x1152 16:9)
+  const off = document.createElement('canvas');
+  const W = 2048, H = 1152;
+  off.width = W; off.height = H;
+  render(seed, off, true);
+  const link = document.createElement('a');
+  link.download = `${seed}_oilseed.png`;
+  link.href = off.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  requestAnimationFrame(()=> link.remove());
+}
+
+generateBtn.addEventListener('click', generate);
+downloadBtn.addEventListener('click', downloadHiRes);
+
+// Auto-generate on load
+seedInput.value = randomSeed();
+generate();
+
+</script>
+</body>
+</html>

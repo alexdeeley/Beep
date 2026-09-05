@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Factorial Melody Generator</title>
+  <style>
+    :root{
+      --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.6);
+      --border:6px; --pad:18px;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+    html,body{
+      width:100%; height:100%; margin:0;
+      background:var(--bg); color:var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow:hidden; touch-action:manipulation;
+    }
+    body{display:flex; align-items:center; justify-content:center;}
+    #app{
+      width:min(980px, 92vw);
+      border:var(--border) solid var(--fg);
+      border-radius:18px;
+      padding:var(--pad);
+      display:flex; flex-direction:column; gap:14px;
+      position:relative;
+    }
+    #big{
+      font-size: clamp(44px, 12vw, 130px);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      line-height: 0.95;
+      user-select:none;
+      text-align:center;
+      padding: 10px 8px;
+      border: 3px solid var(--fg);
+      border-radius: 14px;
+      min-height: 1.2em;
+      display:flex; align-items:center; justify-content:center;
+    }
+    #sub{
+      display:flex; flex-wrap:wrap; gap:10px;
+      align-items:center; justify-content:space-between;
+      font-size: clamp(14px, 2.3vw, 20px);
+      color: var(--dim);
+      user-select:none;
+    }
+    .pill{
+      border:2px solid var(--fg);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--fg);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    #hint{
+      font-size: clamp(12px, 2vw, 16px);
+      color: var(--dim);
+      text-align:center;
+      user-select:none;
+      margin-top:2px;
+    }
+    canvas{
+      width:100%;
+      height: clamp(140px, 26vh, 260px);
+      border:3px solid var(--fg);
+      border-radius:14px;
+      background:#000;
+      display:block;
+    }
+    #toast{
+      position:absolute; left:50%; top:14px; transform:translateX(-50%);
+      background:#000;
+      border:2px solid var(--fg);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:800;
+      font-size: 14px;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .18s ease;
+      white-space:nowrap;
+    }
+    #toast.show{opacity:1;}
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="app" aria-label="Factorial Melody Generator">
+    <div id="toast"></div>
+    <div id="big">TAP TO START</div>
+
+    <div id="sub">
+      <div class="pill" id="nPill">n = 3</div>
+      <div class="pill" id="modePill">mode: factorial-digits</div>
+      <div class="pill" id="tempoPill">bpm: 110</div>
+    </div>
+
+    <canvas id="viz" width="1200" height="360" aria-hidden="true"></canvas>
+
+    <div id="hint">
+      Tap: play/pause · Swipe up/down: change n · Double-tap: toggle mode · Long-press: reset
+    </div>
+  </div>
+
+<script>
+(() => {
+  // -------------------------
+  // State
+  // -------------------------
+  let n = 3;
+  let running = false;
+  let mode = "factorial-digits"; // or "random"
+  let audioCtx = null;
+
+  // BigInt factorial cache: factorial(n) = factVal
+  let factN = 1;
+  let factVal = 1n;
+
+  // Scheduler
+  const LOOKAHEAD_MS = 25;
+  const SCHEDULE_AHEAD_S = 0.18;
+  let schedulerTimer = null;
+  let nextNoteTime = 0;
+  let stepIndex = 0;
+
+  // UI
+  const big = document.getElementById("big");
+  const nPill = document.getElementById("nPill");
+  const modePill = document.getElementById("modePill");
+  const tempoPill = document.getElementById("tempoPill");
+  const toast = document.getElementById("toast");
+
+  // Viz
+  const canvas = document.getElementById("viz");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const trails = [];
+  const MAX_TRAILS = 140;
+
+  function showToast(text){
+    toast.textContent = text;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove("show"), 750);
+  }
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  // -------------------------
+  // Musical materials
+  // -------------------------
+  // Build a "pentatonic-ish" scale from semitone offsets (relative to A3=220)
+  // Offsets give a clean, pleasant palette.
+  const baseHz = 220;
+  const semis = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24];
+  const scale = semis.map(s => baseHz * Math.pow(2, s/12));
+
+  // -------------------------
+  // Audio graph
+  // -------------------------
+  let master, delay, fb, dMix, filter;
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = audioCtx.createGain();
+    master.gain.value = 0.8;
+
+    // Gentle lowpass to keep it soft
+    filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 2400;
+
+    // Simple delay "space" (always on but subtle)
+    delay = audioCtx.createDelay(1.0);
+    delay.delayTime.value = 0.18;
+
+    fb = audioCtx.createGain();
+    fb.gain.value = 0.32;
+
+    dMix = audioCtx.createGain();
+    dMix.gain.value = 0.25;
+
+    // Routing: synth -> filter -> master -> destination
+    // And a feedback delay send mixed back into master.
+    filter.connect(master);
+    master.connect(audioCtx.destination);
+
+    filter.connect(delay);
+    delay.connect(fb);
+    fb.connect(delay);
+    delay.connect(dMix);
+    dMix.connect(master);
+  }
+
+  function env(g, t, a, d){
+    // attack then exponential decay
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0.00001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + a);
+    g.gain.exponentialRampToValueAtTime(0.00001, t + a + d);
+  }
+
+  function playNoteAt(freq, t, vel=1){
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    // Slightly richer than sine but still smooth
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, t);
+
+    // Small detune shimmer based on n
+    const det = (Math.sin((n*31 + stepIndex)*0.17) * 6);
+    osc.detune.setValueAtTime(det, t);
+
+    gain.gain.value = 0.00001;
+
+    osc.connect(gain);
+    gain.connect(filter);
+
+    env(gain, t, 0.01, 0.24 + (0.003 * clamp(n, 0, 120)));
+    osc.start(t);
+    osc.stop(t + 0.6);
+  }
+
+  // -------------------------
+  // Factorial math (BigInt)
+  // -------------------------
+  function factorialTo(targetN){
+    // Update cache up to targetN
+    if (targetN < 1) targetN = 1;
+    if (targetN < factN){
+      // reset cache if we go backwards
+      factN = 1;
+      factVal = 1n;
+    }
+    for (let i = factN + 1; i <= targetN; i++){
+      factVal *= BigInt(i);
+      factN = i;
+    }
+    return factVal;
+  }
+
+  function getDigitPattern(){
+    const f = factorialTo(n);
+    const s = f.toString();
+    // Use last 64 digits (enough "complexity" without huge string costs)
+    const tail = s.slice(-64);
+    return tail;
+  }
+
+  // -------------------------
+  // Timing / scheduling
+  // -------------------------
+  function bpmFromN(){
+    // Starts steady and gets a bit faster, then saturates.
+    const bpm = 90 + Math.floor(clamp(n, 0, 140) * 0.55);
+    return clamp(bpm, 90, 160);
+  }
+
+  function stepDurFromBpm(bpm){
+    // 16th notes
+    return (60 / bpm) / 4;
+  }
+
+  function pickNote(){
+    if (mode === "random"){
+      const pool = Math.min(scale.length, Math.max(3, Math.floor(n/2)));
+      const idx = Math.floor(Math.random() * pool);
+      return { idx, digit: null };
+    }
+
+    const digits = getDigitPattern();
+    const d = digits.charCodeAt(stepIndex % digits.length) - 48; // '0'..'9'
+    const idx = (d % scale.length);
+    return { idx, digit: d };
+  }
+
+  function scheduleNote(t){
+    const bpm = bpmFromN();
+    const stepDur = stepDurFromBpm(bpm);
+
+    const { idx, digit } = pickNote();
+    const freq = scale[idx];
+
+    // Occasionally make a fifth above (derived from digit)
+    if (digit !== null && (digit === 7 || digit === 9) && Math.random() > 0.45){
+      playNoteAt(freq * Math.pow(2, 7/12), t, 0.85);
+    }
+    playNoteAt(freq, t, 1);
+
+    // Visual trail
+    spawnTrail(idx, digit);
+
+    // Evolve n slowly: increase every ~2 bars with some randomness
+    // Bars here = 16 steps
+    if (stepIndex % 32 === 31 && n < 180 && Math.random() > 0.35){
+      n += 1;
+      showToast(`n → ${n}`);
+    }
+
+    stepIndex++;
+    return stepDur;
+  }
+
+  function scheduler(){
+    if (!running || !audioCtx) return;
+    while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_S){
+      const dur = scheduleNote(nextNoteTime);
+
+      // Add deterministic-ish jitter from n (keeps it "alive" but stable)
+      const jitter = (Math.sin((n*13 + stepIndex)*0.31) * 0.006);
+      nextNoteTime += Math.max(0.03, dur + jitter);
+    }
+  }
+
+  function start(){
+    ensureAudio();
+    audioCtx.resume?.();
+
+    running = true;
+    big.textContent = `${n}!`;
+    nextNoteTime = audioCtx.currentTime + 0.06;
+    stepIndex = 0;
+
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    schedulerTimer = setInterval(scheduler, LOOKAHEAD_MS);
+
+    updateUI();
+  }
+
+  function stop(){
+    running = false;
+    big.textContent = "PAUSED";
+    if (schedulerTimer){
+      clearInterval(schedulerTimer);
+      schedulerTimer = null;
+    }
+    updateUI();
+  }
+
+  function toggle(){
+    if (!audioCtx) ensureAudio();
+    if (!running) start();
+    else stop();
+  }
+
+  function resetAll(){
+    n = 3;
+    factN = 1; factVal = 1n;
+    stepIndex = 0;
+    showToast("reset");
+    updateUI();
+    big.textContent = running ? `${n}!` : "TAP TO START";
+  }
+
+  // -------------------------
+  // UI updates
+  // -------------------------
+  function updateUI(){
+    nPill.textContent = `n = ${n}`;
+    modePill.textContent = `mode: ${mode}`;
+    tempoPill.textContent = `bpm: ${bpmFromN()}`;
+
+    if (running){
+      big.textContent = `${n}!`;
+    }
+  }
+
+  // -------------------------
+  // Touch / gestures
+  // -------------------------
+  let lastTap = 0;
+  let pressTimer = null;
+  let startY = null;
+
+  function onPointerDown(e){
+    startY = (e.touches ? e.touches[0].clientY : e.clientY);
+
+    // Long press to reset
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      resetAll();
+      // Prevent immediate toggle on release
+      lastTap = Date.now();
+    }, 650);
+  }
+
+  function onPointerMove(e){
+    if (startY == null) return;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY);
+    const dy = y - startY;
+
+    // Swipe threshold
+    if (Math.abs(dy) > 38){
+      clearTimeout(pressTimer);
+      const delta = dy < 0 ? 1 : -1;
+      n = clamp(n + delta, 1, 220);
+      updateUI();
+      showToast(`n = ${n}`);
+      startY = y; // allow repeated swipes
+    }
+  }
+
+  function onPointerUp(){
+    clearTimeout(pressTimer);
+
+    const now = Date.now();
+    const dt = now - lastTap;
+
+    // Double-tap toggles mode
+    if (dt < 280){
+      mode = (mode === "factorial-digits") ? "random" : "factorial-digits";
+      showToast(mode === "random" ? "mode: random" : "mode: factorial");
+      updateUI();
+      lastTap = 0;
+      return;
+    }
+
+    // Single tap toggles play/pause (ignore if it was a long-press reset)
+    if (dt > 450){
+      toggle();
+    }
+    lastTap = now;
+    startY = null;
+  }
+
+  // -------------------------
+  // Visuals
+  // -------------------------
+  function spawnTrail(idx, digit){
+    const x = (idx / (scale.length - 1)) * W;
+    const amp = (digit == null ? Math.random() : digit / 9);
+    trails.push({
+      x, y: H * (0.15 + amp * 0.7),
+      r: 6 + amp * 20,
+      a: 1,
+      v: 0.006 + amp * 0.012
+    });
+    if (trails.length > MAX_TRAILS) trails.splice(0, trails.length - MAX_TRAILS);
+  }
+
+  function draw(){
+    // Fade with alpha for a "CRT-ish" trail without colors
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0,0,W,H);
+
+    // Baseline
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, H/2);
+    ctx.lineTo(W, H/2);
+    ctx.stroke();
+
+    // Trails
+    for (let i=0; i<trails.length; i++){
+      const p = trails[i];
+      p.a -= p.v;
+      p.r += 0.24;
+
+      if (p.a <= 0) continue;
+
+      ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, p.a)})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    // Clean up dead
+    for (let i=trails.length-1; i>=0; i--){
+      if (trails[i].a <= 0) trails.splice(i,1);
+    }
+
+    // Text overlay (small, minimal)
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    const label = (mode === "factorial-digits")
+      ? `tail digits → notes · len=${64} · n=${n}`
+      : `random pool grows with n · n=${n}`;
+    ctx.fillText(label, 16, 28);
+
+    requestAnimationFrame(draw);
+  }
+
+  // -------------------------
+  // Wire up
+  // -------------------------
+  // Use pointer events + touch
+  document.body.addEventListener("pointerdown", onPointerDown, {passive:true});
+  document.body.addEventListener("pointermove", onPointerMove, {passive:true});
+  document.body.addEventListener("pointerup", onPointerUp, {passive:true});
+
+  // Safety: if iOS suspends audio, tapping will resume via toggle()
+  updateUI();
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+  draw();
+})();
+</script>
+</body>
+</html>

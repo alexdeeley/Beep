@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>VERTI-FALL DRAW WALLS</title>
+<style>
+  :root{ --bg:#000; --fg:#fff; --muted:rgba(255,255,255,.65); }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden; }
+  body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  canvas{ position:fixed; inset:0; width:100%; height:100%; touch-action:none; }
+  #hud{
+    position:fixed; left:14px; top:14px; z-index:10;
+    display:flex; flex-direction:column; gap:10px; align-items:flex-start;
+    user-select:none; -webkit-user-select:none;
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  button{
+    background:var(--fg); color:var(--bg);
+    border:0; border-radius:14px;
+    padding:14px 16px;
+    font-weight:900; letter-spacing:.06em;
+    font-size:14px;
+    box-shadow:0 0 0 3px var(--fg) inset;
+  }
+  button.secondary{
+    background:transparent; color:var(--fg);
+  }
+  button:active{ transform:scale(.98); }
+  #pill{
+    background:rgba(255,255,255,.08);
+    border:2px solid rgba(255,255,255,.35);
+    padding:10px 12px; border-radius:16px;
+    font-weight:800; letter-spacing:.04em;
+    max-width:min(520px, calc(100vw - 28px));
+  }
+  #pill .muted{ color:var(--muted); font-weight:700; }
+  #toast{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:18px; z-index:20;
+    background:rgba(0,0,0,.65);
+    border:2px solid rgba(255,255,255,.45);
+    padding:10px 14px; border-radius:16px;
+    font-weight:800; letter-spacing:.03em;
+    opacity:0; transition:opacity .18s ease;
+    pointer-events:none;
+  }
+  #toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="row">
+    <button id="modeBtn" title="Toggle draw/play">DRAW WALLS</button>
+    <button id="resetBtn" class="secondary" title="Reset ball">RESET BALL</button>
+    <button id="clearBtn" class="secondary" title="Clear all drawings">CLEAR</button>
+  </div>
+  <div id="pill">
+    <div><span id="modeLabel">DRAW MODE</span> <span class="muted">• one finger draws • two fingers pan camera • ball keeps falling</span></div>
+    <div class="muted" style="margin-top:6px">Tip: draw slanted lines to make ramps. Close shapes for “boxes”.</div>
+  </div>
+</div>
+<div id="toast">Audio unlocked</div>
+
+<script>
+(() => {
+  // ===== Canvas setup =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+
+  const DPR = () => Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  function resize(){
+    const dpr = DPR();
+    canvas.width = Math.floor(innerWidth * dpr);
+    canvas.height = Math.floor(innerHeight * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ===== UI =====
+  const modeBtn = document.getElementById('modeBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const modeLabel = document.getElementById('modeLabel');
+  let drawMode = true;
+
+  function setMode(on){
+    drawMode = on;
+    modeBtn.textContent = on ? "DRAW WALLS" : "PLAY";
+    modeLabel.textContent = on ? "DRAW MODE" : "PLAY MODE";
+    modeBtn.classList.toggle('secondary', !on);
+  }
+  modeBtn.addEventListener('click', () => setMode(!drawMode));
+  resetBtn.addEventListener('click', () => resetBall(true));
+  clearBtn.addEventListener('click', () => {
+    strokes.length = 0;
+    segments.length = 0;
+    showToast("Cleared.");
+  });
+
+  // ===== World / Camera =====
+  // World coordinates: +y is downward. Camera follows ball (viewer falling with it).
+  let cameraY = 0; // world y at top of screen
+  let manualPanY = 0; // two-finger pan offset
+  const cameraFollowStrength = 0.12; // smoothing
+
+  // ===== Ball physics =====
+  const ball = {
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    r: 18
+  };
+  const GRAV = 1500; // px/s^2
+  const AIR = 0.999; // drag
+  const REST = 0.35; // bounciness
+  const FRICTION = 0.92;
+
+  function resetBall(center=false){
+    const w = innerWidth, h = innerHeight;
+    ball.x = center ? w*0.5 : clamp(ball.x, 80, w-80);
+    ball.y = cameraY + h*0.28;
+    ball.vx = (Math.random()*2-1) * 80;
+    ball.vy = 0;
+  }
+  resetBall(true);
+
+  // ===== Drawing storage =====
+  // strokes: array of { pts:[{x,y}], t, w } in world coords (for rendering)
+  // segments: array of { ax,ay,bx,by, w } for collision
+  const strokes = [];
+  const segments = [];
+  const DRAW_WIDTH = 10; // "wall thickness"
+  const MIN_PT_DIST = 4; // simplify points
+
+  // ===== Utilities =====
+  const clamp = (v,a,b)=>Math.max(a, Math.min(b,v));
+  const dist2 = (ax,ay,bx,by)=>{
+    const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy;
+  };
+
+  function screenToWorld(sx, sy){
+    // world y includes cameraY and manual pan
+    return { x: sx, y: sy + cameraY + manualPanY };
+  }
+
+  function worldToScreen(wx, wy){
+    return { x: wx, y: wy - (cameraY + manualPanY) };
+  }
+
+  // ===== Touch / Pointer handling =====
+  let drawing = false;
+  let currentStroke = null;
+
+  // Two-finger pan
+  let twoFinger = false;
+  let lastPanY = 0;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    // Multi-touch on iOS: pointer events still work; track pointers
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    updateGestureState();
+
+    if (twoFinger){
+      lastPanY = averagePointerY();
+      return;
+    }
+    if (!drawMode) return;
+
+    drawing = true;
+    const p = screenToWorld(e.clientX, e.clientY);
+    currentStroke = { pts:[p], t:performance.now(), w:DRAW_WIDTH };
+    strokes.push(currentStroke);
+  }, {passive:false});
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.get(e.pointerId).x = e.clientX;
+    pointers.get(e.pointerId).y = e.clientY;
+    updateGestureState();
+
+    if (twoFinger){
+      const y = averagePointerY();
+      const dy = y - lastPanY;
+      manualPanY -= dy; // drag content with fingers
+      lastPanY = y;
+      return;
+    }
+
+    if (!drawMode || !drawing || !currentStroke) return;
+
+    const p = screenToWorld(e.clientX, e.clientY);
+    const pts = currentStroke.pts;
+    const lp = pts[pts.length-1];
+    if (dist2(lp.x, lp.y, p.x, p.y) < MIN_PT_DIST*MIN_PT_DIST) return;
+
+    // Add point and segment
+    pts.push(p);
+    const a = lp, b = p;
+    segments.push({ ax:a.x, ay:a.y, bx:b.x, by:b.y, w:currentStroke.w });
+  }, {passive:false});
+
+  canvas.addEventListener('pointerup', (e) => {
+    pointers.delete(e.pointerId);
+    updateGestureState();
+
+    drawing = false;
+    currentStroke = null;
+  }, {passive:false});
+
+  canvas.addEventListener('pointercancel', (e) => {
+    pointers.delete(e.pointerId);
+    updateGestureState();
+    drawing = false;
+    currentStroke = null;
+  }, {passive:false});
+
+  // Pointer tracking for pinch/pan detection
+  const pointers = new Map();
+  function updateGestureState(){
+    twoFinger = pointers.size >= 2;
+  }
+  function averagePointerY(){
+    let s=0, n=0;
+    for (const p of pointers.values()){ s += p.y; n++; }
+    return n ? s/n : 0;
+  }
+
+  // ===== Glowy starfield-ish background (procedural) =====
+  const stars = Array.from({length:220}, () => ({
+    x: Math.random()*innerWidth,
+    y: Math.random()*innerHeight,
+    z: 0.2 + Math.random()*0.8,
+    tw: Math.random()*Math.PI*2
+  }));
+  function drawBackground(dt){
+    // subtle vertical streaks to emphasize falling
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,innerWidth,innerHeight);
+
+    // "rain" streaks
+    const t = performance.now()*0.001;
+    ctx.globalAlpha = 0.18;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i=0;i<90;i++){
+      const x = (i/90)*innerWidth + Math.sin(t*0.6+i)*6;
+      const sp = 80 + i*2;
+      const y0 = ((t*sp) % (innerHeight+200)) - 200;
+      ctx.moveTo(x, y0);
+      ctx.lineTo(x, y0+120);
+    }
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // stars (parallax)
+    ctx.globalAlpha = 0.65;
+    for (const s of stars){
+      const sy = (s.y + (cameraY+manualPanY)*s.z*0.08) % (innerHeight+60) - 30;
+      const tw = 0.35 + 0.35*Math.sin(t*2 + s.tw);
+      ctx.globalAlpha = 0.25 + tw*0.35;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(s.x, sy, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ===== Collision with segments =====
+  function collideBallWithSegment(seg){
+    const ax=seg.ax, ay=seg.ay, bx=seg.bx, by=seg.by;
+    const cx=ball.x, cy=ball.y;
+    const r = ball.r + seg.w*0.5;
+
+    const abx = bx-ax, aby = by-ay;
+    const acx = cx-ax, acy = cy-ay;
+    const abLen2 = abx*abx + aby*aby || 1e-9;
+    let t = (acx*abx + acy*aby)/abLen2;
+    t = clamp(t, 0, 1);
+    const px = ax + abx*t;
+    const py = ay + aby*t;
+
+    const dx = cx-px, dy = cy-py;
+    const d2 = dx*dx + dy*dy;
+    if (d2 >= r*r) return;
+
+    const d = Math.sqrt(d2) || 0.0001;
+    const nx = dx/d, ny = dy/d;
+
+    // Push out
+    const pen = (r - d);
+    ball.x += nx * pen;
+    ball.y += ny * pen;
+
+    // Reflect velocity along normal + friction along tangent
+    const vn = ball.vx*nx + ball.vy*ny;
+    if (vn < 0){
+      // remove normal component and bounce
+      ball.vx -= (1 + REST) * vn * nx;
+      ball.vy -= (1 + REST) * vn * ny;
+
+      // Tangent friction
+      const tx = -ny, ty = nx;
+      const vt = ball.vx*tx + ball.vy*ty;
+      ball.vx -= vt * tx * (1 - FRICTION);
+      ball.vy -= vt * ty * (1 - FRICTION);
+    }
+  }
+
+  // ===== World bounds (simple invisible side walls) =====
+  function collideWalls(){
+    const left = 18, right = innerWidth - 18;
+    if (ball.x - ball.r < left){
+      ball.x = left + ball.r;
+      ball.vx = Math.abs(ball.vx) * 0.7;
+    } else if (ball.x + ball.r > right){
+      ball.x = right - ball.r;
+      ball.vx = -Math.abs(ball.vx) * 0.7;
+    }
+  }
+
+  // ===== Rendering =====
+  function drawStrokes(){
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#fff";
+
+    for (const s of strokes){
+      const pts = s.pts;
+      if (pts.length < 2) continue;
+      ctx.lineWidth = s.w;
+      ctx.beginPath();
+      let p0 = worldToScreen(pts[0].x, pts[0].y);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i=1;i<pts.length;i++){
+        const p = worldToScreen(pts[i].x, pts[i].y);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawBall(){
+    const p = worldToScreen(ball.x, ball.y);
+
+    // outer ring
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, ball.r, 0, Math.PI*2);
+    ctx.stroke();
+
+    // inner dot
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(3, ball.r*0.22), 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawFrame(dt){
+    drawBackground(dt);
+
+    // Draw "ground tick marks" for motion illusion (faint)
+    const t = performance.now()*0.001;
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i=0;i<18;i++){
+      const y = ((i*120 + (cameraY+manualPanY)*0.35) % (innerHeight+140)) - 70;
+      const x0 = 20 + (i%3)*14;
+      ctx.moveTo(x0, y);
+      ctx.lineTo(x0+40, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    drawStrokes();
+    drawBall();
+
+    // Minimal readout (top right)
+    ctx.font = "900 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.fillText(`DEPTH ${Math.floor(ball.y/10)}m`, innerWidth-14, 26);
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    ctx.fillText(drawMode ? "DRAW" : "PLAY", innerWidth-14, 46);
+  }
+
+  // ===== Simulation loop =====
+  let last = performance.now();
+  function tick(now){
+    const dt = clamp((now - last)/1000, 0, 1/20);
+    last = now;
+
+    // physics (always runs; ball keeps falling even in draw mode)
+    ball.vy += GRAV * dt;
+    ball.vx *= AIR;
+    ball.vy *= AIR;
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // Collide segments (only near camera to keep it fast)
+    // We'll scan segments in a window around the ball.
+    const windowTop = ball.y - innerHeight*1.2;
+    const windowBot = ball.y + innerHeight*1.6;
+    for (let i=segments.length-1; i>=0; i--){
+      const s = segments[i];
+      // quick reject by y-range
+      const miny = Math.min(s.ay, s.by) - 80;
+      const maxy = Math.max(s.ay, s.by) + 80;
+      if (maxy < windowTop || miny > windowBot) continue;
+      collideBallWithSegment(s);
+    }
+    collideWalls();
+
+    // camera follows ball so viewer "falls with it"
+    const targetCam = ball.y - innerHeight*0.35;
+    cameraY += (targetCam - cameraY) * cameraFollowStrength;
+
+    // Prevent manual pan from drifting too far
+    manualPanY = clamp(manualPanY, -innerHeight*0.8, innerHeight*1.2);
+
+    drawFrame(dt);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ===== Small quality-of-life: double-tap to toggle mode =====
+  let lastTap = 0;
+  canvas.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 300){
+      setMode(!drawMode);
+    }
+    lastTap = now;
+  }, {passive:true});
+
+  // ===== Tiny toast helper =====
+  const toast = document.getElementById('toast');
+  let toastTimer = null;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toast.classList.remove('show'), 850);
+  }
+
+  // ===== iOS audio unlock (optional, but harmless) =====
+  // (Some iOS versions need a gesture for WebAudio; we don't require audio,
+  // but this keeps future upgrades easy.)
+  let audioUnlocked = false;
+  function unlockAudio(){
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ac = new AC();
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      g.gain.value = 0.00001;
+      o.connect(g).connect(ac.destination);
+      o.start();
+      setTimeout(()=>{ o.stop(); ac.close(); }, 60);
+      showToast("Ready.");
+    }catch{}
+    canvas.removeEventListener('pointerdown', unlockAudio);
+  }
+  canvas.addEventListener('pointerdown', unlockAudio, {passive:true});
+
+  // ===== Start hint =====
+  showToast("Draw ramps. Let it fall.");
+  setMode(true);
+})();
+</script>
+</body>
+</html>

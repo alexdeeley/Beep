@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Arty • Three Shapes</title>
+<style>
+  :root { --ui-bg: #000; --ui-fg: #fff; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .ui {
+    position: fixed;
+    inset: auto 0 0 0;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.0));
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  button, a.button {
+    appearance: none;
+    border: 2px solid #fff;
+    background: transparent;
+    color: #fff;
+    font: 700 18px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    padding: 0.65rem 1rem;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+  button:active, a.button:active {
+    transform: translateY(1px);
+  }
+  .floating {
+    position: fixed;
+    top: 0.6rem;
+    right: 0.6rem;
+    display: flex;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+  .chip {
+    pointer-events: auto;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.4rem 0.7rem;
+    font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .chip[aria-pressed="true"] {
+    background: #fff; color: #000;
+  }
+  /* Big invisible button layer to support easy tapping anywhere */
+  #tapOverlay {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    pointer-events: auto;
+  }
+  /* Hide overlay when UI focus is used */
+  .ui:focus-within ~ #tapOverlay { pointer-events: none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+
+<div class="floating">
+  <button id="rerollChip" class="chip" aria-label="Generate new art" title="Generate (tap or press Space)">↻</button>
+  <button id="contrastChip" class="chip" aria-pressed="false" aria-label="Bias high-contrast" title="Bias high-contrast">HC</button>
+</div>
+
+<div class="ui" aria-hidden="false">
+  <button id="generateBtn" aria-label="Generate new art">Generate</button>
+  <a id="saveBtn" class="button" download="arty-three-shapes.png" href="#" aria-label="Save as PNG">Save</a>
+</div>
+
+<!-- Tap anywhere to re-roll -->
+<div id="tapOverlay" aria-hidden="true"></div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const saveBtn = document.getElementById('saveBtn');
+  const generateBtn = document.getElementById('generateBtn');
+  const tapOverlay = document.getElementById('tapOverlay');
+  const rerollChip = document.getElementById('rerollChip');
+  const contrastChip = document.getElementById('contrastChip');
+
+  let biasHighContrast = false;
+
+  function resize() {
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  }
+
+  function rand(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+  function ri(min, max) {
+    return Math.floor(rand(min, max+1));
+  }
+
+  // Convert HSL to RGB
+  function hsl(h, s, l) {
+    h = (h % 360 + 360) % 360;
+    s = Math.max(0, Math.min(1, s));
+    l = Math.max(0, Math.min(1, l));
+    const c = (1 - Math.abs(2*l - 1)) * s;
+    const x = c * (1 - Math.abs(((h/60) % 2) - 1));
+    const m = l - c/2;
+    let r=0,g=0,b=0;
+    if (0 <= h && h < 60) { r=c; g=x; b=0; }
+    else if (60 <= h && h < 120) { r=x; g=c; b=0; }
+    else if (120 <= h && h < 180) { r=0; g=c; b=x; }
+    else if (180 <= h && h < 240) { r=0; g=x; b=c; }
+    else if (240 <= h && h < 300) { r=x; g=0; b=c; }
+    else { r=c; g=0; b=x; }
+    const R = Math.round((r + m) * 255);
+    const G = Math.round((g + m) * 255);
+    const B = Math.round((b + m) * 255);
+    return {r:R,g:G,b:B};
+  }
+
+  function rgbStr(rgb, alpha=1) {
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+  }
+
+  // Relative luminance (WCAG)
+  function luminance({r, g, b}) {
+    const srgb = [r/255, g/255, b/255].map(v => {
+      return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+    });
+    return 0.2126*srgb[0] + 0.7152*srgb[1] + 0.0722*srgb[2];
+  }
+  function contrastRatio(rgb1, rgb2) {
+    const L1 = luminance(rgb1);
+    const L2 = luminance(rgb2);
+    const [a, b] = L1 > L2 ? [L1, L2] : [L2, L1];
+    return (a + 0.05) / (b + 0.05);
+  }
+
+  function pickContrastingColors(n, againstRGB, minContrast) {
+    const picks = [];
+    let attempts = 0;
+    while (picks.length < n && attempts < 500) {
+      attempts++;
+      const h = ri(0, 359);
+      const s = biasHighContrast ? rand(0.65, 1.0) : rand(0.4, 1.0);
+      const l = biasHighContrast ? rand(0.35, 0.65) : rand(0.25, 0.75);
+      const rgb = hsl(h, s, l);
+      if (contrastRatio(rgb, againstRGB) >= minContrast) {
+        // ensure diversity across picks
+        if (picks.every(p => Math.abs(p.h - h) > 30)) {
+          picks.push({h,s,l,rgb});
+        }
+      }
+    }
+    // Fallback: if short, just push what we have and adjust later
+    return picks;
+  }
+
+  function randomBackground() {
+    // Prefer dark backgrounds if high-contrast bias is on
+    const h = ri(0, 359);
+    const s = biasHighContrast ? rand(0.3, 0.8) : rand(0.2, 0.8);
+    const l = biasHighContrast ? rand(0.05, 0.15) : rand(0.15, 0.85);
+    return {h,s,l,rgb: hsl(h,s,l)};
+  }
+
+  function drawTexturedBackdrop(w, h, bg) {
+    // Base fill
+    ctx.save();
+    ctx.fillStyle = rgbStr(bg.rgb, 1);
+    ctx.fillRect(0, 0, w, h);
+
+    // Add a subtle vignette for mood
+    const grad = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.1, w*0.5, h*0.5, Math.max(w,h)*0.65);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,w,h);
+
+    // Subtle noise
+    const noiseSize = Math.max(64, Math.round(Math.min(w,h)/8));
+    const nCanvas = document.createElement('canvas');
+    nCanvas.width = noiseSize; nCanvas.height = noiseSize;
+    const nctx = nCanvas.getContext('2d');
+    const imgData = nctx.createImageData(noiseSize, noiseSize);
+    for (let i=0;i<imgData.data.length;i+=4){
+      const val = Math.floor(Math.random()*256);
+      imgData.data[i] = val;
+      imgData.data[i+1] = val;
+      imgData.data[i+2] = val;
+      imgData.data[i+3] = Math.floor(Math.random()*70); // low alpha
+    }
+    nctx.putImageData(imgData, 0, 0);
+    const pattern = ctx.createPattern(nCanvas, 'repeat');
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0,0,w,h);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function drawCircle(x, y, r, fill, stroke) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = fill;
+    ctx.shadowColor = fill;
+    ctx.shadowBlur = r * 0.18;
+    ctx.fill();
+    if (stroke) {
+      ctx.lineWidth = Math.max(2, r*0.06);
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawTriangle(x, y, size, fill, stroke) {
+    ctx.save();
+    const angle = rand(0, Math.PI*2);
+    const r = size;
+    const p1 = {x: x + r*Math.cos(angle), y: y + r*Math.sin(angle)};
+    const p2 = {x: x + r*Math.cos(angle + 2*Math.PI/3), y: y + r*Math.sin(angle + 2*Math.PI/3)};
+    const p3 = {x: x + r*Math.cos(angle + 4*Math.PI/3), y: y + r*Math.sin(angle + 4*Math.PI/3)};
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p3.x, p3.y);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.shadowColor = fill;
+    ctx.shadowBlur = size * 0.15;
+    ctx.fill();
+    if (stroke) {
+      ctx.lineWidth = Math.max(2, size*0.06);
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawPolygon(x, y, radius, sides, fill, stroke) {
+    ctx.save();
+    const rotation = rand(0, Math.PI*2);
+    ctx.beginPath();
+    for (let i=0;i<sides;i++){
+      const a = rotation + i * (2*Math.PI/sides);
+      const px = x + radius * Math.cos(a);
+      const py = y + radius * Math.sin(a);
+      if (i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.shadowColor = fill;
+    ctx.shadowBlur = radius * 0.15;
+    ctx.fill();
+    if (stroke) {
+      ctx.lineWidth = Math.max(2, radius*0.06);
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function ensureContrast(fillRGB, bgRGB) {
+    const min = biasHighContrast ? 4.5 : 2.2;
+    let rgb = {...fillRGB};
+    let tries = 0;
+    while (contrastRatio(rgb, bgRGB) < min && tries < 20) {
+      // push lightness away from bg
+      const bgL = luminance(bgRGB);
+      const myL = luminance(rgb);
+      const brighter = myL <= bgL;
+      const h = 0; // (unused)
+      // adjust by moving towards near-extremes while preserving hue through hsl reconversion
+      const sr = rgb.r/255, sg=rgb.g/255, sb=rgb.b/255;
+      // crude move: scale RGB up or down
+      const k = brighter ? 1.12 : 0.88;
+      rgb = { r: Math.max(0, Math.min(255, Math.round(sr*255*k))),
+              g: Math.max(0, Math.min(255, Math.round(sg*255*k))),
+              b: Math.max(0, Math.min(255, Math.round(sb*255*k))) };
+      tries++;
+    }
+    return rgb;
+  }
+
+  function generateArt() {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Background
+    const bg = randomBackground();
+    drawTexturedBackdrop(w, h, bg);
+
+    // Pick 3 shape colors with adequate contrast against background
+    const picks = pickContrastingColors(3, bg.rgb, biasHighContrast ? 4.5 : 2.2);
+    while (picks.length < 3) {
+      // pad if not enough diverse picks
+      picks.push(randomBackground());
+    }
+
+    // Define shapes: choose three distinct types from [circle, triangle, polygon]
+    const shapeTypes = ['circle','triangle','polygon'];
+    const chosen = [];
+    // shuffle
+    for (let i=shapeTypes.length-1; i>0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [shapeTypes[i], shapeTypes[j]] = [shapeTypes[j], shapeTypes[i]];
+    }
+    chosen.push(...shapeTypes.slice(0,3));
+
+    // Lay out shapes with generous sizes and overlaps
+    const margin = Math.min(w,h) * 0.08;
+    const cx = rand(margin, w - margin);
+    const cy = rand(margin, h - margin);
+
+    const centers = [
+      {x: rand(margin, w - margin), y: rand(margin, h - margin)},
+      {x: rand(margin, w - margin), y: rand(margin, h - margin)},
+      {x: rand(margin, w - margin), y: rand(margin, h - margin)},
+    ];
+
+    // Layering with blend modes for "arty" vibes
+    const blendModes = ['source-over','screen','multiply','overlay','lighter'];
+    const strokes = [true, false];
+
+    for (let i=0; i<3; i++) {
+      ctx.save();
+      ctx.globalCompositeOperation = blendModes[ri(0, blendModes.length-1)];
+      const p = picks[i];
+      // Ensure shape vs bg contrast
+      const fillRGB = ensureContrast(p.rgb, bg.rgb);
+      const fill = rgbStr(fillRGB, 0.95);
+      const stroke = Math.random()<0.6 ? rgbStr(ensureContrast(p.rgb, bg.rgb), 1) : null;
+
+      const center = centers[i];
+      const base = Math.min(w,h);
+      const size = rand(base*0.18, base*0.36);
+
+      switch (chosen[i]) {
+        case 'circle':
+          drawCircle(center.x, center.y, size*0.6, fill, stroke);
+          break;
+        case 'triangle':
+          drawTriangle(center.x, center.y, size*0.65, fill, stroke);
+          break;
+        case 'polygon':
+          drawPolygon(center.x, center.y, size*0.6, ri(5,8), fill, stroke);
+          break;
+      }
+      ctx.restore();
+    }
+
+    // A subtle frame to finish
+    ctx.save();
+    ctx.lineWidth = Math.max(2, Math.round(Math.min(w,h)*0.01));
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, w - ctx.lineWidth*2, h - ctx.lineWidth*2);
+    ctx.restore();
+
+    // Update save link
+    try {
+      const url = canvas.toDataURL('image/png');
+      saveBtn.href = url;
+    } catch (e) {
+      // Some browsers may block toDataURL; ignore gracefully
+    }
+  }
+
+  function toggleHC() {
+    biasHighContrast = !biasHighContrast;
+    contrastChip.setAttribute('aria-pressed', String(biasHighContrast));
+    generateArt();
+  }
+
+  // Events
+  window.addEventListener('resize', () => { resize(); generateArt(); });
+  generateBtn.addEventListener('click', generateArt);
+  tapOverlay.addEventListener('click', generateArt);
+  rerollChip.addEventListener('click', generateArt);
+  contrastChip.addEventListener('click', toggleHC);
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); generateArt(); }
+    if (e.key.toLowerCase() === 'h') { toggleHC(); }
+  });
+
+  // Init
+  resize();
+  generateArt();
+})();
+</script>
+</body>
+</html>

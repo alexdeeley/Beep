@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tick Clock</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --accent:#888;
+    --hand:#fff;
+    --muted:#444;
+  }
+  html, body{
+    margin:0; padding:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  .wrap{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  }
+  canvas{ width: min(92vmin, 720px); height: min(92vmin, 720px); touch-action:none; }
+  .mute{
+    position: fixed; right: 16px; bottom: 16px; width: 56px; height: 56px;
+    border-radius: 50%; border:1.5px solid var(--fg); color:var(--fg); background:transparent;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    outline:none;
+  }
+  .mute:active{ transform: scale(0.98); }
+  .mute svg{ width:28px; height:28px; }
+  .overlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0.92); z-index:5;
+    user-select:none; -webkit-user-select:none;
+  }
+  .overlay .bubble{
+    border:2px solid var(--fg);
+    border-radius: 999px;
+    padding: 18px 28px;
+    font-weight: 800;
+    letter-spacing: .1em;
+  }
+  .hint{
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color:#bbb; letter-spacing:.08em; text-align:center; opacity:.85;
+    user-select:none; -webkit-user-select:none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div class="wrap">
+    <canvas id="clock" width="1000" height="1000" aria-label="Ticking clock"></canvas>
+  </div>
+
+  <button id="mute" class="mute" aria-label="Toggle sound" title="Toggle sound">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 10v4h4l5 4V6l-5 4H3z"></path>
+      <path id="mutemark" d="M16 9l5 6M21 9l-5 6" opacity="0"></path>
+    </svg>
+  </button>
+
+  <div id="overlay" class="overlay">
+    <div class="bubble">TAP TO START</div>
+  </div>
+  <div class="hint">Drag any hand to set time · Pitch follows seconds · Stereo follows minutes</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('clock');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  let radius = Math.min(w,h)*0.45;
+
+  // Time state (starts at current local time)
+  let now = new Date();
+  let timeMs = now.getTime();
+  let lastSecond = Math.floor(timeMs/1000);
+
+  // Drag state
+  let dragging = false;
+  let dragHand = null; // 'hour' | 'minute' | 'second'
+  const handAngles = {hour:0, minute:0, second:0}; // radians cache for hit-testing
+
+  // Audio
+  let audioReady = false;
+  let ac, master, pannerSupported = false;
+  let muted = false;
+  const overlay = document.getElementById('overlay');
+  const muteBtn = document.getElementById('mute');
+  const muteMark = document.getElementById('mutemark');
+
+  overlay.addEventListener('pointerdown', initAudio, {passive:true});
+  overlay.addEventListener('click', initAudio, {passive:true});
+
+  function initAudio(){
+    if (audioReady) { overlay.style.display='none'; return; }
+    try{
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.9;
+      master.connect(ac.destination);
+      pannerSupported = typeof ac.createStereoPanner === 'function';
+      audioReady = true;
+      overlay.style.display = 'none';
+      tick(true); // play an immediate tick on start
+    }catch(e){
+      // If audio init fails, keep overlay
+      console.warn('Audio init failed', e);
+    }
+  }
+
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteMark.setAttribute('opacity', muted ? '1' : '0');
+  }, {passive:true});
+
+  function playClick(freq = 900, pan = 0){
+    if (!audioReady || muted) return;
+    const t0 = ac.currentTime;
+    const dur = 0.045;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    // micro pitch drop for a sharper tick
+    osc.frequency.exponentialRampToValueAtTime(Math.max(50, freq*0.6), t0 + dur*0.8);
+
+    g.gain.setValueAtTime(0.001, t0);
+    g.gain.exponentialRampToValueAtTime(0.6, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+
+    let nodeChainEnd = g;
+    if (pannerSupported){
+      const sp = ac.createStereoPanner();
+      sp.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), t0);
+      g.connect(sp);
+      sp.connect(master);
+    } else {
+      g.connect(master);
+    }
+
+    osc.connect(g);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  }
+
+  function tick(force=false){
+    // Map current time to sound parameters
+    const d = new Date(timeMs);
+    const sec = d.getSeconds() + d.getMilliseconds()/1000;
+    const min = d.getMinutes();
+    // frequency 600..1400 across seconds
+    const freq = 600 + (sec/60)*800;
+    // pan -1..+1 across minutes
+    const pan = (min/60)*2 - 1;
+    playClick(freq, pan);
+  }
+
+  // Drawing
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    ctx.save();
+    // Face
+    ctx.translate(cx, cy);
+    // Outer ring
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(0,0, radius, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Ticks
+    for (let i=0;i<60;i++){
+      const a = i * Math.PI/30;
+      const r1 = radius * (i%5===0 ? 0.88 : 0.93);
+      const r2 = radius * 0.98;
+      ctx.lineWidth = (i%5===0 ? 4 : 2);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a)*r1, Math.sin(a)*r1);
+      ctx.lineTo(Math.cos(a)*r2, Math.sin(a)*r2);
+      ctx.stroke();
+    }
+
+    // Compute hands angles from time
+    const d = new Date(timeMs);
+    const ms = d.getMilliseconds();
+    const s = d.getSeconds() + ms/1000;
+    const m = d.getMinutes() + s/60;
+    const hr = (d.getHours()%12) + m/60;
+
+    const angS = (s/60)*Math.PI*2 - Math.PI/2;
+    const angM = (m/60)*Math.PI*2 - Math.PI/2;
+    const angH = (hr/12)*Math.PI*2 - Math.PI/2;
+
+    handAngles.second = angS;
+    handAngles.minute = angM;
+    handAngles.hour   = angH;
+
+    // Hands
+    // Hour
+    drawHand(angH, radius*0.52, 8);
+    // Minute
+    drawHand(angM, radius*0.70, 6);
+    // Second (thin)
+    drawHand(angS, radius*0.80, 2);
+
+    // Center cap
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(0,0, 8, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawHand(angle, len, width){
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 16); // small tail
+    ctx.lineTo(0, -len);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Pointer interaction
+  const toLocal = (clientX, clientY) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top)  * (canvas.height / rect.height);
+    return {x, y};
+  };
+
+  function angleFromCenter(x, y){
+    return Math.atan2(y - cy, x - cx);
+  }
+
+  function angleDist(a, b){
+    let d = Math.abs(a - b) % (Math.PI*2);
+    return d > Math.PI ? (Math.PI*2 - d) : d;
+  }
+
+  function pickHand(a){
+    // Prefer the closest hand within threshold
+    const dH = angleDist(a, handAngles.hour);
+    const dM = angleDist(a, handAngles.minute);
+    const dS = angleDist(a, handAngles.second);
+    const th = 0.22; // ~12.6 degrees
+    let best = null, bestD = th;
+    if (dS < bestD){ best='second'; bestD=dS; }
+    if (dM < bestD){ best='minute'; bestD=dM; }
+    if (dH < bestD){ best='hour';   bestD=dH; }
+    return best;
+  }
+
+  function onPointerDown(e){
+    const p = e.touches ? e.touches[0] : e;
+    const {x,y} = toLocal(p.clientX, p.clientY);
+    const a = angleFromCenter(x,y);
+    dragHand = pickHand(a);
+    if (dragHand){
+      dragging = true;
+      canvas.setPointerCapture?.(e.pointerId || 0);
+      e.preventDefault();
+      onPointerMove(e);
+    }
+  }
+
+  function onPointerMove(e){
+    if (!dragging || !dragHand) return;
+    const p = e.touches ? e.touches[0] : e;
+    const {x,y} = toLocal(p.clientX, p.clientY);
+    const a = angleFromCenter(x,y); // -PI..PI w/ 0 at +x
+    const norm = (a + Math.PI/2 + Math.PI*2) % (Math.PI*2); // 0 at 12 o'clock, clockwise
+    const frac = norm / (Math.PI*2); // 0..1
+
+    const d = new Date(timeMs);
+    if (dragHand === 'second'){
+      d.setMilliseconds(0);
+      d.setSeconds(Math.round(frac*60)%60);
+      timeMs = d.getTime();
+      lastSecond = Math.floor(timeMs/1000);
+      // immediate feedback: soft preview click while dragging (very low volume)
+      // (optional: omit continuous sound to avoid noise on drag)
+    } else if (dragHand === 'minute'){
+      const newMin = Math.round(frac*60)%60;
+      d.setMinutes(newMin);
+      timeMs = d.getTime();
+    } else if (dragHand === 'hour'){
+      const newHr = Math.round(frac*12)%12;
+      // preserve AM/PM
+      const currentHr24 = d.getHours();
+      const base = currentHr24 >= 12 ? 12 : 0;
+      d.setHours(base + newHr);
+      timeMs = d.getTime();
+    }
+    e.preventDefault();
+  }
+
+  function onPointerUp(e){
+    dragging = false;
+    dragHand = null;
+  }
+
+  // Use pointer events when available
+  canvas.addEventListener('pointerdown', onPointerDown, {passive:false});
+  window.addEventListener('pointermove', onPointerMove, {passive:false});
+  window.addEventListener('pointerup', onPointerUp, {passive:true});
+  // Touch fallback
+  canvas.addEventListener('touchstart', onPointerDown, {passive:false});
+  window.addEventListener('touchmove', onPointerMove, {passive:false});
+  window.addEventListener('touchend', onPointerUp,   {passive:true});
+
+  // Main loop (time update + draw + second detection)
+  let lastFrame = performance.now();
+  function loop(t){
+    const dt = t - lastFrame;
+    lastFrame = t;
+
+    if (!dragging){
+      timeMs += dt; // advance internal clock in real time
+    }
+
+    // detect second boundary crossing (for tick sound)
+    const secNow = Math.floor(timeMs/1000);
+    if (secNow !== lastSecond){
+      lastSecond = secNow;
+      tick();
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // Resize handler: keep crisp rendering
+  function handleResize(){
+    const size = Math.min(window.innerWidth, window.innerHeight) * 0.92;
+    const css = Math.min(720, size);
+    const ratio = window.devicePixelRatio || 1;
+    const target = Math.round(css * ratio);
+    canvas.width = target;
+    canvas.height = target;
+    canvas.style.width = css + 'px';
+    canvas.style.height = css + 'px';
+    radius = Math.min(canvas.width, canvas.height) * 0.45;
+  }
+  window.addEventListener('resize', handleResize, {passive:true});
+  handleResize();
+
+})();
+</script>
+</body>
+</html>

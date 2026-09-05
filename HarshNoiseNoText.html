@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HARSH NOISE</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{ --red:#ff1717; --dark:#050000; --panel:#090000; --dim:#310000; --mid:#6a0000; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  body{
+    color:var(--red);
+    font-family:Arial Black, Helvetica, sans-serif;
+    user-select:none;
+    touch-action:none;
+  }
+  canvas#scope{
+    position:fixed; inset:0; width:100%; height:100%; opacity:.34; z-index:0; pointer-events:none;
+  }
+  #ui{
+    position:relative; z-index:2; height:100dvh; width:100vw;
+    padding:10px; display:grid; grid-template-rows:1fr 92px; gap:10px;
+  }
+  .grid{
+    min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px;
+  }
+  .module{
+    min-height:0;
+    border:3px solid var(--dim);
+    background:linear-gradient(180deg,#100000,#040000);
+    box-shadow:inset 0 0 35px #ff00000d, 0 0 25px #ff000012;
+    display:grid;
+    grid-template-rows:1fr 62px;
+    gap:8px;
+    padding:10px;
+    overflow:hidden;
+    position:relative;
+  }
+  .module::before{
+    content:""; position:absolute; inset:-40%; opacity:.06; pointer-events:none;
+    background:repeating-linear-gradient(45deg, transparent 0 14px, #ff0000 15px 16px);
+    animation:drift 6s linear infinite;
+  }
+  @keyframes drift{ to{ transform:translate(70px,70px); } }
+  .knob-row{
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px; align-items:center;
+  }
+  .knob-wrap{ display:flex; justify-content:center; align-items:center; height:100%; }
+  .knob{
+    width:min(25vw,150px); height:min(25vw,150px);
+    min-width:82px; min-height:82px; cursor:ns-resize; touch-action:none;
+    filter:drop-shadow(0 0 10px #ff000033);
+  }
+  .knob circle.bg{ fill:#160000; stroke:#510000; stroke-width:3.2; }
+  .knob .track{ fill:none; stroke:#360000; stroke-width:5.4; stroke-linecap:round; }
+  .knob .arc{ fill:none; stroke:var(--red); stroke-width:6; stroke-linecap:round; filter:drop-shadow(0 0 6px #ff0000aa); }
+  .knob circle.dot{ fill:var(--red); stroke:#ff8a8a; stroke-width:.8; }
+  .toggle-row{
+    position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  }
+  .tog{
+    border:3px solid #3a0000; background:#100000; color:transparent;
+    min-height:54px; border-radius:10px; cursor:pointer;
+    box-shadow:inset 0 0 20px #000;
+  }
+  .tog.on{
+    border-color:var(--red); background:radial-gradient(circle,#ff1a1a 0 18%,#600000 19% 45%,#150000 46% 100%);
+    box-shadow:0 0 28px #ff000066, inset 0 0 20px #ff000033;
+  }
+  #trigger{
+    border:4px solid var(--red); border-radius:18px; background:#070000; cursor:pointer;
+    box-shadow:0 0 30px #ff000033, inset 0 0 30px #ff000022;
+    position:relative; overflow:hidden;
+  }
+  #trigger::before{
+    content:""; position:absolute; inset:18px; border-radius:14px;
+    background:radial-gradient(circle,#ff1a1a 0 18%,#720000 19% 38%,#110000 39% 100%);
+    box-shadow:0 0 30px #ff000077;
+  }
+  #trigger::after{
+    content:""; position:absolute; inset:0; opacity:.1; background:repeating-linear-gradient(90deg,transparent 0 22px,#ff0000 23px 25px);
+    transform:translateX(-50%);
+  }
+  body.running #trigger{
+    animation:pulse .12s infinite alternate;
+    box-shadow:0 0 70px #ff000088, inset 0 0 50px #ff000055;
+  }
+  body.running #trigger::before{ background:radial-gradient(circle,#ffeded 0 14%,#ff1a1a 15% 30%,#5d0000 31% 100%); }
+  body.running #trigger::after{ animation:sweep .4s linear infinite; opacity:.22; }
+  @keyframes pulse{ to{ transform:scale(.985); filter:contrast(1.35); } }
+  @keyframes sweep{ to{ transform:translateX(50%); } }
+  .vu{ display:flex; gap:4px; height:100%; align-items:stretch; }
+  .vu-bar{ flex:1; border-radius:3px; background:#1a0000; border:1px solid #310000; }
+  body.running .module:nth-child(odd){ animation:jitter .16s infinite; }
+  body.running .module:nth-child(even){ animation:jitter2 .19s infinite; }
+  @keyframes jitter{ 50%{ transform:translate(1px,-1px); } }
+  @keyframes jitter2{ 50%{ transform:translate(-1px,1px); } }
+  @media (max-width:680px){
+    #ui{ padding:8px; grid-template-rows:1fr 88px; }
+    .grid{ gap:8px; }
+    .module{ padding:8px; grid-template-rows:1fr 56px; }
+    .knob-row{ gap:4px; }
+    .knob{ min-width:70px; min-height:70px; }
+    .toggle-row{ gap:5px; }
+    .tog{ min-height:48px; border-radius:8px; }
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="scope"></canvas>
+<div id="ui">
+  <div class="grid">
+    <div class="module">
+      <div class="knob-row">
+        <div class="knob-wrap"><svg class="knob" data-param="density" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="chaos" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="feedback" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+      </div>
+      <div class="toggle-row" id="src-toggles">
+        <button class="tog on" data-src="white"></button>
+        <button class="tog" data-src="pink"></button>
+        <button class="tog" data-src="brown"></button>
+        <button class="tog" data-src="crackle"></button>
+      </div>
+    </div>
+    <div class="module">
+      <div class="knob-row">
+        <div class="knob-wrap"><svg class="knob" data-param="crush" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="fold" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="clip" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+      </div>
+      <div class="vu" id="vu"></div>
+    </div>
+    <div class="module">
+      <div class="knob-row">
+        <div class="knob-wrap"><svg class="knob" data-param="cutoff" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="res" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="lfo" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+      </div>
+      <div class="toggle-row" id="filter-toggles">
+        <button class="tog on" data-ftype="lowpass"></button>
+        <button class="tog" data-ftype="highpass"></button>
+        <button class="tog" data-ftype="bandpass"></button>
+        <button class="tog" data-ftype="notch"></button>
+      </div>
+    </div>
+    <div class="module">
+      <div class="knob-row">
+        <div class="knob-wrap"><svg class="knob" data-param="vol" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="gate" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+        <div class="knob-wrap"><svg class="knob" data-param="stereo" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><path class="track"/><path class="arc"/><circle class="dot" cx="50" cy="12" r="6"/></svg></div>
+      </div>
+      <div class="toggle-row">
+        <button class="tog" id="tog-gate"></button>
+        <button class="tog on" id="tog-drive"></button>
+        <button class="tog on" id="tog-scope"></button>
+        <button class="tog" id="tog-freeze"></button>
+      </div>
+    </div>
+  </div>
+  <button id="trigger" aria-label="start stop noise"></button>
+</div>
+<script>
+let ctx, running=false, scriptNode, filterNode, gainNode, analyserNode, shaperNode, compNode, delayNode, fbGain, delayFilter;
+let lfoNode, lfoGain, pannerNode, panLfo, panLfoGain;
+const params={density:1,chaos:.62,feedback:.12,crush:.25,fold:.18,clip:.25,cutoff:.72,res:.12,lfo:.18,vol:.42,gate:.32,stereo:.25};
+let srcType='white', filterType='lowpass', gateEnabled=false, driveEnabled=true, scopeEnabled=true, freeze=false;
+let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,lastBrown=0,crackleTimer=0,gatePhase=0,slowPhase=0,holdSample=0,crushCount=0;
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function noise(type){let s=Math.random()*2-1;if(type==='pink'){b0=.99886*b0+s*.0555179;b1=.99332*b1+s*.0750759;b2=.969*b2+s*.153852;b3=.8665*b3+s*.3104856;b4=.55*b4+s*.5329522;b5=-.7616*b5-s*.016898;s=(b0+b1+b2+b3+b4+b5+b6+s*.5362)*.11;b6=s*.115926;}else if(type==='brown'){lastBrown=(lastBrown+.022*(Math.random()*2-1))*.996;s=lastBrown*4;}else if(type==='crackle'){crackleTimer--;if(crackleTimer<=0){crackleTimer=Math.floor(Math.random()*1600+20);s=(Math.random()*2-1)*4;}else{s=(Math.random()*2-1)*.02;}}return s;}
+function makeCurve(amount){const n=2048, curve=new Float32Array(n); const k=1+amount*80; for(let i=0;i<n;i++){const x=i*2/n-1; curve[i]=Math.tanh(k*x)/(Math.tanh(k));} return curve;}
+function startAudio(){ if(ctx){ctx.close();ctx=null;} ctx=new (window.AudioContext||window.webkitAudioContext)(); analyserNode=ctx.createAnalyser(); analyserNode.fftSize=2048; filterNode=ctx.createBiquadFilter(); gainNode=ctx.createGain(); shaperNode=ctx.createWaveShaper(); compNode=ctx.createDynamicsCompressor(); delayNode=ctx.createDelay(.35); fbGain=ctx.createGain(); delayFilter=ctx.createBiquadFilter(); pannerNode=ctx.createStereoPanner(); lfoNode=ctx.createOscillator(); lfoGain=ctx.createGain(); panLfo=ctx.createOscillator(); panLfoGain=ctx.createGain(); compNode.threshold.value=-10; compNode.knee.value=0; compNode.ratio.value=20; compNode.attack.value=.002; compNode.release.value=.05; delayNode.delayTime.value=.018; delayFilter.type='bandpass'; delayFilter.frequency.value=1200; delayFilter.Q.value=5; lfoNode.connect(lfoGain); lfoGain.connect(filterNode.frequency); lfoNode.start(); panLfo.connect(panLfoGain); panLfoGain.connect(pannerNode.pan); panLfo.start(); scriptNode=ctx.createScriptProcessor(2048,0,2); scriptNode.onaudioprocess=e=>{const L=e.outputBuffer.getChannelData(0),R=e.outputBuffer.getChannelData(1),sr=ctx.sampleRate; const density=params.density,chaos=params.chaos,crush=params.crush,fold=params.fold,clip=params.clip,gate=params.gate,st=params.stereo; for(let i=0;i<L.length;i++){slowPhase+=1/sr; let s=freeze?holdSample:(Math.random()>density?0:noise(srcType)); if(!freeze && Math.random()<chaos*.035) s+=(Math.random()*2-1)*(2+chaos*10); if(!freeze) s+=Math.sin(slowPhase*(40+params.feedback*800))*chaos*.18; if(crush>0){const rate=Math.max(1,Math.round(1+crush*42)); if(crushCount++%rate===0) holdSample=s; s=holdSample; const bits=Math.max(2,Math.round(15-crush*13)); const steps=Math.pow(2,bits); s=Math.round(s*steps)/steps;} if(fold>0){s*=1+fold*10; for(let j=0;j<5 && Math.abs(s)>1;j++) s=s>1?2-s:-2-s;} if(clip>0){const th=.98-clip*.88; s=clamp(s,-th,th)/Math.max(.001,th);} if(driveEnabled) s=Math.tanh(s*(1+params.chaos*3+params.clip*5)); if(gateEnabled && gate>0){const gf=.5+gate*38; gatePhase+=gf/sr; const pulse=(Math.sin(gatePhase*Math.PI*2)>((params.chaos-.5)*.8))?1:0; s*=pulse;} const drift=Math.sin(slowPhase*(.17+st*2.5))*st*.45; L[i]=s*(1-drift); R[i]=(s*(1+drift)+noise('white')*st*.28); }}; scriptNode.connect(filterNode); filterNode.connect(shaperNode); shaperNode.connect(gainNode); gainNode.connect(delayNode); delayNode.connect(delayFilter); delayFilter.connect(fbGain); fbGain.connect(delayNode); gainNode.connect(pannerNode); delayNode.connect(pannerNode); pannerNode.connect(compNode); compNode.connect(analyserNode); analyserNode.connect(ctx.destination); updateAllAudio(); }
+function stopAudio(){ if(ctx){ctx.close();ctx=null;} }
+function updateAllAudio(){ if(!ctx)return; const nyq=ctx.sampleRate/2; const cut=25*Math.pow(nyq/25,params.cutoff); filterNode.type=filterType; filterNode.frequency.setTargetAtTime(cut,ctx.currentTime,.015); filterNode.Q.setTargetAtTime(params.res*34+.001,ctx.currentTime,.015); lfoNode.frequency.setTargetAtTime(.05+params.lfo*12,ctx.currentTime,.02); lfoGain.gain.setTargetAtTime(params.lfo*cut*.75,ctx.currentTime,.02); gainNode.gain.setTargetAtTime(params.vol*.9,ctx.currentTime,.02); shaperNode.curve=makeCurve(driveEnabled?params.clip*.75+params.fold*.25:.05); shaperNode.oversample='4x'; fbGain.gain.setTargetAtTime(params.feedback*.72,ctx.currentTime,.02); delayNode.delayTime.setTargetAtTime(.006+params.chaos*.045+params.feedback*.08,ctx.currentTime,.02); delayFilter.frequency.setTargetAtTime(120+params.cutoff*5000,ctx.currentTime,.02); panLfo.frequency.setTargetAtTime(.03+params.stereo*7,ctx.currentTime,.02); panLfoGain.gain.setTargetAtTime(params.stereo,.02); }
+const CX=50,CY=50,R=37,START=135*Math.PI/180,TOTAL=270*Math.PI/180;
+function arc(p){const e=START+p*TOTAL,x1=CX+R*Math.cos(START),y1=CY+R*Math.sin(START),x2=CX+R*Math.cos(e),y2=CY+R*Math.sin(e);return`M ${x1} ${y1} A ${R} ${R} 0 ${p>.5?1:0} 1 ${x2} ${y2}`;}
+function track(){const e=START+TOTAL-.001,x1=CX+R*Math.cos(START),y1=CY+R*Math.sin(START),x2=CX+R*Math.cos(e),y2=CY+R*Math.sin(e);return`M ${x1} ${y1} A ${R} ${R} 0 1 1 ${x2} ${y2}`;}
+function knob(svg,p){svg.querySelector('.track').setAttribute('d',track()); svg.querySelector('.arc').setAttribute('d',p>0?arc(p):''); const a=START+p*TOTAL; svg.querySelector('.dot').setAttribute('cx',CX+(R-5)*Math.cos(a)); svg.querySelector('.dot').setAttribute('cy',CY+(R-5)*Math.sin(a));}
+document.querySelectorAll('.knob').forEach(svg=>{const p=svg.dataset.param; let val=params[p]; knob(svg,val); let sy=0,sv=0; const move=y=>{val=clamp(sv-(y-sy)/210,0,1); params[p]=val; knob(svg,val); updateAllAudio();}; svg.addEventListener('pointerdown',e=>{sy=e.clientY;sv=val;svg.setPointerCapture(e.pointerId);e.preventDefault();}); svg.addEventListener('pointermove',e=>{if(e.buttons||e.pressure>0) move(e.clientY);}); svg.addEventListener('dblclick',()=>{params[p]=val=(p==='vol'?.42:p==='density'?1:0); knob(svg,val); updateAllAudio();});});
+document.querySelectorAll('[data-src]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-src]').forEach(x=>x.classList.remove('on'));b.classList.add('on');srcType=b.dataset.src;}));
+document.querySelectorAll('[data-ftype]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-ftype]').forEach(x=>x.classList.remove('on'));b.classList.add('on');filterType=b.dataset.ftype;updateAllAudio();}));
+document.getElementById('tog-gate').onclick=e=>{gateEnabled=!gateEnabled;e.currentTarget.classList.toggle('on',gateEnabled);};
+document.getElementById('tog-drive').onclick=e=>{driveEnabled=!driveEnabled;e.currentTarget.classList.toggle('on',driveEnabled);updateAllAudio();};
+document.getElementById('tog-scope').onclick=e=>{scopeEnabled=!scopeEnabled;e.currentTarget.classList.toggle('on',scopeEnabled);document.getElementById('scope').style.opacity=scopeEnabled?.34:0;};
+document.getElementById('tog-freeze').onclick=e=>{freeze=!freeze;e.currentTarget.classList.toggle('on',freeze);};
+document.getElementById('trigger').onclick=async()=>{if(!running){startAudio(); if(ctx.state==='suspended') await ctx.resume(); running=true; document.body.classList.add('running');}else{stopAudio(); running=false; document.body.classList.remove('running');}};
+const vu=document.getElementById('vu'); for(let i=0;i<18;i++){const d=document.createElement('div'); d.className='vu-bar'; vu.appendChild(d);} const vuBars=[...document.querySelectorAll('.vu-bar')];
+const canvas=document.getElementById('scope'),c=canvas.getContext('2d'); function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio;} addEventListener('resize',resize); resize(); const data=new Uint8Array(2048); let spin=0;
+function draw(){requestAnimationFrame(draw); const W=canvas.width,H=canvas.height; c.clearRect(0,0,W,H); c.lineWidth=2*devicePixelRatio; if(!analyserNode||!scopeEnabled)return; analyserNode.getByteTimeDomainData(data); spin+=.01+params.chaos*.035; c.strokeStyle='#ff1a1a'; c.shadowColor='#ff0000'; c.shadowBlur=12*devicePixelRatio; c.beginPath(); for(let i=0;i<data.length;i++){const v=data[i]/128-1; const x=i/data.length*W; const y=H/2+v*H*.38+Math.sin(i*.035+spin)*params.feedback*H*.08; i?c.lineTo(x,y):c.moveTo(x,y);} c.stroke(); c.shadowBlur=0; let rms=0; for(let i=0;i<data.length;i++){const v=data[i]/128-1;rms+=v*v;} rms=Math.sqrt(rms/data.length); vuBars.forEach((b,i)=>{const lit=rms*1.7>i/vuBars.length; b.style.background=lit?(i>13?'#fff':i>9?'#ff1a1a':'#9d0000'):'#180000'; b.style.boxShadow=lit?'0 0 12px #ff0000':'none';}); }
+draw();
+</script>
+</body>
+</html>

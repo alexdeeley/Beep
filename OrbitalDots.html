@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Orbital Dots</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #08080e; overflow: hidden; width: 100vw; height: 100vh; cursor: crosshair; touch-action:none; }
+  canvas { display: block; width:100vw; height:100vh; }
+  #hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.18);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    pointer-events: none;
+    transition: opacity 3s;
+  }
+  #hint.gone { opacity: 0; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div id="hint">tap to place a circle</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, Math.floor(window.innerWidth));
+    H = Math.max(1, Math.floor(window.innerHeight));
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  const hint = document.getElementById('hint');
+  setTimeout(() => hint.classList.add('gone'), 3500);
+
+  const RING_DEFS = [
+    { radius: 18,  count: 4,   speed:  0.022, dotR: 5.5 },
+    { radius: 32,  count: 6,   speed: -0.020, dotR: 5.3 },
+    { radius: 46,  count: 9,   speed:  0.018, dotR: 5.1 },
+    { radius: 62,  count: 12,  speed: -0.016, dotR: 4.9 },
+    { radius: 79,  count: 15,  speed:  0.015, dotR: 4.7 },
+    { radius: 97,  count: 18,  speed: -0.014, dotR: 4.5 },
+    { radius: 116, count: 22,  speed:  0.013, dotR: 4.3 },
+    { radius: 136, count: 26,  speed: -0.012, dotR: 4.1 },
+    { radius: 157, count: 30,  speed:  0.011, dotR: 3.9 },
+    { radius: 179, count: 34,  speed: -0.010, dotR: 3.7 },
+    { radius: 202, count: 39,  speed:  0.009, dotR: 3.5 },
+    { radius: 226, count: 44,  speed: -0.0085,dotR: 3.3 },
+    { radius: 251, count: 50,  speed:  0.008, dotR: 3.1 },
+    { radius: 277, count: 56,  speed: -0.0075,dotR: 2.9 },
+    { radius: 304, count: 62,  speed:  0.007, dotR: 2.8 },
+    { radius: 332, count: 69,  speed: -0.0065,dotR: 2.6 },
+    { radius: 361, count: 76,  speed:  0.006, dotR: 2.5 },
+    { radius: 391, count: 84,  speed: -0.0055,dotR: 2.3 },
+    { radius: 422, count: 92,  speed:  0.005, dotR: 2.2 },
+    { radius: 454, count: 101, speed: -0.0048,dotR: 2.1 },
+    { radius: 487, count: 110, speed:  0.0045,dotR: 2.0 },
+    { radius: 521, count: 120, speed: -0.0042,dotR: 1.9 },
+    { radius: 556, count: 130, speed:  0.004, dotR: 1.8 },
+    { radius: 592, count: 141, speed: -0.0038,dotR: 1.7 },
+    { radius: 629, count: 153, speed:  0.0035,dotR: 1.6 },
+    { radius: 667, count: 165, speed: -0.0033,dotR: 1.55},
+    { radius: 706, count: 178, speed:  0.003, dotR: 1.5 },
+    { radius: 746, count: 191, speed: -0.0028,dotR: 1.4 },
+    { radius: 787, count: 205, speed:  0.0026,dotR: 1.35},
+    { radius: 829, count: 220, speed: -0.0024,dotR: 1.3 },
+    { radius: 872, count: 235, speed:  0.0022,dotR: 1.25},
+    { radius: 916, count: 251, speed: -0.002, dotR: 1.2 },
+    { radius: 961, count: 268, speed:  0.0019,dotR: 1.15},
+    { radius: 1007,count: 285, speed: -0.0018,dotR: 1.1 },
+    { radius: 1054,count: 303, speed:  0.0017,dotR: 1.05},
+    { radius: 1102,count: 322, speed: -0.0016,dotR: 1.0 },
+    { radius: 1151,count: 342, speed:  0.0015,dotR: 0.95},
+    { radius: 1201,count: 362, speed: -0.0014,dotR: 0.9 },
+    { radius: 1252,count: 384, speed:  0.0013,dotR: 0.85},
+    { radius: 1304,count: 406, speed: -0.0012,dotR: 0.8 },
+  ];
+
+  const COLORS = [
+    '#dde4ff','#ffd6f0','#c8f0ff','#f0ffd8','#ffe8c8',
+    '#e4d4ff','#d4ffe8','#ffeedd','#d8eeff','#fff0d8',
+    '#e8ddff','#f0d4ff','#d4f0ff','#ffd8e8','#d8ffd4',
+    '#ffeed4','#d4e8ff','#f8d4ff','#d4ffd4','#ffd4d4',
+    '#dde4ff','#ffd6f0','#c8f0ff','#f0ffd8','#ffe8c8',
+    '#e4d4ff','#d4ffe8','#ffeedd','#d8eeff','#fff0d8',
+    '#e8ddff','#f0d4ff','#d4f0ff','#ffd8e8','#d8ffd4',
+    '#ffeed4','#d4e8ff','#f8d4ff','#d4ffd4','#ffd4d4',
+  ];
+
+  let rings = RING_DEFS.map((r, ri) => ({
+    ...r,
+    color: COLORS[ri % COLORS.length],
+    dots: Array.from({ length: r.count }, (_, i) => ({
+      angle: (i / r.count) * Math.PI * 2,
+      x: 0, y: 0,
+      state: 'orbit',
+      captureData: null,
+      returnData: null,
+    }))
+  }));
+
+  const CIRCLE_LIFETIME = 30000; // ms
+  const CAPTURE_R = 65;          // px
+  let circles = [];
+
+  function placeCircle(x, y) {
+    circles.push({ x, y, born: performance.now() });
+  }
+
+  canvas.addEventListener('click', (e) => placeCircle(e.clientX, e.clientY));
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) placeCircle(t.clientX, t.clientY);
+  }, { passive: false });
+
+  function startReturning(dot, ring, cx, cy) {
+    dot.angle = Math.atan2(dot.y - cy, dot.x - cx);
+    dot.state = 'returning';
+    dot.returnData = {};
+  }
+
+  let last = performance.now();
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 16.67, 3);
+    last = now;
+
+    ctx.fillStyle = '#08080e';
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2, cy = H / 2;
+
+    circles = circles.filter(c => (now - c.born) < CIRCLE_LIFETIME);
+
+    // Faint guide rings
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    for (const ring of rings) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, ring.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (const ring of rings) {
+      for (const dot of ring.dots) {
+        if (dot.state === 'orbit') {
+          dot.angle += ring.speed * dt;
+          dot.x = cx + Math.cos(dot.angle) * ring.radius;
+          dot.y = cy + Math.sin(dot.angle) * ring.radius;
+
+          for (const circle of circles) {
+            const dx = dot.x - circle.x;
+            const dy = dot.y - circle.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < CAPTURE_R) {
+              dot.state = 'captured';
+              dot.captureData = {
+                circle,
+                cx: circle.x,
+                cy: circle.y,
+                r: Math.max(dist + 6, 22),
+                angle: Math.atan2(dy, dx),
+                dir: ring.speed > 0 ? 1 : -1,
+                turns: 0,
+              };
+              break;
+            }
+          }
+
+        } else if (dot.state === 'captured') {
+          const o = dot.captureData;
+          if (!o || !circles.includes(o.circle)) {
+            startReturning(dot, ring, cx, cy);
+          } else {
+            o.angle += o.dir * 0.042 * dt;
+            o.turns += Math.abs(0.042 * dt);
+            dot.x = o.cx + Math.cos(o.angle) * o.r;
+            dot.y = o.cy + Math.sin(o.angle) * o.r;
+
+            if (o.turns >= Math.PI * 2) {
+              startReturning(dot, ring, cx, cy);
+            }
+          }
+
+        } else if (dot.state === 'returning') {
+          dot.angle += ring.speed * dt;
+          const targetX = cx + Math.cos(dot.angle) * ring.radius;
+          const targetY = cy + Math.sin(dot.angle) * ring.radius;
+
+          const dx = targetX - dot.x;
+          const dy = targetY - dot.y;
+          const dist = Math.hypot(dx, dy);
+          const speed = 2.5 * dt;
+
+          if (dist <= speed + 0.5) {
+            dot.x = targetX;
+            dot.y = targetY;
+            dot.state = 'orbit';
+            dot.returnData = null;
+            dot.captureData = null;
+          } else if (dist > 0.00001) {
+            dot.x += (dx / dist) * speed;
+            dot.y += (dy / dist) * speed;
+          }
+        }
+
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, ring.dotR, 0, Math.PI * 2);
+        ctx.fillStyle = ring.color;
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>MIAMI STRIKE — Neon Bowling (Diamond Blockers)</title>
+<style>
+  html, body { margin:0; padding:0; background:#000; height:100%; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .hud { position:fixed; left:0; top:0; width:100vw; display:flex; justify-content:space-between;
+         font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif; font-weight:900;
+         letter-spacing:0.5px; color:#fff; padding:10px 14px; user-select:none; }
+  .hud span { font-size:18px; text-shadow:0 0 10px #ff2aa8; }
+  .hint, .overlay {
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    color:#fff; font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    text-align:center; line-height:1.25; user-select:none; padding:16px 18px;
+    border:2px solid #ff2aa8; box-shadow:0 0 30px #ff2aa8; border-radius:10px;
+    background:rgba(0,0,0,0.7);
+  }
+  .hint .title, .overlay .title { font-size:28px; font-weight:900; margin-bottom:12px; color:#ff2aa8; text-shadow:0 0 14px #ff2aa8; }
+  .hint .sub, .overlay .sub { font-size:14px; opacity:0.9; }
+  .btn {
+    display:inline-block; margin-top:12px; padding:10px 16px; font-weight:900; color:#000;
+    background:#ff2aa8; border-radius:8px; box-shadow:0 0 18px #ff2aa8; text-decoration:none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="game" aria-label="Miami Strike Neon Bowling"></canvas>
+<div class="hud" id="hud" aria-hidden="true">
+  <span id="score">Score: 0</span>
+  <span id="level">Level 1 • Roll 1</span>
+</div>
+<div class="hint" id="hint">
+  <div class="title">MIAMI STRIKE</div>
+  <div class="sub">
+    <b>Swipe up</b> from the bottom throw zone to roll.<br/>
+    Curve by swiping with a sideways angle. Bounce off <b>diamond dots</b>.<br/>
+    If the ball returns to the throw zone, the roll restarts—no penalty.<br/><br/>
+    <b>Tap to start</b>
+  </div>
+</div>
+<div class="overlay" id="overlay" style="display:none">
+  <div class="title">Series Complete</div>
+  <div class="sub" id="summary">Score: 0</div>
+  <a href="#" id="shareBtn" class="btn">Share</a>
+  <a href="#" id="continueBtn" class="btn" style="margin-left:8px;">Continue</a>
+</div>
+<script>
+(function(){
+  // Canvas
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W=0, H=0;
+  function resize(){
+    W = Math.max(320, Math.floor(innerWidth));
+    H = Math.max(480, Math.floor(innerHeight));
+    canvas.width = W; canvas.height = H;
+    layoutLane();
+    resetBall();
+  }
+  addEventListener('resize', resize, {passive:true});
+
+  // Neon palette
+  const PINK = '#ff2aa8';
+  const CYAN = '#39d0ff';
+  const VIO  = '#a855ff';
+
+  // Lane layout
+  const lane = { x:0, y:0, w:0, h:0, gutter:0 };
+  let THROW_Y = 0;
+  function layoutLane(){
+    lane.w = Math.min(W*0.72, 460);
+    lane.h = H*0.9;
+    lane.x = Math.floor((W - lane.w)/2);
+    lane.y = Math.floor(H*0.05);
+    lane.gutter = Math.max(12, Math.floor(lane.w*0.06));
+    THROW_Y = lane.y + lane.h - Math.min(160, lane.h*0.3); // throw-zone top
+  }
+
+  // Obstacles: small diamond formations of dots
+  let obstacles = [];
+  function makeDiamond(cx, cy, r){
+    const d = r*2.2;
+    return [
+      {x:cx,    y:cy,    r},
+      {x:cx+d,  y:cy,    r},
+      {x:cx-d,  y:cy,    r},
+      {x:cx,    y:cy-d,  r},
+      {x:cx,    y:cy+d,  r}
+    ];
+  }
+  function spawnObstaclesForLevel(level){
+    obstacles = [];
+    const count = Math.min(3, 1 + Math.floor(level/3));
+    for(let i=0;i<count;i++){
+      const cy = lane.y + 80 + Math.random() * (lane.h * 0.55);
+      const cx = lane.x + lane.gutter + 40 + Math.random()*(lane.w - lane.gutter*2 - 80);
+      const r  = 6; // small dots
+      const vx = (Math.random()<0.5?-1:1) * (0.8 + Math.random()*1.2);
+      obstacles.push({ dots: makeDiamond(cx, cy, r), vx });
+    }
+  }
+  function moveObstacles(){
+    for(const ob of obstacles){
+      const minX = lane.x + lane.gutter + 20;
+      const maxX = lane.x + lane.w - lane.gutter - 20;
+      // Move all dots by vx
+      for(const d of ob.dots){ d.x += ob.vx; }
+      const leftMost  = Math.min(...ob.dots.map(d=>d.x));
+      const rightMost = Math.max(...ob.dots.map(d=>d.x));
+      if (leftMost < minX || rightMost > maxX){
+        ob.vx *= -1;
+        for(const d of ob.dots){ d.x = Math.max(minX, Math.min(maxX, d.x)); }
+      }
+    }
+  }
+
+  // Pins
+  let pins = [];
+  let pinsSnapshot = null; // saved at roll start for no-penalty restart
+  const PIN_R = 10;
+  const PIN_M = 1.0;
+  const GRAVITY = 0.28;
+  let pinCount = 10;
+  function resetPinsForLevel(level){
+    pins = [];
+    pinCount = 9 + level; // 10 on level 1, 11 on level 2, etc.
+    const pattern = ['triangle','square','circle','diamond','rows'][level % 5];
+    const cx = lane.x + lane.w/2;
+    const top = lane.y + 90;
+    if (pattern === 'triangle'){
+      const rowGap = 38, colGap = 24;
+      let placed = 0, r=0;
+      while (placed < pinCount && r < 8){
+        const row = [];
+        for(let i=-r;i<=r;i+=2) row.push(i/2);
+        for(const c of row){
+          if (placed >= pinCount) break;
+          pins.push({x: cx + c*colGap, y: top + r*rowGap, vx:0, vy:0, alive:true, flying:false, off:false});
+          placed++;
+        }
+        r++;
+      }
+    } else if (pattern === 'square'){
+      const cols = Math.ceil(Math.sqrt(pinCount));
+      const rows = Math.ceil(pinCount / cols);
+      const gapX = 26, gapY = 30;
+      const startX = cx - (cols-1)*gapX/2;
+      const startY = top;
+      let placed = 0;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          if (placed >= pinCount) break;
+          pins.push({x: startX + c*gapX, y: startY + r*gapY, vx:0, vy:0, alive:true, flying:false, off:false});
+          placed++;
+        }
+      }
+    } else if (pattern === 'circle'){
+      const rad = 70 + Math.min(120, pinCount*1.2);
+      for(let i=0;i<pinCount;i++){
+        const a = (i/pinCount)*Math.PI*2;
+        pins.push({x: cx + Math.cos(a)*rad*0.6, y: top + Math.sin(a)*rad*0.35, vx:0, vy:0, alive:true, flying:false, off:false});
+      }
+    } else if (pattern === 'diamond'){
+      const layers = Math.ceil((Math.sqrt(1+8*pinCount)-1)/2);
+      let placed = 0;
+      const gap = 28;
+      for(let l=-layers; l<=layers; l++){
+        const rowCount = layers - Math.abs(l) + 1;
+        const rowY = top + (l+layers)*gap*0.7;
+        const startX = cx - (rowCount-1)*gap*0.6;
+        for(let i=0;i<rowCount;i++){
+          if (placed >= pinCount) break;
+          pins.push({x: startX + i*gap*0.6, y: rowY, vx:0, vy:0, alive:true, flying:false, off:false});
+          placed++;
+        }
+        if (placed >= pinCount) break;
+      }
+    } else { // rows
+      const cols = Math.ceil(Math.sqrt(pinCount*1.2));
+      const gapX = 24, gapY = 26;
+      const startX = cx - (cols-1)*gapX/2;
+      let placed = 0; let r = 0;
+      while(placed < pinCount){
+        for(let c=0;c<cols && placed<pinCount;c++){
+          const y = top + r*gapY;
+          pins.push({x: startX + c*gapX, y, vx:0, vy:0, alive:true, flying:false, off:false});
+          placed++;
+        }
+        r++;
+      }
+    }
+  }
+
+  // Ball
+  const ball = { x:0, y:0, r:16, vx:0, vy:0, rolling:false, spin:0 };
+  function resetBall(){
+    ball.x = lane.x + lane.w/2;
+    ball.y = lane.y + lane.h - 40;
+    ball.vx = 0; ball.vy = 0; ball.spin = 0;
+    ball.rolling = false;
+  }
+
+  // Particles (fizzle/pop)
+  let particles = [];
+  function pop(x,y,color){
+    for(let i=0;i<12;i++){
+      particles.push({
+        x, y,
+        vx: Math.cos(Math.random()*Math.PI*2) * (1+Math.random()*3),
+        vy: Math.sin(Math.random()*Math.PI*2) * (1+Math.random()*3),
+        life: 1.0, color
+      });
+    }
+  }
+
+  // Game state
+  let running=false, waitingSwipe=true;
+  let score=0, level=1, roll=1, pinsDownThisLevel=0, pinsDownThisRoll=0, seriesRound=1;
+  const hudScore = document.getElementById('score');
+  const hudLevel = document.getElementById('level');
+  const hint = document.getElementById('hint');
+  const overlay = document.getElementById('overlay');
+  const summary = document.getElementById('summary');
+  const shareBtn = document.getElementById('shareBtn');
+  const continueBtn = document.getElementById('continueBtn');
+
+  shareBtn.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const text = `I scored ${score} in MIAMI STRIKE! Level ${level-1} finished.`;
+    if (navigator.share){ try { await navigator.share({ text, title:'Miami Strike' }); } catch(e){} }
+    else { alert(text); }
+  });
+  continueBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    overlay.style.display='none';
+    seriesRound = 1;
+    updateHUD();
+  });
+
+  function start(){
+    running=true; waitingSwipe=true;
+    score=0; level=1; roll=1; pinsDownThisLevel=0; pinsDownThisRoll=0; seriesRound=1;
+    resetPinsForLevel(level); spawnObstaclesForLevel(level); resize(); updateHUD();
+    hint.style.display='none';
+  }
+
+  function updateHUD(){
+    hudScore.textContent = 'Score: ' + score;
+    hudLevel.textContent = `Level ${level} • Roll ${roll}`;
+  }
+
+  // Input (limit to throw zone and near the ball)
+  let dragStart=null, dragLast=null;
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    let cx,cy;
+    if(e.touches && e.touches[0]){ cx=e.touches[0].clientX - r.left; cy=e.touches[0].clientY - r.top; }
+    else { cx=e.clientX - r.left; cy=e.clientY - r.top; }
+    return {x:cx, y:cy};
+  }
+  function down(e){
+    e.preventDefault();
+    if(!running){ start(); return; }
+    if(!waitingSwipe) return;
+    const p = pos(e);
+    const nearBall = Math.abs(p.x - ball.x) <= lane.w*0.35;
+    if (p.y >= THROW_Y && nearBall){
+      dragStart = p; dragLast = p;
+    }
+  }
+  function move(e){
+    if(!running || !dragStart) return;
+    e.preventDefault();
+    dragLast = pos(e);
+  }
+  function deepCopyPins(src){ return src.map(p=>({x:p.x,y:p.y,vx:p.vx,vy:p.vy,alive:p.alive,flying:p.flying,off:p.off})); }
+  function up(e){
+    if(!running || !dragStart) return;
+    const end = dragLast || pos(e);
+    const dx = end.x - dragStart.x;
+    const dy = end.y - dragStart.y;
+    if (dy < -10){
+      const speed = Math.min(18, Math.max(6, (-dy) * 0.06));
+      ball.vy = -speed;
+      ball.vx = dx * 0.04;
+      ball.spin = (dx / Math.max(1, -dy)) * 0.06;
+      ball.rolling = true;
+      waitingSwipe = false;
+      // snapshot pins for no-penalty restart
+      pinsSnapshot = deepCopyPins(pins);
+    }
+    dragStart=null; dragLast=null;
+  }
+  canvas.addEventListener('touchstart', down, {passive:false});
+  addEventListener('touchmove', move, {passive:false});
+  addEventListener('touchend', up, {passive:true});
+  canvas.addEventListener('mousedown', down, {passive:false});
+  addEventListener('mousemove', move, {passive:false});
+  addEventListener('mouseup', up, {passive:true});
+
+  // Helpers
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+
+  // Ball-circle collision (for dot blockers)
+  function collideBallCircle(cx, cy, cr){
+    const dx = ball.x - cx, dy = ball.y - cy;
+    const d  = Math.hypot(dx,dy) || 1;
+    const r  = ball.r + cr;
+    if (d < r){
+      // push out
+      const nx = dx/d, ny = dy/d;
+      const overlap = r - d;
+      ball.x += nx * overlap;
+      ball.y += ny * overlap;
+      // reflect velocity
+      const vn = ball.vx*nx + ball.vy*ny;
+      if (vn < 0){
+        const e = 0.9;
+        ball.vx -= (1+e) * vn * nx;
+        ball.vy -= (1+e) * vn * ny;
+      }
+      pop(cx, cy, VIO);
+    }
+  }
+
+  // Main loop
+  let last = performance.now();
+  function step(now){
+    const dt = Math.min(32, now - last); last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function knockPin(p, nx, ny, power){
+    if (p.alive){ pinsDownThisRoll++; }
+    p.alive = false;
+    p.flying = true;
+    p.vx += nx * power + (Math.random()-0.5)*0.8;
+    p.vy += ny * power + (Math.random()-0.5)*0.8;
+    pop(p.x, p.y, Math.random()<0.5 ? PINK : CYAN);
+  }
+
+  function resolvePinPinCollision(a, b){
+    const rr = (PIN_R*2);
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d2 = dx*dx + dy*dy; if (d2 > rr*rr || d2 === 0) return;
+    const d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
+    // separate
+    const overlap = rr - d;
+    a.x -= nx * overlap*0.5; a.y -= ny * overlap*0.5;
+    b.x += nx * overlap*0.5; b.y += ny * overlap*0.5;
+    // impulse
+    const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
+    const vn = rvx*nx + rvy*ny;
+    if (vn < 0){
+      const e = 0.6;
+      const j = -(1+e) * vn / (1/PIN_M + 1/PIN_M);
+      const jx=j*nx, jy=j*ny;
+      a.vx -= jx/PIN_M; a.vy -= jy/PIN_M;
+      b.vx += jx/PIN_M; b.vy += jy/PIN_M;
+    }
+    // wake targets
+    if (!b.flying && Math.hypot(a.vx, a.vy) > 0.8){ b.flying=true; b.alive=false; pop(b.x,b.y,PINK); }
+    if (!a.flying && Math.hypot(b.vx, b.vy) > 0.8){ a.flying=true; a.alive=false; pop(a.x,a.y,CYAN); }
+  }
+
+  function restartRollNoPenalty(){
+    // restore pins
+    if (pinsSnapshot) pins = deepCopyPins(pinsSnapshot);
+    pinsDownThisRoll = 0;
+    particles = [];
+    resetBall();
+    waitingSwipe = true;
+  }
+
+  function update(dt){
+    moveObstacles();
+
+    // Ball movement (with side-wall bounce; no gutters)
+    if (ball.rolling){
+      ball.vx += ball.spin * Math.max(0, -ball.vy) * 0.02;
+      ball.vy *= 0.995; ball.vx *= 0.996;
+      ball.y += ball.vy; ball.x += ball.vx;
+
+      const leftWall = lane.x + lane.gutter + ball.r;
+      const rightWall = lane.x + lane.w - lane.gutter - ball.r;
+      if (ball.x < leftWall){ ball.x = leftWall; ball.vx *= -0.9; }
+      if (ball.x > rightWall){ ball.x = rightWall; ball.vx *= -0.9; }
+
+      // If ball returns to throw zone moving downward -> restart roll, no penalty
+      if (ball.y > THROW_Y + 12 && ball.vy > 0){
+        restartRollNoPenalty();
+        return;
+      }
+
+      // top of lane -> end roll
+      if (ball.y < lane.y - 20){ endRoll(); }
+    }
+
+    // Ball vs diamond dot obstacles
+    if (ball.rolling){
+      for(const ob of obstacles){
+        for(const d of ob.dots) collideBallCircle(d.x, d.y, d.r);
+      }
+    }
+
+    // Ball vs standing pins
+    if (ball.rolling){
+      for(const p of pins){
+        if (p.off || !p.alive) continue;
+        const rr = (PIN_R + ball.r);
+        const dx = p.x - ball.x, dy = p.y - ball.y;
+        if (dx*dx + dy*dy <= rr*rr){
+          const d = Math.hypot(dx, dy)||1, nx = dx/d, ny = dy/d;
+          const hitPower = Math.max(3, Math.min(10, -ball.vy*0.6 + Math.abs(ball.vx)*0.6));
+          knockPin(p, nx, ny, hitPower);
+        }
+      }
+    }
+
+    // Update flying pins + collisions
+    for(const p of pins){
+      if (p.off) continue;
+      if (p.flying){
+        p.vy += GRAVITY * 0.02 * dt;
+        p.vx *= 0.995; p.vy *= 0.995;
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < lane.x || p.x > lane.x+lane.w || p.y < lane.y-40 || p.y > lane.y+lane.h+60){
+          p.off = true;
+        }
+      }
+    }
+    for (let i=0;i<pins.length;i++){
+      const a=pins[i]; if (a.off) continue;
+      for (let j=i+1;j<pins.length;j++){
+        const b=pins[j]; if (b.off) continue;
+        if (a.flying || b.flying){ resolvePinPinCollision(a,b); }
+      }
+    }
+
+    // Particles
+    for (const pr of particles){ pr.x += pr.vx; pr.y += pr.vy; pr.vx*=0.985; pr.vy*=0.985; pr.life -= 0.02; }
+    particles = particles.filter(pr => pr.life > 0);
+  }
+
+  function endRoll(){
+    ball.rolling = false;
+    // settle time
+    for(let k=0;k<40;k++){ 
+      for(const p of pins){
+        if (p.flying){
+          p.vy += GRAVITY*0.3;
+          p.vx *= 0.99; p.vy *= 0.99; p.x += p.vx; p.y += p.vy;
+        }
+      }
+    }
+    // tally
+    pinsDownThisLevel += pinsDownThisRoll;
+    score += pinsDownThisRoll;
+    pinsDownThisRoll = 0;
+
+    if (roll === 2){
+      endLevel();
+    } else {
+      roll = 2;
+      resetBall();
+      waitingSwipe = true;
+      updateHUD();
+    }
+  }
+
+  function endLevel(){
+    const lost = (pinsDownThisLevel === 0);
+    const seriesOver = (seriesRound >= 10);
+    if (lost || seriesOver){
+      overlay.style.display = 'block';
+      summary.textContent = `Score: ${score}`;
+      level = lost ? 1 : level+1;
+      score = lost ? 0 : score;
+      seriesRound = 1;
+      pinsDownThisLevel = 0;
+      roll = 1;
+      resetPinsForLevel(level);
+      spawnObstaclesForLevel(level);
+      resetBall();
+      waitingSwipe = true;
+      updateHUD();
+      return;
+    }
+    // next level
+    seriesRound++;
+    level++;
+    pinsDownThisLevel = 0;
+    roll = 1;
+    resetPinsForLevel(level);
+    spawnObstaclesForLevel(level);
+    resetBall();
+    waitingSwipe = true;
+    updateHUD();
+  }
+
+  // Draw
+  function draw(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,W,H);
+
+    // Neon gradient background
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0, '#050510');
+    g.addColorStop(0.5, '#0b0b1f');
+    g.addColorStop(1, '#0f0f25');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // Lane + rails
+    ctx.fillStyle = '#111'; // gutters
+    ctx.fillRect(lane.x, lane.y, lane.gutter, lane.h);
+    ctx.fillRect(lane.x + lane.w - lane.gutter, lane.y, lane.gutter, lane.h);
+    ctx.fillStyle = PINK; ctx.fillRect(lane.x-2, lane.y, 2, lane.h);
+    ctx.fillStyle = CYAN; ctx.fillRect(lane.x + lane.w, lane.y, 2, lane.h);
+
+    // lane body
+    const lg = ctx.createLinearGradient(lane.x, lane.y, lane.x, lane.y+lane.h);
+    lg.addColorStop(0, '#191919');
+    lg.addColorStop(1, '#222');
+    ctx.fillStyle = lg; ctx.fillRect(lane.x + lane.gutter, lane.y, lane.w - lane.gutter*2, lane.h);
+
+    // center arrows
+    ctx.fillStyle = '#333';
+    for(let y=lane.y+40; y<lane.y+lane.h; y+=28){
+      const cx = lane.x + lane.w/2;
+      ctx.beginPath();
+      ctx.moveTo(cx, y);
+      ctx.lineTo(cx-6, y+14);
+      ctx.lineTo(cx+6, y+14);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // Throw zone indicator
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = CYAN;
+    ctx.fillRect(lane.x + lane.gutter, THROW_Y, lane.w - lane.gutter*2, lane.y + lane.h - THROW_Y);
+    ctx.globalAlpha = 1;
+
+    // Obstacles (diamond dots)
+    for(const ob of obstacles){
+      for(const d of ob.dots){
+        ctx.fillStyle = CYAN;
+        ctx.shadowColor = CYAN; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Pins
+    for(const p of pins){
+      if (p.off) continue;
+      if (p.alive && !p.flying){ ctx.fillStyle = '#fff'; }
+      else if (p.flying){ ctx.fillStyle = '#aaa'; }
+      else { ctx.fillStyle = '#666'; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI*2); ctx.fill();
+      if (p.alive){
+        ctx.fillStyle = '#000'; ctx.fillRect(p.x-6, p.y-1, 12, 2);
+      }
+    }
+
+    // Ball with neon ring
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = PINK; ctx.lineWidth = 3; ctx.shadowColor=PINK; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r*0.75, 0, Math.PI*2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000'; ctx.fillRect(ball.x - ball.r, ball.y - 2, ball.r*2, 4); // stripe
+
+    // Particles
+    for(const pr of particles){
+      ctx.globalAlpha = Math.max(0, pr.life);
+      ctx.fillStyle = pr.color;
+      ctx.fillRect(pr.x, pr.y, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+
+    // Aim guide
+    if (waitingSwipe && dragStart && dragLast){
+      ctx.strokeStyle = CYAN; ctx.lineWidth = 2; ctx.shadowColor=CYAN; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.moveTo(dragStart.x, dragStart.y); ctx.lineTo(dragLast.x, dragLast.y); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Init
+  resize();
+  document.getElementById('hint').style.display = 'block';
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

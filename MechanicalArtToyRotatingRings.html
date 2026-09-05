@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Mechanical Art Toy — Rotating Rings</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --accent:#00bcd4; /* teal for optional theme */
+  }
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--bg);
+    color:var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  #wrap{
+    display:flex;
+    flex-direction:column;
+    height:100%;
+  }
+  header{
+    padding:.7rem 1rem;
+    display:flex;
+    gap:.6rem;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid #222;
+    background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+  }
+  header .row{
+    display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;
+  }
+  label{
+    font-size:.9rem;
+  }
+  input[type=range]{
+    width:9rem;
+    accent-color:var(--fg);
+  }
+  button, .btn{
+    background:#111; color:var(--fg);
+    border:1px solid #333; border-radius:.6rem;
+    padding:.45rem .7rem; font-weight:600;
+  }
+  button:active{ transform:scale(.98); }
+  #canvas{
+    flex:1;
+    width:100%;
+    display:block;
+    touch-action:none;
+    background: radial-gradient(ellipse at center, #000 0%, #000 50%, #050505 100%);
+  }
+  footer{
+    font-size:.8rem;
+    opacity:.7;
+    padding:.5rem 1rem;
+    text-align:center;
+  }
+  .toggle{
+    display:inline-flex; align-items:center; gap:.35rem;
+  }
+  .small{font-size:.8rem; opacity:.85;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="wrap">
+  <header>
+    <div class="row">
+      <span class="small">Rings:</span><input id="rings" type="range" min="6" max="64" value="24">
+      <span class="small">Thickness:</span><input id="thick" type="range" min="1" max="40" value="10">
+      <span class="small">Gap:</span><input id="gap" type="range" min="1" max="40" value="8">
+      <span class="small">Speed:</span><input id="speed" type="range" min="0" max="200" value="60">
+      <span class="small">Wobble:</span><input id="wobble" type="range" min="0" max="100" value="10">
+      <span class="small">Glow:</span><input id="glow" type="range" min="0" max="50" value="18">
+    </div>
+    <div class="row">
+      <label class="toggle"><input id="alt" type="checkbox" checked> Alternate spin</label>
+      <label class="toggle"><input id="teal" type="checkbox"> Teal theme</label>
+      <label class="toggle"><input id="gyro" type="checkbox"> Gyro</label>
+      <button id="snap">Save PNG</button>
+      <button id="reset">Reset</button>
+    </div>
+  </header>
+  <canvas id="canvas"></canvas>
+  <footer>Mechanical Art Toy · concentric rotating rings · drag/touch to steer · double‑tap to pause · © you</footer>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha:false });
+let W = 0, H = 0, dpr = Math.max(1, window.devicePixelRatio || 1);
+
+function fit(){
+  W = canvas.clientWidth; H = canvas.clientHeight;
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize', fit, {passive:true});
+fit();
+
+// UI
+const UI = id => document.getElementById(id);
+const ringsEl=UI('rings'), thickEl=UI('thick'), gapEl=UI('gap');
+const speedEl=UI('speed'), wobbleEl=UI('wobble'), glowEl=UI('glow');
+const altEl=UI('alt'), tealEl=UI('teal'), gyroEl=UI('gyro');
+const snapBtn=UI('snap'), resetBtn=UI('reset');
+
+let params = {
+  rings: +ringsEl.value,
+  thick: +thickEl.value,
+  gap: +gapEl.value,
+  speed: +speedEl.value / 100, // rad/sec base
+  wobble: +wobbleEl.value / 100,
+  glow: +glowEl.value,
+  alt: altEl.checked,
+  hueTheme: 0, // 0=white; 1=teal
+};
+let playing = true;
+
+[ringsEl, thickEl, gapEl, speedEl, wobbleEl, glowEl].forEach(el => {
+  el.addEventListener('input', ()=>{
+    params.rings = +ringsEl.value;
+    params.thick = +thickEl.value;
+    params.gap = +gapEl.value;
+    params.speed = +speedEl.value / 100;
+    params.wobble = +wobbleEl.value / 100;
+    params.glow = +glowEl.value;
+  }, {passive:true});
+});
+altEl.addEventListener('change', ()=>params.alt = altEl.checked);
+tealEl.addEventListener('change', ()=>{
+  params.hueTheme = tealEl.checked ? 1 : 0;
+  document.documentElement.style.setProperty('--fg', params.hueTheme ? 'var(--accent)' : '#fff');
+});
+resetBtn.addEventListener('click', ()=>{
+  ringsEl.value = 24; thickEl.value=10; gapEl.value=8; speedEl.value=60;
+  wobbleEl.value=10; glowEl.value=18; altEl.checked=true; tealEl.checked=false;
+  params = {rings:24, thick:10, gap:8, speed:0.60, wobble:0.10, glow:18, alt:true, hueTheme:0};
+  document.documentElement.style.setProperty('--fg', '#fff');
+});
+snapBtn.addEventListener('click', ()=>{
+  // temporary scale for crisp export
+  const data = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = data; a.download = 'mechanical-art-toy.png';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+// Interaction: drag to offset rotation phase + center shift
+let drag = {active:false, x:0, y:0, vx:0, vy:0};
+function setDrag(e){
+  const t = e.touches ? e.touches[0] : e;
+  const rect = canvas.getBoundingClientRect();
+  const x = (t.clientX - rect.left)/rect.width * W;
+  const y = (t.clientY - rect.top)/rect.height * H;
+  if(!drag.active){ drag.vx = 0; drag.vy = 0; }
+  else { drag.vx = (x - drag.x); drag.vy = (y - drag.y); }
+  drag.x = x; drag.y = y; drag.active = true;
+}
+canvas.addEventListener('pointerdown', e => { setDrag(e); });
+canvas.addEventListener('pointermove', e => { if(drag.active) setDrag(e); });
+addEventListener('pointerup', ()=> drag.active=false);
+addEventListener('pointercancel', ()=> drag.active=false);
+
+// Double tap to pause/play
+let lastTap=0;
+canvas.addEventListener('pointerdown', e=>{
+  const now = performance.now();
+  if(now - lastTap < 300){
+    playing = !playing;
+  }
+  lastTap = now;
+});
+
+// Optional gyro
+let gyro = {ax:0, ay:0};
+gyroEl.addEventListener('change', async ()=>{
+  if(gyroEl.checked && 'DeviceOrientationEvent' in window){
+    try{
+      if (typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const res = await DeviceOrientationEvent.requestPermission();
+        if(res !== 'granted'){ gyroEl.checked=false; return; }
+      }
+      window.addEventListener('deviceorientation', ev=>{
+        // tilt maps to slight center offset
+        gyro.ax = (ev.gamma||0)/45; // left-right tilt
+        gyro.ay = (ev.beta||0)/45;  // forward-back tilt
+      });
+    }catch(e){ gyroEl.checked=false; }
+  }
+});
+
+// Animation
+let t0 = performance.now() / 1000;
+function draw(){
+  const t = performance.now()/1000;
+  const dt = t - t0; t0 = t;
+
+  if(playing){
+    phase += params.speed * dt;
+  }
+  // gentle inertia when released
+  if(!drag.active){
+    drag.vx *= 0.92; drag.vy *= 0.92;
+  }
+
+  const cx = W/2 + (drag.x ? (drag.x - W/2)*0.15 : 0) + gyro.ax*W*0.08;
+  const cy = H/2 + (drag.y ? (drag.y - H/2)*0.15 : 0) + gyro.ay*H*0.08;
+
+  // background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+
+  // radial gradient shading for depth
+  const maxR = Math.min(W,H)*0.48;
+  const grd = ctx.createRadialGradient(cx, cy, maxR*0.1, cx, cy, maxR*1.1);
+  if(params.hueTheme){
+    grd.addColorStop(0, 'rgba(0, 188, 212, 0.25)');
+    grd.addColorStop(1, 'rgba(0,0,0,1)');
+  }else{
+    grd.addColorStop(0, 'rgba(255,255,255,0.12)');
+    grd.addColorStop(1, 'rgba(0,0,0,1)');
+  }
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,W,H);
+
+  // draw rings
+  const rings = Math.max(3, params.rings|0);
+  const thick = Math.max(1, params.thick);
+  const gap = Math.max(1, params.gap);
+  const step = thick + gap;
+  const baseR = Math.min(W,H)*0.06;
+  const total = Math.min(maxR, baseR + rings*step);
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // overall rotation
+  ctx.rotate(phase * 0.5 + drag.vx * 0.002);
+
+  for(let i=0;i<rings;i++){
+    const r = baseR + i*step;
+    if(r>total) break;
+
+    const alt = params.alt && (i%2===1 ? -1 : 1);
+    const wob = params.wobble * Math.sin(phase* (1+ i*0.07) * alt + i*0.2);
+    const localRot = phase * (1 + i*0.02) * alt + wob + drag.vx*0.001;
+
+    ctx.save();
+    ctx.rotate(localRot);
+
+    // glow layer
+    if(params.glow>0){
+      ctx.shadowColor = params.hueTheme ? 'rgba(0,188,212,0.7)' : 'rgba(255,255,255,0.65)';
+      ctx.shadowBlur = params.glow;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+
+    // ring body
+    ctx.lineWidth = thick;
+    ctx.strokeStyle = params.hueTheme ? 'rgba(0,188,212,0.95)' : '#fff';
+    // we make a small seam (like the reference highlight) by drawing a short gap
+    const seam = Math.PI * 0.35;
+    ctx.beginPath();
+    ctx.arc(0,0,r, seam*0.5, Math.PI*2 - seam*0.5);
+    ctx.stroke();
+
+    // subtle highlight band to emulate a light sweep
+    ctx.shadowBlur = 0;
+    const hl = ctx.createLinearGradient(-r,0,r,0);
+    if(params.hueTheme){
+      hl.addColorStop(0,'rgba(255,255,255,0)');
+      hl.addColorStop(0.5,'rgba(255,255,255,0.18)');
+      hl.addColorStop(1,'rgba(255,255,255,0)');
+    } else {
+      hl.addColorStop(0,'rgba(255,255,255,0)');
+      hl.addColorStop(0.5,'rgba(255,255,255,0.25)');
+      hl.addColorStop(1,'rgba(255,255,255,0)');
+    }
+    ctx.strokeStyle = hl;
+    ctx.lineWidth = Math.max(1, thick*0.35);
+    ctx.beginPath();
+    ctx.arc(0,0,r, -Math.PI*0.15, Math.PI*0.15);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // center disc
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(0,0, baseR*0.9, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+
+  requestAnimationFrame(draw);
+}
+
+let phase = 0;
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

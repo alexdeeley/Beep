@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTRA DYNAMIC STRIKE</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; touch-action: none; }
+        #gameCanvas { display: block; border: 10px solid #fff; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; font-size: 35px;
+            font-weight: 900; pointer-events: none; z-index: 10; line-height: 1.2;
+        }
+        #msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 45px; text-align: center; background: #000;
+            border: 10px solid #fff; padding: 40px; z-index: 20; width: 85%;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+
+<div id="ui">
+    SCORE: <span id="scoreVal">0</span><br>
+    POWER: <span id="powerVal">1</span><br>
+    HEALTH: <span id="hpVal">|||</span>
+</div>
+<div id="msg">STRIKE FORCE<br><br><span style="font-size:25px">DODGE SQUARES - COLLECT CIRCLES<br>POWER DECAYS OVER TIME!<br><br>TAP TO START</span></div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const scoreVal = document.getElementById('scoreVal');
+const powerVal = document.getElementById('powerVal');
+const hpVal = document.getElementById('hpVal');
+const msg = document.getElementById('msg');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+
+const game = {
+    active: false,
+    score: 0,
+    powerLevel: 1,
+    powerXP: 0,
+    hp: 3,
+    frame: 0,
+    shake: 0
+};
+
+const player = { x: canvas.width / 2, y: canvas.height - 150, size: 80 };
+const bullets = [], enemies = [], powerups = [], particles = [];
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, type, duration, vol) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    if(type === 'sawtooth') osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function createExplosion(x, y) {
+    for(let i=0; i<12; i++) {
+        particles.push({
+            x, y, 
+            vx: (Math.random()-0.5)*20, 
+            vy: (Math.random()-0.5)*20, 
+            size: Math.random()*15 + 5,
+            life: 1.0
+        });
+    }
+}
+
+function spawnEnemy() {
+    const size = 70 + Math.random() * 60;
+    enemies.push({ x: Math.random()*(canvas.width-size), y: -size, size, speed: 4 + (game.score/1000) });
+}
+
+function update() {
+    if (!game.active) return;
+    game.frame++;
+    if (game.shake > 0) game.shake--;
+
+    if (game.frame % 300 === 0 && game.powerLevel > 1) {
+        game.powerLevel--;
+        playSound(150, 'sine', 0.5, 0.2);
+    }
+
+    if (game.frame % 10 === 0) {
+        playSound(400, 'square', 0.08, 0.05);
+        const spread = 40;
+        const offset = ((game.powerLevel - 1) * spread) / 2;
+        for (let i = 0; i < game.powerLevel; i++) {
+            bullets.push({ x: (player.x + player.size/2 - 15) - offset + (i*spread), y: player.y, size: 30 });
+        }
+    }
+
+    for (let i = bullets.length-1; i>=0; i--) {
+        bullets[i].y -= 18;
+        if (bullets[i].y < -50) bullets.splice(i, 1);
+    }
+
+    if (game.frame % 50 === 0) spawnEnemy();
+    for (let i = enemies.length-1; i>=0; i--) {
+        const e = enemies[i];
+        e.y += e.speed;
+        
+        if (checkRect(player, e)) {
+            game.hp--;
+            game.shake = 20;
+            enemies.splice(i, 1);
+            playSound(100, 'sawtooth', 0.4, 0.3);
+            if (game.hp <= 0) gameOver();
+            continue;
+        }
+
+        for (let j = bullets.length-1; j>=0; j--) {
+            if (checkRect(bullets[j], e)) {
+                createExplosion(e.x + e.size/2, e.y + e.size/2);
+                playSound(60, 'sawtooth', 0.2, 0.2);
+                game.score += 10;
+                if (Math.random() > 0.7) powerups.push({ x: e.x, y: e.y, size: 60, type: Math.random() > 0.9 ? 'HP' : 'PWR' });
+                enemies.splice(i, 1);
+                bullets.splice(j, 1);
+                break;
+            }
+        }
+    }
+
+    for (let i = powerups.length-1; i>=0; i--) {
+        powerups[i].y += 5;
+        if (checkRect(powerups[i], player)) {
+            if (powerups[i].type === 'HP') { game.hp = Math.min(game.hp+1, 5); playSound(600, 'sine', 0.4, 0.2); }
+            else { game.powerLevel++; playSound(800, 'sine', 0.3, 0.2); }
+            powerups.splice(i, 1);
+        }
+    }
+
+    particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        if(p.life <= 0) particles.splice(i, 1);
+    });
+
+    scoreVal.innerText = game.score;
+    powerVal.innerText = game.powerLevel;
+    hpVal.innerText = "|".repeat(game.hp);
+}
+
+function checkRect(r1, r2) {
+    return r1.x < r2.x + r2.size && r1.x + r1.size > r2.x && r1.y < r2.y + r2.size && r1.y + r1.size > r2.y;
+}
+
+function draw() {
+    ctx.save();
+    if (game.shake > 0) ctx.translate(Math.random()*15-7, Math.random()*15-7);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#fff';
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1.0;
+
+    ctx.fillRect(player.x, player.y + 30, player.size, player.size - 30);
+    ctx.fillRect(player.x + player.size/2 - 10, player.y, 20, 40);
+
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, b.size, b.size));
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 10;
+    enemies.forEach(e => ctx.strokeRect(e.x, e.y, e.size, e.size));
+
+    powerups.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x + 30, p.y + 30, 30, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        if(p.type === 'HP') {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(p.x + 25, p.y + 10, 10, 40);
+            ctx.fillRect(p.x + 10, p.y + 25, 40, 10);
+        }
+    });
+
+    ctx.restore();
+    requestAnimationFrame(draw);
+}
+
+function gameOver() {
+    game.active = false;
+    msg.classList.remove('hidden');
+    msg.innerHTML = `SHIP DESTROYED<br>SCORE: ${game.score}<br><br>TAP TO REPLOY`;
+}
+
+function startGame() {
+    if (game.active) return;
+    game.active = true; game.score = 0; game.powerLevel = 1; game.hp = 3;
+    bullets.length = enemies.length = powerups.length = particles.length = 0;
+    msg.classList.add('hidden');
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+canvas.addEventListener('mousemove', e => player.x = e.clientX - player.size/2);
+canvas.addEventListener('touchmove', e => { player.x = e.touches[0].clientX - player.size/2; e.preventDefault(); }, {passive:false});
+canvas.addEventListener('mousedown', startGame);
+canvas.addEventListener('touchstart', e => { startGame(); e.preventDefault(); }, {passive:false});
+
+setInterval(update, 1000/60);
+draw();
+</script>
+</body>
+</html>

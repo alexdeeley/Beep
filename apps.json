@@ -29,7 +29,7 @@
   },
   {
     "id": "oscillate-scroll-bars",
-    "name": "Oscillate — Scroll Bars",
+    "name": "Oscillate \u2014 Scroll Bars",
     "description": "Turns your mic input into a scrolling neon waveform.",
     "category": "Art",
     "path": "OscillateScrollBars.html"
@@ -114,7 +114,7 @@
   {
     "id": "orbit-rush",
     "name": "Orbit Rush",
-    "description": "A one-tap dodger — switch lanes to dodge spinning arcs.",
+    "description": "A one-tap dodger \u2014 switch lanes to dodge spinning arcs.",
     "category": "Games",
     "path": "OrbitRush.html"
   },
@@ -135,7 +135,7 @@
   {
     "id": "neon-blade-xenowave",
     "name": "Neon Blade: Xenowave",
-    "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
+    "description": "A neon cyberpunk side-scrolling brawler \u2014 slash through enemies to a boss fight.",
     "category": "Games",
     "path": "NeonBladeXenowave.html"
   },
@@ -163,8 +163,1583 @@
   {
     "id": "chunky-shape-shooter",
     "name": "Chunky Shape Shooter",
-    "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
+    "description": "A chunky, pixel-art twin-stick style shooter \u2014 blast waves of shapes for score.",
     "category": "Games",
     "path": "ChunkyShapeShooter.html"
+  },
+  {
+    "id": "merzbow-machine",
+    "name": "Merzbow Machine",
+    "description": "A harsh noise wall synthesizer \u2014 six modules, three step sequencers, and chaos/glitch controls.",
+    "category": "Music Tools",
+    "path": "MerzbowMachine.html"
+  },
+  {
+    "id": "checkerboard-dissolve",
+    "name": "Checkerboard Dissolve",
+    "description": "Swipe to warp and dissolve a stretchy, pliable checkerboard into fizzling pixels.",
+    "category": "Art",
+    "path": "CheckerboardDissolve.html"
+  },
+  {
+    "id": "checkerboard-phenomena",
+    "name": "Checkerboard Phenomena",
+    "description": "Seven checkerboard illusions \u2014 swirl, spiral, caf\u00e9 wall, moir\u00e9, and more \u2014 with live controls.",
+    "category": "Art",
+    "path": "CheckerboardPhenomena.html"
+  },
+  {
+    "id": "artsy-v3",
+    "name": "Artsy v3",
+    "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
+    "category": "Art",
+    "path": "ArtsyV3.html"
+  },
+  {
+    "id": "checker-morphs",
+    "name": "Checker Morphs",
+    "description": "A checkerboard-filled shape that slowly morphs between circles, polygons, and rhombi.",
+    "category": "Art",
+    "path": "CheckerMorphs.html"
+  },
+  {
+    "id": "art-toy-clay-cube",
+    "name": "Art Toy \u2014 Clay Cube",
+    "description": "Spin and fling a voxel clay cube \u2014 it sheds wet clay blobs that pile up and dry on the ground.",
+    "category": "Art",
+    "path": "ArtToyClayCube.html"
+  },
+  {
+    "id": "checkerburst",
+    "name": "Checkerburst",
+    "description": "A soft, checkerboard-filled blob you can grab and drag \u2014 it bursts into scattering pixels.",
+    "category": "Art",
+    "path": "Checkerburst.html"
+  },
+  {
+    "id": "infinite-checker-vortex",
+    "name": "Infinite Checkerboard Vortex",
+    "description": "A shader-driven checkerboard that spirals into infinite zoom \u2014 drag to rotate, pinch to scale.",
+    "category": "Art",
+    "path": "InfiniteCheckerVortex.html"
+  },
+  {
+    "id": "chord-morpher",
+    "name": "Chord Morph",
+    "description": "Tap to morph between randomized maj7 and min7 chords, played as pure sine tones.",
+    "category": "Music Tools",
+    "path": "ChordMorpher.html"
+  },
+  {
+    "id": "snake-circle-enemy",
+    "name": "Snake! Big Circle Enemy",
+    "description": "Classic snake with a twist \u2014 a slow-regenerating circle enemy that dies if it crashes into you.",
+    "category": "Games",
+    "path": "SnakeCircleEnemy.html"
+  },
+  {
+    "id": "spiral-fan-spinner",
+    "name": "Spiral Fan Spinner",
+    "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
+    "category": "Art",
+    "path": "SpiralFanSpinner.html"
+  },
+  {
+    "id": "liquid-checkerboard",
+    "name": "Liquid Checkerboard",
+    "description": "A pixel checkerboard that swirls and blows out into big pixelated swaths as you swipe.",
+    "category": "Art",
+    "path": "LiquidCheckerboard.html"
+  },
+  {
+    "id": "triangle-kaleidoscope",
+    "name": "Triangle Kaleidoscope",
+    "description": "Drag to morph a triangle into a swirling kaleidoscope, then settle into a diamond.",
+    "category": "Art",
+    "path": "TriangleKaleidoscope.html"
+  },
+  {
+    "id": "gooey-blobs",
+    "name": "Gooey Blobs & Lines",
+    "description": "A flowing RGB isoline field \u2014 drag to drop gooey metaball blobs into the current.",
+    "category": "Art",
+    "path": "GooeyBlobs.html"
+  },
+  {
+    "id": "material-cube",
+    "name": "Material Cube",
+    "description": "A tumbling 3D cube that cycles through chrome, wood, ice, and other procedural materials.",
+    "category": "Art",
+    "path": "MaterialCube.html"
+  },
+  {
+    "id": "neo-mini-hole",
+    "name": "Mini Hole",
+    "description": "A game from the Neocities collection: \"Mini Hole\".",
+    "category": "Games",
+    "path": "MiniHole.html"
+  },
+  {
+    "id": "neo-swipe-drift-text",
+    "name": "Swipe & Drift Text",
+    "description": "A generative art / visual piece from the Neocities collection: \"Swipe & Drift Text\".",
+    "category": "Art",
+    "path": "SwipeDriftText.html"
+  },
+  {
+    "id": "neo-space-shooter",
+    "name": "Space Shooter",
+    "description": "A game from the Neocities collection: \"Space Shooter\".",
+    "category": "Games",
+    "path": "SpaceShooter.html"
+  },
+  {
+    "id": "neo-echo-warp",
+    "name": "Echo Warp",
+    "description": "A music tool from the Neocities collection: \"Echo Warp\".",
+    "category": "Music Tools",
+    "path": "EchoWarp.html"
+  },
+  {
+    "id": "neo-shapewave-color-swipe",
+    "name": "ShapeWave \u2014 color swipe",
+    "description": "A generative art / visual piece from the Neocities collection: \"ShapeWave \u2014 color swipe\".",
+    "category": "Art",
+    "path": "ShapewaveColorSwipe.html"
+  },
+  {
+    "id": "neo-spider-kingdom-jungle-triangle",
+    "name": "Spider Kingdom",
+    "description": "A game from the Neocities collection: \"Spider Kingdom\".",
+    "category": "Games",
+    "path": "SpiderKingdomJungleTriangle.html"
+  },
+  {
+    "id": "neo-artsy-v32",
+    "name": "ARTSY v3 \u2014 Seeded Painter",
+    "description": "A generative art / visual piece from the Neocities collection: \"ARTSY v3 \u2014 Seeded Painter\".",
+    "category": "Art",
+    "path": "ArtsyV32.html"
+  },
+  {
+    "id": "neo-space-shooter-v3a-safari",
+    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
+    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
+    "category": "Games",
+    "path": "SpaceShooterV3aSafari.html"
+  },
+  {
+    "id": "neo-space-shooter2",
+    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
+    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
+    "category": "Games",
+    "path": "SpaceShooter2.html"
+  },
+  {
+    "id": "neo-space-shooter-v2",
+    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
+    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
+    "category": "Games",
+    "path": "SpaceShooterV2.html"
+  },
+  {
+    "id": "neo-blockdrop-quake-v2",
+    "name": "Blockdrop",
+    "description": "A game from the Neocities collection: \"Blockdrop\".",
+    "category": "Games",
+    "path": "BlockdropQuakeV2.html"
+  },
+  {
+    "id": "neo-space-shooter-v3",
+    "name": "PIXEL SPACE SHOOTER \u2014 Vertical",
+    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical\".",
+    "category": "Games",
+    "path": "SpaceShooterV3.html"
+  },
+  {
+    "id": "neo-space-shooter-v3b-slower",
+    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
+    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
+    "category": "Games",
+    "path": "SpaceShooterV3bSlower.html"
+  },
+  {
+    "id": "neo-space-shooter-v4",
+    "name": "SPACE BLAST \u2014 Vertical (Remake)",
+    "description": "A game from the Neocities collection: \"SPACE BLAST \u2014 Vertical (Remake)\".",
+    "category": "Games",
+    "path": "SpaceShooterV4.html"
+  },
+  {
+    "id": "neo-checkerboard-echo",
+    "name": "Checkerboard Echo",
+    "description": "A generative art / visual piece from the Neocities collection: \"Checkerboard Echo\".",
+    "category": "Art",
+    "path": "CheckerboardEcho.html"
+  },
+  {
+    "id": "neo-op-art-toy",
+    "name": "Op-Art Toy",
+    "description": "A music tool from the Neocities collection: \"Op-Art Toy\".",
+    "category": "Music Tools",
+    "path": "OpArtToy.html"
+  },
+  {
+    "id": "neo-boomshine-minimal-glow",
+    "name": "Boomshine \u2014 Minimal Glow",
+    "description": "A game from the Neocities collection: \"Boomshine \u2014 Minimal Glow\".",
+    "category": "Games",
+    "path": "BoomshineMinimalGlow.html"
+  },
+  {
+    "id": "neo-spiral-seed-art",
+    "name": "Seeded Spiral Generator",
+    "description": "A generative art / visual piece from the Neocities collection: \"Seeded Spiral Generator\".",
+    "category": "Art",
+    "path": "SpiralSeedArt.html"
+  },
+  {
+    "id": "neo-op-art",
+    "name": "Op Art",
+    "description": "A generative art / visual piece from the Neocities collection: \"Op Art\".",
+    "category": "Art",
+    "path": "OpArt.html"
+  },
+  {
+    "id": "neo-unicorn-tilt-maze-curvy5-levels",
+    "name": "Unicorn Tilt Maze // Curvy 5 Levels",
+    "description": "A generative art / visual piece from the Neocities collection: \"Unicorn Tilt Maze // Curvy 5 Levels\".",
+    "category": "Art",
+    "path": "UnicornTiltMazeCurvy5Levels.html"
+  },
+  {
+    "id": "neo-majormetal-saves-the-universe-d-b-splash",
+    "name": "Majormetal Saves The God Damn Universe",
+    "description": "A game from the Neocities collection: \"Majormetal Saves The God Damn Universe\".",
+    "category": "Games",
+    "path": "MajormetalSavesTheUniverseDBSplash.html"
+  },
+  {
+    "id": "neo-aether-classical-ambient-composer",
+    "name": "Aether \u2014 Classical Ambient Composer",
+    "description": "A generative art / visual piece from the Neocities collection: \"Aether \u2014 Classical Ambient Composer\".",
+    "category": "Art",
+    "path": "AetherClassicalAmbientComposer.html"
+  },
+  {
+    "id": "neo-fuzz303-lofi-beat-machine",
+    "name": "FUZZ-303 \u00b7 Lo-Fi Beat Machine",
+    "description": "A music tool from the Neocities collection: \"FUZZ-303 \u00b7 Lo-Fi Beat Machine\".",
+    "category": "Music Tools",
+    "path": "Fuzz303LofiBeatMachine.html"
+  },
+  {
+    "id": "neo-high-contrast-kaleidoscope",
+    "name": "High-Contrast Kaleidoscope",
+    "description": "A generative art / visual piece from the Neocities collection: \"High-Contrast Kaleidoscope\".",
+    "category": "Art",
+    "path": "HighContrastKaleidoscope.html"
+  },
+  {
+    "id": "neo-hive-multiplier",
+    "name": "HIVE MULTIPLIER \u2014 Timed + Zen Spelling Bee",
+    "description": "A game from the Neocities collection: \"HIVE MULTIPLIER \u2014 Timed + Zen Spelling Bee\".",
+    "category": "Games",
+    "path": "HiveMultiplier.html"
+  },
+  {
+    "id": "neo-majormetal-saves-the-universe",
+    "name": "Majormetal Saves The God Damn Universe",
+    "description": "A game from the Neocities collection: \"Majormetal Saves The God Damn Universe\".",
+    "category": "Games",
+    "path": "MajormetalSavesTheUniverse.html"
+  },
+  {
+    "id": "neo-infinite-zoom-swipe",
+    "name": "Infinite Zoom Swipe",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Zoom Swipe\".",
+    "category": "Art",
+    "path": "InfiniteZoomSwipe.html"
+  },
+  {
+    "id": "neo-bouncy-machine-single-spinner",
+    "name": "Bouncy Machine \u2014 Single Spinner",
+    "description": "A generative art / visual piece from the Neocities collection: \"Bouncy Machine \u2014 Single Spinner\".",
+    "category": "Art",
+    "path": "BouncyMachineSingleSpinner.html"
+  },
+  {
+    "id": "neo-orbital-dots",
+    "name": "Orbital Dots",
+    "description": "A generative art / visual piece from the Neocities collection: \"Orbital Dots\".",
+    "category": "Art",
+    "path": "OrbitalDots.html"
+  },
+  {
+    "id": "neo-tick-clock",
+    "name": "Tick Clock",
+    "description": "A music tool from the Neocities collection: \"Tick Clock\".",
+    "category": "Music Tools",
+    "path": "TickClock.html"
+  },
+  {
+    "id": "neo-hypnotic-spirals",
+    "name": "Hypnotic Spirals",
+    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
+    "category": "Art",
+    "path": "HypnoticSpirals.html"
+  },
+  {
+    "id": "neo-wave-grid",
+    "name": "Wave Grid",
+    "description": "A generative art / visual piece from the Neocities collection: \"Wave Grid\".",
+    "category": "Art",
+    "path": "WaveGrid.html"
+  },
+  {
+    "id": "neo-hexwave-triangles-color-swipe-slow",
+    "name": "HexWave \u2014 Triangles (Color, Slow, Swipe\u2011Reactive)",
+    "description": "A generative art / visual piece from the Neocities collection: \"HexWave \u2014 Triangles (Color, Slow, Swipe\u2011Reactive)\".",
+    "category": "Art",
+    "path": "HexwaveTrianglesColorSwipeSlow.html"
+  },
+  {
+    "id": "neo-ambient-generator011",
+    "name": "Ambient Generator 01.1",
+    "description": "A music tool from the Neocities collection: \"Ambient Generator 01.1\".",
+    "category": "Music Tools",
+    "path": "AmbientGenerator011.html"
+  },
+  {
+    "id": "neo-star-map-high-contrast",
+    "name": "Star Map \u2014 High\u2011Contrast",
+    "description": "A generative art / visual piece from the Neocities collection: \"Star Map \u2014 High\u2011Contrast\".",
+    "category": "Art",
+    "path": "StarMapHighContrast.html"
+  },
+  {
+    "id": "neo-wobbly-checkerboard-swirl-redshift",
+    "name": "Wobbly Checkerboard \u2014 Swirl + Red Shift",
+    "description": "A generative art / visual piece from the Neocities collection: \"Wobbly Checkerboard \u2014 Swirl + Red Shift\".",
+    "category": "Art",
+    "path": "WobblyCheckerboardSwirlRedshift.html"
+  },
+  {
+    "id": "neo-generative-art-studio-polished",
+    "name": "Generative Art Studio",
+    "description": "A generative art / visual piece from the Neocities collection: \"Generative Art Studio\".",
+    "category": "Art",
+    "path": "GenerativeArtStudioPolished.html"
+  },
+  {
+    "id": "neo-arkanoid-high-contrast",
+    "name": "Arkanoid HC",
+    "description": "A game from the Neocities collection: \"Arkanoid HC\".",
+    "category": "Games",
+    "path": "ArkanoidHighContrast.html"
+  },
+  {
+    "id": "neo-canvas-ok",
+    "name": "Canvas Check",
+    "description": "A generative art / visual piece from the Neocities collection: \"Canvas Check\".",
+    "category": "Art",
+    "path": "CanvasOk.html"
+  },
+  {
+    "id": "neo-art-toy-glitter-disco-tapburst",
+    "name": "Art Toy \u2014 Glitter Disco (Tap to Burst)",
+    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Tap to Burst)\".",
+    "category": "Art",
+    "path": "ArtToyGlitterDiscoTapburst.html"
+  },
+  {
+    "id": "neo-hypnotic-spirals2",
+    "name": "Hypnotic Spirals",
+    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
+    "category": "Art",
+    "path": "HypnoticSpirals2.html"
+  },
+  {
+    "id": "neo-hyper-bowling-chain",
+    "name": "HYPER BOWLING \u2014 Chain Reactions",
+    "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Chain Reactions\".",
+    "category": "Games",
+    "path": "HyperBowlingChain.html"
+  },
+  {
+    "id": "neo-art-toy-glass-cube",
+    "name": "Art Toy \u2014 Glass Cube (Spin = Break Rate)",
+    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glass Cube (Spin = Break Rate)\".",
+    "category": "Art",
+    "path": "ArtToyGlassCube.html"
+  },
+  {
+    "id": "neo-snake-wormio",
+    "name": "SNAKE! (Worm.io style)",
+    "description": "A game from the Neocities collection: \"SNAKE! (Worm.io style)\".",
+    "category": "Games",
+    "path": "SnakeWormio.html"
+  },
+  {
+    "id": "neo-art-toy-glitter-disco-burst",
+    "name": "Art Toy \u2014 Glitter Disco (Hold to Accelerate, Burst at 20s)",
+    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Hold to Accelerate, Burst at 20s)\".",
+    "category": "Art",
+    "path": "ArtToyGlitterDiscoBurst.html"
+  },
+  {
+    "id": "neo-neon-skee",
+    "name": "NEON SKEE \u2014 Flick to Score",
+    "description": "A game from the Neocities collection: \"NEON SKEE \u2014 Flick to Score\".",
+    "category": "Games",
+    "path": "NeonSkee.html"
+  },
+  {
+    "id": "neo-arty-three-shapes-seeded",
+    "name": "Arty \u2022 Three Shapes",
+    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
+    "category": "Art",
+    "path": "ArtyThreeShapesSeeded.html"
+  },
+  {
+    "id": "neo-arty-three-shapes-seeded-v2",
+    "name": "Arty \u2022 Three Shapes",
+    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
+    "category": "Art",
+    "path": "ArtyThreeShapesSeededV2.html"
+  },
+  {
+    "id": "neo-swipe-stretch-lines",
+    "name": "Swipe-Stretch Lines",
+    "description": "A generative art / visual piece from the Neocities collection: \"Swipe-Stretch Lines\".",
+    "category": "Art",
+    "path": "SwipeStretchLines.html"
+  },
+  {
+    "id": "neo-seed-art-more",
+    "name": "Seed / Pattern / Future \u2014 MORE",
+    "description": "A generative art / visual piece from the Neocities collection: \"Seed / Pattern / Future \u2014 MORE\".",
+    "category": "Art",
+    "path": "SeedArtMore.html"
+  },
+  {
+    "id": "neo-hyper-bowling",
+    "name": "HYPER BOWLING \u2014 Swipe to Roll",
+    "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Swipe to Roll\".",
+    "category": "Games",
+    "path": "HyperBowling.html"
+  },
+  {
+    "id": "neo-mechanical-art-toy-rotating-rings",
+    "name": "Mechanical Art Toy \u2014 Rotating Rings",
+    "description": "A generative art / visual piece from the Neocities collection: \"Mechanical Art Toy \u2014 Rotating Rings\".",
+    "category": "Art",
+    "path": "MechanicalArtToyRotatingRings.html"
+  },
+  {
+    "id": "neo-miami-strike-diamonds",
+    "name": "MIAMI STRIKE \u2014 Neon Bowling (Diamond Blockers)",
+    "description": "A game from the Neocities collection: \"MIAMI STRIKE \u2014 Neon Bowling (Diamond Blockers)\".",
+    "category": "Games",
+    "path": "MiamiStrikeDiamonds.html"
+  },
+  {
+    "id": "neo-pattern-dna-infinite",
+    "name": "Pattern DNA \u2014 Infinite Repeater",
+    "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Infinite Repeater\".",
+    "category": "Art",
+    "path": "PatternDnaInfinite.html"
+  },
+  {
+    "id": "neo-goo",
+    "name": "Goo Blob",
+    "description": "A generative art / visual piece from the Neocities collection: \"Goo Blob\".",
+    "category": "Art",
+    "path": "Goo.html"
+  },
+  {
+    "id": "neo-neon-catch-icon",
+    "name": "NEON CATCH \u2014 Icon Edition",
+    "description": "A game from the Neocities collection: \"NEON CATCH \u2014 Icon Edition\".",
+    "category": "Games",
+    "path": "NeonCatchIcon.html"
+  },
+  {
+    "id": "neo-art-toy-pixel-cube-gray",
+    "name": "Art Toy \u2014 Pixel Cube (Gray + Shaded)",
+    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Pixel Cube (Gray + Shaded)\".",
+    "category": "Art",
+    "path": "ArtToyPixelCubeGray.html"
+  },
+  {
+    "id": "neo-pattern-dna-growing-conveyor",
+    "name": "Pattern DNA \u2014 Growing Conveyor",
+    "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Growing Conveyor\".",
+    "category": "Art",
+    "path": "PatternDnaGrowingConveyor.html"
+  },
+  {
+    "id": "neo-wobbly-checkerboard-exaggerated",
+    "name": "Wobbly Checkerboard \u2014 Exaggerated",
+    "description": "A generative art / visual piece from the Neocities collection: \"Wobbly Checkerboard \u2014 Exaggerated\".",
+    "category": "Art",
+    "path": "WobblyCheckerboardExaggerated.html"
+  },
+  {
+    "id": "neo-snake-one-hand-v4",
+    "name": "SNAKE! \u2014 One-Hand",
+    "description": "A game from the Neocities collection: \"SNAKE! \u2014 One-Hand\".",
+    "category": "Games",
+    "path": "SnakeOneHandV4.html"
+  },
+  {
+    "id": "neo-art-toy-tennis-ball-space",
+    "name": "Art Toy \u2014 Tennis Ball in Space",
+    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Tennis Ball in Space\".",
+    "category": "Art",
+    "path": "ArtToyTennisBallSpace.html"
+  },
+  {
+    "id": "neo-snake-one-hand-v3",
+    "name": "Snake \u2014 One-Hand (v3)",
+    "description": "A game from the Neocities collection: \"Snake \u2014 One-Hand (v3)\".",
+    "category": "Games",
+    "path": "SnakeOneHandV3.html"
+  },
+  {
+    "id": "neo-unicorn-rainbow-blast",
+    "name": "Unicorn Rainbow Blast",
+    "description": "A game from the Neocities collection: \"Unicorn Rainbow Blast\".",
+    "category": "Games",
+    "path": "UnicornRainbowBlast.html"
+  },
+  {
+    "id": "neo-snake-wormio2",
+    "name": "SNAKE! (Worm.io style)",
+    "description": "A game from the Neocities collection: \"SNAKE! (Worm.io style)\".",
+    "category": "Games",
+    "path": "SnakeWormio2.html"
+  },
+  {
+    "id": "neo-arkanoid-flat-paddle-patterns",
+    "name": "Arkanoid \u2014 Flat Paddle + Level Toast + Patterns",
+    "description": "A game from the Neocities collection: \"Arkanoid \u2014 Flat Paddle + Level Toast + Patterns\".",
+    "category": "Games",
+    "path": "ArkanoidFlatPaddlePatterns.html"
+  },
+  {
+    "id": "neo-noise-mic-visualizer",
+    "name": "Noise + Mic Visualizer (Echo/Reverb)",
+    "description": "A music tool from the Neocities collection: \"Noise + Mic Visualizer (Echo/Reverb)\".",
+    "category": "Music Tools",
+    "path": "NoiseMicVisualizer.html"
+  },
+  {
+    "id": "neo-harsh-noise-wall9-squares-sequencer-fix",
+    "name": "HNW 9 + Seq",
+    "description": "A music tool from the Neocities collection: \"HNW 9 + Seq\".",
+    "category": "Music Tools",
+    "path": "HarshNoiseWall9SquaresSequencerFix.html"
+  },
+  {
+    "id": "neo-808-glitch-drum-machine",
+    "name": "808 Glitch Drums",
+    "description": "A music tool from the Neocities collection: \"808 Glitch Drums\".",
+    "category": "Music Tools",
+    "path": "808GlitchDrumMachine.html"
+  },
+  {
+    "id": "neo-harsh-noise-wall-play-then-seq-then-pads",
+    "name": "HNW Play",
+    "description": "A music tool from the Neocities collection: \"HNW Play\".",
+    "category": "Music Tools",
+    "path": "HarshNoiseWallPlayThenSeqThenPads.html"
+  },
+  {
+    "id": "neo-swirl-studio",
+    "name": "Swirl Studio",
+    "description": "A generative art / visual piece from the Neocities collection: \"Swirl Studio\".",
+    "category": "Art",
+    "path": "SwirlStudio.html"
+  },
+  {
+    "id": "neo-metropolis-fixed",
+    "name": "Metropolis",
+    "description": "A game from the Neocities collection: \"Metropolis\".",
+    "category": "Games",
+    "path": "MetropolisFixed.html"
+  },
+  {
+    "id": "neo-fractal-checkerboard-vivid",
+    "name": "Fractal Checkerboard Vivid",
+    "description": "A generative art / visual piece from the Neocities collection: \"Fractal Checkerboard Vivid\".",
+    "category": "Art",
+    "path": "FractalCheckerboardVivid.html"
+  },
+  {
+    "id": "neo-maisies-unicorn-maze-fixed",
+    "name": "\ud83e\udd84 Maisie's Unicorn Maze!",
+    "description": "A game from the Neocities collection: \"\ud83e\udd84 Maisie's Unicorn Maze!\".",
+    "category": "Games",
+    "path": "MaisiesUnicornMazeFixed.html"
+  },
+  {
+    "id": "neo-metropolis-touch-fixed",
+    "name": "Metropolis",
+    "description": "A game from the Neocities collection: \"Metropolis\".",
+    "category": "Games",
+    "path": "MetropolisTouchFixed.html"
+  },
+  {
+    "id": "neo-field-lines",
+    "name": "Field Lines",
+    "description": "A generative art / visual piece from the Neocities collection: \"Field Lines\".",
+    "category": "Art",
+    "path": "FieldLines.html"
+  },
+  {
+    "id": "neo-drum-machine8step-blast-speed",
+    "name": "Drum 8",
+    "description": "A music tool from the Neocities collection: \"Drum 8\".",
+    "category": "Music Tools",
+    "path": "DrumMachine8stepBlastSpeed.html"
+  },
+  {
+    "id": "neo-mini909-bass-sequencer",
+    "name": "Mini 909 + Bass",
+    "description": "A music tool from the Neocities collection: \"Mini 909 + Bass\".",
+    "category": "Music Tools",
+    "path": "Mini909BassSequencer.html"
+  },
+  {
+    "id": "neo-drum-machine8step-blast-speed-pitch",
+    "name": "Drum 8 Pitch",
+    "description": "A music tool from the Neocities collection: \"Drum 8 Pitch\".",
+    "category": "Music Tools",
+    "path": "DrumMachine8stepBlastSpeedPitch.html"
+  },
+  {
+    "id": "neo-mini909-bass-notext",
+    "name": "909",
+    "description": "A music tool from the Neocities collection: \"909\".",
+    "category": "Music Tools",
+    "path": "Mini909BassNotext.html"
+  },
+  {
+    "id": "neo-808-glitch-drum-machine2",
+    "name": "808 Glitch Drums",
+    "description": "A music tool from the Neocities collection: \"808 Glitch Drums\".",
+    "category": "Music Tools",
+    "path": "808GlitchDrumMachine2.html"
+  },
+  {
+    "id": "neo-spin-textless-fixed",
+    "name": "Spin",
+    "description": "A music tool from the Neocities collection: \"Spin\".",
+    "category": "Music Tools",
+    "path": "SpinTextlessFixed.html"
+  },
+  {
+    "id": "neo-opseed-studio",
+    "name": "OpSeed Studio \u2014 seed\u2011driven op art from your refs",
+    "description": "A game from the Neocities collection: \"OpSeed Studio \u2014 seed\u2011driven op art from your refs\".",
+    "category": "Games",
+    "path": "OpseedStudio.html"
+  },
+  {
+    "id": "neo-one-hand-moto-minimal",
+    "name": "One-Hand Moto \u2014 Minimal",
+    "description": "A game from the Neocities collection: \"One-Hand Moto \u2014 Minimal\".",
+    "category": "Games",
+    "path": "OneHandMotoMinimal.html"
+  },
+  {
+    "id": "neo-one-hand-moto-ios",
+    "name": "One-Hand Moto (iOS fix)",
+    "description": "A music tool from the Neocities collection: \"One-Hand Moto (iOS fix)\".",
+    "category": "Music Tools",
+    "path": "OneHandMotoIos.html"
+  },
+  {
+    "id": "neo-touch-fade-grid",
+    "name": "Touch Fade Grid",
+    "description": "A generative art / visual piece from the Neocities collection: \"Touch Fade Grid\".",
+    "category": "Art",
+    "path": "TouchFadeGrid.html"
+  },
+  {
+    "id": "neo-one-hand-moto-autojump",
+    "name": "One-Hand Moto \u2014 Auto & Ramps",
+    "description": "A generative art / visual piece from the Neocities collection: \"One-Hand Moto \u2014 Auto & Ramps\".",
+    "category": "Art",
+    "path": "OneHandMotoAutojump.html"
+  },
+  {
+    "id": "neo-one-hand-moto-heavy",
+    "name": "One-Hand Moto \u2014 Heavy Physics",
+    "description": "A game from the Neocities collection: \"One-Hand Moto \u2014 Heavy Physics\".",
+    "category": "Games",
+    "path": "OneHandMotoHeavy.html"
+  },
+  {
+    "id": "neo-art-one-tap-gen",
+    "name": "ART \u2014 One\u2011Tap Generative Gallery",
+    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 One\u2011Tap Generative Gallery\".",
+    "category": "Art",
+    "path": "ArtOneTapGen.html"
+  },
+  {
+    "id": "neo-rhythm-bubbles-happy-birthday",
+    "name": "Unicorn Rhythm Bubbles \u2014 Happy Birthday",
+    "description": "A game from the Neocities collection: \"Unicorn Rhythm Bubbles \u2014 Happy Birthday\".",
+    "category": "Games",
+    "path": "RhythmBubblesHappyBirthday.html"
+  },
+  {
+    "id": "neo-rotating-ring-feeder-time-attack-compat",
+    "name": "Rotating Ring Feeder \u2014 Time Attack (Compat)",
+    "description": "A game from the Neocities collection: \"Rotating Ring Feeder \u2014 Time Attack (Compat)\".",
+    "category": "Games",
+    "path": "RotatingRingFeederTimeAttackCompat.html"
+  },
+  {
+    "id": "neo-vaporwave-generator",
+    "name": "Vaporwave Generator",
+    "description": "A music tool from the Neocities collection: \"Vaporwave Generator\".",
+    "category": "Music Tools",
+    "path": "VaporwaveGenerator.html"
+  },
+  {
+    "id": "neo-bouncy-machine",
+    "name": "Bouncy Machine",
+    "description": "A generative art / visual piece from the Neocities collection: \"Bouncy Machine\".",
+    "category": "Art",
+    "path": "BouncyMachine.html"
+  },
+  {
+    "id": "neo-light-tap-bulbs",
+    "name": "Light Tap \u2022 Bulbs",
+    "description": "A game from the Neocities collection: \"Light Tap \u2022 Bulbs\".",
+    "category": "Games",
+    "path": "LightTapBulbs.html"
+  },
+  {
+    "id": "neo-instrument012",
+    "name": "Instrument 01.2",
+    "description": "A music tool from the Neocities collection: \"Instrument 01.2\".",
+    "category": "Music Tools",
+    "path": "Instrument012.html"
+  },
+  {
+    "id": "neo-instrument013",
+    "name": "Instrument 01.3",
+    "description": "A music tool from the Neocities collection: \"Instrument 01.3\".",
+    "category": "Music Tools",
+    "path": "Instrument013.html"
+  },
+  {
+    "id": "neo-instrument01-plus",
+    "name": "Instrument 01+",
+    "description": "A music tool from the Neocities collection: \"Instrument 01+\".",
+    "category": "Music Tools",
+    "path": "Instrument01Plus.html"
+  },
+  {
+    "id": "neo-instrument011",
+    "name": "Instrument 01.1",
+    "description": "A music tool from the Neocities collection: \"Instrument 01.1\".",
+    "category": "Music Tools",
+    "path": "Instrument011.html"
+  },
+  {
+    "id": "neo-bouncy-machine-drift",
+    "name": "Bouncy Machine \u2014 Drift Edition",
+    "description": "A generative art / visual piece from the Neocities collection: \"Bouncy Machine \u2014 Drift Edition\".",
+    "category": "Art",
+    "path": "BouncyMachineDrift.html"
+  },
+  {
+    "id": "neo-arty-three-shapes",
+    "name": "Arty \u2022 Three Shapes",
+    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
+    "category": "Art",
+    "path": "ArtyThreeShapes.html"
+  },
+  {
+    "id": "neo-critter-mirror",
+    "name": "Critter Mirror \u2014 become a storybook creature",
+    "description": "Point your camera at yourself and watch a cute animated animal copy your every move. All tracking happens on your device.",
+    "category": "Art",
+    "path": "CritterMirror.html"
+  },
+  {
+    "id": "neo-slither-arena",
+    "name": "Lumen Arena",
+    "description": "A game from the Neocities collection: \"Lumen Arena\".",
+    "category": "Games",
+    "path": "SlitherArena.html"
+  },
+  {
+    "id": "neo-hiveword",
+    "name": "Hiveword",
+    "description": "A game from the Neocities collection: \"Hiveword\".",
+    "category": "Games",
+    "path": "Hiveword.html"
+  },
+  {
+    "id": "neo-prism-breaker",
+    "name": "AggroAlex's Ball Busters",
+    "description": "A game from the Neocities collection: \"AggroAlex's Ball Busters\".",
+    "category": "Games",
+    "path": "PrismBreaker.html"
+  },
+  {
+    "id": "neo-threesque",
+    "name": "Threesque",
+    "description": "A game from the Neocities collection: \"Threesque\".",
+    "category": "Games",
+    "path": "Threesque.html"
+  },
+  {
+    "id": "neo-listening-club-whos-bigger",
+    "name": "Listening Club Trivia: Top Artist",
+    "description": "A game from the Neocities collection: \"Listening Club Trivia: Top Artist\".",
+    "category": "Games",
+    "path": "ListeningClubWhosBigger.html"
+  },
+  {
+    "id": "neo-simple-art",
+    "name": "simple art",
+    "description": "A generative art / visual piece from the Neocities collection: \"simple art\".",
+    "category": "Art",
+    "path": "SimpleArt.html"
+  },
+  {
+    "id": "neo-echo",
+    "name": "Echo",
+    "description": "A music tool from the Neocities collection: \"Echo\".",
+    "category": "Music Tools",
+    "path": "Echo.html"
+  },
+  {
+    "id": "neo-oscillate",
+    "name": "Oscillate",
+    "description": "A music tool from the Neocities collection: \"Oscillate\".",
+    "category": "Music Tools",
+    "path": "Oscillate.html"
+  },
+  {
+    "id": "neo-harsh-noise-wall-play-then-seq-then-pads2",
+    "name": "HNW Play",
+    "description": "A music tool from the Neocities collection: \"HNW Play\".",
+    "category": "Music Tools",
+    "path": "HarshNoiseWallPlayThenSeqThenPads2.html"
+  },
+  {
+    "id": "neo-threesque2",
+    "name": "Threesque",
+    "description": "A game from the Neocities collection: \"Threesque\".",
+    "category": "Games",
+    "path": "Threesque2.html"
+  },
+  {
+    "id": "neo-peggle-noir",
+    "name": "Peggle Noir",
+    "description": "A game from the Neocities collection: \"Peggle Noir\".",
+    "category": "Games",
+    "path": "PeggleNoir.html"
+  },
+  {
+    "id": "neo-peggle-noir-minimal",
+    "name": "Peggle Noir Minimal",
+    "description": "A generative art / visual piece from the Neocities collection: \"Peggle Noir Minimal\".",
+    "category": "Art",
+    "path": "PeggleNoirMinimal.html"
+  },
+  {
+    "id": "neo-peggle-enhanced-ipad-ui-small",
+    "name": "Peggle Enhanced (iPad UI)",
+    "description": "A game from the Neocities collection: \"Peggle Enhanced (iPad UI)\".",
+    "category": "Games",
+    "path": "PeggleEnhancedIpadUiSmall.html"
+  },
+  {
+    "id": "neo-generative-art-studio",
+    "name": "Generative Art Studio",
+    "description": "A generative art / visual piece from the Neocities collection: \"Generative Art Studio\".",
+    "category": "Art",
+    "path": "GenerativeArtStudio.html"
+  },
+  {
+    "id": "neo-infinite-tic-tac-toe",
+    "name": "Infinite Tic-Tac-Toe",
+    "description": "A game from the Neocities collection: \"Infinite Tic-Tac-Toe\".",
+    "category": "Games",
+    "path": "InfiniteTicTacToe.html"
+  },
+  {
+    "id": "neo-infinite-zoom-fractal",
+    "name": "Infinite Zoom Fractal",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Zoom Fractal\".",
+    "category": "Art",
+    "path": "InfiniteZoomFractal.html"
+  },
+  {
+    "id": "neo-ultra-dynamic-strike",
+    "name": "Ultra Dynamic Strike",
+    "description": "A game from the Neocities collection: \"Ultra Dynamic Strike\".",
+    "category": "Games",
+    "path": "UltraDynamicStrike.html"
+  },
+  {
+    "id": "neo-ultra-contrast-strike",
+    "name": "Ultra Contrast Strike",
+    "description": "A game from the Neocities collection: \"Ultra Contrast Strike\".",
+    "category": "Games",
+    "path": "UltraContrastStrike.html"
+  },
+  {
+    "id": "neo-directory-scanner",
+    "name": "Directory Scanner",
+    "description": "A generative art / visual piece from the Neocities collection: \"Directory Scanner\".",
+    "category": "Art",
+    "path": "DirectoryScanner.html"
+  },
+  {
+    "id": "neo-pinball-v3",
+    "name": "Pinball \u2013 Ultra Compatible",
+    "description": "A game from the Neocities collection: \"Pinball \u2013 Ultra Compatible\".",
+    "category": "Games",
+    "path": "PinballV3.html"
+  },
+  {
+    "id": "neo-air-hockey2p-colorful-goals",
+    "name": "Air Hockey \u2014 2P",
+    "description": "A game from the Neocities collection: \"Air Hockey \u2014 2P\".",
+    "category": "Games",
+    "path": "AirHockey2pColorfulGoals.html"
+  },
+  {
+    "id": "neo-oilseed-landscape",
+    "name": "OilSeed \u2014 Landscape Generator",
+    "description": "A generative art / visual piece from the Neocities collection: \"OilSeed \u2014 Landscape Generator\".",
+    "category": "Art",
+    "path": "OilseedLandscape.html"
+  },
+  {
+    "id": "neo-the-field-that-remembers-you",
+    "name": "The Field That Remembers You",
+    "description": "A generative art / visual piece from the Neocities collection: \"The Field That Remembers You\".",
+    "category": "Art",
+    "path": "TheFieldThatRemembersYou.html"
+  },
+  {
+    "id": "neo-shape-shooter",
+    "name": "Shape Shooter",
+    "description": "A game from the Neocities collection: \"Shape Shooter\".",
+    "category": "Games",
+    "path": "ShapeShooter.html"
+  },
+  {
+    "id": "neo-unicorn-air-hockey-v2",
+    "name": "UNICORN AIR HOCKEY \u2014 2P v2",
+    "description": "A game from the Neocities collection: \"UNICORN AIR HOCKEY \u2014 2P v2\".",
+    "category": "Games",
+    "path": "UnicornAirHockeyV2.html"
+  },
+  {
+    "id": "neo-snake-many-pickups-skull-v6",
+    "name": "SNAKE! \u2014 Many Pickups + Skull (v6)",
+    "description": "A game from the Neocities collection: \"SNAKE! \u2014 Many Pickups + Skull (v6)\".",
+    "category": "Games",
+    "path": "SnakeManyPickupsSkullV6.html"
+  },
+  {
+    "id": "neo-threesque3",
+    "name": "Threesque",
+    "description": "A game from the Neocities collection: \"Threesque\".",
+    "category": "Games",
+    "path": "Threesque3.html"
+  },
+  {
+    "id": "neo-snes-birds",
+    "name": "SNES Birds \u2014 3 Levels",
+    "description": "A music tool from the Neocities collection: \"SNES Birds \u2014 3 Levels\".",
+    "category": "Music Tools",
+    "path": "SnesBirds.html"
+  },
+  {
+    "id": "neo-wander-adventure",
+    "name": "Wander",
+    "description": "A game from the Neocities collection: \"Wander\".",
+    "category": "Games",
+    "path": "WanderAdventure.html"
+  },
+  {
+    "id": "neo-vortex-pattern-lab",
+    "name": "VORTEX// Pattern Lab",
+    "description": "A generative art / visual piece from the Neocities collection: \"VORTEX// Pattern Lab\".",
+    "category": "Art",
+    "path": "VortexPatternLab.html"
+  },
+  {
+    "id": "neo-voxmorph",
+    "name": "Voxmorph",
+    "description": "A music tool from the Neocities collection: \"Voxmorph\".",
+    "category": "Music Tools",
+    "path": "Voxmorph.html"
+  },
+  {
+    "id": "neo-crown-quest-v-inspired",
+    "name": "Crown Quest: The Silver Owl",
+    "description": "A game from the Neocities collection: \"Crown Quest: The Silver Owl\".",
+    "category": "Games",
+    "path": "CrownQuestVInspired.html"
+  },
+  {
+    "id": "neo-spiral",
+    "name": "Spiral",
+    "description": "A generative art / visual piece from the Neocities collection: \"Spiral\".",
+    "category": "Art",
+    "path": "Spiral.html"
+  },
+  {
+    "id": "neo-heapsort-voice-audio",
+    "name": "Heapsort Audio Visualizer",
+    "description": "A music tool from the Neocities collection: \"Heapsort Audio Visualizer\".",
+    "category": "Music Tools",
+    "path": "HeapsortVoiceAudio.html"
+  },
+  {
+    "id": "neo-artsy",
+    "name": "artsy",
+    "description": "A generative art / visual piece from the Neocities collection: \"artsy\".",
+    "category": "Art",
+    "path": "Artsy.html"
+  },
+  {
+    "id": "neo-factorial-push-art-longform",
+    "name": "Factorial Push Art \u2014 Longform Generator",
+    "description": "A generative art / visual piece from the Neocities collection: \"Factorial Push Art \u2014 Longform Generator\".",
+    "category": "Art",
+    "path": "FactorialPushArtLongform.html"
+  },
+  {
+    "id": "neo-lofi-beat-generator",
+    "name": "Lo-Fi Beat Generator",
+    "description": "A music tool from the Neocities collection: \"Lo-Fi Beat Generator\".",
+    "category": "Music Tools",
+    "path": "LofiBeatGenerator.html"
+  },
+  {
+    "id": "neo-303-mazie-sampler",
+    "name": "303 + Mazie Sampler",
+    "description": "A music tool from the Neocities collection: \"303 + Mazie Sampler\".",
+    "category": "Music Tools",
+    "path": "303MazieSampler.html"
+  },
+  {
+    "id": "neo-composer",
+    "name": "Composer",
+    "description": "A music tool from the Neocities collection: \"Composer\".",
+    "category": "Music Tools",
+    "path": "Composer.html"
+  },
+  {
+    "id": "neo-hz-lab03-real-planet-orbits",
+    "name": "Hz Lab 03.0 \u2014 Real Planet Orbits",
+    "description": "A music tool from the Neocities collection: \"Hz Lab 03.0 \u2014 Real Planet Orbits\".",
+    "category": "Music Tools",
+    "path": "HzLab03RealPlanetOrbits.html"
+  },
+  {
+    "id": "neo-dm1-minimal",
+    "name": "DM1",
+    "description": "A music tool from the Neocities collection: \"DM1\".",
+    "category": "Music Tools",
+    "path": "Dm1Minimal.html"
+  },
+  {
+    "id": "neo-hz-lab",
+    "name": "Hz Lab",
+    "description": "A music tool from the Neocities collection: \"Hz Lab\".",
+    "category": "Music Tools",
+    "path": "HzLab.html"
+  },
+  {
+    "id": "neo-cr70-poly-funk2",
+    "name": "Cr-70 Poly-Funk",
+    "description": "A music tool from the Neocities collection: \"Cr-70 Poly-Funk\".",
+    "category": "Music Tools",
+    "path": "Cr70PolyFunk2.html"
+  },
+  {
+    "id": "neo-euclidean-math-synth",
+    "name": "Euclidean Math Synth",
+    "description": "A music tool from the Neocities collection: \"Euclidean Math Synth\".",
+    "category": "Music Tools",
+    "path": "EuclideanMathSynth.html"
+  },
+  {
+    "id": "neo-infinite-tic-tac-toe2",
+    "name": "Infinite Tic-Tac-Toe",
+    "description": "A game from the Neocities collection: \"Infinite Tic-Tac-Toe\".",
+    "category": "Games",
+    "path": "InfiniteTicTacToe2.html"
+  },
+  {
+    "id": "neo-cr70-poly-funk",
+    "name": "Cr-70 Poly-Funk",
+    "description": "A music tool from the Neocities collection: \"Cr-70 Poly-Funk\".",
+    "category": "Music Tools",
+    "path": "Cr70PolyFunk.html"
+  },
+  {
+    "id": "neo-panda-drum",
+    "name": "Panda Drum",
+    "description": "A music tool from the Neocities collection: \"Panda Drum\".",
+    "category": "Music Tools",
+    "path": "PandaDrum.html"
+  },
+  {
+    "id": "neo-cr70-jungle-generator",
+    "name": "Cr-70 Jungle Generator",
+    "description": "A music tool from the Neocities collection: \"Cr-70 Jungle Generator\".",
+    "category": "Music Tools",
+    "path": "Cr70JungleGenerator.html"
+  },
+  {
+    "id": "neo-aurora-dance-permission",
+    "name": "Aurora Dance",
+    "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
+    "category": "Music Tools",
+    "path": "AuroraDancePermission.html"
+  },
+  {
+    "id": "neo-hypnotic-spirals-fixed",
+    "name": "Hypnotic Spirals",
+    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
+    "category": "Art",
+    "path": "HypnoticSpiralsFixed.html"
+  },
+  {
+    "id": "neo-hypnotic-spirals-ios-safe",
+    "name": "Hypnotic Spirals \u2014 iOS Safe",
+    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals \u2014 iOS Safe\".",
+    "category": "Art",
+    "path": "HypnoticSpiralsIosSafe.html"
+  },
+  {
+    "id": "neo-infinite-quadrants-stable-grayscale-patterns",
+    "name": "Infinite Quadrants \u2013 Stable Patterns",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Stable Patterns\".",
+    "category": "Art",
+    "path": "InfiniteQuadrantsStableGrayscalePatterns.html"
+  },
+  {
+    "id": "neo-infinite-quadrants-pure-bw-logic",
+    "name": "Infinite Quadrants \u2013 Pure B/W Logic",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Pure B/W Logic\".",
+    "category": "Art",
+    "path": "InfiniteQuadrantsPureBwLogic.html"
+  },
+  {
+    "id": "neo-aurora-dance-spotify-rhythm",
+    "name": "Aurora Dance",
+    "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
+    "category": "Music Tools",
+    "path": "AuroraDanceSpotifyRhythm.html"
+  },
+  {
+    "id": "neo-hypnotic-spirals-robust",
+    "name": "Hypnotic Spirals",
+    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
+    "category": "Art",
+    "path": "HypnoticSpiralsRobust.html"
+  },
+  {
+    "id": "neo-infinite-quadrants-stable-grayscale-patterns-hidpi",
+    "name": "Infinite Quadrants \u2013 Stable Patterns (HiDPI)",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Stable Patterns (HiDPI)\".",
+    "category": "Art",
+    "path": "InfiniteQuadrantsStableGrayscalePatternsHidpi.html"
+  },
+  {
+    "id": "neo-rings",
+    "name": "Rings",
+    "description": "A generative art / visual piece from the Neocities collection: \"Rings\".",
+    "category": "Art",
+    "path": "Rings.html"
+  },
+  {
+    "id": "neo-maisies-air-hockey-vertical",
+    "name": "Maisie's Air Hockey",
+    "description": "A music tool from the Neocities collection: \"Maisie's Air Hockey\".",
+    "category": "Music Tools",
+    "path": "MaisiesAirHockeyVertical.html"
+  },
+  {
+    "id": "neo-comic-paint-splat",
+    "name": "Comic Paint Splat",
+    "description": "A generative art / visual piece from the Neocities collection: \"Comic Paint Splat\".",
+    "category": "Art",
+    "path": "ComicPaintSplat.html"
+  },
+  {
+    "id": "neo-glitch-acid-workstation",
+    "name": "Glitch-Acid Workstation",
+    "description": "A music tool from the Neocities collection: \"Glitch-Acid Workstation\".",
+    "category": "Music Tools",
+    "path": "GlitchAcidWorkstation.html"
+  },
+  {
+    "id": "neo-unicorn-air-hockey",
+    "name": "Unicorn Air Hockey \u2014 2P",
+    "description": "A game from the Neocities collection: \"Unicorn Air Hockey \u2014 2P\".",
+    "category": "Games",
+    "path": "UnicornAirHockey.html"
+  },
+  {
+    "id": "neo-chrome-safari-optimized",
+    "name": "Chrome",
+    "description": "A generative art / visual piece from the Neocities collection: \"Chrome\".",
+    "category": "Art",
+    "path": "ChromeSafariOptimized.html"
+  },
+  {
+    "id": "neo-neon-block-blaster",
+    "name": "Neon Block Blaster",
+    "description": "A game from the Neocities collection: \"Neon Block Blaster\".",
+    "category": "Games",
+    "path": "NeonBlockBlaster.html"
+  },
+  {
+    "id": "neo-peaceful-space-explorer",
+    "name": "Peaceful Space Explorer",
+    "description": "A generative art / visual piece from the Neocities collection: \"Peaceful Space Explorer\".",
+    "category": "Art",
+    "path": "PeacefulSpaceExplorer.html"
+  },
+  {
+    "id": "neo-maizeys-magic-spell-academy",
+    "name": "Maizey's Magic Spell Academy",
+    "description": "A generative art / visual piece from the Neocities collection: \"Maizey's Magic Spell Academy\".",
+    "category": "Art",
+    "path": "MaizeysMagicSpellAcademy.html"
+  },
+  {
+    "id": "neo-dot-escape-invisible-circle",
+    "name": "Dot Escape",
+    "description": "A generative art / visual piece from the Neocities collection: \"Dot Escape\".",
+    "category": "Art",
+    "path": "DotEscapeInvisibleCircle.html"
+  },
+  {
+    "id": "neo-harsh-noise-no-text",
+    "name": "Harsh Noise",
+    "description": "A music tool from the Neocities collection: \"Harsh Noise\".",
+    "category": "Music Tools",
+    "path": "HarshNoiseNoText.html"
+  },
+  {
+    "id": "neo-noise-wall",
+    "name": "Noise Wall",
+    "description": "A music tool from the Neocities collection: \"Noise Wall\".",
+    "category": "Music Tools",
+    "path": "NoiseWall.html"
+  },
+  {
+    "id": "neo-ems-synthi100",
+    "name": "Ems Synthi 100",
+    "description": "A music tool from the Neocities collection: \"Ems Synthi 100\".",
+    "category": "Music Tools",
+    "path": "EmsSynthi100.html"
+  },
+  {
+    "id": "neo-white-hole",
+    "name": "White Hole",
+    "description": "A game from the Neocities collection: \"White Hole\".",
+    "category": "Games",
+    "path": "WhiteHole.html"
+  },
+  {
+    "id": "neo-the-field-that-remembers-elegant",
+    "name": "The Field That Remembers",
+    "description": "A generative art / visual piece from the Neocities collection: \"The Field That Remembers\".",
+    "category": "Art",
+    "path": "TheFieldThatRemembersElegant.html"
+  },
+  {
+    "id": "neo-touch-sort-lines",
+    "name": "Touch Sort Lines",
+    "description": "A music tool from the Neocities collection: \"Touch Sort Lines\".",
+    "category": "Music Tools",
+    "path": "TouchSortLines.html"
+  },
+  {
+    "id": "neo-viz",
+    "name": "(untitled)",
+    "description": "A generative art / visual piece from the Neocities collection: \"(untitled)\".",
+    "category": "Art",
+    "path": "Viz.html"
+  },
+  {
+    "id": "neo-chrome-checkerboard16x16-safari",
+    "name": "Chrome Checkerboard 16x16",
+    "description": "A generative art / visual piece from the Neocities collection: \"Chrome Checkerboard 16x16\".",
+    "category": "Art",
+    "path": "ChromeCheckerboard16x16Safari.html"
+  },
+  {
+    "id": "neo-threes-lite",
+    "name": "Threes-Lite (High Contrast)",
+    "description": "A game from the Neocities collection: \"Threes-Lite (High Contrast)\".",
+    "category": "Games",
+    "path": "ThreesLite.html"
+  },
+  {
+    "id": "neo-unicorn-tetris",
+    "name": "Unicorn Blocks",
+    "description": "A game from the Neocities collection: \"Unicorn Blocks\".",
+    "category": "Games",
+    "path": "UnicornTetris.html"
+  },
+  {
+    "id": "neo-drum-machine8step-blast-speed2",
+    "name": "Drum 8",
+    "description": "A music tool from the Neocities collection: \"Drum 8\".",
+    "category": "Music Tools",
+    "path": "DrumMachine8stepBlastSpeed2.html"
+  },
+  {
+    "id": "neo-verti-fall-draw-walls",
+    "name": "Verti-Fall Draw Walls",
+    "description": "A music tool from the Neocities collection: \"Verti-Fall Draw Walls\".",
+    "category": "Music Tools",
+    "path": "VertiFallDrawWalls.html"
+  },
+  {
+    "id": "neo-drum-machine8step-blast-speed-pitch2",
+    "name": "Drum 8 Pitch",
+    "description": "A music tool from the Neocities collection: \"Drum 8 Pitch\".",
+    "category": "Music Tools",
+    "path": "DrumMachine8stepBlastSpeedPitch2.html"
+  },
+  {
+    "id": "neo-motion-synth-blackwhite-squares",
+    "name": "Motion Synth",
+    "description": "A music tool from the Neocities collection: \"Motion Synth\".",
+    "category": "Music Tools",
+    "path": "MotionSynthBlackwhiteSquares.html"
+  },
+  {
+    "id": "neo-harsh-noise-wall9-squares-sequencer-fix2",
+    "name": "HNW 9 + Seq",
+    "description": "A music tool from the Neocities collection: \"HNW 9 + Seq\".",
+    "category": "Music Tools",
+    "path": "HarshNoiseWall9SquaresSequencerFix2.html"
+  },
+  {
+    "id": "neo-checker-flip99",
+    "name": "99% Flip Checkerboard (100\u00d7100)",
+    "description": "A generative art / visual piece from the Neocities collection: \"99% Flip Checkerboard (100\u00d7100)\".",
+    "category": "Art",
+    "path": "CheckerFlip99.html"
+  },
+  {
+    "id": "neo-heart-canvas",
+    "name": "heart-canvas",
+    "description": "A generative art / visual piece from the Neocities collection: \"heart-canvas\".",
+    "category": "Art",
+    "path": "HeartCanvas.html"
+  },
+  {
+    "id": "neo-poly-fuzz-drum-machine-clav-tempo-drift",
+    "name": "Poly Fuzz Drums",
+    "description": "A music tool from the Neocities collection: \"Poly Fuzz Drums\".",
+    "category": "Music Tools",
+    "path": "PolyFuzzDrumMachineClavTempoDrift.html"
+  },
+  {
+    "id": "neo-oscillate-persistent",
+    "name": "OSCILLATE \u2014 Persistent",
+    "description": "A music tool from the Neocities collection: \"OSCILLATE \u2014 Persistent\".",
+    "category": "Music Tools",
+    "path": "OscillatePersistent.html"
+  },
+  {
+    "id": "neo-art-seed-gen",
+    "name": "ART \u2014 Seed",
+    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 Seed\".",
+    "category": "Art",
+    "path": "ArtSeedGen.html"
+  },
+  {
+    "id": "neo-infinite-zoom-swipe2",
+    "name": "Infinite Zoom Swipe",
+    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Zoom Swipe\".",
+    "category": "Art",
+    "path": "InfiniteZoomSwipe2.html"
+  },
+  {
+    "id": "neo-lines-slow-long-trails",
+    "name": "Lines",
+    "description": "A generative art / visual piece from the Neocities collection: \"Lines\".",
+    "category": "Art",
+    "path": "LinesSlowLongTrails.html"
+  },
+  {
+    "id": "neo-chord-morpher2",
+    "name": "Chord Morph \u2022 Maj7 / min7 (Sine)",
+    "description": "A music tool from the Neocities collection: \"Chord Morph \u2022 Maj7 / min7 (Sine)\".",
+    "category": "Music Tools",
+    "path": "ChordMorpher2.html"
+  },
+  {
+    "id": "neo-checkerboard-swirl16x16",
+    "name": "Checkerboard Swirl \u2014 16\u00d716",
+    "description": "A generative art / visual piece from the Neocities collection: \"Checkerboard Swirl \u2014 16\u00d716\".",
+    "category": "Art",
+    "path": "CheckerboardSwirl16x16.html"
+  },
+  {
+    "id": "neo-checkerburst-safe",
+    "name": "Checkerburst \u2013 Safe iPhone Build",
+    "description": "A generative art / visual piece from the Neocities collection: \"Checkerburst \u2013 Safe iPhone Build\".",
+    "category": "Art",
+    "path": "CheckerburstSafe.html"
+  },
+  {
+    "id": "neo-maisie-eats-everything3",
+    "name": "Maisie Eats Everything",
+    "description": "A game from the Neocities collection: \"Maisie Eats Everything\".",
+    "category": "Games",
+    "path": "MaisieEatsEverything3.html"
+  },
+  {
+    "id": "neo-smooth-v2",
+    "name": "smooth",
+    "description": "A generative art / visual piece from the Neocities collection: \"smooth\".",
+    "category": "Art",
+    "path": "SmoothV2.html"
+  },
+  {
+    "id": "neo-maisie-magic-draw2",
+    "name": "Maisie's Magic Draw",
+    "description": "A music tool from the Neocities collection: \"Maisie's Magic Draw\".",
+    "category": "Music Tools",
+    "path": "MaisieMagicDraw2.html"
+  },
+  {
+    "id": "neo-maisie-eats-everything22",
+    "name": "Maisie Eats Everything 2",
+    "description": "A game from the Neocities collection: \"Maisie Eats Everything 2\".",
+    "category": "Games",
+    "path": "MaisieEatsEverything22.html"
+  },
+  {
+    "id": "neo-sound-of-functions2",
+    "name": "The Sound Of Functions",
+    "description": "A music tool from the Neocities collection: \"The Sound Of Functions\".",
+    "category": "Music Tools",
+    "path": "SoundOfFunctions2.html"
+  },
+  {
+    "id": "neo-artsy-v31",
+    "name": "ARTSY v3.1 \u2014 Seeded Painter",
+    "description": "A generative art / visual piece from the Neocities collection: \"ARTSY v3.1 \u2014 Seeded Painter\".",
+    "category": "Art",
+    "path": "ArtsyV31.html"
+  },
+  {
+    "id": "neo-ballz-game-patterned-paths-nextduringflight",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGamePatternedPathsNextduringflight.html"
+  },
+  {
+    "id": "neo-ballz-game-rot2-random-next-sparks",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGameRot2RandomNextSparks.html"
+  },
+  {
+    "id": "neo-ballz-game-rotating-bricks-trajectory",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGameRotatingBricksTrajectory.html"
+  },
+  {
+    "id": "neo-maisie-eats-everything4",
+    "name": "Maisie Eats Everything",
+    "description": "A game from the Neocities collection: \"Maisie Eats Everything\".",
+    "category": "Games",
+    "path": "MaisieEatsEverything4.html"
+  },
+  {
+    "id": "neo-threes-minimal2",
+    "name": "Threes",
+    "description": "A game from the Neocities collection: \"Threes\".",
+    "category": "Games",
+    "path": "ThreesMinimal2.html"
+  },
+  {
+    "id": "neo-factorial-melody-generator2",
+    "name": "Factorial Melody Generator",
+    "description": "A music tool from the Neocities collection: \"Factorial Melody Generator\".",
+    "category": "Music Tools",
+    "path": "FactorialMelodyGenerator2.html"
+  },
+  {
+    "id": "neo-d-s-s12",
+    "name": "DSS1 - Digital Sound Studio",
+    "description": "A music tool from the Neocities collection: \"DSS1 - Digital Sound Studio\".",
+    "category": "Music Tools",
+    "path": "DSS12.html"
+  },
+  {
+    "id": "neo-ballz-game16bit-bombs-subtle",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGame16bitBombsSubtle.html"
+  },
+  {
+    "id": "neo-ballz-game-add-dots",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGameAddDots.html"
+  },
+  {
+    "id": "neo-ballz-game2",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGame2.html"
+  },
+  {
+    "id": "neo-ballz-game-rotating-bricks-trajectory2",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGameRotatingBricksTrajectory2.html"
+  },
+  {
+    "id": "neo-ballz-game-fullscreen-firebtn",
+    "name": "Ballz Game",
+    "description": "A game from the Neocities collection: \"Ballz Game\".",
+    "category": "Games",
+    "path": "BallzGameFullscreenFirebtn.html"
+  },
+  {
+    "id": "neo-maisies-kitty-cat-adventure2",
+    "name": "Maisie's Kitty Cat Adventure",
+    "description": "A generative art / visual piece from the Neocities collection: \"Maisie's Kitty Cat Adventure\".",
+    "category": "Art",
+    "path": "MaisiesKittyCatAdventure2.html"
   }
 ]

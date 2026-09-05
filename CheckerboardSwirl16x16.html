@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Checkerboard Swirl — 16×16</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; height:100%; background:#000; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif; }
+  #wrap { position:fixed; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
+  header, footer { padding:8px 12px; border-bottom:1px solid #222; background:#000; }
+  footer { border-top:1px solid #222; border-bottom:none; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  h1 { margin:0; font-size:16px; font-weight:700; }
+  #canvas { width:100%; height:100%; display:block; touch-action:none; }
+  button { background:#111; color:#fff; border:1px solid #333; padding:8px 10px; border-radius:10px; font-size:14px; }
+  button:active { transform:scale(.98); }
+  .legend { font-size:12px; opacity:.85; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <div id="wrap">
+    <header>
+      <h1>Checkerboard Swirl — 16×16</h1>
+      <div class="legend">Tap a tile for a burst • Swipe for flowing streaks • Press harder for a super swirl. Everything gently settles back to crisp black &amp; white.</div>
+    </header>
+    <canvas id="canvas"></canvas>
+    <footer>
+      <button id="resetBtn">Reset</button>
+      <button id="calmBtn">Calm</button>
+      <span class="legend">FPS: <span id="fps">–</span></span>
+    </footer>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const DPR = Math.max(1, devicePixelRatio || 1);
+  const header = document.querySelector('header');
+  const footer = document.querySelector('footer');
+  let W=0, H=0;
+
+  function resize(){
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight - (header.offsetHeight + footer.offsetHeight));
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener('resize', resize, { passive:true });
+  resize();
+
+  // Grid settings
+  const N = 16;
+  const grid = []; // per cell: {base, energy, phase}
+  const tmpEnergy = new Float32Array(N*N);
+  const tmpPhase = new Float32Array(N*N);
+  const base = new Uint8Array(N*N);
+
+  function idx(i,j){ return i + j*N; }
+
+  function initGrid(){
+    for (let j=0;j<N;j++){
+      for (let i=0;i<N;i++){
+        const k = idx(i,j);
+        base[k] = ((i + j) & 1); // checker 0/1
+        grid[k] = { base: base[k], energy: 0, phase: 0 };
+      }
+    }
+  }
+  initGrid();
+
+  // Rendering helpers
+  function hsvToRgb(h, s, v){
+    // h in [0,1), s in [0,1], v in [0,1]
+    let r, g, b;
+    const i = Math.floor(h*6);
+    const f = h*6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f*s);
+    const t = v * (1 - (1 - f)*s);
+    switch (i % 6){
+      case 0: r=v, g=t, b=p; break;
+      case 1: r=q, g=v, b=p; break;
+      case 2: r=p, g=v, b=t; break;
+      case 3: r=p, g=q, b=v; break;
+      case 4: r=t, g=p, b=v; break;
+      case 5: r=v, g=p, b=q; break;
+    }
+    return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+  }
+
+  // Layout
+  function cellRect(i,j){
+    const size = Math.min(W, H);
+    const cell = size / N;
+    const left = (W - size)/2 + i*cell;
+    const top  = (H - size)/2 + j*cell;
+    return { x:left, y:top, w:cell, h:cell };
+  }
+
+  function posToCell(x,y){
+    const size = Math.min(W,H);
+    const left = (W - size)/2;
+    const top  = (H - size)/2;
+    if (x < left || x >= left+size || y < top || y >= top+size) return null;
+    const cell = size / N;
+    const i = Math.floor((x - left)/cell);
+    const j = Math.floor((y - top)/cell);
+    return {i,j};
+  }
+
+  // Dynamics
+  const DIFF = 0.18;       // diffusion rate for energy
+  const PHASE_DIFF = 0.12; // diffusion for phase patterning
+  const DAMP = 0.965;      // how fast energy decays each frame
+  const PHASE_DAMP = 0.985;
+  const SWIRL_STRENGTH = 0.25; // baseline swirl
+
+  // Simple curl-like field using sin/cos for gentle swirls
+  function swirl(i, j, t){
+    const x = (i/N)*2*Math.PI, y = (j/N)*2*Math.PI;
+    const u = Math.sin(y + 0.7*t) * 0.6 + Math.sin(2*x - 0.9*t) * 0.3;
+    const v = -Math.sin(x - 0.5*t) * 0.6 + Math.cos(2*y + 0.6*t) * 0.3;
+    return {u, v};
+  }
+
+  // Injection helpers
+  function injectBurst(i, j, amtE, amtP, radius=1){
+    for (let dj=-radius; dj<=radius; dj++){
+      for (let di=-radius; di<=radius; di++){
+        const ii = i+di, jj=j+dj;
+        if (ii<0||ii>=N||jj<0||jj>=N) continue;
+        const k = idx(ii,jj);
+        const fall = 1 / (1 + di*di + dj*dj);
+        grid[k].energy += amtE * fall;
+        grid[k].phase  += amtP * fall * ((di+dj)&1 ? -1 : 1);
+      }
+    }
+  }
+
+  function injectSwipeTrail(i, j, prevI, prevJ, amtE, amtP){
+    const steps = Math.max(Math.abs(i-prevI), Math.abs(j-prevJ));
+    for (let s=0;s<=steps;s++){
+      const ii = Math.round(prevI + (i-prevI)*s/steps);
+      const jj = Math.round(prevJ + (j-prevJ)*s/steps);
+      injectBurst(ii, jj, amtE*0.6, amtP*0.6, 2);
+    }
+  }
+
+  // Interaction
+  let pointerId = null;
+  let isDown = false;
+  let lastCell = null;
+  let downTime = 0;
+  let lastPressure = 0;
+  let mode = 'tap'; // 'tap' | 'swipe' | 'press'
+
+  canvas.addEventListener('pointerdown', (e) => {
+    isDown = true;
+    pointerId = e.pointerId;
+    lastCell = null;
+    downTime = performance.now();
+    lastPressure = e.pressure || 0;
+    handlePointer(e);
+  }, {passive:false});
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDown || e.pointerId !== pointerId) return;
+    const pressure = e.pressure || 0;
+    lastPressure = pressure;
+    handlePointer(e, true);
+  }, {passive:false});
+
+  canvas.addEventListener('pointerup', (e) => {
+    if (e.pointerId !== pointerId) return;
+    isDown = false;
+    const pressDuration = performance.now() - downTime;
+    // If it was a quick press without movement, register a tap burst already handled in pointerdown.
+    pointerId = null;
+    lastCell = null;
+    mode = 'tap';
+  }, {passive:false});
+
+  function handlePointer(e, moving=false){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const cell = posToCell(x,y);
+    if (!cell) return;
+    const k = idx(cell.i, cell.j);
+
+    // Determine interaction mode
+    const pressure = e.pressure || 0;
+    // iOS TouchEvent force fallback (Safari): try reading from underlying touch if present
+    if (e.touches && e.touches.length) {
+      const t = e.touches[0];
+      if (typeof t.force === 'number') lastPressure = t.force;
+    }
+
+    if (pressure > 0.55 || lastPressure > 0.55){
+      mode = 'press';
+    } else if (moving && lastCell && (lastCell.i !== cell.i || lastCell.j !== cell.j)){
+      mode = 'swipe';
+    } else {
+      mode = 'tap';
+    }
+
+    if (mode === 'press'){
+      // Super swirl: bigger radius, stronger phase twist
+      injectBurst(cell.i, cell.j, 2.4, 3.2, 3);
+    } else if (mode === 'swipe'){
+      injectSwipeTrail(cell.i, cell.j, lastCell?.i ?? cell.i, lastCell?.j ?? cell.j, 1.2, 1.5);
+    } else {
+      // tap: neighbors change and medium diffusion
+      injectBurst(cell.i, cell.j, 1.0, 1.4, 1);
+      // also pop von Neumann neighbors specifically to flip feel
+      const nb = [[1,0],[-1,0],[0,1],[0,-1]];
+      for (const [di,dj] of nb){
+        const ii = cell.i+di, jj = cell.j+dj;
+        if (ii<0||ii>=N||jj<0||jj>=N) continue;
+        injectBurst(ii, jj, 0.8, 1.1, 0);
+      }
+    }
+
+    lastCell = cell;
+  }
+
+  // Buttons
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    for (let k=0;k<N*N;k++){
+      grid[k].energy = 0;
+      grid[k].phase = 0;
+    }
+  });
+  document.getElementById('calmBtn').addEventListener('click', () => {
+    // Stronger damping for a second
+    calmTimer = 60;
+  });
+
+  // Simulation + render
+  let last = performance.now();
+  let calmTimer = 0;
+  let fps = 0, fpsAcc=0, fpsFrames=0, fpsLast=performance.now();
+  const fpsEl = document.getElementById('fps');
+
+  function step(now){
+    const dt = Math.min(0.05, (now - last)/1000);
+    last = now;
+    const t = now/1000;
+
+    // Diffusion + swirl advection on energy/phase
+    // We'll do a simple 4-neighbor Laplacian and a small swirl advection
+    const diff = DIFF * (calmTimer>0 ? 0.5 : 1);
+    const pdiff = PHASE_DIFF * (calmTimer>0 ? 0.5 : 1);
+    const damp = Math.pow(DAMP, (calmTimer>0 ? 2.2 : 1));
+    const pdamp = Math.pow(PHASE_DAMP, (calmTimer>0 ? 2.0 : 1));
+
+    for (let j=0;j<N;j++){
+      for (let i=0;i<N;i++){
+        const k = idx(i,j);
+        const g = grid[k];
+        // laplacians
+        const eC = g.energy, pC = g.phase;
+        const eR = (i<N-1) ? grid[idx(i+1,j)].energy : eC;
+        const eL = (i>0)   ? grid[idx(i-1,j)].energy : eC;
+        const eU = (j>0)   ? grid[idx(i,j-1)].energy : eC;
+        const eD = (j<N-1) ? grid[idx(i,j+1)].energy : eC;
+
+        const pR = (i<N-1) ? grid[idx(i+1,j)].phase : pC;
+        const pL = (i>0)   ? grid[idx(i-1,j)].phase : pC;
+        const pU = (j>0)   ? grid[idx(i,j-1)].phase : pC;
+        const pD = (j<N-1) ? grid[idx(i,j+1)].phase : pC;
+
+        // diffusion
+        let eNew = eC + diff * (eR + eL + eU + eD - 4*eC);
+        let pNew = pC + pdiff * (pR + pL + pU + pD - 4*pC);
+
+        // swirl advection
+        const {u, v} = swirl(i, j, t);
+        const si = clamp(Math.round(i + SWIRL_STRENGTH*u), 0, N-1);
+        const sj = clamp(Math.round(j + SWIRL_STRENGTH*v), 0, N-1);
+        const sk = idx(si, sj);
+        eNew = 0.7*eNew + 0.3*grid[sk].energy;
+        pNew = 0.7*pNew + 0.3*grid[sk].phase;
+
+        // damping back to base
+        eNew *= damp;
+        pNew *= pdamp;
+
+        // also softly tug phase toward base parity so it visually re-forms checker
+        const target = (base[k]===1) ? +0.15 : -0.15;
+        pNew = pNew*0.985 + target*0.015;
+
+        tmpEnergy[k] = eNew;
+        tmpPhase[k] = pNew;
+      }
+    }
+    for (let k=0;k<N*N;k++){
+      grid[k].energy = tmpEnergy[k];
+      grid[k].phase = tmpPhase[k];
+    }
+    if (calmTimer>0) calmTimer--;
+
+    // Render
+    ctx.clearRect(0,0,W,H);
+    const size = Math.min(W,H);
+    const cell = size / N;
+    const left = (W - size)/2;
+    const top  = (H - size)/2;
+
+    // draw tiles
+    const imgData = ctx.createImageData(Math.ceil(size), Math.ceil(size));
+    const data = imgData.data;
+
+    // Fill per cell as a solid block by iterating pixels – but that's heavy.
+    // Instead, draw rects quickly (fast enough at 16x16). We'll use rects.
+    for (let j=0;j<N;j++){
+      for (let i=0;i<N;i++){
+        const k = idx(i,j);
+        const g = grid[k];
+        const baseVal = base[k]; // 0 or 1
+        // Color mapping
+        // Hue from phase, saturation from energy, value from base with energy lift
+        const hue = ((g.phase * 0.18) + 0.6) % 1;
+        const sat = clamp01(0.15 + Math.min(1.0, Math.abs(g.energy)*0.9));
+        const valBase = baseVal ? 1.0 : 0.0;
+        const val = clamp01(valBase*0.88 + Math.min(0.9, Math.abs(g.energy)*0.75));
+        const [r,gc,b] = hsvToRgb(hue, sat, val);
+
+        ctx.fillStyle = `rgb(${r},${gc},${b})`;
+        ctx.fillRect(left + i*cell, top + j*cell, Math.ceil(cell+0.5), Math.ceil(cell+0.5));
+      }
+    }
+
+    // FPS meter
+    const now2 = performance.now();
+    fpsFrames++; fpsAcc += (now2 - fpsLast); fpsLast = now2;
+    if (fpsAcc >= 500){
+      fps = Math.round(1000 * fpsFrames / fpsAcc);
+      fpsEl.textContent = String(fps);
+      fpsAcc = 0; fpsFrames = 0;
+    }
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+
+  // Gentle intro hint
+  setTimeout(()=>{
+    const hint = document.createElement('div');
+    hint.textContent = 'Tap for bursts • Swipe for flows • Press harder for super swirl';
+    Object.assign(hint.style, {
+      position:'fixed', left:'50%', transform:'translateX(-50%)',
+      bottom:'72px', background:'#111', color:'#fff', border:'1px solid #333',
+      padding:'8px 12px', borderRadius:'10px', fontSize:'12px', opacity:'0.95', zIndex:'10'
+    });
+    document.body.appendChild(hint);
+    setTimeout(()=>{ hint.style.transition='opacity .6s'; hint.style.opacity='0'; setTimeout(()=>hint.remove(), 800); }, 2600);
+  }, 500);
+
+})();</script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Checkerboard Dissolve (Stretchy & Pliable)</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    touch-action: none; /* allow custom gestures */
+  }
+  .hint {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 12px;
+    text-align: center;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<div class="hint">Swipe anywhere. Double-tap / press “R” to reset. High-contrast white-on-black.</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  function resize() {
+    const w = Math.floor(window.innerWidth * DPR);
+    const h = Math.floor(window.innerHeight * DPR);
+    canvas.width = w;
+    canvas.height = h;
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // Gesture state
+  let isDown = false;
+  let touchStart = {x:0, y:0, t:0};
+  let touchEnd = {x:0, y:0, t:0};
+  let swipeVec = {x:0, y:0}; // last swipe vector (px)
+  let swipeSpeed = 0;        // px/ms
+  let effectStart = -1;
+  let effectDur = 2400;      // ms, dissolve out and back
+  let fizzlePeak = 0.18;     // max probability of pixel dropout at peak
+  let minPix = 2;            // smallest pixel block size at peak (in screen pixels)
+  let basePix = 24;          // base pixel block size at rest (in screen pixels)
+  let warpMax = 120;         // max warp (in screen pixels) at peak for strong swipes
+  let turbulence = 0.65;     // turbulence weight
+  let t = 0;
+
+  // Utility: easing
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mix = (a, b, k) => a + (b - a) * k;
+  const easeInOutQuad = x => (x < 0.5) ? (2*x*x) : (1 - Math.pow(-2*x + 2, 2) / 2);
+  const easeOutCubic = x => (1 - Math.pow(1 - x, 3));
+  const easeOutExpo = x => (x === 1) ? 1 : 1 - Math.pow(2, -10 * x);
+
+  // Lightweight hash noise (2D) returning [-1,1]
+  function hash2d(x, y) {
+    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return (s - Math.floor(s)) * 2 - 1;
+  }
+  // Smooth pseudo-noise via bilinear interpolation
+  function noise2d(x, y) {
+    const xi = Math.floor(x), yi = Math.floor(y);
+    const xf = x - xi, yf = y - yi;
+    const h00 = hash2d(xi, yi);
+    const h10 = hash2d(xi+1, yi);
+    const h01 = hash2d(xi, yi+1);
+    const h11 = hash2d(xi+1, yi+1);
+    const u = xf*xf*(3 - 2*xf);
+    const v = yf*yf*(3 - 2*yf);
+    const a = h00*(1-u) + h10*u;
+    const b = h01*(1-u) + h11*u;
+    return a*(1-v) + b*v;
+  }
+
+  // Render
+  function draw(ts) {
+    t = ts || 0;
+    const W = canvas.width, H = canvas.height;
+    const centerX = W * 0.5, centerY = H * 0.5;
+
+    // Compute dissolve progress (0→1→0 over effectDur). If inactive, prog=0.
+    let prog = 0;
+    if (effectStart >= 0) {
+      const u = clamp((t - effectStart) / effectDur, 0, 1);
+      // triangle wave: 0→1→0
+      prog = 1 - Math.abs(2*u - 1);
+      if (u >= 1) {
+        effectStart = -1;
+        prog = 0;
+      }
+    }
+
+    // Derived parameters
+    // Pixel size shrinks as prog increases (ever smaller pixels).
+    const pix = Math.max(minPix * DPR, mix(basePix * DPR, minPix * DPR, easeInOutQuad(prog)));
+    const dropout = fizzlePeak * prog; // probability of skipping a pixel (fizzle)
+    // Warp amplitude scales with swipe speed and progress
+    const swipeLen = Math.hypot(swipeVec.x, swipeVec.y);
+    const swipeDir = swipeLen > 0 ? {x: swipeVec.x / swipeLen, y: swipeVec.y / swipeLen} : {x:0, y:0};
+    const warpAmp = mix(0, warpMax * DPR, easeOutCubic(prog)) * clamp(swipeSpeed * 1.8, 0.5, 2.5);
+
+    // Background clear
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // Draw pixel blocks with warp
+    // We sample at pixel centers of the reduced grid and determine the original checkerboard color,
+    // then render as rectangles offset by a stretchy warp and a little turbulence.
+    const time = (t*0.001) || 0;
+    const nScale = 0.004 * DPR; // noise spatial scale
+    const nTime = time * 0.6;   // temporal evolution
+
+    // Checkerboard regions (2x2): determine color from original (pre-warp) sample
+    // Quadrants: top-left white, top-right black, bottom-left black, bottom-right white
+    for (let y = pix * 0.5; y < H; y += pix) {
+      for (let x = pix * 0.5; x < W; x += pix) {
+        // Original sample point (pre-warp)
+        let sx = x, sy = y;
+
+        // Stretchy, pliable warp field
+        // Base directional stretch along swipe, modulated by distance and progress
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const dist = Math.hypot(dx, dy);
+        const falloff = 1 / (1 + (dist / (0.45 * Math.max(W,H)))**2);
+
+        // Directional stretch: follows swipe direction and oscillates a bit
+        const osc = Math.sin( (dx*0.002 + dy*0.002) + time*2.2 ) * 0.5 + 0.5;
+        const dirStretch = warpAmp * falloff * (0.4 + 0.6*osc);
+
+        sx += dirStretch * swipeDir.x;
+        sy += dirStretch * swipeDir.y;
+
+        // Turbulence: smooth pseudo noise based swirl
+        const n1 = noise2d(sx*nScale + nTime, sy*nScale - nTime);
+        const n2 = noise2d((sx+999)*nScale - nTime, (sy-777)*nScale + nTime);
+        const swirlX = (n1) * warpAmp * turbulence * 0.6;
+        const swirlY = (n2) * warpAmp * turbulence * 0.6;
+
+        sx += swirlX;
+        sy += swirlY;
+
+        // Determine original checkerboard color using quadrant test at (sx, sy)
+        const left   = sx < centerX;
+        const top    = sy < centerY;
+        // 2x2 alternating: TL white, TR black, BL black, BR white
+        let isWhite = (top && left) || (!top && !left);
+
+        // Fizzle dropout
+        if (prog > 0) {
+          const rnd = (Math.sin((x*12.3 + y*71.7) + time*23.7) * 43758.5453) % 1;
+          if (rnd < dropout) continue;
+        }
+
+        ctx.fillStyle = isWhite ? '#fff' : '#000';
+        // For black pixels, draw nothing (already black bg) to keep it fast,
+        // but at peak we still want some shimmer; so draw faint gray to show pliability.
+        if (!isWhite) {
+          if (prog > 0.02) {
+            ctx.fillStyle = 'rgba(255,255,255,' + (0.06 * prog) + ')';
+          } else {
+            continue;
+          }
+        }
+
+        // Slight soft edge via smaller rect inside the cell as prog increases
+        const shrink = mix(0.1, 0.35, prog);
+        const half = pix * (0.5 - shrink * 0.5);
+        ctx.fillRect(x - half, y - half, half*2, half*2);
+      }
+    }
+  }
+
+  function raf(ts){ draw(ts); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+
+  // Pointer handlers (mouse/touch/pen)
+  const getXY = e => {
+    if (e.touches && e.touches.length) {
+      return { x: e.touches[0].clientX * DPR, y: e.touches[0].clientY * DPR };
+    } else {
+      return { x: e.clientX * DPR, y: e.clientY * DPR };
+    }
+  };
+
+  function onDown(e) {
+    isDown = true;
+    const p = getXY(e);
+    touchStart.x = p.x;
+    touchStart.y = p.y;
+    touchStart.t = performance.now();
+  }
+  function onMove(e) {
+    // Optional: live stretch while dragging (feels gooey)
+    if (!isDown) return;
+    const p = getXY(e);
+    const now = performance.now();
+    const dt = Math.max(1, now - (touchEnd.t || touchStart.t));
+    swipeVec.x = (p.x - touchStart.x);
+    swipeVec.y = (p.y - touchStart.y);
+    swipeSpeed = Math.min(2.5, Math.hypot(swipeVec.x, swipeVec.y) / dt / DPR); // normalize a bit
+    touchEnd.x = p.x; touchEnd.y = p.y; touchEnd.t = now;
+    // kick the effect if not already active to show pliability while dragging
+    if (effectStart < 0) effectStart = performance.now();
+    e.preventDefault();
+  }
+  function onUp(e) {
+    if (!isDown) return;
+    isDown = false;
+    const now = performance.now();
+    const dt = Math.max(1, now - touchStart.t);
+    // final swipe vector and speed
+    swipeVec.x = (touchEnd.x - touchStart.x);
+    swipeVec.y = (touchEnd.y - touchStart.y);
+    swipeSpeed = Math.min(3.0, Math.hypot(swipeVec.x, swipeVec.y) / dt / DPR);
+    effectStart = performance.now(); // start dissolve cycle
+  }
+  function onCancel(){ isDown = false; }
+
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove, {passive:false});
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onCancel);
+
+  // Double-tap reset & keyboard
+  let lastTap = 0;
+  canvas.addEventListener('pointerup', (e) => {
+    const now = performance.now();
+    if (now - lastTap < 260) {
+      // Reset to base
+      effectStart = -1;
+      swipeVec = {x:0, y:0};
+      swipeSpeed = 0;
+    }
+    lastTap = now;
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'r') {
+      effectStart = -1;
+      swipeVec = {x:0, y:0};
+      swipeSpeed = 0;
+    }
+  });
+
+  // First frame paint
+  draw(0);
+})();
+</script>
+</body>
+</html>

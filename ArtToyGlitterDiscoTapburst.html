@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Art Toy — Glitter Disco (Tap to Burst)</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;touch-action:none}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(function(){
+  const c=document.getElementById('c');
+  const x=c.getContext('2d',{alpha:false});
+  function fit(){ c.width=innerWidth; c.height=innerHeight; }
+  addEventListener('resize', fit, {passive:true}); fit();
+
+  // --- starfield ---
+  const stars=[]; const ST=260;
+  function seedStars(){
+    stars.length=0;
+    for(let i=0;i<ST;i++){
+      stars.push({x:Math.random()*c.width, y:Math.random()*c.height, s:Math.random()*1.6+0.4, t:Math.random()*6.28});
+    }
+  }
+  seedStars();
+
+  // --- math helpers ---
+  function rotX(p,a){ const s=Math.sin(a), c=Math.cos(a); return [p[0], c*p[1]-s*p[2], s*p[1]+c*p[2]]; }
+  function rotY(p,a){ const s=Math.sin(a), c=Math.cos(a); return [c*p[0]+s*p[2], p[1], -s*p[0]+c*p[2]]; }
+  function rotZ(p,a){ const s=Math.sin(a), c=Math.cos(a); return [c*p[0]-s*p[1], s*p[0]+c*p[1], p[2]]; }
+  function proj(p){ const d=3, k=1/(p[2]+d); return [c.width*0.5 + p[0]*k*c.height*0.5, c.height*0.5 - p[1]*k*c.height*0.5, k]; }
+  function len3(x,y,z){ return Math.sqrt(x*x+y*y+z*z); }
+  function clamp(a,b,c){ return Math.max(b, Math.min(c,a)); }
+
+  // --- disco geometry (pixel tiles on sphere) ---
+  const U=28, V=28; // lightweight
+  const tilesUnit=[];
+  (function build(){
+    for(let j=0;j<V;j++){
+      const v=(j+0.5)/V, lat=(v-0.5)*Math.PI, y=Math.sin(lat), r=Math.cos(lat);
+      for(let i=0;i<U;i++){
+        const u=(i+0.5)/U, lon=(u-0.5)*Math.PI*2;
+        tilesUnit.push([r*Math.cos(lon), y, r*Math.sin(lon)]);
+      }
+    }
+  })();
+
+  // --- dynamics ---
+  let ax=0.1, ay=0.2, az=0.0;
+  let vx=0.0007, vy=0.0009, vz=0.0; // gentle base spin
+  const base=[vx,vy,vz];
+  const damping=0.9985;           // slows down if you stop tapping
+  let lastTap=0, tapCombo=0;      // for speed-sensitive bursts
+  const SPEED_CRIT = 0.08;        // burst threshold on |v|
+
+  // shards after burst
+  let mode='spin';
+  let shards=[]; // {x,y,z,vx,vy,vz,life,max,tw}
+
+  function triggerBurst(){
+    mode='burst'; shards.length=0;
+    const wmag = Math.abs(vx)+Math.abs(vy)+Math.abs(vz) + 0.001;
+    const speed = clamp(wmag*120, 0.02, 0.14);
+    for(const p0 of tilesUnit){
+      let p=[p0[0],p0[1],p0[2]];
+      p=rotX(p,ax); p=rotY(p,ay); p=rotZ(p,az);
+      if(p[2]<=0) continue;
+      // tangential ~ angular velocity cross position
+      const tx =  p[2]*vy - p[1]*vz;
+      const ty =  p[0]*vz - p[2]*vx;
+      const tz =  p[1]*vx - p[0]*vy;
+      const tl = len3(tx,ty,tz)||1;
+      const tv = [tx/tl, ty/tl, tz/tl];
+      const ov = [p[0],p[1],p[2]];
+      const vx0 = ov[0]*speed*0.8 + tv[0]*speed*1.2;
+      const vy0 = ov[1]*speed*0.8 + tv[1]*speed*1.2;
+      const vz0 = ov[2]*speed*0.8 + tv[2]*speed*1.2;
+      shards.push({x:p[0],y:p[1],z:p[2], vx:vx0,vy:vy0,vz:vz0, life:0, max:3+Math.random()*3, tw:Math.random()*6.28});
+    }
+  }
+  function resetToy(){
+    ax=0.1; ay=0.2; az=0.0;
+    vx=base[0]; vy=base[1]; vz=base[2];
+    mode='spin'; shards.length=0; tapCombo=0;
+  }
+
+  // --- input: each tap adds spin; faster taps add more ---
+  function onTap(){
+    if (mode==='burst'){ resetToy(); return; }
+    const now = performance.now();
+    const dt = (now - lastTap) / 1000 || 1;
+    lastTap = now;
+    // impulse scales with 1/dt (faster taps -> bigger), with clamp
+    const impulse = clamp(0.002 + 0.02*(1/dt), 0.004, 0.06);
+    // add to angular velocity (hefty: tilt bias more to yaw/pitch)
+    const ang = Math.random()*Math.PI*2;
+    vx += Math.sin(ang)*impulse*0.6;
+    vy += Math.cos(ang)*impulse*0.8;
+    vz += (Math.sin(ang)-Math.cos(ang))*impulse*0.2;
+    tapCombo++;
+  }
+  c.addEventListener('pointerdown', onTap);
+  c.addEventListener('touchstart', onTap, {passive:true});
+  c.addEventListener('click', onTap);
+
+  // --- loop ---
+  let last=performance.now();
+  function loop(now){
+    const dt = Math.min(0.05, (now-last)/1000); last=now;
+
+    // background stars
+    x.fillStyle='#000'; x.fillRect(0,0,c.width,c.height);
+    for(const s of stars){
+      s.t += 0.02;
+      const a = 0.35 + 0.65*(0.5+0.5*Math.sin(s.t));
+      x.globalAlpha=a; x.fillStyle='#fff'; x.fillRect(s.x, s.y, s.s, s.s);
+    }
+    x.globalAlpha=1;
+
+    if (mode==='spin'){
+      // integrate spin with slight damping toward base
+      ax+=vx; ay+=vy; az+=vz;
+      const mag = Math.abs(vx)+Math.abs(vy)+Math.abs(vz);
+      vx = vx*damping + base[0]*(1-damping)*0.2;
+      vy = vy*damping + base[1]*(1-damping)*0.2;
+      vz = vz*damping + base[2]*(1-damping)*0.2;
+
+      // burst if speed high
+      if (mag > SPEED_CRIT){ triggerBurst(); }
+
+      // draw disco tiles
+      const size=Math.min(c.width,c.height)*0.56;
+      const facet=size/U;
+      const tiles=[];
+      for(const p0 of tilesUnit){
+        let p=[p0[0],p0[1],p0[2]];
+        p=rotX(p,ax); p=rotY(p,ay); p=rotZ(p,az);
+        if(p[2]<=0) continue;
+        const pr=proj(p);
+        tiles.push({x:pr[0], y:pr[1], k:pr[2], d:p[2], nx:p[0], ny:p[1], nz:p[2]});
+      }
+      tiles.sort((a,b)=>a.d-b.d);
+      for(const t1 of tiles){
+        const s = Math.max(1, facet * t1.k * c.height*0.5 / (size*0.5));
+        // glittery value with twinkle
+        const lam = Math.max(0.12, (t1.nx*0.4 + t1.ny*0.6 + t1.nz*0.2));
+        const tw = (Math.sin((t1.x+t1.y)*0.08 + now*0.005)+1)*0.5;
+        const sparkle = ( ((t1.x|0) ^ (t1.y|0)) % 23 === 0 ) ? (0.35+0.65*tw) : 0;
+        const vcol = Math.floor(70 + lam*150 + sparkle*90);
+        x.fillStyle="rgb("+vcol+","+vcol+","+vcol+")";
+        x.fillRect(t1.x - s/2, t1.y - s/2, s, s);
+        x.strokeStyle='rgba(255,255,255,0.08)'; x.lineWidth=1;
+        x.strokeRect(t1.x - s/2, t1.y - s/2, s, s);
+      }
+    } else {
+      // burst mode: shards drift out
+      for (let i=shards.length-1;i>=0;i--){
+        const p=shards[i]; p.life+=dt;
+        p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
+        p.vx*=0.999; p.vy*=0.999; p.vz*=0.999;
+        if (p.life>p.max){ shards.splice(i,1); continue; }
+        const pr=proj([p.x,p.y,p.z]);
+        const s = Math.max(1, pr[2]*Math.min(c.width,c.height)*0.02);
+        const tw = (Math.sin(p.tw + now*0.01)+1)*0.5;
+        const g = Math.floor(120 + tw*100);
+        x.fillStyle="rgb("+g+","+g+","+g+")";
+        x.fillRect(pr[0]-s/2, pr[1]-s/2, s, s);
+      }
+      // tap to reset handled in onTap()
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

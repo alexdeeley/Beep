@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>HexWave — Triangles (Color, Slow, Swipe‑Reactive)</title>
+  <style>
+    html, body { margin:0; height:100%; background:#000; }
+    canvas { display:block; width:100vw; height:100vh; touch-action: none; }
+  </style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+  <canvas id="view"></canvas>
+<script>
+(() => {
+  // ===== No-UI settings =====
+  let ORDER = 5;                 // 32x32 logical grid for BIG, visible shapes
+  const MAX_RIPPLES = 18;
+  const AMBIENT_SPEED = 4;       // 10× slower ambient drift (was ~40)
+
+  // Wave + band params (randomized on touch, but kept slow)
+  let WAVE_SPEED = 7;            // 10× slower baseline (was ~60)
+  let WAVELENGTH = 36;
+  let WAVE_DECAY = 0.65;
+  let WAVE_AMPLITUDE = 640;      // strong amplitude for visible changes
+  let BAND_BASE = 54;            // baseline band thickness (adjusts while swiping)
+  let BAND_V = BAND_BASE;
+  let BAND_H = BAND_BASE;
+  let INVERT = false;
+  let SLOW_RATE = 0.6;
+
+  // Swipe/gesture state
+  let gestureAngle = 0;          // radians
+  let gestureSpeed = 0;          // 0..1 normalized
+  let swiping = false;
+  let lastPt = null;
+  let lastFrameTime = performance.now();
+
+  function randomizeStyle() {
+    // Keep everything slow but allow variety
+    WAVE_SPEED     = 5 + Math.random() * 6;      // 5..11 (slow)
+    WAVELENGTH     = 28 + Math.random() * 44;    // 28..72
+    WAVE_DECAY     = 0.55 + Math.random() * 0.3; // 0.55..0.85
+    WAVE_AMPLITUDE = 520 + Math.random() * 550;  // 520..1070
+    BAND_BASE      = 40 + Math.random() * 80;    // 40..120
+    INVERT         = Math.random() < 0.25;
+    SLOW_RATE      = 0.25 + Math.random() * 0.7; // 0.25..0.95
+  }
+
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
+
+  // Logical grid
+  let N = 1 << ORDER;
+
+  // Timing + waves
+  let base = 0;
+  let lastT = performance.now() / 1000;
+
+  // Ripples: {x,y,t0,slow,dir (radians), hueSeed}
+  const ripples = [];
+
+  // === Hilbert space-filling curve ===
+  function d2xy(N, d) {
+    let x = 0, y = 0, t = d;
+    for (let s = 1; s < N; s <<= 1) {
+      const rx = 1 & (t >> 1);
+      const ry = 1 & (t ^ rx);
+      if (ry === 0) {
+        if (rx === 1) {
+          x = s - 1 - x;
+          y = s - 1 - y;
+        }
+        const tmp = x; x = y; y = tmp;
+      }
+      x += s * rx;
+      y += s * ry;
+      t >>= 2;
+    }
+    return [x, y];
+  }
+
+  // Precompute Hilbert coordinates
+  let xs = new Uint16Array(N*N);
+  let ys = new Uint16Array(N*N);
+  function rebuild(order) {
+    ORDER = order;
+    N = 1 << ORDER;
+    xs = new Uint16Array(N*N);
+    ys = new Uint16Array(N*N);
+    for (let d = 0; d < N*N; d++) {
+      const [x, y] = d2xy(N, d);
+      xs[d] = x; ys[d] = y;
+    }
+  }
+
+  function resize() {
+    const w = Math.floor(window.innerWidth);
+    const h = Math.floor(window.innerHeight);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  // ——— Color helpers: bright, bold palette ———
+  function hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return [(r * 255) | 0, (g * 255) | 0, (b * 255) | 0];
+  }
+
+  // Quantized neon hues for pop
+  function brightColor(hNorm, tPulse) {
+    // Snap hue to a 12-step wheel for boldness
+    const steps = 12;
+    const snapped = Math.round(hNorm * steps) / steps;
+    const h = (snapped + tPulse) % 1;
+    const s = 1.0;   // full saturation
+    const l = 0.57;  // bright but not washed out
+    return hslToRgb(h, s, l);
+  }
+
+  // ——— Input handling (swipe angle/speed) ———
+  function addRipple(px, py) {
+    // hueSeed based on current angle so direction → color family
+    const hueSeed = (gestureAngle / (2*Math.PI)) % 1;
+    ripples.push({ x: px, y: py, t0: performance.now() / 1000, slow: SLOW_RATE, dir: gestureAngle, hueSeed });
+    if (ripples.length > MAX_RIPPLES) ripples.shift();
+    randomizeStyle();
+  }
+
+  function gridPosFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = ('clientX' in e) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left);
+    const cy = ('clientY' in e) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top);
+    const sx = Math.min(1, Math.max(0, (cx - rect.left) / rect.width));
+    const sy = Math.min(1, Math.max(0, (cy - rect.top) / rect.height));
+    return [Math.floor(sx * N), Math.floor(sy * N), sx * canvas.width, sy * canvas.height];
+  }
+
+  function startSwipe(e) {
+    swiping = true;
+    const [gx, gy, px, py] = gridPosFromEvent(e);
+    lastPt = { x:px, y:py, t: performance.now() };
+    addRipple(gx, gy);
+    e.preventDefault();
+  }
+
+  function moveSwipe(e) {
+    if (!swiping) return;
+    const [gx, gy, px, py] = gridPosFromEvent(e);
+    const now = performance.now();
+    const dt = Math.max(1, now - (lastPt?.t || now));
+    const dx = px - (lastPt?.x ?? px);
+    const dy = py - (lastPt?.y ?? py);
+    lastPt = { x:px, y:py, t: now };
+
+    // compute angle & speed
+    gestureAngle = Math.atan2(dy, dx);
+    const speedPx = Math.hypot(dx, dy) / dt; // px per ms
+    // normalize roughly vs screen size
+    const diag = Math.hypot(canvas.width, canvas.height);
+    gestureSpeed = Math.min(1, (speedPx * 1000) / (diag * 1.5)); // 0..~1
+
+    // Dynamic thickness based on speed & direction:
+    const dirX = Math.abs(Math.cos(gestureAngle));
+    const dirY = Math.abs(Math.sin(gestureAngle));
+    const extra = 1 + gestureSpeed * 2.2;  // up to ~3.2×
+    BAND_V = Math.max(8, BAND_BASE * extra * (0.7 + 0.6 * dirX)); // emphasize when swiping more horizontally
+    BAND_H = Math.max(8, BAND_BASE * extra * (0.7 + 0.6 * dirY)); // emphasize when swiping more vertically
+
+    // Also, let the user "paint" ripples along the swipe
+    if (e.buttons || e.pressure > 0 || e.pointerType === 'touch') {
+      addRipple(gx, gy);
+    }
+  }
+
+  function endSwipe() { swiping = false; lastPt = null; }
+
+  canvas.addEventListener('pointerdown', startSwipe, { passive:false });
+  canvas.addEventListener('touchstart', startSwipe, { passive:false });
+  canvas.addEventListener('pointermove', moveSwipe, { passive:false });
+  canvas.addEventListener('touchmove', moveSwipe, { passive:false });
+  window.addEventListener('pointerup', endSwipe, { passive:true });
+  window.addEventListener('touchend', endSwipe, { passive:true });
+  window.addEventListener('touchcancel', endSwipe, { passive:true });
+
+  // Double/Triple tap for clear / chunk toggle
+  let tapCount = 0;
+  let lastTap = 0;
+  function handleTap(e) {
+    const now = performance.now();
+    tapCount = (now - lastTap < 300) ? tapCount + 1 : 1;
+    lastTap = now;
+    if (tapCount === 2) {
+      ripples.length = 0; // clear
+    } else if (tapCount === 3) {
+      rebuild((ORDER === 5) ? 4 : 5); // 32 <-> 16 grid
+      tapCount = 0;
+    }
+  }
+  canvas.addEventListener('pointerdown', handleTap, { passive:true });
+
+  // Small hash for stable per-cell jitter
+  function hash(x, y) {
+    let h = x * 374761393 + y * 668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    return (h >>> 0) / 4294967296;
+  }
+
+  function drawTri(cx, cy, r, rot) {
+    const a0 = rot, a1 = rot + (2*Math.PI)/3, a2 = rot + (4*Math.PI)/3;
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.closePath();
+  }
+
+  function render() {
+    const t = performance.now() / 1000;
+    const dt = t - lastT;
+    lastT = t;
+
+    base = (base + Math.floor(AMBIENT_SPEED * dt)) & 0xFFFFFF;
+
+    resize();
+    const W = canvas.width, H = canvas.height;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,W,H);
+
+    // Cell size
+    const cellW = W / N;
+    const cellH = H / N;
+    const scale = Math.min(cellW, cellH);
+    const triR = scale * 0.85;  // larger for visibility
+    const jitterPos = scale * 0.08;
+    const jitterRot = 0.28;     // radians
+
+    // Precompute axis rotation based on gesture angle: swipe affects pattern direction
+    const ca = Math.cos(gestureAngle);
+    const sa = Math.sin(gestureAngle);
+
+    // Build two rotated coordinates u (along swipe), v (across swipe)
+    // around the grid center so direction impacts banding.
+    const cxGrid = (N - 1) / 2;
+    const cyGrid = (N - 1) / 2;
+
+    // Color time pulse
+    const tPulse = (0.03 * Math.sin(t * 0.2) + 0.02 * Math.sin(t * 0.37));
+
+    // Draw in batches by color to reduce overdraw (simple approach: fill per-cell)
+    ctx.beginPath();
+    // We'll fill per color as we go; to keep it simple, we set fillStyle just-in-time.
+
+    // For performance, draw per cell with immediate fill; battery-friendly grids are small (32x32/16x16)
+    for (let d = 0; d < N*N; d++) {
+      const gx = xs[d], gy = ys[d];
+
+      // Sum ripples with slowdown; each ripple remembers its own direction for color seeding
+      let w = 0, hueAcc = 0;
+      for (let k = 0; k < ripples.length; k++) {
+        const r = ripples[k];
+        const age = t - r.t0;
+        if (age <= 0) continue;
+        const dx = gx - r.x;
+        const dy = gy - r.y;
+        const dist = Math.hypot(dx, dy);
+
+        const slow = 0.35 + 0.65 * Math.exp(-r.slow * age); // → 0.35
+        const speedNow = WAVE_SPEED * slow;
+
+        const phase = (dist - speedNow * age) / WAVELENGTH;
+        const env = Math.exp(-WAVE_DECAY * age);
+        const s = env * Math.sin(2*Math.PI * phase);
+        w += s;
+
+        // accumulate hue hint from ripple's own direction & age
+        hueAcc += r.hueSeed * env;
+      }
+
+      const delta = (w * WAVE_AMPLITUDE) | 0;
+
+      // Rotate coordinates by current swipe angle so direction influences banding
+      const rx = gx - cxGrid, ry = gy - cyGrid;
+      const u =  rx * ca + ry * sa;   // along swipe
+      const v = -rx * sa + ry * ca;   // across swipe
+
+      const uVal = ((Math.round(u + cxGrid) + base + delta) & 0xFF);
+      const vVal = ((Math.round(v + cyGrid) + base + delta) & 0xFF);
+
+      const uBand = uVal % (Math.max(8, BAND_V) * 2);
+      const vBand = vVal % (Math.max(8, BAND_H) * 2);
+
+      const uOn = uBand >= Math.max(8, BAND_V);
+      const vOn = vBand >= Math.max(8, BAND_H);
+
+      const on = (uOn || vOn) ^ INVERT;
+      if (!on) continue;
+
+      // Color: bright palette driven by (uVal+vVal) and ripple‑seeded hue
+      const hueNorm = ((uVal + vVal) & 0xFF) / 255;
+      const hueBlend = (hueNorm * 0.6 + (hueAcc % 1) * 0.4) % 1;
+      const [R,G,B] = brightColor(hueBlend, tPulse);
+
+      ctx.fillStyle = `rgb(${R},${G},${B})`;
+
+      // Screen position
+      const px = (gx + 0.5) * cellW;
+      const py = (gy + 0.5) * cellH;
+
+      // jitter & rotation
+      const hsh = hash(gx, gy);
+      const ox = (hsh - 0.5) * 2 * jitterPos;
+      const oy = ((1 - hsh) - 0.5) * 2 * jitterPos;
+      const rot = ((hsh - 0.5) * 2) * jitterRot + ((gx + gy) & 1 ? Math.PI / 3 : 0);
+
+      ctx.beginPath();
+      drawTri(px + ox, py + oy, triR, rot);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  rebuild(ORDER);
+  resize();
+  randomizeStyle();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triangle → Kaleidoscope → Diamond (Smaller Triangle)</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+const canvas=document.getElementById('c');
+const gl=canvas.getContext('webgl',{preserveDrawingBuffer:true,antialias:true});
+const DPR=Math.max(1,Math.min(2,devicePixelRatio||1));
+function resize(){const w=Math.floor(innerWidth*DPR),h=Math.floor(innerHeight*DPR);
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}}
+addEventListener('resize',resize,{passive:true});resize();
+
+const vert=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const frag=`
+precision highp float;
+uniform vec2 R;
+uniform float t,energy,touched;
+uniform vec3 touchInfo;
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1,0)),
+c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));vec2 u=f*f*(3.-2.*f);
+return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}
+float sdEquilateralTri(vec2 p,float r){
+ const float k=1.7320508;
+ p.x=abs(p.x)-r; p.y=p.y+r/k;
+ if(p.x+k*p.y>0.0)p=(vec2(p.x-k*p.y,-k*p.x-p.y))/2.0;
+ p.x-=clamp(p.x,-2.0*r,0.0);
+ return -length(p)*sign(p.y);
+}
+float sdDiamond(vec2 p,float r){p=abs(p);return (p.x+p.y-r);}
+float stripes(vec2 uv){return step(0.5,fract(uv.x));}
+float checker(vec2 uv){vec2 g=floor(fract(uv)*2.0);return step(1.0,mod(g.x+g.y,2.0));}
+float rings(vec2 uv){float r=length(uv);return step(0.5,fract(8.0*r));}
+vec2 kalei(vec2 uv,float k,float spin){
+ float r=length(uv);float a=atan(uv.y,uv.x)+spin;
+ float sector=6.2831853/k; a=mod(a,sector); a=abs(a-sector*0.5);
+ return vec2(cos(a),sin(a))*r;
+}
+void main(){
+ vec2 U=gl_FragCoord.xy,res=R;
+ vec2 uv=(U-0.5*res)/res.y;
+ float e=clamp(energy,0.0,1.2);
+ vec2 drag=touchInfo.xy; float dmag=touchInfo.z;
+ vec2 r=uv-drag; float d=max(0.001,length(r));
+ vec2 swirl=rot(1.57)*(r/d)*exp(-d*4.0)*dmag*3.0;
+ vec2 flow=swirl+vec2(sin(uv.x*3.0+t*0.6)-cos(uv.y*2.5-t*0.45),
+                      cos(uv.y*3.7-t*0.4)+sin(uv.x*2.1+t*0.5));
+ float m=smoothstep(0.0,0.25,e);
+ float kAmt=mix(0.0,10.0,m);
+ float spin=t*0.5*m+(drag.x+drag.y)*6.2831*m;
+ vec2 w=uv+flow*(0.30*m);
+ vec2 k=(kAmt>0.0)?kalei(w,max(3.0,kAmt),spin):w;
+ float aber=0.015*m;
+ vec2 oR=aber*vec2(0.6,0.0);
+ vec2 oG=aber*vec2(0.0,-0.6);
+ vec2 oB=aber*vec2(-0.6,0.6);
+ float patR=mix(stripes(k*5.0+oR),rings(k*4.0+oR),0.35+0.35*sin(t*0.8));
+ float patG=mix(checker(k*5.0+oG),stripes(k*7.0+oG),0.5);
+ float patB=mix(rings(k*6.0+oB),checker(k*5.0+oB),0.4);
+ vec3 kaleiCol=vec3(patR,patG,patB);
+ vec3 col=vec3(1.0);
+ // Smaller triangle & diamond
+ float tri=sdEquilateralTri(uv*1.2,0.3);
+ float dia=sdDiamond(uv*1.2,0.4);
+ if(e<0.01 && touched<0.5){
+   col=vec3(step(0.0,tri)); col=1.0-col;
+   gl_FragColor=vec4(col,1.0);return;
+ }
+ float mask=smoothstep(0.02,-0.08,mix(tri,dia,0.3)+m*0.6);
+ col=mix(col,kaleiCol,mask);
+ float settle=smoothstep(0.15,0.0,e);
+ float diaMask=smoothstep(0.02,-0.02,dia);
+ col=mix(col,vec3(0.0),diaMask*settle);
+ col=pow(col,vec3(0.85));
+ gl_FragColor=vec4(col,1.0);
+}`;
+
+function compile(t,s){const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);
+ if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(sh);return sh;}
+const prog=gl.createProgram();
+gl.attachShader(prog,compile(gl.VERTEX_SHADER,vert));
+gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,frag));
+gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw gl.getProgramInfoLog(prog);
+gl.useProgram(prog);
+const buf=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'p');
+gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uR=gl.getUniformLocation(prog,'R');
+const ut=gl.getUniformLocation(prog,'t');
+const uE=gl.getUniformLocation(prog,'energy');
+const uTouched=gl.getUniformLocation(prog,'touched');
+const uTouch=gl.getUniformLocation(prog,'touchInfo');
+let start=performance.now(),E=0,hasTouched=0,drag={x:0,y:0,mag:0},pd=false,last=[];
+function touches(e){if(e.touches)return Array.from(e.touches).map(t=>({x:t.clientX,y:t.clientY}));return[{x:e.clientX,y:e.clientY}];}
+function onDown(e){pd=true;last=touches(e);}
+function onMove(e){if(!pd)return;e.preventDefault();const T=touches(e);
+ const dx=(T[0].x-last[0].x)/innerWidth,dy=(T[0].y-last[0].y)/innerHeight;
+ const sp=Math.hypot(dx,dy);E=Math.min(1.2,E+sp*1.8);hasTouched=1;
+ drag.x=(T[0].x-innerWidth*0.5)/(innerHeight);drag.y=(T[0].y-innerHeight*0.5)/(innerHeight);
+ drag.mag=Math.min(1.0,sp*10.0);last=T;}
+function onUp(){pd=false;}
+addEventListener('mousedown',onDown);addEventListener('mousemove',onMove);addEventListener('mouseup',onUp);
+addEventListener('touchstart',onDown,{passive:true});addEventListener('touchmove',onMove,{passive:false});addEventListener('touchend',onUp);
+function frame(now){const t=(now-start)/1000;E=Math.max(0,E-1/60/60);
+ gl.uniform2f(uR,gl.drawingBufferWidth,gl.drawingBufferHeight);
+ gl.uniform1f(ut,t);gl.uniform1f(uE,E);gl.uniform1f(uTouched,hasTouched);
+ gl.uniform3f(uTouch,drag.x,drag.y,drag.mag);
+ gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

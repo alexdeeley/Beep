@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1, user-scalable=no">
+<title>Checker Morphs (No Text)</title>
+<style>
+  html, body { margin:0; height:100%; background:#050505; }
+  canvas { display:block; width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let W=0,H=0, DPR = Math.max(1, devicePixelRatio || 1);
+  function resize(){
+    W = Math.floor(innerWidth * DPR);
+    H = Math.floor(innerHeight * DPR);
+    canvas.width = W;
+    canvas.height = H;
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // Utility
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+
+  // Create a small checkerboard pattern canvas
+  const patSize = 64;
+  const patCanvas = document.createElement('canvas');
+  patCanvas.width = patCanvas.height = patSize;
+  const pctx = patCanvas.getContext('2d');
+  pctx.fillStyle = '#ffffff';
+  pctx.fillRect(0,0,patSize,patSize);
+  pctx.fillStyle = '#000000';
+  pctx.fillRect(0,0,patSize/2,patSize/2);
+  pctx.fillRect(patSize/2,patSize/2,patSize/2,patSize/2);
+  const checker = ctx.createPattern(patCanvas, 'repeat');
+
+  // Shape generators -> array of vertices in normalized coords centered at (0,0), unit height ~2
+  function genCircle(n=64){
+    const pts=[];
+    for(let i=0;i<n;i++){
+      const t = (i/n)*Math.PI*2;
+      pts.push([Math.cos(t), Math.sin(t)]);
+    }
+    return pts;
+  }
+  function genRectangle(w=1.0, h=1.2){
+    const hw=w, hh=h;
+    return [[-hw,-hh],[ hw,-hh],[ hw, hh],[-hw, hh]];
+  }
+  function genSquare(){ return genRectangle(1.1,1.1); }
+
+  function genParallelogram(w=1.2,h=1.0,shear=0.5){
+    const hw=w, hh=h, s=shear;
+    return [[-hw - s*hh,-hh],[ hw - s*hh,-hh],[ hw + s*hh, hh],[-hw + s*hh, hh]];
+  }
+  function genRhombus(side=1.2, angle=60*Math.PI/180){
+    const a=angle, r=side/2;
+    const dx = Math.cos(a/2)*r*2, dy = Math.sin(a/2)*r*2;
+    return [[0,-dy],[dx,0],[0,dy],[-dx,0]];
+  }
+  function genTrapezoid(top=0.8, bottom=1.6, h=1.1){
+    const t=top/2, b=bottom/2, hh=h;
+    return [[-t,-hh],[ t,-hh],[ b, hh],[-b, hh]];
+  }
+  function genTriangle(w=1.8,h=1.6){
+    const hw=w/2, hh=h/2;
+    return [[0,-hh], [hw, hh], [-hw, hh]];
+  }
+
+  // Convert poly (array of [x,y]) to resampled array of M points along perimeter
+  function resample(poly, M){
+    // close path
+    const P = poly.slice();
+    if (P[0][0]!==P[P.length-1][0] || P[0][1]!==P[P.length-1][1]) P.push(P[0]);
+    // lengths
+    const segs=[];
+    let total=0;
+    for(let i=0;i<P.length-1;i++){
+      const a=P[i], b=P[i+1];
+      const dx=b[0]-a[0], dy=b[1]-a[1];
+      const d=Math.hypot(dx,dy);
+      segs.push({a,b,d});
+      total+=d;
+    }
+    const out=[];
+    for(let k=0;k<M;k++){
+      const t= (k/ M) * total;
+      let acc=0;
+      for(const s of segs){
+        if(acc + s.d >= t){
+          const u = (t-acc)/s.d;
+          out.push([lerp(s.a[0], s.b[0], u), lerp(s.a[1], s.b[1], u)]);
+          break;
+        }
+        acc += s.d;
+      }
+    }
+    return out;
+  }
+
+  // Draw current interpolated shape with checker fill and soft shadow
+  function drawShape(points, cx, cy, scale, rot, lightDir=[-1,-1]){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.scale(scale, scale);
+
+    // Path
+    ctx.beginPath();
+    for(let i=0;i<points.length;i++){
+      const p=points[i];
+      if(i===0) ctx.moveTo(p[0], p[1]);
+      else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.closePath();
+
+    // Shadow (soft offset using shadowBlur)
+    const shOffset = 24 * DPR;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 40 * DPR;
+    ctx.shadowOffsetX = shOffset * (lightDir[0]);
+    ctx.shadowOffsetY = shOffset * (lightDir[1]);
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.restore();
+
+    // Checkerboard fill inside
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = checker;
+    // Slight drift to avoid moiré stasis
+    const t = performance.now() * 0.0002;
+    const off = Math.sin(t)*16*DPR;
+    ctx.translate(-W/2 + off, -H/2 + off);
+    ctx.fillRect(-W, -H, W*2, H*2);
+    ctx.restore();
+
+    // Outline
+    ctx.lineWidth = 3 * DPR;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Shape selection and morphing
+  const M = 220; // resample count for smooth morph
+  const SHAPES = [
+    () => genCircle(96),
+    () => genSquare(),
+    () => genTriangle(),
+    () => genTrapezoid(),
+    () => genRhombus(),
+    () => genParallelogram(),
+    () => genRectangle(1.8,1.2)
+  ];
+
+  function makeTarget(){
+    // Randomize some params for variety
+    const pick = Math.floor(Math.random()*SHAPES.length);
+    switch(pick){
+      case 0: return resample(genCircle(128), M);
+      case 1: return resample(genSquare(), M);
+      case 2: {
+        const w = 1.4 + Math.random()*0.8;
+        const h = 1.2 + Math.random()*0.8;
+        return resample(genTriangle(w,h), M);
+      }
+      case 3: {
+        const top = 0.6 + Math.random()*0.9;
+        const bottom = top + 0.5 + Math.random()*0.9;
+        const h = 0.9 + Math.random()*0.7;
+        return resample(genTrapezoid(top,bottom,h), M);
+      }
+      case 4: {
+        const side = 1.1 + Math.random()*1.1;
+        const ang = (50 + Math.random()*70) * Math.PI/180;
+        return resample(genRhombus(side, ang), M);
+      }
+      case 5: {
+        const w = 1.1 + Math.random()*0.9;
+        const h = 0.9 + Math.random()*1.0;
+        const shear = (Math.random()*0.9) * (Math.random()<0.5?1:-1);
+        return resample(genParallelogram(w,h,shear), M);
+      }
+      case 6: {
+        const w = 1.2 + Math.random()*1.2;
+        const h = 0.8 + Math.random()*1.4;
+        return resample(genRectangle(w,h), M);
+      }
+    }
+  }
+
+  let A = makeTarget();      // current start
+  let B = makeTarget();      // next target
+  let t0 = performance.now();
+  const DURATION = 4000;     // 4 seconds
+  function newTarget(){
+    A = currentInterpolated(); // start from where we are
+    B = makeTarget();
+    t0 = performance.now();
+  }
+
+  function currentInterpolated(){
+    const now = performance.now();
+    let u = clamp((now - t0)/DURATION, 0, 1);
+    // slowwwwwwly: ease with very gentle curve
+    const ease = u*u*(3 - 2*u); // smoothstep
+    const pts = new Array(M);
+    for(let i=0;i<M;i++){
+      const ax=A[i], bx=B[i];
+      pts[i] = [ lerp(ax[0], bx[0], ease), lerp(ax[1], bx[1], ease) ];
+    }
+    return pts;
+  }
+
+  // Periodic retarget
+  setInterval(newTarget, DURATION);
+
+  // Animation loop
+  function tick(){
+    // Clear backdrop
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0,0,W,H);
+
+    // Light direction slowly orbits
+    const t = performance.now()*0.001;
+    const light = [ Math.cos(t*0.5), Math.sin(t*0.5) ];
+
+    // Compute scale based on viewport
+    const s = Math.min(W, H) * 0.33;
+
+    // Slight slow rotation for style
+    const rot = Math.sin(t*0.2)*0.15;
+
+    const pts = currentInterpolated();
+    drawShape(pts, W/2, H/2, s, rot, light);
+
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>
