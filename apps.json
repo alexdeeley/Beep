@@ -360,7 +360,7 @@
     "id": "neo-aether-classical-ambient-composer",
     "name": "Aether \u2014 Classical Ambient Composer",
     "description": "A generative art / visual piece from the Neocities collection: \"Aether \u2014 Classical Ambient Composer\".",
-    "category": "Art",
+    "category": "Music Tools",
     "path": "AetherClassicalAmbientComposer.html"
   },
   {
@@ -1197,13 +1197,6 @@
     "path": "TouchSortLines.html"
   },
   {
-    "id": "neo-viz",
-    "name": "(untitled)",
-    "description": "A generative art / visual piece from the Neocities collection: \"(untitled)\".",
-    "category": "Art",
-    "path": "Viz.html"
-  },
-  {
     "id": "neo-chrome-checkerboard16x16-safari",
     "name": "Chrome Checkerboard 16x16",
     "description": "A generative art / visual piece from the Neocities collection: \"Chrome Checkerboard 16x16\".",
@@ -1230,13 +1223,6 @@
     "description": "A music tool from the Neocities collection: \"Motion Synth\".",
     "category": "Music Tools",
     "path": "MotionSynthBlackwhiteSquares.html"
-  },
-  {
-    "id": "neo-checker-flip99",
-    "name": "99% Flip Checkerboard (100\u00d7100)",
-    "description": "A generative art / visual piece from the Neocities collection: \"99% Flip Checkerboard (100\u00d7100)\".",
-    "category": "Art",
-    "path": "CheckerFlip99.html"
   },
   {
     "id": "neo-heart-canvas",
