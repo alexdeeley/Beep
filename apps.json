@@ -301,46 +301,11 @@
     "path": "ArtsyV32.html"
   },
   {
-    "id": "neo-space-shooter-v3a-safari",
-    "name": "SPACE BLAST \u2014 Vertical (Safari Fix)",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
-    "category": "Games",
-    "path": "SpaceShooterV3aSafari.html"
-  },
-  {
-    "id": "neo-space-shooter2",
-    "name": "SPACE BLAST \u2014 Alex Edition",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
-    "category": "Games",
-    "path": "SpaceShooter2.html"
-  },
-  {
-    "id": "neo-space-shooter-v2",
-    "name": "SPACE BLAST \u2014 Alex Edition",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
-    "category": "Games",
-    "path": "SpaceShooterV2.html"
-  },
-  {
     "id": "neo-blockdrop-quake-v2",
     "name": "Blockdrop",
     "description": "A game from the Neocities collection: \"Blockdrop\".",
     "category": "Games",
     "path": "BlockdropQuakeV2.html"
-  },
-  {
-    "id": "neo-space-shooter-v3",
-    "name": "SPACE BLAST \u2014 Vertical",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical\".",
-    "category": "Games",
-    "path": "SpaceShooterV3.html"
-  },
-  {
-    "id": "neo-space-shooter-v3b-slower",
-    "name": "SPACE BLAST \u2014 Vertical (Safari Fix)",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
-    "category": "Games",
-    "path": "SpaceShooterV3bSlower.html"
   },
   {
     "id": "neo-space-shooter-v4",
