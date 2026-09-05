@@ -44,6 +44,15 @@
     text-transform: uppercase;
     margin: 0;
   }
+  #dailySection { margin-bottom: 28px; }
+  #dailySection h3 {
+    color: #6b6b78;
+    font-weight: 800;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 4px;
+  }
   #tabs {
     display: flex;
     gap: 4px;
@@ -119,6 +128,7 @@
     <h1>artcade</h1>
     <p>tap a name to open it</p>
   </header>
+  <div id="dailySection"></div>
   <div id="tabs"></div>
   <div id="appList"></div>
 </main>
@@ -126,6 +136,7 @@
 <script>
 const TABS = ["Games", "Art"];
 // Music Tools apps fold into the Art tab — both are non-game, creative/generative.
+// Daily apps are pinned in their own section above the tabs, not folded into either.
 const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Art" };
 
 let apps = [];
@@ -140,8 +151,22 @@ async function main() {
     return;
   }
 
+  renderDaily();
   buildTabs();
   renderList();
+}
+
+function renderDaily() {
+  const dailyEl = document.getElementById("dailySection");
+  const daily = apps.filter((app) => app.category === "Daily");
+  if (daily.length === 0) return;
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Daily";
+  dailyEl.appendChild(heading);
+  for (const app of daily) {
+    dailyEl.appendChild(buildItem(app));
+  }
 }
 
 function buildTabs() {

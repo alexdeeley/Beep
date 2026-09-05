@@ -259,13 +259,6 @@
     "path": "MaterialCube.html"
   },
   {
-    "id": "neo-mini-hole",
-    "name": "Mini Hole",
-    "description": "A game from the Neocities collection: \"Mini Hole\".",
-    "category": "Games",
-    "path": "MiniHole.html"
-  },
-  {
     "id": "neo-swipe-drift-text",
     "name": "Swipe & Drift Text",
     "description": "A generative art / visual piece from the Neocities collection: \"Swipe & Drift Text\".",
@@ -308,46 +301,11 @@
     "path": "ArtsyV32.html"
   },
   {
-    "id": "neo-space-shooter-v3a-safari",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
-    "category": "Games",
-    "path": "SpaceShooterV3aSafari.html"
-  },
-  {
-    "id": "neo-space-shooter2",
-    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
-    "category": "Games",
-    "path": "SpaceShooter2.html"
-  },
-  {
-    "id": "neo-space-shooter-v2",
-    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
-    "category": "Games",
-    "path": "SpaceShooterV2.html"
-  },
-  {
     "id": "neo-blockdrop-quake-v2",
     "name": "Blockdrop",
     "description": "A game from the Neocities collection: \"Blockdrop\".",
     "category": "Games",
     "path": "BlockdropQuakeV2.html"
-  },
-  {
-    "id": "neo-space-shooter-v3",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical\".",
-    "category": "Games",
-    "path": "SpaceShooterV3.html"
-  },
-  {
-    "id": "neo-space-shooter-v3b-slower",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
-    "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
-    "category": "Games",
-    "path": "SpaceShooterV3bSlower.html"
   },
   {
     "id": "neo-space-shooter-v4",
@@ -427,13 +385,6 @@
     "path": "HiveMultiplier.html"
   },
   {
-    "id": "neo-majormetal-saves-the-universe",
-    "name": "Majormetal Saves The God Damn Universe",
-    "description": "A game from the Neocities collection: \"Majormetal Saves The God Damn Universe\".",
-    "category": "Games",
-    "path": "MajormetalSavesTheUniverse.html"
-  },
-  {
     "id": "neo-infinite-zoom-swipe",
     "name": "Infinite Zoom Swipe",
     "description": "A generative art / visual piece from the Neocities collection: \"Infinite Zoom Swipe\".",
@@ -460,13 +411,6 @@
     "description": "A music tool from the Neocities collection: \"Tick Clock\".",
     "category": "Music Tools",
     "path": "TickClock.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpirals.html"
   },
   {
     "id": "neo-wave-grid",
@@ -530,13 +474,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Tap to Burst)\".",
     "category": "Art",
     "path": "ArtToyGlitterDiscoTapburst.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals2",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpirals2.html"
   },
   {
     "id": "neo-hyper-bowling-chain",
@@ -714,13 +651,6 @@
     "path": "SwirlStudio.html"
   },
   {
-    "id": "neo-metropolis-fixed",
-    "name": "Metropolis",
-    "description": "A game from the Neocities collection: \"Metropolis\".",
-    "category": "Games",
-    "path": "MetropolisFixed.html"
-  },
-  {
     "id": "neo-fractal-checkerboard-vivid",
     "name": "Fractal Checkerboard Vivid",
     "description": "A generative art / visual piece from the Neocities collection: \"Fractal Checkerboard Vivid\".",
@@ -733,13 +663,6 @@
     "description": "A game from the Neocities collection: \"\ud83e\udd84 Maisie's Unicorn Maze!\".",
     "category": "Games",
     "path": "MaisiesUnicornMazeFixed.html"
-  },
-  {
-    "id": "neo-metropolis-touch-fixed",
-    "name": "Metropolis",
-    "description": "A game from the Neocities collection: \"Metropolis\".",
-    "category": "Games",
-    "path": "MetropolisTouchFixed.html"
   },
   {
     "id": "neo-field-lines",
@@ -906,7 +829,7 @@
     "id": "neo-hiveword",
     "name": "Hiveword",
     "description": "A game from the Neocities collection: \"Hiveword\".",
-    "category": "Games",
+    "category": "Daily",
     "path": "Hiveword.html"
   },
   {
@@ -950,13 +873,6 @@
     "description": "A music tool from the Neocities collection: \"Oscillate\".",
     "category": "Music Tools",
     "path": "Oscillate.html"
-  },
-  {
-    "id": "neo-peggle-noir",
-    "name": "Peggle Noir",
-    "description": "A game from the Neocities collection: \"Peggle Noir\".",
-    "category": "Games",
-    "path": "PeggleNoir.html"
   },
   {
     "id": "neo-peggle-noir-minimal",
@@ -1006,13 +922,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Directory Scanner\".",
     "category": "Art",
     "path": "DirectoryScanner.html"
-  },
-  {
-    "id": "neo-pinball-v3",
-    "name": "Pinball \u2013 Ultra Compatible",
-    "description": "A game from the Neocities collection: \"Pinball \u2013 Ultra Compatible\".",
-    "category": "Games",
-    "path": "PinballV3.html"
   },
   {
     "id": "neo-air-hockey2p-colorful-goals",
@@ -1202,20 +1111,6 @@
     "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
     "category": "Music Tools",
     "path": "AuroraDancePermission.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals-fixed",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpiralsFixed.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals-ios-safe",
-    "name": "Hypnotic Spirals \u2014 iOS Safe",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals \u2014 iOS Safe\".",
-    "category": "Art",
-    "path": "HypnoticSpiralsIosSafe.html"
   },
   {
     "id": "neo-infinite-quadrants-stable-grayscale-patterns",
