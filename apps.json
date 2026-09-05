@@ -178,7 +178,7 @@
     "id": "artsy-v3",
     "name": "Artsy v3",
     "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
-    "category": "Art",
+    "category": "Daily",
     "path": "ArtsyV3.html"
   },
   {
@@ -187,13 +187,6 @@
     "description": "A checkerboard-filled shape that slowly morphs between circles, polygons, and rhombi.",
     "category": "Art",
     "path": "CheckerMorphs.html"
-  },
-  {
-    "id": "art-toy-clay-cube",
-    "name": "Art Toy \u2014 Clay Cube",
-    "description": "Spin and fling a voxel clay cube \u2014 it sheds wet clay blobs that pile up and dry on the ground.",
-    "category": "Art",
-    "path": "ArtToyClayCube.html"
   },
   {
     "id": "checkerburst",
@@ -294,13 +287,6 @@
     "path": "SpiderKingdomJungleTriangle.html"
   },
   {
-    "id": "neo-artsy-v32",
-    "name": "ARTSY v3 \u2014 Seeded Painter",
-    "description": "A generative art / visual piece from the Neocities collection: \"ARTSY v3 \u2014 Seeded Painter\".",
-    "category": "Art",
-    "path": "ArtsyV32.html"
-  },
-  {
     "id": "neo-blockdrop-quake-v2",
     "name": "Blockdrop",
     "description": "A game from the Neocities collection: \"Blockdrop\".",
@@ -360,7 +346,7 @@
     "id": "neo-aether-classical-ambient-composer",
     "name": "Aether \u2014 Classical Ambient Composer",
     "description": "A generative art / visual piece from the Neocities collection: \"Aether \u2014 Classical Ambient Composer\".",
-    "category": "Art",
+    "category": "Music Tools",
     "path": "AetherClassicalAmbientComposer.html"
   },
   {
@@ -469,25 +455,11 @@
     "path": "CanvasOk.html"
   },
   {
-    "id": "neo-art-toy-glitter-disco-tapburst",
-    "name": "Art Toy \u2014 Glitter Disco (Tap to Burst)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Tap to Burst)\".",
-    "category": "Art",
-    "path": "ArtToyGlitterDiscoTapburst.html"
-  },
-  {
     "id": "neo-hyper-bowling-chain",
     "name": "HYPER BOWLING \u2014 Chain Reactions",
     "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Chain Reactions\".",
     "category": "Games",
     "path": "HyperBowlingChain.html"
-  },
-  {
-    "id": "neo-art-toy-glass-cube",
-    "name": "Art Toy \u2014 Glass Cube (Spin = Break Rate)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glass Cube (Spin = Break Rate)\".",
-    "category": "Art",
-    "path": "ArtToyGlassCube.html"
   },
   {
     "id": "neo-snake-wormio",
@@ -553,13 +525,6 @@
     "path": "Goo.html"
   },
   {
-    "id": "neo-art-toy-pixel-cube-gray",
-    "name": "Art Toy \u2014 Pixel Cube (Gray + Shaded)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Pixel Cube (Gray + Shaded)\".",
-    "category": "Art",
-    "path": "ArtToyPixelCubeGray.html"
-  },
-  {
     "id": "neo-pattern-dna-growing-conveyor",
     "name": "Pattern DNA \u2014 Growing Conveyor",
     "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Growing Conveyor\".",
@@ -572,13 +537,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Wobbly Checkerboard \u2014 Exaggerated\".",
     "category": "Art",
     "path": "WobblyCheckerboardExaggerated.html"
-  },
-  {
-    "id": "neo-art-toy-tennis-ball-space",
-    "name": "Art Toy \u2014 Tennis Ball in Space",
-    "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Tennis Ball in Space\".",
-    "category": "Art",
-    "path": "ArtToyTennisBallSpace.html"
   },
   {
     "id": "neo-snake-one-hand-v3",
@@ -705,13 +663,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"One-Hand Moto \u2014 Auto & Ramps\".",
     "category": "Art",
     "path": "OneHandMotoAutojump.html"
-  },
-  {
-    "id": "neo-art-one-tap-gen",
-    "name": "ART \u2014 One\u2011Tap Generative Gallery",
-    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 One\u2011Tap Generative Gallery\".",
-    "category": "Art",
-    "path": "ArtOneTapGen.html"
   },
   {
     "id": "neo-rhythm-bubbles-happy-birthday",
@@ -966,13 +917,6 @@
     "path": "HeapsortVoiceAudio.html"
   },
   {
-    "id": "neo-artsy",
-    "name": "artsy",
-    "description": "A generative art / visual piece from the Neocities collection: \"artsy\".",
-    "category": "Art",
-    "path": "Artsy.html"
-  },
-  {
     "id": "neo-factorial-push-art-longform",
     "name": "Factorial Push Art \u2014 Longform Generator",
     "description": "A generative art / visual piece from the Neocities collection: \"Factorial Push Art \u2014 Longform Generator\".",
@@ -1197,13 +1141,6 @@
     "path": "TouchSortLines.html"
   },
   {
-    "id": "neo-viz",
-    "name": "(untitled)",
-    "description": "A generative art / visual piece from the Neocities collection: \"(untitled)\".",
-    "category": "Art",
-    "path": "Viz.html"
-  },
-  {
     "id": "neo-chrome-checkerboard16x16-safari",
     "name": "Chrome Checkerboard 16x16",
     "description": "A generative art / visual piece from the Neocities collection: \"Chrome Checkerboard 16x16\".",
@@ -1232,13 +1169,6 @@
     "path": "MotionSynthBlackwhiteSquares.html"
   },
   {
-    "id": "neo-checker-flip99",
-    "name": "99% Flip Checkerboard (100\u00d7100)",
-    "description": "A generative art / visual piece from the Neocities collection: \"99% Flip Checkerboard (100\u00d7100)\".",
-    "category": "Art",
-    "path": "CheckerFlip99.html"
-  },
-  {
     "id": "neo-heart-canvas",
     "name": "heart-canvas",
     "description": "A generative art / visual piece from the Neocities collection: \"heart-canvas\".",
@@ -1258,13 +1188,6 @@
     "description": "A music tool from the Neocities collection: \"OSCILLATE \u2014 Persistent\".",
     "category": "Music Tools",
     "path": "OscillatePersistent.html"
-  },
-  {
-    "id": "neo-art-seed-gen",
-    "name": "ART \u2014 Seed",
-    "description": "A generative art / visual piece from the Neocities collection: \"ART \u2014 Seed\".",
-    "category": "Art",
-    "path": "ArtSeedGen.html"
   },
   {
     "id": "neo-lines-slow-long-trails",

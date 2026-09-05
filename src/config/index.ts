@@ -159,6 +159,19 @@ export interface AppConfig {
     maxPublishAttempts: number;
   };
 
+  /**
+   * Spotify Web API (Client Credentials flow - catalog search only, no
+   * user login) used to attach a canonical open.spotify.com track link to
+   * the newswire's mechanical "NEW SINGLE: Artist - Title" posts (see
+   * src/newswire/spotify/lookupTrack.ts). Optional: when either value is
+   * missing, lookups are skipped entirely and singles post exactly as
+   * they did before - this is additive, never a hard dependency.
+   */
+  spotify: {
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+  };
+
   qa: {
     enableVisionCheck: boolean;
   };
@@ -272,6 +285,11 @@ export function loadConfig(): AppConfig {
       appPassword: envStr("BLUESKY_APP_PASSWORD"),
       service: envStr("BLUESKY_SERVICE", "https://bsky.social")!,
       maxPublishAttempts: envInt("BLUESKY_MAX_PUBLISH_ATTEMPTS", 3),
+    },
+
+    spotify: {
+      clientId: envStr("SPOTIFY_CLIENT_ID"),
+      clientSecret: envStr("SPOTIFY_CLIENT_SECRET"),
     },
 
     qa: {

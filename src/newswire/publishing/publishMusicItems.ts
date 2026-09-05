@@ -1,4 +1,4 @@
-import { createBlueskySession, postThreadMessage, type PostRef } from "../../bluesky/threadPublish.js";
+import { createBlueskySession, postThreadMessage, type LinkFacet, type PostRef } from "../../bluesky/threadPublish.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { markMusicItemPosted } from "../db/musicItemsRepo.js";
 import type { NewsRunContext } from "../runContext.js";
@@ -6,17 +6,27 @@ import type { DraftEdition, PublishResult } from "../types.js";
 import { contentHash } from "../duplicateCheck/duplicateCheckEdition.js";
 import { splitIntoThread } from "./threadSplitter.js";
 
+interface PhysicalPost {
+  text: string;
+  /** Only ever non-empty when this draft survived as exactly one physical post - see the comment on DraftPost.facets in types.ts for why a facet can't safely follow a split. */
+  facets?: LinkFacet[];
+}
+
 interface PhysicalItem {
   itemIds: number[];
   /** Grapheme-safe physical posts for this one item - usually length 1, occasionally a short reply-chain if the announcement ran long. Never mixed with another item's posts. */
-  texts: string[];
+  posts: PhysicalPost[];
 }
 
 function toPhysicalItems(edition: NonNullable<DraftEdition>): PhysicalItem[] {
-  return edition.posts.map((draft) => ({
-    itemIds: draft.sourceItemIds,
-    texts: splitIntoThread([{ text: draft.text }]),
-  }));
+  return edition.posts.map((draft) => {
+    const texts = splitIntoThread([{ text: draft.text }]);
+    const posts: PhysicalPost[] =
+      texts.length === 1 && draft.facets && draft.facets.length > 0
+        ? [{ text: texts[0]!, facets: draft.facets }]
+        : texts.map((text) => ({ text }));
+    return { itemIds: draft.sourceItemIds, posts };
+  });
 }
 
 /**
@@ -37,18 +47,18 @@ export async function publishMusicItems(ctx: NewsRunContext, edition: DraftEditi
   const items = toPhysicalItems(edition);
 
   if (ctx.dryRun) {
-    const allTexts = items.flatMap((i) => i.texts);
+    const allTexts = items.flatMap((i) => i.posts.map((p) => p.text));
     ctx.logger.info("publish", `Dry run: would publish ${items.length} item(s), ${allTexts.length} post(s) total`, {
       posts: allTexts,
     });
     let position = 0;
     for (const item of items) {
-      for (const text of item.texts) {
+      for (const post of item.posts) {
         insertBlueskyPost(ctx.db, {
           runId: ctx.hourlyRunId,
           threadPosition: position++,
-          text,
-          contentHash: contentHash(text),
+          text: post.text,
+          contentHash: contentHash(post.text),
           uri: null,
           cid: null,
           rootUri: null,
@@ -74,11 +84,13 @@ export async function publishMusicItems(ctx: NewsRunContext, edition: DraftEditi
     let parent: PostRef | null = null;
     let itemPublishedAny = false;
 
-    for (const text of item.texts) {
+    for (const post of item.posts) {
+      const { text } = post;
       try {
         const ref = await postThreadMessage(ctx.config, ctx.logger, session, {
           text,
           reply: root && parent ? { root, parent } : null,
+          facets: post.facets,
         });
         root = root ?? ref;
         parent = ref;
