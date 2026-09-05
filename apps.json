@@ -302,21 +302,21 @@
   },
   {
     "id": "neo-space-shooter-v3a-safari",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
+    "name": "SPACE BLAST \u2014 Vertical (Safari Fix)",
     "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
     "category": "Games",
     "path": "SpaceShooterV3aSafari.html"
   },
   {
     "id": "neo-space-shooter2",
-    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
+    "name": "SPACE BLAST \u2014 Alex Edition",
     "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
     "category": "Games",
     "path": "SpaceShooter2.html"
   },
   {
     "id": "neo-space-shooter-v2",
-    "name": "PIXEL SPACE SHOOTER \u2014 Alex Edition",
+    "name": "SPACE BLAST \u2014 Alex Edition",
     "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Alex Edition\".",
     "category": "Games",
     "path": "SpaceShooterV2.html"
@@ -330,14 +330,14 @@
   },
   {
     "id": "neo-space-shooter-v3",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical",
+    "name": "SPACE BLAST \u2014 Vertical",
     "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical\".",
     "category": "Games",
     "path": "SpaceShooterV3.html"
   },
   {
     "id": "neo-space-shooter-v3b-slower",
-    "name": "PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)",
+    "name": "SPACE BLAST \u2014 Vertical (Safari Fix)",
     "description": "A game from the Neocities collection: \"PIXEL SPACE SHOOTER \u2014 Vertical (Safari Fix)\".",
     "category": "Games",
     "path": "SpaceShooterV3bSlower.html"
@@ -971,13 +971,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Directory Scanner\".",
     "category": "Art",
     "path": "DirectoryScanner.html"
-  },
-  {
-    "id": "neo-pinball-v3",
-    "name": "Pinball \u2013 Ultra Compatible",
-    "description": "A game from the Neocities collection: \"Pinball \u2013 Ultra Compatible\".",
-    "category": "Games",
-    "path": "PinballV3.html"
   },
   {
     "id": "neo-air-hockey2p-colorful-goals",
