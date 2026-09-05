@@ -24,6 +24,7 @@ import { duplicateCheckEdition } from "./duplicateCheck/duplicateCheckEdition.js
 import { publishMusicItems } from "./publishing/publishMusicItems.js";
 import { postWeeklyRoundup } from "./weeklyRoundup/postWeeklyRoundup.js";
 import { postMusicHistory } from "./history/postMusicHistory.js";
+import { postBirthdays } from "./birthdays/postBirthdays.js";
 import type { NewsRunContext } from "./runContext.js";
 import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
@@ -133,7 +134,8 @@ async function publishMechanicalSingles(ctx: NewsRunContext, items: UnpostedMusi
  * web search -> independently re-verify each one (2-corroborating-source
  * rule, mandatory) -> persist verified items -> mark artists checked ->
  * NEW MUSIC FRIDAY roundup (Fridays only) -> TODAY IN HISTORY (once daily)
- * -> non-priority singles post immediately as a mechanical one-liner ->
+ * -> birthday shoutouts for watchlist artists (once a year per artist) ->
+ * non-priority singles post immediately as a mechanical one-liner ->
  * remaining news/priority items go through write -> copy-edit ->
  * fact-check (mandatory gate) -> duplicate-check -> publish -> upload DB.
  *
@@ -190,11 +192,16 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     for (const item of verified) persistVerifiedItem(ctx, item);
     markArtistsChecked(db, batch.map((a) => a.id));
 
-    // Both of these are independent of the per-item flow below, run their own internal eligibility
-    // checks (roundup: Friday + past the configured hour; history: once a day), and are no-ops most
-    // cycles. Placed before every early-return path so they always get a chance to run.
-    await postWeeklyRoundup(ctx);
-    await postMusicHistory(ctx);
+    // All three are independent of the per-item flow below, run their own internal eligibility checks
+    // (roundup: Friday + past the configured hour; history: once a day; birthdays: once a year per
+    // artist), and are no-ops most cycles. Placed before every early-return path so they always get a
+    // chance to run. Each returns how many physical posts it actually published, since any of them can
+    // be the only thing that posts this cycle - that count must feed into the final publishedPostCount/
+    // publishStatus below, or a cycle that published only e.g. a birthday post would be misreported as
+    // "skipped" (see the mechanicalPublishedCount fix in silentResult's history for why this matters).
+    const roundupPublishedCount = await postWeeklyRoundup(ctx);
+    const historyPublishedCount = await postMusicHistory(ctx);
+    const birthdayPublishedCount = await postBirthdays(ctx);
 
     // Priority artists (editorial-focus.json's priorityArtists) get VIP treatment: their album/EP/compilation
     // releases skip the Friday-only roundup hold and join the immediate queue like everything else, jumping
@@ -206,7 +213,8 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
     // Non-priority singles bypass the writer entirely - a mechanical "NEW SINGLE: Artist - Title" post.
     const mechanicalSingles = individualItems.filter((item) => item.item_type === "release" && !priorityNames.has(item.artist_name));
-    const mechanicalPublishedCount = await publishMechanicalSingles(ctx, mechanicalSingles);
+    const singlesPublishedCount = await publishMechanicalSingles(ctx, mechanicalSingles);
+    const mechanicalPublishedCount = roundupPublishedCount + historyPublishedCount + birthdayPublishedCount + singlesPublishedCount;
 
     // Everything else that can reach the writer: all news items (priority or not) + priority release
     // items (always singles here, since priority albums were already pulled into priorityAlbums above).

@@ -85,13 +85,17 @@ function markAllPosted(ctx: NewsRunContext, items: RoundupItem[]): void {
  * report yet (in which case no roundup is recorded, so a later cycle the
  * same Friday can still pick up anything discovered since - see
  * weeklyRoundupRepo.ts).
+ *
+ * Returns the number of physical posts actually published (0 if none) -
+ * the caller needs this to report the cycle's real publish count/status
+ * accurately, since this can be the only thing that posts in a cycle.
  */
-export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
+export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<number> {
   const dt = DateTime.fromJSDate(ctx.now, { zone: ctx.editorialFocus.quietHours.timezone });
-  if (dt.weekday !== FRIDAY_ISO_WEEKDAY || dt.hour < ctx.config.news.weeklyRoundupHourLocal) return;
+  if (dt.weekday !== FRIDAY_ISO_WEEKDAY || dt.hour < ctx.config.news.weeklyRoundupHourLocal) return 0;
 
   const roundupDate = dt.toISODate()!;
-  if (hasRoundupForDate(ctx.db, roundupDate)) return;
+  if (hasRoundupForDate(ctx.db, roundupDate)) return 0;
 
   const industryCandidates = await discoverIndustryReleases(ctx);
   const verifiedIndustry = await verifyIndustryReleases(ctx, industryCandidates);
@@ -129,7 +133,7 @@ export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
 
   if (items.length === 0) {
     ctx.logger.info(TAG, "Friday, but no major releases found (watchlist or industry-wide) - staying silent, will keep checking later today");
-    return;
+    return 0;
   }
 
   const header = `${HEADER_LABEL} ${dt.toFormat("M/d/yy")}`;
@@ -140,5 +144,7 @@ export async function postWeeklyRoundup(ctx: NewsRunContext): Promise<void> {
     markAllPosted(ctx, items);
     recordRoundupRun(ctx.db, { roundupDate, postedInRunId: ctx.hourlyRunId, itemCount: items.length });
     ctx.logger.info(TAG, `${HEADER_LABEL} posted: ${items.length} item(s) across ${posts.length} post(s)`);
+    return posts.length;
   }
+  return 0;
 }

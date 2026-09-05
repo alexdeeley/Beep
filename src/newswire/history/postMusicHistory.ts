@@ -21,18 +21,22 @@ const TAG = "music-history";
  * up independently verifiable for today's date (in which case no post is
  * recorded, so a later cycle the same day can retry - accuracy comes
  * before "always post something").
+ *
+ * Returns the number of physical posts actually published (0 if none) -
+ * the caller needs this to report the cycle's real publish count/status
+ * accurately, since this can be the only thing that posts in a cycle.
  */
-export async function postMusicHistory(ctx: NewsRunContext): Promise<void> {
+export async function postMusicHistory(ctx: NewsRunContext): Promise<number> {
   const dt = DateTime.fromJSDate(ctx.now, { zone: ctx.editorialFocus.quietHours.timezone });
   const postDate = dt.toISODate()!;
-  if (hasHistoryPostForDate(ctx.db, postDate)) return;
+  if (hasHistoryPostForDate(ctx.db, postDate)) return 0;
 
   const candidates = await discoverMusicHistory(ctx, dt);
   const verified = await verifyMusicHistory(ctx, candidates);
 
   if (verified.length === 0) {
     ctx.logger.info(TAG, "No independently verifiable music-history events found for today - staying silent, will retry later today");
-    return;
+    return 0;
   }
 
   const sorted = [...verified].sort((a, b) => a.year - b.year);
@@ -44,5 +48,7 @@ export async function postMusicHistory(ctx: NewsRunContext): Promise<void> {
   if (publishedAny) {
     recordHistoryPost(ctx.db, { postDate, postedInRunId: ctx.hourlyRunId, itemCount: sorted.length });
     ctx.logger.info(TAG, `${HEADER_LABEL} posted: ${sorted.length} item(s) across ${posts.length} post(s)`);
+    return posts.length;
   }
+  return 0;
 }

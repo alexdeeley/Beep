@@ -143,3 +143,28 @@ export interface VerifiedHistoryFact {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw birth-date candidate surfaced by discoverBirthDates, before independent verification. Only
+ * ever produced for a watchlist entry that's an individual person - a band/group is skipped outright at
+ * discovery (a group has a formation date, not a birthday).
+ */
+export interface BirthDateCandidate {
+  watchedArtistId: number;
+  artistName: string;
+  birthYear: number | null;
+  birthMonth: number | null;
+  birthDay: number | null;
+  sources: ReportedSource[];
+}
+
+/** Output of verifyBirthDates: a birth-date candidate independently re-confirmed with the 2-source rule. birthMonth/birthDay are always present when meetsSourceBar is true; birthYear may still be null if only the month/day could be confirmed. */
+export interface VerifiedBirthDate {
+  watchedArtistId: number;
+  artistName: string;
+  birthMonth: number | null;
+  birthDay: number | null;
+  birthYear: number | null;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}

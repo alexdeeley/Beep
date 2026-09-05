@@ -11,7 +11,11 @@ import {
   markArtistsChecked,
   getArtistByName,
   getWatchedArtistCount,
+  getArtistsNeedingBirthDateCheck,
+  recordBirthDate,
+  getArtistsWithBirthdayOn,
 } from "../../src/newswire/db/watchedArtistsRepo.js";
+import { hasBirthdayPostForYear, recordBirthdayPost } from "../../src/newswire/db/birthdayPostsRepo.js";
 import {
   insertMusicItem,
   getUnpostedMusicItems,
@@ -73,6 +77,7 @@ describe("newswire SQLite DB layer", () => {
       "music_items",
       "industry_release_items",
       "history_posts",
+      "birthday_posts",
     ]) {
       expect(tables).toContain(t);
     }
@@ -440,6 +445,52 @@ describe("newswire SQLite DB layer", () => {
       expect(getLastHistoryPost(db)?.post_date).toBe("2026-09-05");
 
       expect(() => recordHistoryPost(db, { postDate: "2026-09-05", postedInRunId: run.id, itemCount: 3 })).toThrow();
+    });
+  });
+
+  describe("watched_artists birth dates + birthday_posts", () => {
+    it("starts with birth date fields null, and lists an artist as needing a check", () => {
+      importArtistNames(db, ["Björk"]);
+      const artist = getArtistByName(db, "Björk")!;
+      expect(artist.birth_month).toBeNull();
+      expect(artist.birth_date_checked_at).toBeNull();
+
+      const needing = getArtistsNeedingBirthDateCheck(db, 10);
+      expect(needing.map((a) => a.id)).toContain(artist.id);
+    });
+
+    it("recordBirthDate sets checked_at even when no date was found, so it's never re-queued", () => {
+      importArtistNames(db, ["Some Band"]);
+      const artist = getArtistByName(db, "Some Band")!;
+      recordBirthDate(db, artist.id, { month: null, day: null, year: null });
+
+      const needing = getArtistsNeedingBirthDateCheck(db, 10);
+      expect(needing.map((a) => a.id)).not.toContain(artist.id);
+    });
+
+    it("finds artists whose confirmed birth month/day matches a given date", () => {
+      importArtistNames(db, ["Björk", "Thom Yorke"]);
+      const bjork = getArtistByName(db, "Björk")!;
+      const thom = getArtistByName(db, "Thom Yorke")!;
+      recordBirthDate(db, bjork.id, { month: 11, day: 21, year: 1965 });
+      recordBirthDate(db, thom.id, { month: 10, day: 7, year: 1968 });
+
+      const onNov21 = getArtistsWithBirthdayOn(db, 11, 21);
+      expect(onNov21.map((a) => a.id)).toEqual([bjork.id]);
+      expect(getArtistsWithBirthdayOn(db, 1, 1)).toHaveLength(0);
+    });
+
+    it("birthday_posts enforces once-per-artist-per-year via UNIQUE", () => {
+      importArtistNames(db, ["Björk"]);
+      const bjork = getArtistByName(db, "Björk")!;
+      const run = startHourlyRun(db, false);
+
+      expect(hasBirthdayPostForYear(db, bjork.id, 2026)).toBe(false);
+      recordBirthdayPost(db, { watchedArtistId: bjork.id, year: 2026, postedInRunId: run.id });
+      expect(hasBirthdayPostForYear(db, bjork.id, 2026)).toBe(true);
+      expect(hasBirthdayPostForYear(db, bjork.id, 2027)).toBe(false);
+
+      expect(() => recordBirthdayPost(db, { watchedArtistId: bjork.id, year: 2026, postedInRunId: run.id })).toThrow();
     });
   });
 });

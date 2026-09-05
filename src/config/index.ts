@@ -135,6 +135,8 @@ export interface AppConfig {
      * bypasses this, same as it bypasses the quiet-hours check, for manual testing.
      */
     postingHoursLocal: number[];
+    /** How many never-checked watchlist artists get a one-time birth-date lookup per cycle (see birthdays/postBirthdays.ts). Small on purpose - each candidate needs its own independent verification search, and this is a one-time cost per artist, not a recurring one. */
+    birthDateBatchSize: number;
   };
 
   storage: {
@@ -248,6 +250,7 @@ export function loadConfig(): AppConfig {
         .split(",")
         .map((h) => Number.parseInt(h.trim(), 10))
         .filter((h) => Number.isFinite(h)),
+      birthDateBatchSize: envInt("NEWS_BIRTHDATE_BATCH_SIZE", 15),
     },
 
     storage: {

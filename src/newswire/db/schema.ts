@@ -286,4 +286,31 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Birthday shoutouts for watchlist artists. birth_month/birth_day/birth_year are resolved once per
+    // artist (independently verified, same 2-source rule as everything else) via a small per-cycle batch
+    // - birth_date_checked_at is set even when no confirmed date was found, so we don't re-search an
+    // artist forever; it just means that artist never gets a birthday post. birthday_posts is the
+    // once-per-year idempotency guard (a UNIQUE(watched_artist_id, year) pair, not a date string, since
+    // "this artist's birthday, this year" is the natural key - a leap-year Feb 29 birthday only recurring
+    // some years is exactly why year, not a repeating post_date, is the right guard here).
+    id: "0006_artist_birthdays",
+    sql: `
+      ALTER TABLE watched_artists ADD COLUMN birth_month INTEGER;
+      ALTER TABLE watched_artists ADD COLUMN birth_day INTEGER;
+      ALTER TABLE watched_artists ADD COLUMN birth_year INTEGER;
+      ALTER TABLE watched_artists ADD COLUMN birth_date_checked_at TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_watched_artists_birthday ON watched_artists(birth_month, birth_day);
+
+      CREATE TABLE IF NOT EXISTS birthday_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watched_artist_id INTEGER NOT NULL REFERENCES watched_artists(id),
+        year INTEGER NOT NULL,
+        posted_in_run_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(watched_artist_id, year)
+      );
+    `,
+  },
 ];

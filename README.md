@@ -561,9 +561,10 @@ through the writer path at all, because most artists in a large watchlist
 don't have real news most cycles, and that silence is correct, not a bug.
 Alongside that per-artist flow: every Friday cycle also posts an
 industry-wide `NEW MUSIC FRIDAY` roundup, every cycle also checks whether
-today's `TODAY IN HISTORY` post has gone out yet, and every non-priority
+today's `TODAY IN HISTORY` post has gone out yet, every non-priority
 single posts immediately as a plain mechanical line rather than through
-the writer (§18.7-§18.9).
+the writer, and any watchlist artist gets a one-line `HAPPY BIRTHDAY`
+post on their real, independently-verified birthday (§18.7-§18.10).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -619,9 +620,10 @@ order:
    BACKGROUND / PREDICTION, classifies every source into a tier, and
    requires **at least 2 independent corroborating source domains** or
    the candidate is dropped outright.
-5. **NEW MUSIC FRIDAY + TODAY IN HISTORY** — two independent, mechanical
-   posts that run before anything below and aren't affected by whatever
-   this cycle's quiet-hours outcome ends up being. See §18.7 and §18.9.
+5. **NEW MUSIC FRIDAY + TODAY IN HISTORY + birthdays** — three independent,
+   mechanical posts that run before anything below and aren't affected by
+   whatever this cycle's quiet-hours outcome ends up being. See §18.7,
+   §18.9, and §18.10.
 6. **Mechanical singles** — every non-priority single verified so far
    (this cycle's or an earlier one's backlog) posts immediately as its
    own post, built directly as `NEW SINGLE: Artist - Title` - no writer,
@@ -923,3 +925,48 @@ be something," and a later cycle the same day will try again rather than
 settling for an approximate date or a fact the model can't actually back
 up with a search result. `npm run news:status` reports `lastHistoryPost`
 (the date and item count of the most recent one actually posted).
+
+### 18.10 Watchlist birthdays: `birthdays/postBirthdays.ts`
+
+Unlike everything else in §18.7-§18.9, this is scoped strictly to
+`watched-artists.txt` - never industry-wide - and only ever fires for a
+name that's an **individual person**, never a band (a group has a
+formation date, not a birthday; the discovery prompt is explicitly told
+to skip - or return an all-null entry for - anything that isn't a solo
+musician). It does two independent things every cycle:
+
+1. **Resolve birth dates, a little at a time.** Every never-checked
+   artist gets looked up eventually: `db/watchedArtistsRepo.ts`'s
+   `getArtistsNeedingBirthDateCheck` picks up to `NEWS_BIRTHDATE_BATCH_SIZE`
+   (default 15) such artists per cycle, `discovery/discoverBirthDates.ts`
+   web-searches the batch, and `verification/verifyBirthDates.ts`
+   independently re-confirms each one (the same 2-corroborating-source
+   rule as everywhere else) before it's trusted. This is a **one-time**
+   lookup per artist, not a recurring check - `birth_date_checked_at` is
+   set the moment an artist is processed, even when no confirmable date
+   came back (a band, or a person whose birth date genuinely isn't
+   findable), so that artist is never re-queried forever. The discovery
+   prompt is deliberately strict about **coverage**: it must return one
+   entry per name in the batch (null fields when nothing's confirmable),
+   specifically so a name the model just didn't get to in one search pass
+   isn't silently and permanently written off as "no birthday" - verified
+   live, tightening this from "report what you found" to "one entry per
+   name, always" measurably improved how many real people's birthdays
+   actually got resolved in a single sweep.
+2. **Post on the day.** Every cycle, `getArtistsWithBirthdayOn` checks
+   today's local date (`editorial-focus.json`'s `quietHours.timezone`)
+   against every artist with a confirmed birth month/day. A match posts
+   immediately as its own short post - no writer, no copy-edit, no
+   fact-check, since it's built directly from already-verified data:
+
+   ```
+   HAPPY BIRTHDAY: Björk turns 61 today!
+   ```
+
+   The age is stated **only** when the birth year was independently
+   confirmed; otherwise it's just `HAPPY BIRTHDAY: Björk!` - never a
+   guessed age. `db/birthdayPostsRepo.ts`'s `birthday_posts` table
+   (`UNIQUE(watched_artist_id, year)`) is the once-a-year idempotency
+   guard, so the twice-daily cadence can never post the same artist's
+   birthday twice in the same year even if both the 8am and 8pm cycle
+   land on the date.
