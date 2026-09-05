@@ -413,13 +413,6 @@
     "path": "TickClock.html"
   },
   {
-    "id": "neo-hypnotic-spirals",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpirals.html"
-  },
-  {
     "id": "neo-wave-grid",
     "name": "Wave Grid",
     "description": "A generative art / visual piece from the Neocities collection: \"Wave Grid\".",
@@ -481,13 +474,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Art Toy \u2014 Glitter Disco (Tap to Burst)\".",
     "category": "Art",
     "path": "ArtToyGlitterDiscoTapburst.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals2",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpirals2.html"
   },
   {
     "id": "neo-hyper-bowling-chain",
@@ -1125,20 +1111,6 @@
     "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
     "category": "Music Tools",
     "path": "AuroraDancePermission.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals-fixed",
-    "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
-    "category": "Art",
-    "path": "HypnoticSpiralsFixed.html"
-  },
-  {
-    "id": "neo-hypnotic-spirals-ios-safe",
-    "name": "Hypnotic Spirals \u2014 iOS Safe",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals \u2014 iOS Safe\".",
-    "category": "Art",
-    "path": "HypnoticSpiralsIosSafe.html"
   },
   {
     "id": "neo-infinite-quadrants-stable-grayscale-patterns",
