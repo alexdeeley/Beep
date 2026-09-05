@@ -1472,7 +1472,7 @@ document.getElementById('seq-play-btn').addEventListener('click', () => {
   document.getElementById('seq-play-btn').classList.add('on');
   setStatus('SEQUENCER RUNNING');
   const bpmFromKnob = () => 40 + parseFloat(document.getElementById('seq-tempo').dataset.val || 0.4) * 250;
-  seqInterval = setInterval(() => {
+  function seqTick() {
     const step = seqStep % 16;
     // Clear previous
     const prev = (step + 15) % 16;
@@ -1492,8 +1492,9 @@ document.getElementById('seq-play-btn').addEventListener('click', () => {
 
     seqStep++;
     clearInterval(seqInterval);
-    seqInterval = setInterval(arguments.callee, 60000 / bpmFromKnob());
-  }, 60000 / bpmFromKnob());
+    seqInterval = setInterval(seqTick, 60000 / bpmFromKnob());
+  }
+  seqInterval = setInterval(seqTick, 60000 / bpmFromKnob());
 });
 
 document.getElementById('seq-stop-btn').addEventListener('click', () => {
