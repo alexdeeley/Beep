@@ -15,8 +15,8 @@ const TAG = "birthdays";
 
 export function buildBirthdayText(artist: WatchedArtistRow, currentYear: number, allowEmoji: boolean): string {
   const base = artist.birth_year
-    ? `HAPPY BIRTHDAY: ${artist.name} turns ${currentYear - artist.birth_year} today!`
-    : `HAPPY BIRTHDAY: ${artist.name}!`;
+    ? `Happy birthday, ${artist.name}. ${currentYear - artist.birth_year} years young.`
+    : `Happy birthday, ${artist.name}.`;
   return allowEmoji ? `${base} \u{1F382}` : base;
 }
 

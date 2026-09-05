@@ -960,12 +960,12 @@ musician). It does two independent things every cycle:
    fact-check, since it's built directly from already-verified data:
 
    ```
-   HAPPY BIRTHDAY: Björk turns 61 today!
+   Happy birthday, Dave Matthews. 57 years young.
    ```
 
    The age is stated **only** when the birth year was independently
-   confirmed; otherwise it's just `HAPPY BIRTHDAY: Björk!` - never a
-   guessed age. `db/birthdayPostsRepo.ts`'s `birthday_posts` table
+   confirmed; otherwise it's just `Happy birthday, Dave Matthews.` - never
+   a guessed age. `db/birthdayPostsRepo.ts`'s `birthday_posts` table
    (`UNIQUE(watched_artist_id, year)`) is the once-a-year idempotency
    guard, so the twice-daily cadence can never post the same artist's
    birthday twice in the same year even if both the 8am and 8pm cycle

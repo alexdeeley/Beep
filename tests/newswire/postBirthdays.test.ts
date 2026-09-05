@@ -19,12 +19,12 @@ function makeArtist(overrides: Partial<WatchedArtistRow> = {}): WatchedArtistRow
 describe("buildBirthdayText", () => {
   it("states the age when birth_year is known", () => {
     const artist = makeArtist({ birth_year: 1965 });
-    expect(buildBirthdayText(artist, 2026, false)).toBe("HAPPY BIRTHDAY: Björk turns 61 today!");
+    expect(buildBirthdayText(artist, 2026, false)).toBe("Happy birthday, Björk. 61 years young.");
   });
 
   it("omits the age entirely when birth_year is unknown, rather than guessing", () => {
     const artist = makeArtist({ birth_year: null });
-    expect(buildBirthdayText(artist, 2026, false)).toBe("HAPPY BIRTHDAY: Björk!");
+    expect(buildBirthdayText(artist, 2026, false)).toBe("Happy birthday, Björk.");
   });
 
   it("appends an emoji only when voice.allowEmoji is true", () => {
