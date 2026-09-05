@@ -990,9 +990,22 @@ line, sorted chronologically, no blank lines between entries:
 ```
 SHOWS
 
-Matchbox 20 - Sept 7
-The Cure - Sept 8
+Matchbox 20 - Crystal Ballroom - Sept 7
+The Cure - Moda Center - Sept 8
 ```
+
+**The venue is independently confirmed too, not just carried over from
+discovery's guess.** `verification/showsVerificationPrompts.ts` uses a
+dedicated schema with its own `confirmedVenue` field (rather than reusing
+the pipeline's fully generic verification schema) specifically because an
+earlier substring-matching approach - checking whether discovery's
+claimed venue literally appeared in the verified claim text - turned out
+fragile in live testing: about 40% of venues were dropped as
+"unconfirmed" purely from cosmetic wording differences ("Theatre" vs
+"Theater", a dropped venue-group prefix), not genuine non-confirmation.
+Asking for the venue as its own structured field fixed that; a venue is
+only shown when independently confirmed, never guessed - the line just
+reads `Artist - Date` when it isn't.
 
 **A show's date is a calendar date at the venue, not a UTC instant** -
 `shows/postWeeklyShows.ts`'s `localCalendarDate`/`formatShowDate` always
@@ -1003,6 +1016,14 @@ calendar day, silently reporting the wrong date. Deduplication
 (same artist + same calendar date) uses this same corrected date, so a
 show independently reported once with a bare date and once with a full
 timestamp still collapses to one line rather than showing twice.
+
+**The 7-day window is enforced after verification, not just requested in
+the prompt.** A live test showed discovery/verification returning shows
+up to a month past the intended window despite the prompt explicitly
+asking for "the next 7 days" - `postWeeklyShows.ts` filters every
+verified show's `localCalendarDate` against `[startIso, endIso]` before
+anything else, logging how many got dropped, so the post stays a true
+snapshot of *this* week regardless of what the model returns.
 
 Like the other mechanical posts, this skips copy-edit/fact-check/
 duplicate-check - there's no new prose to check. If nothing independently

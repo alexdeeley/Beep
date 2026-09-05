@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { formatShowDate, localCalendarDate } from "../../src/newswire/shows/postWeeklyShows.js";
+import { formatShowDate, formatShowLine, localCalendarDate } from "../../src/newswire/shows/postWeeklyShows.js";
+import type { VerifiedShow } from "../../src/newswire/types.js";
+
+function makeShow(overrides: Partial<VerifiedShow> = {}): VerifiedShow {
+  return {
+    artistName: "Matchbox 20",
+    venueName: "Crystal Ballroom",
+    eventDateIso: "2026-09-07",
+    facts: [],
+    meetsSourceBar: true,
+    ...overrides,
+  };
+}
 
 describe("formatShowDate", () => {
   it("formats a bare date as 'Month Day'", () => {
@@ -25,5 +37,15 @@ describe("localCalendarDate", () => {
 
   it("returns distinct keys for genuinely different days", () => {
     expect(localCalendarDate("2026-09-11")).not.toBe(localCalendarDate("2026-09-12"));
+  });
+});
+
+describe("formatShowLine", () => {
+  it("includes the venue when confirmed", () => {
+    expect(formatShowLine(makeShow())).toBe("Matchbox 20 - Crystal Ballroom - Sept 7");
+  });
+
+  it("omits the venue entirely when it wasn't independently confirmed, rather than guessing", () => {
+    expect(formatShowLine(makeShow({ venueName: null }))).toBe("Matchbox 20 - Sept 7");
   });
 });

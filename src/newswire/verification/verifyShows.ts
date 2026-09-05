@@ -1,10 +1,11 @@
-import { requestJsonWithWebSearch } from "../../utils/openaiClient.js";
 import { insertRunCandidate } from "../db/researchRunsRepo.js";
+import { requestJsonWithWebSearch } from "../../utils/openaiClient.js";
 import type { NewsRunContext } from "../runContext.js";
 import type { ShowCandidate, VerifiedFact, VerifiedShow } from "../types.js";
-import { buildVerificationSystemPrompt, verificationJsonSchema } from "./prompts.js";
+import { buildShowsVerificationSystemPrompt, showsVerificationJsonSchema } from "./showsVerificationPrompts.js";
 
 interface RawVerificationResult {
+  confirmedVenue: string | null;
   facts: VerifiedFact[];
 }
 
@@ -18,18 +19,19 @@ function buildShowVerificationUserPrompt(artistName: string, venueName: string |
     `Claimed show (from discovery, UNVERIFIED): ${artistName}${venue} on ${eventDateIso}, in Portland, Oregon or the broader Pacific`,
     "Northwest.",
     "",
-    "Independently research this via web search and report your own findings as structured facts, confirming the exact date and",
-    "venue - a claim whose date or venue doesn't check out should be labeled UNCONFIRMED or corrected in the claim text, not passed",
-    "through silently. Only the calendar date of the show matters here, not the doors/showtime - report eventTimeIso as a bare",
-    'YYYY-MM-DD date (e.g. "2026-09-11"), never a full timestamp with a time-of-day or UTC offset attached.',
+    "Independently research this via web search and report your own findings as structured facts, confirming the exact date. Only",
+    "the calendar date of the show matters here, not the doors/showtime - report eventTimeIso as a bare YYYY-MM-DD date",
+    '(e.g. "2026-09-11"), never a full timestamp with a time-of-day or UTC offset attached.',
   ].join("\n");
 }
 
 /**
  * Independently re-verifies discoverShows's candidates - same
  * 2-corroborating-source rule as the rest of the pipeline. Extracts the
- * confirmed date from the verified fact's eventTimeIso rather than
- * trusting discovery's own date.
+ * confirmed date from the verified fact's eventTimeIso, and takes the
+ * venue from the dedicated confirmedVenue field (its own independent
+ * finding, not a substring match against discovery's guess - see
+ * showsVerificationPrompts.ts for why that approach was replaced).
  */
 export async function verifyShows(ctx: NewsRunContext, candidates: ShowCandidate[]): Promise<VerifiedShow[]> {
   const toVerify = candidates.slice(0, MAX_CANDIDATES_TO_VERIFY);
@@ -46,10 +48,10 @@ export async function verifyShows(ctx: NewsRunContext, candidates: ShowCandidate
     try {
       const response = await requestJsonWithWebSearch<RawVerificationResult>(ctx.openai, {
         model: ctx.config.news.verificationModel,
-        system: buildVerificationSystemPrompt(tierList, ctx.editorialFocus.entertainmentTradePublishers),
+        system: buildShowsVerificationSystemPrompt(tierList, ctx.editorialFocus.entertainmentTradePublishers),
         user: buildShowVerificationUserPrompt(candidate.artistName, candidate.venueName, candidate.eventDateIso!, ctx.now.toISOString()),
-        jsonSchemaName: "verification_result",
-        jsonSchema: verificationJsonSchema(tierList),
+        jsonSchemaName: "shows_verification_result",
+        jsonSchema: showsVerificationJsonSchema(tierList),
         maxOutputTokens: 4096,
       });
 
@@ -64,7 +66,7 @@ export async function verifyShows(ctx: NewsRunContext, candidates: ShowCandidate
       if (confirmedDate) {
         verified = {
           artistName: candidate.artistName,
-          venueName: candidate.venueName,
+          venueName: response.data.confirmedVenue,
           eventDateIso: confirmedDate,
           facts: response.data.facts,
           meetsSourceBar: response.data.facts.length > 0 && distinctDomains.size >= 2,

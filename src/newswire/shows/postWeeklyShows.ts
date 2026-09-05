@@ -37,6 +37,12 @@ function normalizeKey(show: VerifiedShow): string {
   return `${show.artistName.toLowerCase().trim()}|${localCalendarDate(show.eventDateIso)}`;
 }
 
+/** "Artist - Venue - Date", or "Artist - Date" when the venue wasn't independently confirmed (never guessed - see verifyShows.ts's extractConfirmedVenue). */
+export function formatShowLine(show: VerifiedShow): string {
+  const venue = show.venueName ? ` - ${show.venueName}` : "";
+  return `${show.artistName}${venue} - ${formatShowDate(show.eventDateIso)}`;
+}
+
 /**
  * Once a week - the first cycle on a Tuesday, local time, at or after
  * NEWS_SHOWS_HOUR_LOCAL - posts a "SHOWS" calendar of upcoming concerts
@@ -48,11 +54,12 @@ function normalizeKey(show: VerifiedShow): string {
  * verifyShows, same independent 2-corroborating-source rule as
  * everything else) each week, discovered and posted in one shot, like
  * TODAY IN HISTORY. Format is a tight one-line-per-show list, sorted
- * chronologically:
+ * chronologically, with the venue when independently confirmed
+ * (never guessed - see verifyShows.ts's extractConfirmedVenue):
  *
  *   SHOWS
- *   Matchbox 20 - Sept 7
- *   The Cure - Sept 8
+ *   Matchbox 20 - Crystal Ballroom - Sept 7
+ *   The Cure - Moda Center - Sept 8
  *
  * A no-op on any other day, before the configured hour, if a SHOWS post
  * already went out today, or if nothing turns up independently
@@ -74,13 +81,25 @@ export async function postWeeklyShows(ctx: NewsRunContext): Promise<number> {
   const candidates = await discoverShows(ctx, startIso, endIso);
   const verified = await verifyShows(ctx, candidates);
 
-  if (verified.length === 0) {
-    ctx.logger.info("shows", "Tuesday, but no independently verifiable Portland/PNW shows found - staying silent, will retry later today");
+  // discoverShows asks for shows within [startIso, endIso], but nothing stops the model from also
+  // returning something outside it (confirmed live: a request for the next 7 days came back including
+  // shows a full month out) - enforce the window here rather than trusting the prompt alone, since this
+  // is meant to be a snapshot of THIS week, not "whatever the model felt like including."
+  const inWindow = verified.filter((show) => {
+    const d = localCalendarDate(show.eventDateIso);
+    return d >= startIso && d <= endIso;
+  });
+  if (inWindow.length < verified.length) {
+    ctx.logger.info("shows", `Dropped ${verified.length - inWindow.length} verified show(s) outside the ${startIso} to ${endIso} window`);
+  }
+
+  if (inWindow.length === 0) {
+    ctx.logger.info("shows", "Tuesday, but no independently verifiable Portland/PNW shows found in this week's window - staying silent, will retry later today");
     return 0;
   }
 
   const seen = new Set<string>();
-  const deduped = verified.filter((show) => {
+  const deduped = inWindow.filter((show) => {
     const key = normalizeKey(show);
     if (seen.has(key)) return false;
     seen.add(key);
@@ -88,7 +107,7 @@ export async function postWeeklyShows(ctx: NewsRunContext): Promise<number> {
   });
   const sorted = [...deduped].sort((a, b) => localCalendarDate(a.eventDateIso).localeCompare(localCalendarDate(b.eventDateIso)));
 
-  const lines = sorted.map((show) => `${show.artistName} - ${formatShowDate(show.eventDateIso)}`);
+  const lines = sorted.map(formatShowLine);
   const posts = buildMultiLinePost(HEADER_LABEL, lines, undefined, "\n");
 
   const publishedAny = await publishStandalonePostThread(ctx, "shows", posts);
