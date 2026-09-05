@@ -139,6 +139,16 @@ export interface AppConfig {
     birthDateBatchSize: number;
     /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Tuesday cycle posts the weekly Portland/Pacific-Northwest SHOWS calendar (see shows/postWeeklyShows.ts). */
     showsHourLocal: number;
+    /**
+     * How many days old a verification-confirmed exact release/event date can be before an
+     * individual news/release item is rejected as stale rather than posted as current (see
+     * verification/itemFreshness.ts). The discovery prompt already asks for "roughly the last 3-5
+     * days," but that is only a soft instruction - confirmed live, discovery/verification can still
+     * surface a release that is months old (a genuinely true fact, just not current news), so this is
+     * enforced in code. Generous relative to the prompt's 3-5 days to absorb rotation-batch lag on a
+     * large watchlist without rejecting a real miss the wire just hasn't covered yet.
+     */
+    maxItemAgeDays: number;
   };
 
   storage: {
@@ -267,6 +277,7 @@ export function loadConfig(): AppConfig {
         .filter((h) => Number.isFinite(h)),
       birthDateBatchSize: envInt("NEWS_BIRTHDATE_BATCH_SIZE", 15),
       showsHourLocal: envInt("NEWS_SHOWS_HOUR_LOCAL", 8),
+      maxItemAgeDays: envInt("NEWS_MAX_ITEM_AGE_DAYS", 30),
     },
 
     storage: {

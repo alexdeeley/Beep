@@ -3,6 +3,7 @@ import { insertRunCandidate } from "../db/researchRunsRepo.js";
 import type { NewsRunContext } from "../runContext.js";
 import type { MusicNewsCandidate, VerifiedFact, VerifiedMusicItem } from "../types.js";
 import { buildVerificationSystemPrompt, buildVerificationUserPrompt, verificationJsonSchema } from "./prompts.js";
+import { isFreshEnough } from "./itemFreshness.js";
 
 interface RawVerificationResult {
   facts: VerifiedFact[];
@@ -28,6 +29,7 @@ export async function verifyArtistNews(ctx: NewsRunContext, candidates: MusicNew
 
   for (const candidate of toVerify) {
     let verified: VerifiedMusicItem;
+    let fresh = true;
     try {
       const response = await requestJsonWithWebSearch<RawVerificationResult>(ctx.openai, {
         model: ctx.config.news.verificationModel,
@@ -43,6 +45,9 @@ export async function verifyArtistNews(ctx: NewsRunContext, candidates: MusicNew
         for (const source of fact.sources) distinctDomains.add(source.domain.toLowerCase());
       }
 
+      const primaryFact = response.data.facts.find((f) => f.sources.some((s) => s.isPrimary)) ?? response.data.facts[0];
+      fresh = !primaryFact || isFreshEnough(primaryFact.eventTimeIso, primaryFact.eventTimeConfidence, ctx.now, ctx.config.news.maxItemAgeDays);
+
       verified = {
         watchedArtistId: candidate.watchedArtistId,
         artistName: candidate.artistName,
@@ -51,8 +56,15 @@ export async function verifyArtistNews(ctx: NewsRunContext, candidates: MusicNew
         releaseTitle: candidate.releaseTitle,
         headline: candidate.headline,
         facts: response.data.facts,
-        meetsSourceBar: response.data.facts.length > 0 && distinctDomains.size >= 2,
+        meetsSourceBar: response.data.facts.length > 0 && distinctDomains.size >= 2 && fresh,
       };
+
+      if (!fresh) {
+        ctx.logger.info(
+          "verification",
+          `Rejected "${candidate.headline}" as stale - confirmed event date is more than ${ctx.config.news.maxItemAgeDays} day(s) old, not current news`
+        );
+      }
     } catch (err) {
       ctx.logger.warn("verification", `Verification failed for "${candidate.headline}", dropping it`, {
         error: err instanceof Error ? err.message : String(err),
@@ -73,7 +85,11 @@ export async function verifyArtistNews(ctx: NewsRunContext, candidates: MusicNew
       stage: "verification",
       candidateSummary: candidate.headline,
       decision: verified.meetsSourceBar ? "accepted" : "rejected",
-      reason: verified.meetsSourceBar ? null : "fewer than 2 independent corroborating sources found on re-research",
+      reason: verified.meetsSourceBar
+        ? null
+        : !fresh
+          ? `confirmed event date is more than ${ctx.config.news.maxItemAgeDays} day(s) old - not current news`
+          : "fewer than 2 independent corroborating sources found on re-research",
       storyId: null,
     });
 
