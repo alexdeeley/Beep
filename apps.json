@@ -714,13 +714,6 @@
     "path": "UnicornRainbowBlast.html"
   },
   {
-    "id": "neo-snake-wormio2",
-    "name": "SNAKE! (Worm.io style)",
-    "description": "A game from the Neocities collection: \"SNAKE! (Worm.io style)\".",
-    "category": "Games",
-    "path": "SnakeWormio2.html"
-  },
-  {
     "id": "neo-arkanoid-flat-paddle-patterns",
     "name": "Arkanoid \u2014 Flat Paddle + Level Toast + Patterns",
     "description": "A game from the Neocities collection: \"Arkanoid \u2014 Flat Paddle + Level Toast + Patterns\".",
@@ -824,13 +817,6 @@
     "description": "A music tool from the Neocities collection: \"909\".",
     "category": "Music Tools",
     "path": "Mini909BassNotext.html"
-  },
-  {
-    "id": "neo-808-glitch-drum-machine2",
-    "name": "808 Glitch Drums",
-    "description": "A music tool from the Neocities collection: \"808 Glitch Drums\".",
-    "category": "Music Tools",
-    "path": "808GlitchDrumMachine2.html"
   },
   {
     "id": "neo-spin-textless-fixed",
@@ -1027,20 +1013,6 @@
     "description": "A music tool from the Neocities collection: \"Oscillate\".",
     "category": "Music Tools",
     "path": "Oscillate.html"
-  },
-  {
-    "id": "neo-harsh-noise-wall-play-then-seq-then-pads2",
-    "name": "HNW Play",
-    "description": "A music tool from the Neocities collection: \"HNW Play\".",
-    "category": "Music Tools",
-    "path": "HarshNoiseWallPlayThenSeqThenPads2.html"
-  },
-  {
-    "id": "neo-threesque2",
-    "name": "Threesque",
-    "description": "A game from the Neocities collection: \"Threesque\".",
-    "category": "Games",
-    "path": "Threesque2.html"
   },
   {
     "id": "neo-peggle-noir",
@@ -1281,13 +1253,6 @@
     "path": "EuclideanMathSynth.html"
   },
   {
-    "id": "neo-infinite-tic-tac-toe2",
-    "name": "Infinite Tic-Tac-Toe",
-    "description": "A game from the Neocities collection: \"Infinite Tic-Tac-Toe\".",
-    "category": "Games",
-    "path": "InfiniteTicTacToe2.html"
-  },
-  {
     "id": "neo-cr70-poly-funk",
     "name": "Cr-70 Poly-Funk",
     "description": "A music tool from the Neocities collection: \"Cr-70 Poly-Funk\".",
@@ -1505,13 +1470,6 @@
     "path": "UnicornTetris.html"
   },
   {
-    "id": "neo-drum-machine8step-blast-speed2",
-    "name": "Drum 8",
-    "description": "A music tool from the Neocities collection: \"Drum 8\".",
-    "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeed2.html"
-  },
-  {
     "id": "neo-verti-fall-draw-walls",
     "name": "Verti-Fall Draw Walls",
     "description": "A music tool from the Neocities collection: \"Verti-Fall Draw Walls\".",
@@ -1519,25 +1477,11 @@
     "path": "VertiFallDrawWalls.html"
   },
   {
-    "id": "neo-drum-machine8step-blast-speed-pitch2",
-    "name": "Drum 8 Pitch",
-    "description": "A music tool from the Neocities collection: \"Drum 8 Pitch\".",
-    "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeedPitch2.html"
-  },
-  {
     "id": "neo-motion-synth-blackwhite-squares",
     "name": "Motion Synth",
     "description": "A music tool from the Neocities collection: \"Motion Synth\".",
     "category": "Music Tools",
     "path": "MotionSynthBlackwhiteSquares.html"
-  },
-  {
-    "id": "neo-harsh-noise-wall9-squares-sequencer-fix2",
-    "name": "HNW 9 + Seq",
-    "description": "A music tool from the Neocities collection: \"HNW 9 + Seq\".",
-    "category": "Music Tools",
-    "path": "HarshNoiseWall9SquaresSequencerFix2.html"
   },
   {
     "id": "neo-checker-flip99",
@@ -1575,25 +1519,11 @@
     "path": "ArtSeedGen.html"
   },
   {
-    "id": "neo-infinite-zoom-swipe2",
-    "name": "Infinite Zoom Swipe",
-    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Zoom Swipe\".",
-    "category": "Art",
-    "path": "InfiniteZoomSwipe2.html"
-  },
-  {
     "id": "neo-lines-slow-long-trails",
     "name": "Lines",
     "description": "A generative art / visual piece from the Neocities collection: \"Lines\".",
     "category": "Art",
     "path": "LinesSlowLongTrails.html"
-  },
-  {
-    "id": "neo-chord-morpher2",
-    "name": "Chord Morph \u2022 Maj7 / min7 (Sine)",
-    "description": "A music tool from the Neocities collection: \"Chord Morph \u2022 Maj7 / min7 (Sine)\".",
-    "category": "Music Tools",
-    "path": "ChordMorpher2.html"
   },
   {
     "id": "neo-checkerboard-swirl16x16",
@@ -1603,53 +1533,11 @@
     "path": "CheckerboardSwirl16x16.html"
   },
   {
-    "id": "neo-checkerburst-safe",
-    "name": "Checkerburst \u2013 Safe iPhone Build",
-    "description": "A generative art / visual piece from the Neocities collection: \"Checkerburst \u2013 Safe iPhone Build\".",
-    "category": "Art",
-    "path": "CheckerburstSafe.html"
-  },
-  {
-    "id": "neo-maisie-eats-everything3",
-    "name": "Maisie Eats Everything",
-    "description": "A game from the Neocities collection: \"Maisie Eats Everything\".",
-    "category": "Games",
-    "path": "MaisieEatsEverything3.html"
-  },
-  {
     "id": "neo-smooth-v2",
     "name": "smooth",
     "description": "A generative art / visual piece from the Neocities collection: \"smooth\".",
     "category": "Art",
     "path": "SmoothV2.html"
-  },
-  {
-    "id": "neo-maisie-magic-draw2",
-    "name": "Maisie's Magic Draw",
-    "description": "A music tool from the Neocities collection: \"Maisie's Magic Draw\".",
-    "category": "Music Tools",
-    "path": "MaisieMagicDraw2.html"
-  },
-  {
-    "id": "neo-maisie-eats-everything22",
-    "name": "Maisie Eats Everything 2",
-    "description": "A game from the Neocities collection: \"Maisie Eats Everything 2\".",
-    "category": "Games",
-    "path": "MaisieEatsEverything22.html"
-  },
-  {
-    "id": "neo-sound-of-functions2",
-    "name": "The Sound Of Functions",
-    "description": "A music tool from the Neocities collection: \"The Sound Of Functions\".",
-    "category": "Music Tools",
-    "path": "SoundOfFunctions2.html"
-  },
-  {
-    "id": "neo-artsy-v31",
-    "name": "ARTSY v3.1 \u2014 Seeded Painter",
-    "description": "A generative art / visual piece from the Neocities collection: \"ARTSY v3.1 \u2014 Seeded Painter\".",
-    "category": "Art",
-    "path": "ArtsyV31.html"
   },
   {
     "id": "neo-ballz-game-patterned-paths-nextduringflight",
@@ -1673,25 +1561,11 @@
     "path": "BallzGameRotatingBricksTrajectory.html"
   },
   {
-    "id": "neo-maisie-eats-everything4",
-    "name": "Maisie Eats Everything",
-    "description": "A game from the Neocities collection: \"Maisie Eats Everything\".",
-    "category": "Games",
-    "path": "MaisieEatsEverything4.html"
-  },
-  {
     "id": "neo-threes-minimal2",
     "name": "Threes",
     "description": "A game from the Neocities collection: \"Threes\".",
     "category": "Games",
     "path": "ThreesMinimal2.html"
-  },
-  {
-    "id": "neo-factorial-melody-generator2",
-    "name": "Factorial Melody Generator",
-    "description": "A music tool from the Neocities collection: \"Factorial Melody Generator\".",
-    "category": "Music Tools",
-    "path": "FactorialMelodyGenerator2.html"
   },
   {
     "id": "neo-d-s-s12",
@@ -1722,24 +1596,10 @@
     "path": "BallzGame2.html"
   },
   {
-    "id": "neo-ballz-game-rotating-bricks-trajectory2",
-    "name": "Ballz Game",
-    "description": "A game from the Neocities collection: \"Ballz Game\".",
-    "category": "Games",
-    "path": "BallzGameRotatingBricksTrajectory2.html"
-  },
-  {
     "id": "neo-ballz-game-fullscreen-firebtn",
     "name": "Ballz Game",
     "description": "A game from the Neocities collection: \"Ballz Game\".",
     "category": "Games",
     "path": "BallzGameFullscreenFirebtn.html"
-  },
-  {
-    "id": "neo-maisies-kitty-cat-adventure2",
-    "name": "Maisie's Kitty Cat Adventure",
-    "description": "A generative art / visual piece from the Neocities collection: \"Maisie's Kitty Cat Adventure\".",
-    "category": "Art",
-    "path": "MaisiesKittyCatAdventure2.html"
   }
 ]
