@@ -134,10 +134,9 @@
 </main>
 
 <script>
-const TABS = ["Games", "Art"];
-// Music Tools apps fold into the Art tab — both are non-game, creative/generative.
-// Daily apps are pinned in their own section above the tabs, not folded into either.
-const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Art" };
+const TABS = ["Games", "Art", "Music"];
+// Daily apps are pinned in their own section above the tabs, not folded into any of these.
+const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
 let activeTab = "Games";
