@@ -504,13 +504,6 @@
     "path": "ArtToyGlitterDiscoBurst.html"
   },
   {
-    "id": "neo-arty-three-shapes-seeded",
-    "name": "Arty \u2022 Three Shapes",
-    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
-    "category": "Art",
-    "path": "ArtyThreeShapesSeeded.html"
-  },
-  {
     "id": "neo-arty-three-shapes-seeded-v2",
     "name": "Arty \u2022 Three Shapes",
     "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
@@ -798,13 +791,6 @@
     "path": "BouncyMachineDrift.html"
   },
   {
-    "id": "neo-arty-three-shapes",
-    "name": "Arty \u2022 Three Shapes",
-    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
-    "category": "Art",
-    "path": "ArtyThreeShapes.html"
-  },
-  {
     "id": "neo-critter-mirror",
     "name": "Critter Mirror \u2014 become a storybook creature",
     "description": "Point your camera at yourself and watch a cute animated animal copy your every move. All tracking happens on your device.",
@@ -866,13 +852,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Peggle Noir Minimal\".",
     "category": "Art",
     "path": "PeggleNoirMinimal.html"
-  },
-  {
-    "id": "neo-generative-art-studio",
-    "name": "Generative Art Studio",
-    "description": "A generative art / visual piece from the Neocities collection: \"Generative Art Studio\".",
-    "category": "Art",
-    "path": "GenerativeArtStudio.html"
   },
   {
     "id": "neo-infinite-tic-tac-toe",
@@ -1090,13 +1069,6 @@
     "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
     "category": "Music Tools",
     "path": "AuroraDancePermission.html"
-  },
-  {
-    "id": "neo-infinite-quadrants-stable-grayscale-patterns",
-    "name": "Infinite Quadrants \u2013 Stable Patterns",
-    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Stable Patterns\".",
-    "category": "Art",
-    "path": "InfiniteQuadrantsStableGrayscalePatterns.html"
   },
   {
     "id": "neo-infinite-quadrants-pure-bw-logic",
