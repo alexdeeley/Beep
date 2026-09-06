@@ -8,7 +8,7 @@ import type { AppConfig } from "../config/index.js";
 import { loadEditorialFocus } from "./editorialFocus.js";
 import { downloadStoryDb, uploadStoryDb } from "./db/sync.js";
 import { openStoryDb, closeStoryDb } from "./db/connection.js";
-import { startHourlyRun, finishHourlyRun } from "./db/researchRunsRepo.js";
+import { startHourlyRun, finishHourlyRun, getLastHourlyRun } from "./db/researchRunsRepo.js";
 import { getUnpostedIndividualItems, getUnpostedAlbumItems, insertMusicItem, type UnpostedMusicItemRow } from "./db/musicItemsRepo.js";
 import { importArtistList } from "./artists/importArtistList.js";
 import { getArtistsDueForCheck, markArtistsChecked } from "./db/watchedArtistsRepo.js";
@@ -29,6 +29,7 @@ import { postMusicHistory } from "./history/postMusicHistory.js";
 import { postBirthdays } from "./birthdays/postBirthdays.js";
 import { postWeeklyShows } from "./shows/postWeeklyShows.js";
 import { postMusicNewsRecap } from "./musicNews/postMusicNewsRecap.js";
+import { resolveEligiblePostingWindow } from "./quietHours/postingWindow.js";
 import type { NewsRunContext } from "./runContext.js";
 import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
@@ -167,12 +168,13 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
 
   const editorialFocus = loadEditorialFocus(config.news.editorialFocusPath);
   const now = new Date();
-  const localHour = DateTime.fromJSDate(now, { zone: editorialFocus.quietHours.timezone }).hour;
+  const nowLocal = DateTime.fromJSDate(now, { zone: editorialFocus.quietHours.timezone });
+  const eligibleWindow = resolveEligiblePostingWindow(nowLocal, config.news.postingHoursLocal, config.news.postingWindowToleranceHours);
 
-  if (!options.forceRun && !config.news.postingHoursLocal.includes(localHour)) {
+  if (!options.forceRun && !eligibleWindow) {
     logger.info(
       "orchestrator",
-      `Off-hour cycle (local hour ${localHour}, posting hours are ${config.news.postingHoursLocal.join(", ")}) - exiting without contacting OpenAI or the story database`
+      `Off-hour cycle (local hour ${nowLocal.hour}, posting hours are ${config.news.postingHoursLocal.join(", ")}, tolerance ${config.news.postingWindowToleranceHours}h) - exiting without contacting OpenAI or the story database`
     );
     return { hourlyRunId: 0, quietHoursOutcome: "off-hours", publishedPostCount: 0, publishStatus: "skipped", editionPreview: null };
   }
@@ -186,6 +188,24 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
   const db = openStoryDb(dbPath);
 
   try {
+    // Cron fires up to 4x/day (2 target hours x PST/PDT offsets) and, per resolveEligiblePostingWindow
+    // above, a delayed firing can now land well past its target hour and still be treated as "on time" -
+    // both of those mean more than one firing can land inside the SAME window (the "wrong" DST offset's
+    // firing, or a late-arriving retry). getLastHourlyRun (real cycles only, dry runs don't count) is
+    // the guard against running the full pipeline twice for one window - confirmed live this was a real
+    // gap: without windowing at all, an exact-hour match happened to self-limit to one match per day by
+    // luck, but the tolerant window needs its own explicit once-per-window check.
+    if (!options.forceRun && eligibleWindow) {
+      const lastRun = getLastHourlyRun(db);
+      if (lastRun && DateTime.fromISO(lastRun.started_at, { zone: "utc" }) >= eligibleWindow.toUTC()) {
+        logger.info(
+          "orchestrator",
+          `Already ran a real cycle for this posting window (last real cycle started ${lastRun.started_at}) - skipping to avoid a duplicate sweep`
+        );
+        return { hourlyRunId: 0, quietHoursOutcome: "off-hours", publishedPostCount: 0, publishStatus: "skipped", editionPreview: null };
+      }
+    }
+
     const hourlyRun = startHourlyRun(db, options.dryRun);
     const ctx: NewsRunContext = {
       config,

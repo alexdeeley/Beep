@@ -678,14 +678,33 @@ every name in it.
 `editorial-focus.json`'s `quietHours.timezone`) is what actually enforces
 this pipeline's cadence. `news.yml`'s cron fires more often than that -
 four lines, one PST/PDT pair per target hour, the same two-cron-per-hour
-pattern `daily.yml` uses to survive DST without a
-wall-clock anchor drifting - but `runNewswireCycle.ts` checks the actual
-local hour against `NEWS_POSTING_HOURS_LOCAL` first, before anything
-else, and exits immediately (no OpenAI call, no R2 download) on any cycle
-that isn't really 8am or 8pm local right now. The "wrong" DST offset's
-extra daily firing is exactly this: a cheap, harmless no-op. `--force`
-(via `news:preview -- --force` / `news:publish -- --force`) bypasses this
-gate too, same as it bypasses quiet hours, for manual testing at any hour.
+pattern `daily.yml` uses to survive DST without a wall-clock anchor
+drifting - but `runNewswireCycle.ts` checks the actual local hour against
+`NEWS_POSTING_HOURS_LOCAL` first, before anything else, and exits
+immediately (no OpenAI call, no R2 download) on any cycle outside the
+posting window (see below). The "wrong" DST offset's extra daily firing
+is exactly this: a cheap, harmless no-op. `--force` (via `news:preview --
+--force` / `news:publish -- --force`) bypasses this gate too, same as it
+bypasses quiet hours, for manual testing at any hour.
+
+**The posting window tolerates a late-arriving cron, rather than requiring
+an exact-hour match.** GitHub Actions scheduled workflows have no timing
+SLA - confirmed live, this pipeline's cron has been observed firing
+2.5-4 hours late against its target. The original gate required the
+current local hour to equal 8 or 20 exactly; a delayed firing landing on
+any other hour was silently treated as off-hours, which meant the account
+went a full day without posting once every recent scheduled run started
+missing its window. `quietHours/postingWindow.ts`'s
+`resolveEligiblePostingWindow` now accepts any firing within
+`NEWS_POSTING_WINDOW_TOLERANCE_HOURS` (default 6) hours after a target
+hour, correctly handling the 20:00 window wrapping past midnight. Since
+cron already fires up to 4x/day and a wider tolerance means more than one
+of those firings can now land inside the same window,
+`db/researchRunsRepo.ts`'s `getLastHourlyRun` (real cycles only - dry
+runs from `news:preview` don't count) guards against running the full
+pipeline twice for one window: if a real cycle already started at or
+after the current window's start, later firings inside that same window
+skip cleanly instead of re-sweeping the watchlist.
 
 ### 18.4 Quiet hours: silence is the point, not a failure
 

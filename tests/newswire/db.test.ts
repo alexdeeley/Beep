@@ -35,7 +35,7 @@ import {
 import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
 import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
 import { hasMusicNewsPostForDate, recordMusicNewsPost } from "../../src/newswire/db/musicNewsRepo.js";
-import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
+import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
 
@@ -126,6 +126,14 @@ describe("newswire SQLite DB layer", () => {
     const finished = getHourlyRun(db, run.id);
     expect(finished?.status).toBe("success");
     expect(finished?.finished_at).not.toBeNull();
+  });
+
+  it("getLastHourlyRun ignores dry runs - only a real cycle counts toward the posting-window dedupe check", () => {
+    expect(getLastHourlyRun(db)).toBeUndefined();
+    startHourlyRun(db, true); // dry run - should not count
+    expect(getLastHourlyRun(db)).toBeUndefined();
+    const real = startHourlyRun(db, false);
+    expect(getLastHourlyRun(db)?.id).toBe(real.id);
   });
 
   it("round-trips bluesky_posts and finds a post by content hash", () => {

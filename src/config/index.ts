@@ -121,6 +121,14 @@ export interface AppConfig {
      * bypasses this, same as it bypasses the quiet-hours check, for manual testing.
      */
     postingHoursLocal: number[];
+    /**
+     * How many hours after a target posting hour a cycle still counts as "on time" rather than
+     * off-hours - see quietHours/postingWindow.ts. Confirmed live: GitHub Actions scheduled workflows
+     * have no timing SLA and have been observed firing 2.5-4 hours late, which an exact-hour match
+     * would silently treat as off-hours every time, going a full day without posting. getLastHourlyRun
+     * still prevents more than one real cycle per window even if cron fires multiple times inside it.
+     */
+    postingWindowToleranceHours: number;
     /** How many never-checked watchlist artists get a one-time birth-date lookup per cycle (see birthdays/postBirthdays.ts). Small on purpose - each candidate needs its own independent verification search, and this is a one-time cost per artist, not a recurring one. */
     birthDateBatchSize: number;
     /** Local hour (in editorial-focus.json's quietHours.timezone) after which the first Tuesday cycle posts the weekly Portland/Pacific-Northwest SHOWS calendar (see shows/postWeeklyShows.ts). */
@@ -255,6 +263,7 @@ export function loadConfig(): AppConfig {
         .split(",")
         .map((h) => Number.parseInt(h.trim(), 10))
         .filter((h) => Number.isFinite(h)),
+      postingWindowToleranceHours: envInt("NEWS_POSTING_WINDOW_TOLERANCE_HOURS", 6),
       birthDateBatchSize: envInt("NEWS_BIRTHDATE_BATCH_SIZE", 15),
       showsHourLocal: envInt("NEWS_SHOWS_HOUR_LOCAL", 8),
       maxItemAgeDays: envInt("NEWS_MAX_ITEM_AGE_DAYS", 30),
