@@ -22,11 +22,17 @@ describe("isFreshEnough", () => {
     expect(isFreshEnough(overMaxAge, "exact", NOW, 30)).toBe(false);
   });
 
-  it("passes through an approximate-confidence stale date rather than blocking on an uncertain guess", () => {
-    expect(isFreshEnough("2026-01-01T00:00:00Z", "approximate", NOW, 30)).toBe(true);
+  it("accepts an approximate-confidence date within the wider (3x) tolerance", () => {
+    // ~65 days old - past the exact-confidence 30-day bar, but within approximate's 90-day tolerance.
+    const withinApproximateTolerance = new Date(NOW.getTime() - 65 * 24 * 60 * 60 * 1000).toISOString();
+    expect(isFreshEnough(withinApproximateTolerance, "approximate", NOW, 30)).toBe(true);
   });
 
-  it("passes through an unknown-confidence date", () => {
+  it("rejects an approximate-confidence date well past the wider tolerance (the July-2023-reported-as-current case)", () => {
+    expect(isFreshEnough("2023-07-01T00:00:00Z", "approximate", NOW, 30)).toBe(false);
+  });
+
+  it("passes through an unknown-confidence date, however old", () => {
     expect(isFreshEnough("2026-01-01T00:00:00Z", "unknown", NOW, 30)).toBe(true);
   });
 
