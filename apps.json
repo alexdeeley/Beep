@@ -1187,5 +1187,12 @@
     "path": "Moviemoji.html",
     "featured": true,
     "featuredOrder": 2
+  },
+  {
+    "id": "yakbox-3000",
+    "name": "YAKBOX 3000",
+    "description": "A voice-mutator toy \u2014 record your voice and warp it with speed, pitch, and FX presets like Robot, Monster, and Chipmunk.",
+    "category": "Music Tools",
+    "path": "YakBox3000.html"
   }
 ]
