@@ -1174,5 +1174,12 @@
     "description": "A music tool from the Neocities collection: \"DSS1 - Digital Sound Studio\".",
     "category": "Music Tools",
     "path": "DSS12.html"
+  },
+  {
+    "id": "moviemoji",
+    "name": "Moviemoji",
+    "description": "Guess the movie from an emoji clue across daily, quick-play, decade, and genre modes.",
+    "category": "Games",
+    "path": "Moviemoji.html"
   }
 ]
