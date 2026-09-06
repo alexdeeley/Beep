@@ -700,34 +700,6 @@
     "path": "LightTapBulbs.html"
   },
   {
-    "id": "neo-instrument012",
-    "name": "Instrument 01.2",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.2\".",
-    "category": "Music Tools",
-    "path": "Instrument012.html"
-  },
-  {
-    "id": "neo-instrument013",
-    "name": "Instrument 01.3",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.3\".",
-    "category": "Music Tools",
-    "path": "Instrument013.html"
-  },
-  {
-    "id": "neo-instrument01-plus",
-    "name": "Instrument 01+",
-    "description": "A music tool from the Neocities collection: \"Instrument 01+\".",
-    "category": "Music Tools",
-    "path": "Instrument01Plus.html"
-  },
-  {
-    "id": "neo-instrument011",
-    "name": "Instrument 01.1",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.1\".",
-    "category": "Music Tools",
-    "path": "Instrument011.html"
-  },
-  {
     "id": "neo-bouncy-machine-drift",
     "name": "Bouncy Machine \u2014 Drift Edition",
     "description": "A generative art / visual piece from the Neocities collection: \"Bouncy Machine \u2014 Drift Edition\".",
@@ -924,13 +896,6 @@
     "path": "FactorialPushArtLongform.html"
   },
   {
-    "id": "neo-lofi-beat-generator",
-    "name": "Lo-Fi Beat Generator",
-    "description": "A music tool from the Neocities collection: \"Lo-Fi Beat Generator\".",
-    "category": "Music Tools",
-    "path": "LofiBeatGenerator.html"
-  },
-  {
     "id": "neo-303-mazie-sampler",
     "name": "303 + Mazie Sampler",
     "description": "A music tool from the Neocities collection: \"303 + Mazie Sampler\".",
@@ -1041,13 +1006,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Rings\".",
     "category": "Art",
     "path": "Rings.html"
-  },
-  {
-    "id": "neo-maisies-air-hockey-vertical",
-    "name": "Maisie's Air Hockey",
-    "description": "A music tool from the Neocities collection: \"Maisie's Air Hockey\".",
-    "category": "Music Tools",
-    "path": "MaisiesAirHockeyVertical.html"
   },
   {
     "id": "neo-comic-paint-splat",
