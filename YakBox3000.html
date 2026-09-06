@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>YAKBOX 3000</title>
+<style>
+  :root{
+    --yellow:#f4ea1e;
+    --purple:#7b2ff7;
+    --teal:#00c9b7;
+    --pink:#ff2fa1;
+    --black:#151217;
+    --gray:#8d8894;
+    --lightgray:#cfc9d6;
+    --case:#3a2e52;
+    --case2:#4b3a6b;
+    --lcd-bg:#96a06a;
+    --lcd-fg:#1c2b0f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%; overscroll-behavior:none;
+    background:var(--black);
+    font-family:'Arial Black','Helvetica Neue',Arial,sans-serif;
+    touch-action:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+
+  /* ---------- BOOT SCREEN ---------- */
+  #boot{
+    position:fixed; inset:0; background:var(--black); color:var(--teal);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:999; font-family:'Courier New',monospace; letter-spacing:2px;
+    transition:opacity .35s ease;
+  }
+  #boot h1{ font-size:8vw; margin:0 0 6px; color:var(--yellow); text-shadow:0 0 12px var(--yellow); }
+  #boot p{ margin:2px; font-size:4vw; }
+  #boot .blink{ animation:blink 0.6s steps(1) infinite; }
+  @keyframes blink{ 50%{opacity:0;} }
+
+  /* ---------- TOY BODY ---------- */
+  #toy{
+    position:relative;
+    width:min(96vw, 480px);
+    height:min(96vh, 900px);
+    background:linear-gradient(155deg, var(--case2), var(--case));
+    border-radius:34px;
+    border:4px solid #241a38;
+    box-shadow:0 18px 0 rgba(0,0,0,.45), 0 20px 40px rgba(0,0,0,.6), inset 0 0 0 6px #2a1f42;
+    padding:16px 16px 20px;
+    display:flex; flex-direction:column; gap:10px;
+    overflow:hidden;
+  }
+  .screw{
+    position:absolute; width:14px; height:14px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #cfcad6, #55506a 70%, #2c2740);
+    box-shadow:inset 0 0 0 1px #1c1830;
+  }
+  .screw::after{
+    content:""; position:absolute; top:50%; left:50%; width:9px; height:2px;
+    background:#1c1830; transform:translate(-50%,-50%) rotate(35deg);
+  }
+  .screw.tl{top:10px; left:10px;} .screw.tr{top:10px; right:10px;}
+  .screw.bl{bottom:10px; left:10px;} .screw.br{bottom:10px; right:10px;}
+
+  /* Header / brand */
+  #brand{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:2px 10px 0;
+  }
+  #brand .name{
+    font-size:22px; color:var(--yellow); text-shadow:2px 2px 0 #000; letter-spacing:1px;
+    transform:skew(-6deg);
+  }
+  #brand .sub{ font-size:9px; color:var(--lightgray); letter-spacing:2px; }
+
+  /* speaker grille */
+  #speaker{
+    width:46px; height:46px; border-radius:50%;
+    background:repeating-radial-gradient(circle, #1c1830 0 2px, #241a38 2px 4px);
+    border:3px solid #1c1830; box-shadow:inset 0 0 8px #000;
+    transition:transform .08s ease;
+  }
+  #speaker.pulse{ transform:scale(1.06); }
+
+  /* LCD */
+  #lcdWrap{
+    background:#241a38; border-radius:10px; padding:8px;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.6);
+  }
+  #lcd{
+    background:var(--lcd-bg); border-radius:4px; padding:8px 10px;
+    color:var(--lcd-fg); font-family:'Courier New',monospace; font-weight:bold;
+    box-shadow:inset 0 0 6px rgba(0,0,0,.4);
+    display:flex; flex-direction:column; gap:2px;
+    filter:contrast(1.05);
+  }
+  #lcdMain{ font-size:15px; letter-spacing:2px; min-height:20px; }
+  #lcdSub{ font-size:10px; letter-spacing:1px; display:flex; justify-content:space-between; }
+  #levelMeter{ display:flex; gap:2px; height:8px; margin-top:2px; }
+  #levelMeter i{ flex:1; background:rgba(28,43,15,.15); border-radius:1px; }
+  #levelMeter i.on{ background:var(--lcd-fg); }
+
+  /* record / play row */
+  #mainRow{ display:flex; gap:10px; align-items:stretch; }
+  .bigBtn{
+    flex:1; border:none; border-radius:16px; font-weight:900; font-size:14px;
+    letter-spacing:1px; color:#fff; padding:14px 4px;
+    box-shadow:0 6px 0 rgba(0,0,0,.4);
+    transform:translateY(0); transition:transform .05s, box-shadow .05s;
+    position:relative;
+  }
+  .bigBtn:active, .bigBtn.pressed{
+    transform:translateY(6px); box-shadow:0 0 0 rgba(0,0,0,.4);
+  }
+  #recBtn{ background:radial-gradient(circle at 35% 30%, #ff5f8f, var(--pink)); }
+  #recBtn.recording{ animation:recpulse 1s infinite; }
+  @keyframes recpulse{ 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.4);} }
+  #playBtn{ background:radial-gradient(circle at 35% 30%, #4be3d1, var(--teal)); color:#0a2b26;}
+  #revBtn{ background:radial-gradient(circle at 35% 30%, #a774ff, var(--purple)); }
+  #stopBtn{ background:radial-gradient(circle at 35% 30%, #ffd94b, #e0b800); color:#3a2a00; }
+
+  .led{
+    position:absolute; top:6px; right:8px; width:8px; height:8px; border-radius:50%;
+    background:#4a0018; box-shadow:inset 0 0 2px #000;
+  }
+  .led.on{ background:#ff2b4d; box-shadow:0 0 8px #ff2b4d; }
+
+  /* sliders */
+  .sliderBlock{ background:var(--case2); border-radius:12px; padding:8px 12px 10px; }
+  .sliderLabelRow{ display:flex; justify-content:space-between; font-size:9px; color:var(--yellow); letter-spacing:1px; margin-bottom:4px; }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:26px; background:transparent;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:8px; border-radius:4px; background:linear-gradient(90deg,#1c1830,#000);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.6);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:28px; height:26px; margin-top:-9px;
+    border-radius:6px; background:linear-gradient(180deg,#fff,#cfc9d6);
+    border:2px solid #1c1830; box-shadow:0 3px 0 rgba(0,0,0,.4);
+  }
+
+  /* scrub strip */
+  #scrubStrip{
+    position:relative; height:44px; border-radius:10px; background:#1c1830;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.6);
+    overflow:hidden;
+  }
+  #scrubFill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg, var(--pink), var(--purple)); opacity:.55;}
+  #scrubHead{ position:absolute; top:0; bottom:0; width:4px; background:var(--yellow); box-shadow:0 0 6px var(--yellow); left:0%; }
+  .scrubLabelText{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--lightgray); font-size:10px; letter-spacing:2px; pointer-events:none;}
+
+  /* fx grid */
+  #fxGrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .fxBtn{
+    border:none; border-radius:12px; color:#fff; font-size:10px; font-weight:900;
+    letter-spacing:.5px; padding:10px 2px; box-shadow:0 5px 0 rgba(0,0,0,.4);
+    transition:transform .05s, box-shadow .05s;
+  }
+  .fxBtn:active, .fxBtn.pressed{ transform:translateY(5px); box-shadow:0 0 0 rgba(0,0,0,.4); }
+  #robotBtn{ background:#4a6b8a; }
+  #monsterBtn{ background:#3f6b3a; }
+  #chipmunkBtn{ background:#e08b2f; }
+  #alienBtn{ background:#2fbf8f; }
+  #loopBtn{ background:#6a4ab0; }
+  #stutterBtn{ background:#b0466a; }
+
+  /* toggles row: loop led + chaos switch */
+  #toggleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  #chaosWrap{ display:flex; align-items:center; gap:6px; background:var(--case2); padding:6px 10px; border-radius:20px; }
+  #chaosWrap span{ font-size:9px; color:var(--lightgray); letter-spacing:1px; }
+  #chaosSwitch{
+    width:44px; height:22px; border-radius:12px; background:#1c1830; position:relative; cursor:pointer;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.6);
+  }
+  #chaosSwitch .knob{
+    position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:linear-gradient(180deg,#fff,#cfc9d6); transition:left .15s; box-shadow:0 2px 3px rgba(0,0,0,.5);
+  }
+  #chaosSwitch.on{ background:#5a1830; }
+  #chaosSwitch.on .knob{ left:24px; background:linear-gradient(180deg,#ff9db0,var(--pink)); }
+
+  /* soundboard */
+  #pads{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; }
+  .pad{
+    aspect-ratio:1; border-radius:10px; border:none; background:#241a38; color:var(--lightgray);
+    font-size:13px; font-weight:900; box-shadow:0 4px 0 rgba(0,0,0,.4), inset 0 0 0 2px #382a54;
+    transition:transform .05s;
+  }
+  .pad.filled{ background:linear-gradient(160deg, var(--teal), #0a7a6c); color:#04211c; }
+  .pad:active{ transform:translateY(4px); }
+
+  #hint{ text-align:center; font-size:8px; color:var(--gray); letter-spacing:1px; margin-top:auto; }
+
+  @media (orientation:landscape){
+    #toy{ height:min(94vh,480px); width:min(94vw,880px); }
+    #bodyGrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  }
+
+  #micWarning{
+    position:fixed; inset:0; z-index:900; background:rgba(10,6,20,.92);
+    display:none; align-items:center; justify-content:center; padding:24px;
+    color:#fff; text-align:center; font-family:Arial,sans-serif;
+  }
+  #micWarning.show{ display:flex; }
+  #micWarning .box{
+    background:var(--case2); border:3px solid var(--pink); border-radius:16px;
+    padding:22px; max-width:360px;
+  }
+  #micWarning h2{ color:var(--yellow); font-size:20px; margin:0 0 10px; }
+  #micWarning p{ font-size:13px; line-height:1.5; color:var(--lightgray); margin:0 0 14px; }
+  #micWarning button{
+    background:var(--teal); color:#04211c; border:none; border-radius:10px;
+    font-weight:900; padding:12px 20px; font-size:13px;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<div id="boot">
+  <h1>YAKBOX 3000</h1>
+  <p>VOICE MUTATOR</p>
+  <p class="blink">READY_</p>
+</div>
+
+<div id="micWarning">
+  <div class="box">
+    <h2>MIC ACCESS UNAVAILABLE</h2>
+    <p>This page needs to be loaded over <b>https://</b> (a secure connection) for the microphone to work. If you're viewing this inside a preview/embed, try opening it directly in Safari instead.</p>
+    <p>You can still poke around the controls, but REC won't capture anything until that's fixed.</p>
+    <button id="micWarningClose">GOT IT</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="toy">
+    <div class="screw tl"></div><div class="screw tr"></div>
+    <div class="screw bl"></div><div class="screw br"></div>
+
+    <div id="brand">
+      <div>
+        <div class="name">YAKBOX 3000</div>
+        <div class="sub">VOICE MUTATOR</div>
+      </div>
+      <div id="speaker"></div>
+    </div>
+
+    <div id="lcdWrap">
+      <div id="lcd">
+        <div id="lcdMain">READY</div>
+        <div id="lcdSub"><span id="lcdTime">0.0s</span><span id="lcdSpeed">SPD 1.0x</span><span id="lcdPitch">PIT 0</span></div>
+        <div id="levelMeter"></div>
+      </div>
+    </div>
+
+    <div id="mainRow">
+      <button class="bigBtn" id="recBtn">REC<div class="led" id="recLed"></div></button>
+      <button class="bigBtn" id="playBtn">PLAY</button>
+      <button class="bigBtn" id="revBtn">REV</button>
+      <button class="bigBtn" id="stopBtn">STOP</button>
+    </div>
+
+    <div class="sliderBlock">
+      <div class="sliderLabelRow"><span>SLOW</span><span>SPEED</span><span>FAST</span></div>
+      <input type="range" id="speedSlider" min="-100" max="100" value="0">
+    </div>
+
+    <div class="sliderBlock">
+      <div class="sliderLabelRow"><span>LOW</span><span>PITCH</span><span>HIGH</span></div>
+      <input type="range" id="pitchSlider" min="-12" max="12" value="0">
+    </div>
+
+    <div id="scrubStrip">
+      <div id="scrubFill"></div>
+      <div id="scrubHead"></div>
+      <div id="scrubText" class="scrubLabelText">SCRUB / SCRATCH</div>
+    </div>
+
+    <div id="fxGrid">
+      <button class="fxBtn" id="loopBtn">LOOP<div class="led" id="loopLed"></div></button>
+      <button class="fxBtn" id="stutterBtn">STUTTER</button>
+      <button class="fxBtn" id="robotBtn">ROBOT</button>
+      <button class="fxBtn" id="monsterBtn">MONSTER</button>
+      <button class="fxBtn" id="chipmunkBtn">CHIPMUNK</button>
+      <button class="fxBtn" id="alienBtn">ALIEN</button>
+    </div>
+
+    <div id="toggleRow">
+      <div id="pads">
+        <button class="pad" data-slot="0">1</button>
+        <button class="pad" data-slot="1">2</button>
+        <button class="pad" data-slot="2">3</button>
+        <button class="pad" data-slot="3">4</button>
+        <button class="pad" data-slot="4">5</button>
+        <button class="pad" data-slot="5">6</button>
+      </div>
+    </div>
+    <div id="chaosWrap" style="align-self:center;">
+      <span>NORMAL</span>
+      <div id="chaosSwitch"><div class="knob"></div></div>
+      <span>CHAOS</span>
+    </div>
+
+    <div id="hint">HOLD PAD TO SAVE · TAP TO PLAY · DOUBLE-TAP SPEAKER = ??? </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Audio setup ----------
+  let ctx = null;
+  let originalBuffer = null;   // AudioBuffer
+  let reversedBuffer = null;   // AudioBuffer
+  let recording = false;
+  let mediaRecorder = null;
+  let chunks = [];
+  let recStream = null;
+  let recStartTime = 0;
+  let recTimerInt = null;
+  const MAX_REC_MS = 30000;
+
+  let looping = false;
+  let chaos = false;
+  let currentDirectionReversed = false;
+  let activeSources = []; // track playing sources for stop-all / tape-stop
+
+  function ensureCtx(){
+    if (!ctx){
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  // ---------- UI refs ----------
+  const $ = id => document.getElementById(id);
+  const recBtn=$('recBtn'), playBtn=$('playBtn'), revBtn=$('revBtn'), stopBtn=$('stopBtn');
+  const recLed=$('recLed'), loopLed=$('loopLed'), loopBtn=$('loopBtn'), stutterBtn=$('stutterBtn');
+  const robotBtn=$('robotBtn'), monsterBtn=$('monsterBtn'), chipmunkBtn=$('chipmunkBtn'), alienBtn=$('alienBtn');
+  const speedSlider=$('speedSlider'), pitchSlider=$('pitchSlider');
+  const scrubStrip=$('scrubStrip'), scrubFill=$('scrubFill'), scrubHead=$('scrubHead'), scrubText=$('scrubText');
+  const lcdMain=$('lcdMain'), lcdTime=$('lcdTime'), lcdSpeed=$('lcdSpeed'), lcdPitch=$('lcdPitch');
+  const levelMeter=$('levelMeter');
+  const speaker=$('speaker');
+  const chaosSwitch=$('chaosSwitch');
+  const pads=[...document.querySelectorAll('.pad')];
+
+  // level meter bars
+  const METER_BARS = 20;
+  for(let i=0;i<METER_BARS;i++){ const b=document.createElement('i'); levelMeter.appendChild(b); }
+  const meterBars=[...levelMeter.children];
+
+  function vibrate(ms){ if (navigator.vibrate) { try{ navigator.vibrate(ms); }catch(e){} } }
+
+  function setLcd(main, sub){
+    lcdMain.textContent = main;
+    if (main) clearTimeout(setLcd._t);
+    if (sub !== undefined){
+      setLcd._t = setTimeout(()=>{ lcdMain.textContent = recording? 'REC' : (originalBuffer? 'READY':'READY'); }, sub);
+    }
+  }
+
+  // ---------- Slider math ----------
+  // speedSlider -100..100 maps to 0.35x .. 2.5x, center(0) = 1x
+  function speedFromSlider(v){
+    v = v/100; // -1..1
+    if (v <= 0){
+      return 1 + v*(1-0.35); // v=-1 -> 0.35
+    } else {
+      return 1 + v*(2.5-1); // v=1 -> 2.5
+    }
+  }
+  let ultraSlowUnlocked = false;
+  let ultraSlowTimer = null;
+  function currentSpeed(){
+    let s = speedFromSlider(parseFloat(speedSlider.value));
+    if (ultraSlowUnlocked && parseFloat(speedSlider.value) <= -100){
+      s = 0.1;
+    }
+    return s;
+  }
+  function currentPitchSemis(){ return parseFloat(pitchSlider.value); }
+
+  function refreshLcdNumbers(){
+    lcdSpeed.textContent = 'SPD ' + currentSpeed().toFixed(2)+'x';
+    lcdPitch.textContent = 'PIT ' + (currentPitchSemis()>0?'+':'') + currentPitchSemis();
+  }
+  speedSlider.addEventListener('input', ()=>{ refreshLcdNumbers(); tickSound(); checkUltraSlowHold(); checkTinyPerson(); });
+  pitchSlider.addEventListener('input', ()=>{ refreshLcdNumbers(); tickSound(); checkTinyPerson(); });
+  refreshLcdNumbers();
+
+  // mechanical tick sound on slider move (tiny click via oscillator)
+  let lastTick = 0;
+  function tickSound(){
+    const now = performance.now();
+    if (now - lastTick < 60) return;
+    lastTick = now;
+    if (!ctx) return;
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.frequency.value = 1200; g.gain.value = 0.02;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.02);
+  }
+
+  // ---------- Ultra slow secret ----------
+  function checkUltraSlowHold(){
+    if (parseFloat(speedSlider.value) <= -100){
+      if (!ultraSlowTimer){
+        ultraSlowTimer = setTimeout(()=>{
+          ultraSlowUnlocked = true;
+          setLcd('ULTRA SLOW', 1200);
+          vibrate(40);
+        }, 2000);
+      }
+    } else {
+      clearTimeout(ultraSlowTimer); ultraSlowTimer = null;
+      ultraSlowUnlocked = false;
+    }
+  }
+
+  // ---------- Recording ----------
+  async function startRecording(){
+    if (!micSupported){
+      showMicWarning();
+      return;
+    }
+    try{
+      ensureCtx();
+      recStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch(e){
+      lcdMain.textContent = 'MIC BLOCKED';
+      showMicWarning();
+      return;
+    }
+    chunks = [];
+    let mime = '';
+    for (const m of ['audio/mp4','audio/webm;codecs=opus','audio/webm']){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)){ mime = m; break; }
+    }
+    try{
+      mediaRecorder = mime ? new MediaRecorder(recStream,{mimeType:mime}) : new MediaRecorder(recStream);
+    }catch(e){
+      mediaRecorder = new MediaRecorder(recStream);
+    }
+    mediaRecorder.ondataavailable = e=>{ if (e.data && e.data.size>0) chunks.push(e.data); };
+    mediaRecorder.onstop = onRecordingStop;
+    mediaRecorder.start();
+    recording = true;
+    recStartTime = performance.now();
+    recBtn.classList.add('recording');
+    recLed.classList.add('on');
+    setLcd('REC');
+    startLevelMeterFromStream(recStream);
+    recTimerInt = setInterval(()=>{
+      const el = performance.now()-recStartTime;
+      lcdTime.textContent = (el/1000).toFixed(1)+'s';
+      if (el >= MAX_REC_MS) stopRecording();
+    }, 100);
+  }
+
+  function stopRecording(){
+    if (!recording) return;
+    recording = false;
+    clearInterval(recTimerInt);
+    recBtn.classList.remove('recording');
+    recLed.classList.remove('on');
+    try{ mediaRecorder.stop(); }catch(e){}
+    if (recStream) recStream.getTracks().forEach(t=>t.stop());
+    stopLevelMeter();
+  }
+
+  async function onRecordingStop(){
+    setLcd('...');
+    const blob = new Blob(chunks, {type: chunks[0]?chunks[0].type:'audio/webm'});
+    const arr = await blob.arrayBuffer();
+    ensureCtx();
+    ctx.decodeAudioData(arr, buf=>{
+      originalBuffer = buf;
+      reversedBuffer = reverseBuffer(buf);
+      setLcd('READY');
+      lcdTime.textContent = buf.duration.toFixed(1)+'s';
+      scrubFill.style.width='0%';
+      scrubHead.style.left='0%';
+    }, err=>{
+      setLcd('ERR', 1200);
+    });
+  }
+
+  function reverseBuffer(buffer){
+    const ctx2 = ensureCtx();
+    const rev = ctx2.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for (let ch=0; ch<buffer.numberOfChannels; ch++){
+      const src = buffer.getChannelData(ch);
+      const dst = rev.getChannelData(ch);
+      for (let i=0;i<src.length;i++) dst[i] = src[src.length-1-i];
+    }
+    return rev;
+  }
+
+  // mic level meter (during recording)
+  let meterRAF = null, meterAnalyser=null, meterSrc=null;
+  function startLevelMeterFromStream(stream){
+    const c = ensureCtx();
+    meterSrc = c.createMediaStreamSource(stream);
+    meterAnalyser = c.createAnalyser();
+    meterAnalyser.fftSize = 256;
+    meterSrc.connect(meterAnalyser);
+    const data = new Uint8Array(meterAnalyser.frequencyBinCount);
+    function loop(){
+      meterAnalyser.getByteFrequencyData(data);
+      let sum=0; for(let i=0;i<data.length;i++) sum+=data[i];
+      const avg = sum/data.length/255;
+      drawMeter(avg);
+      meterRAF = requestAnimationFrame(loop);
+    }
+    loop();
+  }
+  function stopLevelMeter(){
+    if (meterRAF) cancelAnimationFrame(meterRAF);
+    meterRAF=null;
+    drawMeter(0);
+  }
+  function drawMeter(level){
+    const lit = Math.round(level*METER_BARS*1.6);
+    meterBars.forEach((b,i)=>{ b.classList.toggle('on', i<lit); });
+  }
+
+  // playback-based pseudo meter (amplitude from source not trivial without analyser; use analyser on playback chain too)
+  let playAnalyser = null;
+
+  // ---------- Effect chain builder ----------
+  function buildChain(destParams){
+    // destParams: {mode: 'normal'|'robot'|'monster'|'chipmunk'|'alien', extraGain}
+    const c = ensureCtx();
+    const nodes = { input: c.createGain() };
+    let last = nodes.input;
+
+    const filter = c.createBiquadFilter();
+    const shaper = c.createWaveShaper();
+    const delay = c.createDelay(1.0);
+    const delayGain = c.createGain();
+    const panner = c.createStereoPanner();
+    const outGain = c.createGain();
+    outGain.gain.value = 0.9;
+
+    filter.type='allpass'; filter.frequency.value=8000;
+    shaper.curve = makeCurve(0);
+    delay.delayTime.value = 0.0; delayGain.gain.value = 0.0;
+    panner.pan.value = 0;
+
+    let ringOsc = null, ringGain = null, tremOsc = null, tremGain = null, lfoDetuneOsc=null;
+
+    switch(destParams.mode){
+      case 'robot':
+        filter.type='bandpass'; filter.frequency.value=1200; filter.Q.value=6;
+        shaper.curve = makeCurve(0.5);
+        delay.delayTime.value = 0.045; delayGain.gain.value = 0.35;
+        ringOsc = c.createOscillator(); ringOsc.type='square'; ringOsc.frequency.value=45;
+        ringGain = c.createGain(); ringGain.gain.value=1;
+        break;
+      case 'monster':
+        filter.type='lowshelf'; filter.frequency.value=400; filter.gain.value=14;
+        shaper.curve = makeCurve(0.35);
+        break;
+      case 'chipmunk':
+        filter.type='highshelf'; filter.frequency.value=2500; filter.gain.value=10;
+        break;
+      case 'alien':
+        filter.type='peaking'; filter.frequency.value=1800; filter.Q.value=8; filter.gain.value=10;
+        delay.delayTime.value = 0.09; delayGain.gain.value = 0.4;
+        tremOsc = c.createOscillator(); tremOsc.type='sine'; tremOsc.frequency.value=7;
+        tremGain = c.createGain(); tremGain.gain.value=0.5;
+        break;
+      case 'demon':
+        filter.type='lowshelf'; filter.frequency.value=300; filter.gain.value=18;
+        shaper.curve = makeCurve(0.6);
+        delay.delayTime.value=0.12; delayGain.gain.value=0.5;
+        break;
+      case 'broken':
+        filter.type='bandpass'; filter.frequency.value=2200; filter.Q.value=1.2;
+        shaper.curve = makeCurve(0.15);
+        break;
+      default:
+        filter.type='allpass';
+    }
+
+    nodes.input.connect(filter);
+    filter.connect(shaper);
+
+    let postShaper = shaper;
+    if (ringOsc){
+      // crude ring modulation using gain node driven by oscillator via a workaround:
+      // use ringGain as the audio pass, and modulate its gain with ringOsc through a second gain (offset)
+      const modDepth = c.createGain(); modDepth.gain.value = 0.6;
+      const bias = c.createConstantSource(); bias.offset.value = 0.4;
+      ringOsc.connect(modDepth);
+      const modSum = c.createGain(); modSum.gain.value=1;
+      modDepth.connect(modSum);
+      bias.connect(modSum);
+      // modSum now oscillates ~ -0.2..1.0 ; use as gain for ringGain via audio-rate param
+      modSum.connect(ringGain.gain);
+      shaper.connect(ringGain);
+      postShaper = ringGain;
+      ringOsc.start(); bias.start();
+      nodes._extraStops = [ringOsc, bias];
+    }
+
+    postShaper.connect(delay);
+    delay.connect(delayGain);
+    delayGain.connect(panner);
+    postShaper.connect(panner);
+    panner.connect(outGain);
+
+    if (tremOsc){
+      const tg = c.createGain(); tg.gain.value = 1;
+      tremOsc.connect(tremGain);
+      tremGain.gain.value = 0.5;
+      tremOsc.start();
+      const depth = c.createGain(); depth.gain.value = 0.5;
+      tremOsc.connect(depth);
+      depth.connect(outGain.gain);
+      nodes._extraStops = (nodes._extraStops||[]).concat([tremOsc]);
+    }
+
+    outGain.connect(c.destination);
+
+    // playback analyser tap for speaker pulse
+    if (!playAnalyser){ playAnalyser = c.createAnalyser(); playAnalyser.fftSize=256; }
+    outGain.connect(playAnalyser);
+
+    nodes.output = outGain;
+    nodes.filter = filter;
+    nodes.stopExtras = ()=>{ (nodes._extraStops||[]).forEach(n=>{ try{n.stop();}catch(e){} }); };
+    return nodes;
+  }
+
+  function makeCurve(amount){
+    const n = 256; const curve = new Float32Array(n);
+    const k = amount*100;
+    for (let i=0;i<n;i++){
+      const x = i/(n-1)*2-1;
+      curve[i] = amount<=0 ? x : Math.tanh(k*x)/Math.tanh(k);
+    }
+    return curve;
+  }
+
+  // ---------- Playback ----------
+  let currentMode = 'normal'; // normal/robot/monster/chipmunk/alien/demon/broken
+  let brokenTapeActive = false;
+
+  function playBuffer(opts){
+    opts = opts || {};
+    const buf = (opts.reversed ? reversedBuffer : originalBuffer);
+    if (!buf) {
+      lcdMain.textContent = 'RECORD FIRST';
+      clearTimeout(playBuffer._t);
+      playBuffer._t = setTimeout(()=>{ lcdMain.textContent = 'READY'; }, 1400);
+      return null;
+    }
+    const c = ensureCtx();
+    const src = c.createBufferSource();
+    src.buffer = opts.customBuffer || buf;
+
+    let speed = opts.speed !== undefined ? opts.speed : currentSpeed();
+    let semis = opts.semis !== undefined ? opts.semis : currentPitchSemis();
+
+    if (chaos && !opts.noChaos){
+      speed *= (0.6 + Math.random()*1.3);
+      semis += (Math.random()*16-8);
+      if (Math.random()<0.35) opts.reversed = !opts.reversed;
+    }
+
+    speed = Math.max(0.05, Math.min(4, speed));
+    src.playbackRate.value = speed;
+    src.detune.value = semis*100;
+
+    if (opts.loop){
+      src.loop = true;
+      if (opts.loopStart!==undefined) src.loopStart = opts.loopStart;
+      if (opts.loopEnd!==undefined) src.loopEnd = opts.loopEnd;
+    }
+
+    const mode = opts.mode || currentMode;
+    const chain = buildChain({mode});
+    src.connect(chain.input);
+
+    if (brokenTapeActive && !opts.noBroken){
+      applyBrokenTape(src, c);
+    }
+
+    src.start(0, opts.offset||0);
+    src.onended = ()=>{
+      chain.stopExtras();
+      const idx = activeSources.indexOf(entry);
+      if (idx>=0) activeSources.splice(idx,1);
+    };
+    const entry = {src, chain};
+    activeSources.push(entry);
+    animateSpeaker();
+    return entry;
+  }
+
+  function applyBrokenTape(src, c){
+    // randomized wow/flutter via periodic playbackRate wobble + occasional dropouts
+    const start = c.currentTime;
+    let raf;
+    function wobble(){
+      if (!activeSources.find(e=>e.src===src)) return;
+      const t = c.currentTime-start;
+      const wobbleAmt = 1 + Math.sin(t*6)*0.06 + (Math.random()-0.5)*0.05;
+      try{ src.playbackRate.value = src.playbackRate.value*0 + currentSpeed()*wobbleAmt; }catch(e){}
+      if (Math.random()<0.02){ try{ src.playbackRate.setValueAtTime(0.01, c.currentTime); }catch(e){} setTimeout(()=>{ try{src.playbackRate.value=currentSpeed();}catch(e){} }, 60); }
+      raf = requestAnimationFrame(wobble);
+    }
+    wobble();
+  }
+
+  function stopAll(){
+    activeSources.forEach(e=>{ try{ e.src.stop(); }catch(err){} });
+    activeSources = [];
+  }
+
+  function tapeStop(){
+    if (!activeSources.length) return;
+    const c = ensureCtx();
+    activeSources.forEach(e=>{
+      const now = c.currentTime;
+      try{
+        e.src.playbackRate.cancelScheduledValues(now);
+        e.src.playbackRate.setValueAtTime(e.src.playbackRate.value, now);
+        e.src.playbackRate.linearRampToValueAtTime(0.01, now+0.5);
+      }catch(err){}
+    });
+    setTimeout(stopAll, 520);
+    setLcd('STOP', 700);
+  }
+
+  // ---------- speaker pulse animation ----------
+  let speakerRAF = null;
+  function animateSpeaker(){
+    if (speakerRAF) return;
+    const data = playAnalyser ? new Uint8Array(playAnalyser.frequencyBinCount) : null;
+    function loop(){
+      let amp = 0;
+      if (playAnalyser){
+        playAnalyser.getByteTimeDomainData(data);
+        let sum=0; for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum+=v*v; }
+        amp = Math.sqrt(sum/data.length);
+      }
+      speaker.classList.toggle('pulse', amp>0.03);
+      drawMeter(Math.min(1,amp*3));
+      if (activeSources.length>0){ speakerRAF = requestAnimationFrame(loop); }
+      else { speaker.classList.remove('pulse'); drawMeter(0); speakerRAF=null; }
+    }
+    loop();
+  }
+
+  // ---------- Buttons ----------
+  recBtn.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    if (recording) stopRecording(); else startRecording();
+  });
+
+  playBtn.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    ensureCtx();
+    playBuffer({loop:looping});
+    vibrate(15);
+    playBtn.classList.add('pressed'); setTimeout(()=>playBtn.classList.remove('pressed'),100);
+  });
+
+  revBtn.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    ensureCtx();
+    playBuffer({reversed:true, loop:looping});
+    lcdMain.style.transform='scaleY(-1)';
+    setTimeout(()=>{ lcdMain.style.transform=''; }, 220);
+    vibrate(15);
+  });
+
+  stopBtn.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    tapeStop();
+  });
+
+  // PLAY + REVERSE simultaneous => randomizer
+  let playDown=false, revDown=false;
+  playBtn.addEventListener('pointerdown', ()=>{ playDown=true; checkRandomizer(); });
+  revBtn.addEventListener('pointerdown', ()=>{ revDown=true; checkRandomizer(); });
+  window.addEventListener('pointerup', ()=>{ playDown=false; revDown=false; });
+  function checkRandomizer(){
+    if (playDown && revDown){
+      setLcd('RANDOM!', 900);
+      playBuffer({reversed:Math.random()<0.5, speed:0.3+Math.random()*2, semis:(Math.random()*24-12), noChaos:true});
+      vibrate([10,30,10]);
+    }
+  }
+
+  // loop toggle
+  loopBtn.addEventListener('click', ()=>{
+    looping = !looping;
+    loopLed.classList.toggle('on', looping);
+    loopBtn.classList.toggle('pressed', looping);
+    setLcd(looping?'LOOP ON':'LOOP OFF', 700);
+  });
+
+  // stutter (hold)
+  let stutterInt=null;
+  function startStutter(){
+    if (!originalBuffer) return;
+    stutterBtn.classList.add('pressed');
+    setLcd('STUTTER');
+    const sliceLen = 0.06 + Math.random()*0.12; // 60-200ms approx
+    let offset = Math.max(0, Math.min(originalBuffer.duration-sliceLen, (Math.random()*originalBuffer.duration)));
+    stutterInt = setInterval(()=>{
+      const len = Math.min(sliceLen, originalBuffer.duration-offset);
+      playBuffer({offset, noChaos:false, loop:false});
+    }, 110);
+  }
+  function stopStutter(){
+    clearInterval(stutterInt); stutterInt=null;
+    stutterBtn.classList.remove('pressed');
+    setLcd('READY');
+  }
+  stutterBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); startStutter(); });
+  stutterBtn.addEventListener('pointerup', stopStutter);
+  stutterBtn.addEventListener('pointerleave', stopStutter);
+
+  // fx mode buttons (robot/monster/chipmunk/alien) act as one-shot preset triggers
+  function presetPlay(mode, btn, semisAdj, speedAdj){
+    btn.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      currentMode = mode;
+      btn.classList.add('pressed');
+      setLcd(mode.toUpperCase());
+      playBuffer({mode, semis: currentPitchSemis()+ (semisAdj||0), speed: currentSpeed()*(speedAdj||1), loop:looping});
+      vibrate(20);
+      setTimeout(()=>btn.classList.remove('pressed'),150);
+    });
+  }
+  presetPlay('robot', robotBtn, 0, 1);
+  presetPlay('monster', monsterBtn, -7, 0.85);
+  presetPlay('chipmunk', chipmunkBtn, 9, 1.2);
+  presetPlay('alien', alienBtn, 3, 1);
+
+  // MONSTER + REVERSE => demon mode
+  let monsterDown=false;
+  monsterBtn.addEventListener('pointerdown', ()=>{ monsterDown=true; checkDemon(); });
+  revBtn.addEventListener('pointerdown', ()=>{ checkDemon(); });
+  window.addEventListener('pointerup', ()=>{ monsterDown=false; });
+  function checkDemon(){
+    if (monsterDown && revDown){
+      setLcd('UH OH', 1000);
+      playBuffer({mode:'demon', reversed:true, semis:-10, speed:0.75, noChaos:true});
+      vibrate([30,20,30]);
+    }
+  }
+
+  // CHIPMUNK held + speed slider dragged to FAST => tiny person
+  let chipmunkDown=false;
+  chipmunkBtn.addEventListener('pointerdown', ()=>{ chipmunkDown=true; checkTinyPerson(); });
+  chipmunkBtn.addEventListener('pointerup', ()=>{ chipmunkDown=false; });
+  function checkTinyPerson(){
+    if (chipmunkDown && parseFloat(speedSlider.value) >= 90){
+      setLcd('SMOL', 1000);
+      playBuffer({mode:'chipmunk', semis:12, speed:2.4, noChaos:true});
+      vibrate(15);
+    }
+  }
+
+  // double-tap speaker = broken tape mode toggle
+  let lastSpeakerTap = 0;
+  speaker.addEventListener('pointerdown', ()=>{
+    const now = Date.now();
+    if (now-lastSpeakerTap < 350){
+      brokenTapeActive = !brokenTapeActive;
+      setLcd(brokenTapeActive? 'BROKEN TAPE':'TAPE FIXED', 900);
+      vibrate(brokenTapeActive? [10,10,10,10]:10);
+    }
+    lastSpeakerTap = now;
+  });
+
+  // chaos switch
+  chaosSwitch.addEventListener('click', ()=>{
+    chaos = !chaos;
+    chaosSwitch.classList.toggle('on', chaos);
+    setLcd(chaos?'CHAOS':'NORMAL', 700);
+    if (chaos) flickerLeds();
+  });
+  function flickerLeds(){
+    let n=0;
+    const int = setInterval(()=>{
+      recLed.classList.toggle('on');
+      loopLed.classList.toggle('on', looping);
+      n++;
+      if (n>6){ clearInterval(int); recLed.classList.remove('on'); loopLed.classList.toggle('on',looping); }
+    }, 60);
+  }
+
+  // ---------- Scrub / scratch ----------
+  let scrubbing=false, lastScrubX=0, lastScrubT=0, scrubEntry=null;
+  function scrubToX(clientX){
+    const rect = scrubStrip.getBoundingClientRect();
+    let frac = (clientX-rect.left)/rect.width;
+    frac = Math.max(0, Math.min(1, frac));
+    scrubFill.style.width = (frac*100)+'%';
+    scrubHead.style.left = (frac*100)+'%';
+    return frac;
+  }
+  scrubStrip.addEventListener('pointerdown', e=>{
+    if (!originalBuffer) return;
+    scrubbing = true; scrubText.style.opacity='0';
+    lastScrubX = e.clientX; lastScrubT = performance.now();
+    const frac = scrubToX(e.clientX);
+    triggerScrub(frac, 0);
+  });
+  window.addEventListener('pointermove', e=>{
+    if (!scrubbing || !originalBuffer) return;
+    const frac = scrubToX(e.clientX);
+    const now = performance.now();
+    const dt = Math.max(1, now-lastScrubT);
+    const dx = e.clientX-lastScrubX;
+    const velocity = dx/dt; // px/ms
+    triggerScrub(frac, velocity);
+    lastScrubX = e.clientX; lastScrubT = now;
+  });
+  window.addEventListener('pointerup', ()=>{
+    if (scrubbing){ scrubbing=false; scrubText.style.opacity='.6'; }
+  });
+  let lastScrubPlay = 0;
+  function triggerScrub(frac, velocity){
+    const now = performance.now();
+    if (now-lastScrubPlay < 40) return;
+    lastScrubPlay = now;
+    const dur = originalBuffer.duration;
+    const offset = frac*dur;
+    const fast = Math.abs(velocity) > 0.6;
+    const reversed = velocity < -0.05;
+    playBuffer({
+      offset: Math.min(dur-0.02, offset),
+      reversed,
+      speed: fast ? (1.6+Math.random()*0.8) : 1,
+      noChaos:true
+    });
+  }
+
+  // ---------- Soundboard pads ----------
+  let padBuffers = [null,null,null,null,null,null];
+  let padTimers = [null,null,null,null,null,null];
+  pads.forEach((pad, i)=>{
+    pad.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      padTimers[i] = setTimeout(()=>{
+        if (originalBuffer){
+          padBuffers[i] = originalBuffer;
+          pad.classList.add('filled');
+          setLcd('SAVED '+(i+1), 700);
+          vibrate(25);
+        }
+        padTimers[i]=null;
+      }, 550);
+    });
+    pad.addEventListener('pointerup', e=>{
+      if (padTimers[i]){ clearTimeout(padTimers[i]); padTimers[i]=null;
+        if (padBuffers[i]){
+          playBuffer({customBuffer:padBuffers[i], speed:currentSpeed(), semis:currentPitchSemis()});
+          vibrate(10);
+        }
+      }
+    });
+    pad.addEventListener('pointerleave', ()=>{ if(padTimers[i]){clearTimeout(padTimers[i]); padTimers[i]=null;} });
+  });
+
+  // ---------- Mic / secure-context check ----------
+  const micSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+                        (window.isSecureContext !== false);
+  function showMicWarning(){
+    $('micWarning').classList.add('show');
+  }
+  $('micWarningClose').addEventListener('click', ()=>{
+    $('micWarning').classList.remove('show');
+  });
+
+  // ---------- Boot sequence ----------
+  window.addEventListener('load', ()=>{
+    setTimeout(()=>{
+      const boot = $('boot');
+      boot.style.opacity='0';
+      setTimeout(()=>{
+        boot.style.display='none';
+        if (!micSupported) showMicWarning();
+      }, 400);
+    }, 1300);
+  });
+
+  // prevent page scroll/zoom
+  document.addEventListener('touchmove', e=>{ e.preventDefault(); }, {passive:false});
+  document.addEventListener('gesturestart', e=>{ e.preventDefault(); });
+
+  // resume audio context on first touch anywhere (iOS requirement)
+  document.addEventListener('pointerdown', ()=>{ ensureCtx(); }, {once:false});
+
+})();
+</script>
+</body>
+</html>
