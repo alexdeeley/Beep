@@ -18,7 +18,6 @@
     "caption": "tsx src/cli/index.ts caption",
     "publish": "tsx src/cli/index.ts publish",
     "daily": "tsx src/cli/index.ts daily",
-    "weekly": "tsx src/cli/index.ts weekly",
     "news:preview": "tsx src/cli/index.ts news:preview",
     "news:publish": "tsx src/cli/index.ts news:publish",
     "news:status": "tsx src/cli/index.ts news:status",

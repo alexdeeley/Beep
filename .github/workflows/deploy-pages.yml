@@ -21,7 +21,6 @@ on:
       - ".env.example"
       - "README.md"
       - ".github/workflows/daily.yml"
-      - ".github/workflows/weekly-card.yml"
   workflow_dispatch: {}
 
 permissions:

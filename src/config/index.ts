@@ -81,20 +81,6 @@ export interface AppConfig {
   };
 
   /**
-   * Config for the independent weekly "card draw" pipeline (see
-   * src/weeklyCard/). Kept entirely separate from the `art`/daily-pipeline
-   * config on purpose - the two pipelines share no state, no schedule, and
-   * no concurrency group, so a problem in one can never block or corrupt
-   * the other.
-   */
-  weeklyCard: {
-    /** YYYY-MM-DD anchor date "decade 0" is counted from - see weeklyCard/decadeCheck.ts. */
-    anchorDate: string;
-    maxGenerationAttempts: number;
-    maxQaRegenerationAttempts: number;
-  };
-
-  /**
    * Config for the independent hourly "newswire" pipeline (see
    * src/newswire/) - as of V3.1, a music news/release-announcement wire:
    * each cycle rotates through a batch of a user-maintained artist
@@ -249,12 +235,6 @@ export function loadConfig(): AppConfig {
     art: {
       maxGenerationAttempts: envInt("ART_MAX_GENERATION_ATTEMPTS", 3),
       maxQaRegenerationAttempts: envInt("ART_MAX_QA_REGENERATION_ATTEMPTS", 3),
-    },
-
-    weeklyCard: {
-      anchorDate: envStr("WEEKLY_CARD_ANCHOR_DATE", "2026-08-30")!,
-      maxGenerationAttempts: envInt("WEEKLY_CARD_MAX_GENERATION_ATTEMPTS", 3),
-      maxQaRegenerationAttempts: envInt("WEEKLY_CARD_MAX_QA_REGENERATION_ATTEMPTS", 3),
     },
 
     news: {

@@ -9,15 +9,16 @@ accessibility text) — with no daily human involvement.
 This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
 
-> **Note:** This account now runs a third, primary pipeline on top of the
-> daily/weekly ones described below — a twice-daily autonomous music news
+> **Note:** This account now runs a second, primary pipeline on top of the
+> daily one described below — a twice-daily autonomous music news
 > wire that checks a personal artist watchlist via web search, requires
 > independent 2-source verification, and posts when something genuinely
 > new clears that bar (plus an industry-wide Friday roundup and a daily
 > music-history post). It replaced the daily pipeline's *schedule* (the
 > code below still works and is still runnable by hand, it just no longer
 > fires automatically). See **[§18, The music news
-> wire](#18-the-music-news-wire)** for how it works.
+> wire](#18-the-music-news-wire)** for how it works. The formerly-independent
+> weekly "card draw" pipeline has been removed entirely.
 
 ---
 
@@ -422,7 +423,6 @@ src/
   storage/         # R2/S3 upload
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
-  weeklyCard/      # fully independent weekly "card draw" pipeline - own schedule, own state, own concurrency group (see below)
   newswire/        # fully independent twice-daily music news wire - see §18 below
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
@@ -430,52 +430,9 @@ src/
 templates/infographic/   # CSS design system + bundled fonts (no network dependency)
 tests/                   # vitest unit tests + the August 29 fixture
 runs/                    # generated output (gitignored, per-date)
-.github/workflows/       # daily.yml (workflow_dispatch only - see §18) + weekly-card.yml + news.yml
+.github/workflows/       # daily.yml (workflow_dispatch only - see §18) + news.yml
 
 watched-artists.txt      # the newswire pipeline's artist watchlist, one name per line - see §18.2
-```
-
-### The weekly "card draw" pipeline
-
-A second, completely independent posting pipeline lives in `src/weeklyCard/`
-and posts to the same Bluesky account every Sunday at ~2:22am Pacific: a
-single playing card resting on an open notebook covered in cryptic
-handwritten scribbling. It shares almost nothing with the daily app above
-on purpose, so a bug or outage in one can never affect the other:
-
-- **Own schedule and workflow**: `.github/workflows/weekly-card.yml`, a
-  separate `concurrency` group (`on-this-day-weekly-card`, distinct from
-  the daily app's `on-this-day-daily`).
-- **Own state**: run artifacts live under `runs/weekly-<date>/`, never
-  `runs/<date>/`, so the two pipelines' local idempotency checks can never
-  collide.
-- **Own Bluesky idempotency check**: matches on a `"Card Draw"` alt-text
-  marker + the ISO date, never the daily app's `"<Month Day, Year>"`
-  format - so neither pipeline's posts can ever be mistaken for the
-  other's on the shared account.
-- **Own QA**: `src/weeklyCard/runCardQA.ts`, not `qa/runQA.ts` (which is
-  tightly coupled to the daily app's historical-facts data shape).
-- Every ten years (from `WEEKLY_CARD_ANCHOR_DATE`, see `.env.example`),
-  the normal card post is replaced by a special edition reading exactly
-  "LIFE IS BEAUTIFUL. GOODBYE." - see `src/weeklyCard/decadeCheck.ts`.
-- Once that special edition is ever successfully published, the pipeline
-  **stops permanently** - not just for that week. `runWeeklyCardPost`
-  checks for `state/weekly-card-retired.json` before doing any work at
-  all; once the decade post succeeds, that file is written and
-  `weekly-card.yml` commits it back to the repo (its one `contents:
-  write` step), so the shutdown survives every future run's fresh
-  checkout forever. See `src/weeklyCard/retirement.ts`.
-
-The only code the two pipelines actually share is low-level plumbing with
-no daily-pipeline-specific state: `art/imageGeneration.ts` (the
-gpt-image-1 call + size-cap encoder) and `bluesky/publish.ts`'s
-`publishToBluesky` (a generic "upload bytes, create a post" function).
-
-Test it locally the same way as `daily`:
-
-```bash
-npm run weekly -- --date 2026-09-06 --dry-run           # a normal week
-npm run weekly -- --date 2026-09-06 --dry-run --force-decade  # preview the decade special
 ```
 
 ---
@@ -582,11 +539,11 @@ now uses the same discover → independently-verify architecture the
 account's general-news pipeline used, just scoped to an artist batch
 instead of a topic list.)
 
-It shares the Bluesky account with the daily/weekly pipelines above but
+It shares the Bluesky account with the daily pipeline above but
 nothing else: its own concurrency group (`on-this-day-newswire`), its own
 persistent state (a SQLite database in the R2 bucket, not `runs/<date>/`),
 and its own idempotency/dedup logic. A failure here can't corrupt or block
-the daily/weekly pipelines, and vice versa.
+the daily pipeline, and vice versa.
 
 ### 18.1 The cycle, stage by stage
 
@@ -718,7 +675,7 @@ every name in it.
 `editorial-focus.json`'s `quietHours.timezone`) is what actually enforces
 this pipeline's cadence. `news.yml`'s cron fires more often than that -
 four lines, one PST/PDT pair per target hour, the same two-cron-per-hour
-pattern `daily.yml`/`weekly-card.yml` use to survive DST without a
+pattern `daily.yml` uses to survive DST without a
 wall-clock anchor drifting - but `runNewswireCycle.ts` checks the actual
 local hour against `NEWS_POSTING_HOURS_LOCAL` first, before anything
 else, and exits immediately (no OpenAI call, no R2 download) on any cycle
@@ -747,7 +704,7 @@ the wrong behavior here.
 
 ### 18.5 The story database: R2-hosted SQLite, not `runs/<date>/`
 
-Unlike the daily/weekly pipelines' git-committed or filesystem-only
+Unlike the daily pipeline's git-committed or filesystem-only
 state, this pipeline's memory - the watchlist's rotation state and every
 verified item ever seen - is a SQLite database (`better-sqlite3`) stored
 as an object in your existing R2 bucket (`NEWS_DB_R2_KEY`, default

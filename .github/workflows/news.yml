@@ -9,7 +9,7 @@ name: Newswire
 #
 # Unlike the old hourly cadence, "8am/8pm local" IS a wall-clock anchor
 # that needs to survive DST, so this uses the same two-cron-per-target-hour
-# pattern as daily.yml/weekly-card.yml - 4 cron lines total (2 target
+# pattern as daily.yml - 4 cron lines total (2 target
 # hours x PST/PDT offsets). The "wrong" offset's extra firing each day is
 # cheap and harmless: runNewswireCycle.ts checks the actual local hour
 # against config.news.postingHoursLocal first and exits immediately,
