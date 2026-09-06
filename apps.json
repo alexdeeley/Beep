@@ -95,7 +95,9 @@
     "name": "Ricochet 8-Bit: Sequence 11",
     "description": "An expanded Ricochet 8-Bit with giant balls and homing shots.",
     "category": "Games",
-    "path": "Sequence11.html"
+    "path": "Sequence11.html",
+    "featured": true,
+    "featuredOrder": 3
   },
   {
     "id": "maisies-kitty-cat-adventure",
@@ -178,7 +180,7 @@
     "id": "artsy-v3",
     "name": "Artsy v3",
     "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
-    "category": "Daily",
+    "category": "Art",
     "path": "ArtsyV3.html"
   },
   {
@@ -700,34 +702,6 @@
     "path": "LightTapBulbs.html"
   },
   {
-    "id": "neo-instrument012",
-    "name": "Instrument 01.2",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.2\".",
-    "category": "Music Tools",
-    "path": "Instrument012.html"
-  },
-  {
-    "id": "neo-instrument013",
-    "name": "Instrument 01.3",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.3\".",
-    "category": "Music Tools",
-    "path": "Instrument013.html"
-  },
-  {
-    "id": "neo-instrument01-plus",
-    "name": "Instrument 01+",
-    "description": "A music tool from the Neocities collection: \"Instrument 01+\".",
-    "category": "Music Tools",
-    "path": "Instrument01Plus.html"
-  },
-  {
-    "id": "neo-instrument011",
-    "name": "Instrument 01.1",
-    "description": "A music tool from the Neocities collection: \"Instrument 01.1\".",
-    "category": "Music Tools",
-    "path": "Instrument011.html"
-  },
-  {
     "id": "neo-bouncy-machine-drift",
     "name": "Bouncy Machine \u2014 Drift Edition",
     "description": "A generative art / visual piece from the Neocities collection: \"Bouncy Machine \u2014 Drift Edition\".",
@@ -752,8 +726,10 @@
     "id": "neo-hiveword",
     "name": "Hiveword",
     "description": "A game from the Neocities collection: \"Hiveword\".",
-    "category": "Daily",
-    "path": "Hiveword.html"
+    "category": "Games",
+    "path": "Hiveword.html",
+    "featured": true,
+    "featuredOrder": 1
   },
   {
     "id": "neo-prism-breaker",
@@ -924,13 +900,6 @@
     "path": "FactorialPushArtLongform.html"
   },
   {
-    "id": "neo-lofi-beat-generator",
-    "name": "Lo-Fi Beat Generator",
-    "description": "A music tool from the Neocities collection: \"Lo-Fi Beat Generator\".",
-    "category": "Music Tools",
-    "path": "LofiBeatGenerator.html"
-  },
-  {
     "id": "neo-303-mazie-sampler",
     "name": "303 + Mazie Sampler",
     "description": "A music tool from the Neocities collection: \"303 + Mazie Sampler\".",
@@ -1041,13 +1010,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Rings\".",
     "category": "Art",
     "path": "Rings.html"
-  },
-  {
-    "id": "neo-maisies-air-hockey-vertical",
-    "name": "Maisie's Air Hockey",
-    "description": "A music tool from the Neocities collection: \"Maisie's Air Hockey\".",
-    "category": "Music Tools",
-    "path": "MaisiesAirHockeyVertical.html"
   },
   {
     "id": "neo-comic-paint-splat",
@@ -1216,5 +1178,14 @@
     "description": "A music tool from the Neocities collection: \"DSS1 - Digital Sound Studio\".",
     "category": "Music Tools",
     "path": "DSS12.html"
+  },
+  {
+    "id": "moviemoji",
+    "name": "Moviemoji",
+    "description": "Guess the movie from an emoji clue across daily, quick-play, decade, and genre modes.",
+    "category": "Games",
+    "path": "Moviemoji.html",
+    "featured": true,
+    "featuredOrder": 2
   }
 ]

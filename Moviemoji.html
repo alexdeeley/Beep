@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOVIEMOJI</title>
+<style>
+  :root{
+    --bg:#0a0a12;
+    --bg2:#12121f;
+    --card:#1a1a2b;
+    --card-hi:#22223a;
+    --accent:#ffd23f;
+    --accent2:#ff5d73;
+    --accent3:#4dd0e1;
+    --good:#3ddc84;
+    --bad:#ff5d73;
+    --text:#f5f5fa;
+    --text-dim:#a9a9c0;
+    --border:#33334d;
+    font-size:18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255,93,115,0.10), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(77,208,225,0.10), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family: 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  #app{max-width:640px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding:16px; padding-bottom:40px;}
+
+  h1,h2,h3{margin:0; font-family: 'Arial Black', system-ui, sans-serif;}
+
+  button{
+    font-family:inherit; cursor:pointer; border:none; color:var(--text);
+  }
+  button:focus-visible, a:focus-visible, input:focus-visible{
+    outline: 3px solid var(--accent3); outline-offset: 2px;
+  }
+
+  .btn{
+    display:block; width:100%; padding:18px 20px; margin-bottom:12px;
+    background:var(--card); border:2px solid var(--border); border-radius:16px;
+    color:var(--text); font-size:1.15rem; font-weight:800; letter-spacing:0.3px;
+    text-align:center; transition: transform .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .btn:hover{ background:var(--card-hi); border-color:var(--accent3); }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{ background: var(--accent); color:#1a1500; border-color:var(--accent); font-size:1.3rem; padding:22px; }
+  .btn-primary:hover{ background:#ffdb6b; }
+  .btn-secondary{ background:transparent; border:2px solid var(--border); }
+  .btn-small{ padding:10px 14px; font-size:0.9rem; width:auto; display:inline-block; margin:4px; }
+  .btn-danger{ border-color:var(--accent2); }
+
+  .row{ display:flex; gap:10px; }
+  .row .btn{ flex:1; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px;
+    padding-left:44px; /* clears the injected gallery back button, top-left */
+  }
+  .topbar .icon-btn{
+    background:var(--card); border:2px solid var(--border); border-radius:12px;
+    width:44px; height:44px; font-size:1.3rem; display:flex; align-items:center; justify-content:center;
+  }
+  .logo{ font-size:1.4rem; letter-spacing:1px; }
+  .logo .accent{ color: var(--accent); }
+
+  .screen{ animation: fadein .25s ease; flex:1; display:flex; flex-direction:column;}
+  @keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  @media (prefers-reduced-motion: reduce){
+    .screen{animation:none;}
+    *{animation-duration:0.001s !important; transition-duration:0.001s !important;}
+  }
+
+  .subtitle{ color:var(--text-dim); font-weight:700; font-size:0.95rem; margin-top:6px; letter-spacing:0.5px;}
+
+  .hero{ text-align:center; padding: 30px 0 20px; }
+  .hero .emoji-title{ font-size:3rem; margin-bottom:6px; }
+  .hero h1{ font-size:2.2rem; }
+
+  .card{ background:var(--card); border:2px solid var(--border); border-radius:18px; padding:18px; margin-bottom:14px; }
+
+  .progress-label{ color:var(--text-dim); font-weight:800; font-size:0.95rem; text-align:center; margin-bottom:6px; }
+  .progress-bar{ height:8px; background:var(--card); border-radius:6px; overflow:hidden; margin-bottom:18px; border:1px solid var(--border);}
+  .progress-fill{ height:100%; background: linear-gradient(90deg, var(--accent3), var(--accent)); transition: width .3s ease; }
+
+  .emoji-stage{
+    background:var(--card); border:2px solid var(--border); border-radius:24px;
+    padding: 34px 10px; text-align:center; margin-bottom:20px;
+    font-size: 3.4rem; letter-spacing: 14px; line-height:1.3;
+    word-break: break-word;
+  }
+  .emoji-stage.big{ font-size:4.2rem; }
+
+  .choices{ display:flex; flex-direction:column; gap:12px; }
+  .choice{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:2px solid var(--border); border-radius:16px;
+    padding:16px 18px; font-size:1.08rem; font-weight:700; text-align:left;
+    color:var(--text); min-height:60px;
+  }
+  .choice .letter{
+    flex-shrink:0; width:34px; height:34px; border-radius:10px; background:var(--bg2);
+    display:flex; align-items:center; justify-content:center; font-weight:900; color:var(--accent3);
+    border:2px solid var(--border);
+  }
+  .choice:active{ transform:scale(0.98); }
+  .choice.correct{ border-color:var(--good); background:rgba(61,220,132,0.15); animation: pop .35s ease; }
+  .choice.correct .letter{ background:var(--good); color:#04150a; border-color:var(--good);}
+  .choice.incorrect{ border-color:var(--bad); background:rgba(255,93,115,0.15); animation: shake .35s ease; }
+  .choice.incorrect .letter{ background:var(--bad); color:#1a0004; border-color:var(--bad);}
+  .choice.dimmed{ opacity:0.35; }
+  .choice[disabled]{ pointer-events:none; }
+  @keyframes pop{ 0%{transform:scale(1);} 40%{transform:scale(1.03);} 100%{transform:scale(1);} }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+
+  .status-tag{ font-weight:900; font-size:0.85rem; padding:3px 8px; border-radius:8px; margin-left:auto; }
+  .status-tag.good{ background:var(--good); color:#04150a; }
+  .status-tag.bad{ background:var(--bad); color:#1a0004; }
+
+  .text-input-wrap{ margin-bottom:16px; }
+  input[type=text]{
+    width:100%; padding:16px; font-size:1.1rem; border-radius:14px; border:2px solid var(--border);
+    background:var(--bg2); color:var(--text); font-weight:700;
+  }
+
+  .feedback-banner{
+    text-align:center; font-size:1.6rem; font-weight:900; margin-bottom:14px; padding:10px;
+    border-radius:14px;
+  }
+  .feedback-banner.good{ color:var(--good); }
+  .feedback-banner.bad{ color:var(--bad); }
+
+  .explain-card{ background:var(--card); border:2px solid var(--border); border-radius:18px; padding:20px; margin-bottom:16px;}
+  .explain-title{ font-size:1.5rem; margin-bottom:2px; }
+  .explain-year{ color:var(--text-dim); font-weight:700; margin-bottom:14px;}
+  .explain-emoji-row{ font-size:2.2rem; letter-spacing:10px; margin-bottom:16px; }
+  .explain-line{ display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; font-size:0.98rem; color:var(--text-dim); }
+  .explain-line .em{ font-size:1.5rem; flex-shrink:0; }
+  .answer-compare{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; font-size:0.95rem; }
+  .answer-compare div span{ font-weight:900; }
+
+  .hud{ display:flex; justify-content:space-between; margin-bottom:14px; gap:8px; flex-wrap:wrap;}
+  .hud-chip{ background:var(--card); border:2px solid var(--border); border-radius:12px; padding:6px 12px; font-weight:800; font-size:0.85rem; color:var(--text-dim);}
+  .hud-chip b{ color:var(--text); }
+
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+  .stat-box{ background:var(--card); border:2px solid var(--border); border-radius:16px; padding:16px; text-align:center;}
+  .stat-box .num{ font-size:1.8rem; font-weight:900; color:var(--accent); }
+  .stat-box .lbl{ font-size:0.8rem; color:var(--text-dim); font-weight:700; margin-top:2px; }
+
+  .missed-item{
+    background:var(--card); border:2px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .missed-item .em{ font-size:1.6rem; }
+  .missed-item .info{ flex:1; }
+  .missed-item .title{ font-weight:800; }
+  .missed-item .sub{ font-size:0.82rem; color:var(--text-dim); }
+
+  .search-box{ width:100%; padding:14px; border-radius:14px; border:2px solid var(--border); background:var(--bg2); color:var(--text); font-size:1rem; font-weight:700; margin-bottom:12px;}
+  .filter-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+  .filter-chip{ padding:8px 12px; border-radius:20px; border:2px solid var(--border); background:var(--card); font-size:0.8rem; font-weight:800; color:var(--text-dim);}
+  .filter-chip.active{ background:var(--accent3); color:#04222a; border-color:var(--accent3); }
+
+  .lib-item{ background:var(--card); border:2px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  .lib-item .em{ font-size:1.4rem; flex-shrink:0; }
+  .lib-item .info{ flex:1; text-align:left; }
+  .lib-item .title{ font-weight:800; font-size:0.95rem; }
+  .lib-item .sub{ font-size:0.78rem; color:var(--text-dim); }
+  .diff-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:4px;}
+  .diff-1{ background:var(--good);} .diff-2{ background:var(--accent3);} .diff-3{ background:var(--accent);} .diff-4{ background:var(--accent2);}
+
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+  .toggle-row:last-child{ border-bottom:none; }
+  .switch{ position:relative; width:52px; height:30px; background:var(--border); border-radius:20px; flex-shrink:0; transition:background .2s; }
+  .switch.on{ background:var(--good); }
+  .switch::after{ content:''; position:absolute; top:3px; left:3px; width:24px; height:24px; background:#fff; border-radius:50%; transition:left .2s; }
+  .switch.on::after{ left:25px; }
+
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+
+  .footer-note{ text-align:center; color:var(--text-dim); font-size:0.8rem; margin-top:auto; padding-top:20px; }
+
+  .confetti{ position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; overflow:hidden; }
+  .confetti span{ position:absolute; top:-20px; font-size:1.4rem; animation: fall 1.1s ease-in forwards; }
+  @keyframes fall{ to{ transform: translateY(110vh) rotate(300deg); opacity:0; } }
+
+  .badge-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .badge{ font-size:0.75rem; font-weight:800; background:var(--bg2); border:1px solid var(--border); padding:4px 10px; border-radius:20px; color:var(--text-dim);}
+
+  .center-note{ text-align:center; color:var(--text-dim); font-weight:700; padding:30px 10px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<div id="app"></div>
+
+<script>
+/* ============================= MOVIE DATABASE ============================= */
+</script>
+<script src="MoviemojiData.js"></script>
+<script>
+'use strict';
+
+/* ============================= VALIDATION ============================= */
+(function validateMovies(){
+  const seen = new Set();
+  let errors = 0;
+  MOVIES.forEach(m=>{
+    const tag = m.id || m.title || '???';
+    if(!m.id || seen.has(m.id)){ console.error('[MOVIEMOJI] duplicate/missing id:', tag); errors++; }
+    seen.add(m.id);
+    if(!m.title){ console.error('[MOVIEMOJI] missing title:', tag); errors++; }
+    if(!m.year || m.year < 1888 || m.year > 2030){ console.error('[MOVIEMOJI] invalid year:', tag); errors++; }
+    if(!m.emojis || m.emojis.length < 2 || m.emojis.length > 8){ console.error('[MOVIEMOJI] emoji count out of range:', tag); errors++; }
+    if(!m.explanation || m.explanation.length !== m.emojis.length){ console.error('[MOVIEMOJI] explanation/emoji mismatch:', tag); errors++; }
+    if(!m.difficulty || m.difficulty < 1 || m.difficulty > 4){ console.error('[MOVIEMOJI] invalid difficulty:', tag); errors++; }
+    if(!m.genre || !m.genre.length){ console.error('[MOVIEMOJI] missing genre:', tag); errors++; }
+  });
+  console.log(`[MOVIEMOJI] validated ${MOVIES.length} movies, ${errors} error(s).`);
+})();
+
+/* ============================= STORAGE ============================= */
+const StorageKeys = {
+  SETTINGS: 'moviemoji_settings',
+  STATS: 'moviemoji_stats',
+  SEEN: 'moviemoji_seen',
+  DAILY: 'moviemoji_daily_result'
+};
+function loadJSON(key, fallback){
+  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; }
+}
+function saveJSON(key, val){
+  try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ /* ignore quota errors */ }
+}
+
+const state = {
+  settings: loadJSON(StorageKeys.SETTINGS, { sound:false, hardMode:false, difficulty:'MIXED' }),
+  stats: loadJSON(StorageKeys.STATS, { bestStreak:0, highScore:0, played:0, correct:0 }),
+  seen: loadJSON(StorageKeys.SEEN, []),
+  screen: 'title',
+  game: null,
+  libFilter: { search:'', diff:'ALL', genre:'ALL' }
+};
+
+/* ============================= SOUND ============================= */
+let audioCtx = null;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function tone(freqs, dur=0.12, type='sine', gap=0.02){
+  if(!state.settings.sound || !audioCtx) return;
+  let t = audioCtx.currentTime;
+  freqs.forEach(f=>{
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.18, t+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t+dur+0.02);
+    t += dur*0.6+gap;
+  });
+}
+function sfxCorrect(){ tone([523,659,784], 0.13, 'triangle'); }
+function sfxWrong(){ tone([300,220], 0.16, 'sawtooth'); }
+function sfxStreak(){ tone([523,659,784,988,1318], 0.11, 'triangle', 0.01); }
+function sfxClick(){ tone([440], 0.05, 'square'); }
+
+/* ============================= UTIL ============================= */
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function seededRandom(seed){
+  let s = seed % 2147483647;
+  if(s<=0) s += 2147483646;
+  return function(){ s = s*16807 % 2147483647; return (s-1)/2147483646; };
+}
+function seededShuffle(arr, rng){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function dateSeed(d){
+  const s = `${d.getFullYear()}${d.getMonth()+1}${d.getDate()}`;
+  let h=0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i))>>>0; }
+  return h;
+}
+function normalizeAnswer(str){
+  let s = str.toLowerCase().trim();
+  s = s.replace(/^(the|a|an)\s+/,'');
+  s = s.replace(/[.,':\-!]/g,'');
+  s = s.replace(/\s+/g,' ').trim();
+  return s;
+}
+function movieMatchesText(movie, text){
+  const target = normalizeAnswer(text);
+  if(!target) return false;
+  const candidates = [movie.title, ...(movie.aliases||[])];
+  return candidates.some(c => normalizeAnswer(c) === target);
+}
+function pointsFor(movie){
+  return {1:100, 2:200, 3:300, 4:500}[movie.difficulty] || 100;
+}
+function difficultyLabel(n){ return {1:'EASY',2:'MEDIUM',3:'HARD',4:'EXPERT'}[n] || '?'; }
+function allGenres(){
+  const g = new Set();
+  MOVIES.forEach(m=>m.genre.forEach(x=>g.add(x)));
+  return Array.from(g).sort();
+}
+function decadeOf(year){ return Math.floor(year/10)*10; }
+
+function pickDistractors(correct, pool, count){
+  const scored = pool.filter(m=>m.id!==correct.id).map(m=>{
+    let score = 0;
+    const sharedGenre = m.genre.some(g=>correct.genre.includes(g));
+    if(sharedGenre) score += 3;
+    if(decadeOf(m.year)===decadeOf(correct.year)) score += 2;
+    if(m.difficulty===correct.difficulty) score += 1;
+    score += Math.random();
+    return {m, score};
+  });
+  scored.sort((a,b)=>b.score-a.score);
+  let chosen = scored.slice(0, Math.max(count*3, count)).map(s=>s.m);
+  chosen = shuffle(chosen).slice(0,count);
+  if(chosen.length < count){
+    const rest = shuffle(pool.filter(m=>m.id!==correct.id && !chosen.includes(m)));
+    chosen = chosen.concat(rest.slice(0, count-chosen.length));
+  }
+  return chosen;
+}
+
+function filterByDifficulty(pool, diff){
+  if(diff==='MIXED') return pool;
+  const map = {EASY:1, MEDIUM:2, HARD:3, EXPERT:4};
+  return pool.filter(m=>m.difficulty===map[diff]);
+}
+
+function buildQuestionSet(pool, count, rng){
+  const unseen = pool.filter(m=>!state.seen.includes(m.id));
+  const source = unseen.length >= count ? unseen : pool;
+  const shuffled = rng ? seededShuffle(source, rng) : shuffle(source);
+  return shuffled.slice(0, Math.min(count, pool.length));
+}
+
+function markSeen(ids){
+  const merged = Array.from(new Set([...state.seen, ...ids]));
+  state.seen = merged.slice(-300);
+  saveJSON(StorageKeys.SEEN, state.seen);
+}
+
+/* ============================= GAME ENGINE ============================= */
+function startGame(opts){
+  let pool = MOVIES.slice();
+  if(opts.decade) pool = pool.filter(m=>decadeOf(m.year)===opts.decade);
+  if(opts.genre) pool = pool.filter(m=>m.genre.includes(opts.genre));
+  pool = filterByDifficulty(pool, state.settings.difficulty || 'MIXED');
+  if(pool.length < 4) pool = MOVIES.slice(); // safety net so choices always work
+
+  let rng = null;
+  let count = opts.count;
+  if(opts.mode==='DAILY'){
+    rng = seededRandom(dateSeed(new Date()));
+    count = 5;
+  }
+  if(opts.mode==='ENDLESS') count = 9999;
+
+  const questions = buildQuestionSet(pool, count, rng);
+  state.game = {
+    mode: opts.mode,
+    label: opts.label,
+    decade: opts.decade || null,
+    genre: opts.genre || null,
+    originalCount: opts.count,
+    pool,
+    questions,
+    index: 0,
+    correctCount: 0,
+    incorrectCount: 0,
+    streak: 0,
+    bestStreakRun: 0,
+    score: 0,
+    hardMode: state.settings.hardMode,
+    missed: [],
+    locked: false,
+    lastResult: null,
+    hintUsed: false,
+    currentChoices: null
+  };
+  markSeen(questions.map(m=>m.id));
+  render('play');
+}
+
+function currentMovie(){
+  const g = state.game;
+  if(g.mode==='ENDLESS'){
+    if(g.index >= g.questions.length){
+      const more = buildQuestionSet(g.pool, 20, null);
+      g.questions = g.questions.concat(more);
+    }
+  }
+  return g.questions[g.index];
+}
+
+function totalQuestions(){
+  const g = state.game;
+  return g.mode==='ENDLESS' ? null : g.questions.length;
+}
+
+function submitAnswer(movie, chosenMovie){
+  const g = state.game;
+  if(g.locked) return;
+  g.locked = true;
+  const correct = chosenMovie && chosenMovie.id === movie.id;
+  finishAnswer(movie, correct, chosenMovie ? chosenMovie.title : null);
+}
+
+function submitTypedAnswer(movie, text){
+  const g = state.game;
+  if(g.locked) return;
+  g.locked = true;
+  const correct = movieMatchesText(movie, text);
+  finishAnswer(movie, correct, text);
+}
+
+function finishAnswer(movie, correct, playerAnswerText){
+  const g = state.game;
+  let pts = 0;
+  if(correct){
+    g.correctCount++;
+    g.streak++;
+    g.bestStreakRun = Math.max(g.bestStreakRun, g.streak);
+    pts = pointsFor(movie);
+    if(g.hintUsed) pts = Math.round(pts/2);
+    if(g.hardMode) pts = Math.round(pts * 1.5);
+    if(g.streak===3) pts += 100;
+    if(g.streak===5) pts += 250;
+    if(g.streak>0 && g.streak%10===0) pts += 1000;
+    g.score += pts;
+    ensureAudio(); sfxCorrect();
+    if(g.streak===3 || g.streak===5 || (g.streak%10===0)){ setTimeout(sfxStreak, 180); }
+  } else {
+    g.incorrectCount++;
+    g.streak = 0;
+    g.missed.push({ movie, playerAnswer: playerAnswerText || '(no answer)' });
+    ensureAudio(); sfxWrong();
+  }
+  state.stats.bestStreak = Math.max(state.stats.bestStreak, g.bestStreakRun);
+  saveJSON(StorageKeys.STATS, state.stats);
+  g.lastResult = { correct, points: pts, playerAnswer: playerAnswerText };
+  render('reveal');
+  if(correct) launchConfettiMaybe();
+}
+
+function nextQuestion(){
+  const g = state.game;
+  g.index++;
+  g.locked = false;
+  g.hintUsed = false;
+  g.currentChoices = null;
+  g.lastResult = null;
+  const isLast = g.mode!=='ENDLESS' && g.index >= g.questions.length;
+  if(isLast){
+    state.stats.played++;
+    state.stats.correct += g.correctCount;
+    state.stats.highScore = Math.max(state.stats.highScore, g.score);
+    saveJSON(StorageKeys.STATS, state.stats);
+    if(g.mode==='DAILY'){
+      saveJSON(StorageKeys.DAILY, { date: new Date().toDateString(), score: g.score, correct: g.correctCount, total: g.questions.length });
+    }
+    render('results');
+  } else {
+    render('play');
+  }
+}
+
+function useHint(){
+  const g = state.game;
+  if(g.hintUsed || g.locked || !g.currentChoices) return;
+  const movie = currentMovie();
+  const wrongIdx = g.currentChoices.map((c,i)=>i).filter(i=>g.currentChoices[i].id!==movie.id);
+  if(wrongIdx.length<=1) return;
+  const removeIdx = wrongIdx[Math.floor(Math.random()*wrongIdx.length)];
+  g.currentChoices[removeIdx]._hidden = true;
+  g.hintUsed = true;
+  render('play');
+}
+
+function launchConfettiMaybe(){
+  const layer = document.createElement('div');
+  layer.className = 'confetti';
+  const bits = ['🎬','🍿','⭐','🎉','✨'];
+  for(let i=0;i<14;i++){
+    const s = document.createElement('span');
+    s.textContent = bits[Math.floor(Math.random()*bits.length)];
+    s.style.left = Math.random()*100+'%';
+    s.style.animationDelay = (Math.random()*0.3)+'s';
+    s.style.fontSize = (1+Math.random()*1.2)+'rem';
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer);
+  setTimeout(()=>layer.remove(), 1500);
+}
+
+/* ============================= RENDERING ============================= */
+const app = document.getElementById('app');
+
+function el(tag, cls, html){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html!==undefined) e.innerHTML = html;
+  return e;
+}
+
+function render(screen){
+  state.screen = screen;
+  app.innerHTML = '';
+  const renderers = {
+    title: renderTitle,
+    modes: renderModes,
+    settings: renderSettings,
+    library: renderLibrary,
+    libraryDetail: renderLibraryDetail,
+    play: renderPlay,
+    reveal: renderReveal,
+    results: renderResults
+  };
+  (renderers[screen] || renderTitle)();
+  window.scrollTo(0,0);
+}
+
+function topBar(title, onBack){
+  const bar = el('div','topbar');
+  if(onBack){
+    const back = el('button','icon-btn');
+    back.setAttribute('aria-label','Back');
+    back.textContent = '←';
+    back.onclick = ()=>{ sfxClick(); onBack(); };
+    bar.appendChild(back);
+  } else {
+    bar.appendChild(el('div'));
+  }
+  bar.appendChild(el('div','logo', title));
+  bar.appendChild(el('div'));
+  return bar;
+}
+
+/* ---- TITLE ---- */
+function renderTitle(){
+  const scr = el('div','screen');
+  const hero = el('div','hero');
+  hero.appendChild(el('div','emoji-title','🎬 🍿'));
+  hero.appendChild(el('h1', null, 'MOVIEMOJI'));
+  hero.appendChild(el('div','subtitle','GUESS THE MOVIE FROM THE EMOJI'));
+  scr.appendChild(hero);
+
+  const play = el('button','btn btn-primary','▶ PLAY');
+  play.onclick = ()=>{ sfxClick(); render('modes'); };
+  scr.appendChild(play);
+
+  const daily = el('button','btn','📅 DAILY MOVIEMOJI');
+  daily.onclick = ()=>{ sfxClick(); startGame({mode:'DAILY', count:5, label:'Daily Moviemoji'}); };
+  scr.appendChild(daily);
+
+  const modesBtn = el('button','btn','🎯 GAME MODES');
+  modesBtn.onclick = ()=>{ sfxClick(); render('modes'); };
+  scr.appendChild(modesBtn);
+
+  const lib = el('button','btn','📚 MOVIE LIBRARY');
+  lib.onclick = ()=>{ sfxClick(); render('library'); };
+  scr.appendChild(lib);
+
+  const settings = el('button','btn','⚙️ SETTINGS');
+  settings.onclick = ()=>{ sfxClick(); render('settings'); };
+  scr.appendChild(settings);
+
+  const daily_result = loadJSON(StorageKeys.DAILY, null);
+  const badges = el('div','badge-row');
+  badges.appendChild(el('span','badge', `🏆 High score: ${state.stats.highScore}`));
+  badges.appendChild(el('span','badge', `🔥 Best streak: ${state.stats.bestStreak}`));
+  if(daily_result && daily_result.date === new Date().toDateString()){
+    badges.appendChild(el('span','badge', `📅 Today: ${daily_result.correct}/${daily_result.total}`));
+  }
+  scr.appendChild(badges);
+
+  scr.appendChild(el('div','footer-note', `${MOVIES.length} films in the database`));
+  app.appendChild(scr);
+}
+
+/* ---- MODES ---- */
+function renderModes(){
+  const scr = el('div','screen');
+  scr.appendChild(topBar('GAME MODES', ()=>render('title')));
+
+  const modeDefs = [
+    {key:'QUICK', label:'QUICK PLAY', sub:'10 movies', emoji:'⚡', count:10},
+    {key:'NIGHT', label:'MOVIE NIGHT', sub:'25 movies', emoji:'🌙', count:25},
+    {key:'MARATHON', label:'MARATHON', sub:'50 movies', emoji:'🏃', count:50},
+    {key:'ENDLESS', label:'ENDLESS', sub:'Play until you quit', emoji:'♾️', count:9999},
+  ];
+  modeDefs.forEach(md=>{
+    const b = el('button','btn', `${md.emoji} ${md.label}<div class="subtitle" style="margin-top:2px;">${md.sub}</div>`);
+    b.onclick = ()=>{ sfxClick(); startGame({mode: md.key==='ENDLESS'?'ENDLESS':'STANDARD', count: md.count, label: md.label}); };
+    scr.appendChild(b);
+  });
+
+  const decadeBtn = el('button','btn','📆 DECADE MODE');
+  decadeBtn.onclick = ()=>{ sfxClick(); renderDecadePicker(); };
+  scr.appendChild(decadeBtn);
+
+  const genreBtn = el('button','btn','🎭 GENRE MODE');
+  genreBtn.onclick = ()=>{ sfxClick(); renderGenrePicker(); };
+  scr.appendChild(genreBtn);
+
+  app.appendChild(scr);
+}
+
+function renderDecadePicker(){
+  app.innerHTML='';
+  const scr = el('div','screen');
+  scr.appendChild(topBar('CHOOSE A DECADE', ()=>render('modes')));
+  const decades = Array.from(new Set(MOVIES.map(m=>decadeOf(m.year)))).sort();
+  decades.forEach(d=>{
+    const count = MOVIES.filter(m=>decadeOf(m.year)===d).length;
+    const b = el('button','btn', `${d}s <span class="subtitle">(${count} films)</span>`);
+    b.onclick = ()=>{ sfxClick(); startGame({mode:'STANDARD', count:15, decade:d, label:`${d}s`}); };
+    scr.appendChild(b);
+  });
+  app.appendChild(scr);
+}
+
+function renderGenrePicker(){
+  app.innerHTML='';
+  const scr = el('div','screen');
+  scr.appendChild(topBar('CHOOSE A GENRE', ()=>render('modes')));
+  allGenres().forEach(g=>{
+    const count = MOVIES.filter(m=>m.genre.includes(g)).length;
+    const b = el('button','btn', `${g} <span class="subtitle">(${count} films)</span>`);
+    b.onclick = ()=>{ sfxClick(); startGame({mode:'STANDARD', count:15, genre:g, label:g}); };
+    scr.appendChild(b);
+  });
+  app.appendChild(scr);
+}
+
+/* ---- SETTINGS ---- */
+function renderSettings(){
+  const scr = el('div','screen');
+  scr.appendChild(topBar('SETTINGS', ()=>render('title')));
+
+  const card = el('div','card');
+
+  // sound toggle
+  const soundRow = el('div','toggle-row');
+  soundRow.appendChild(el('div',null,'🔊 Sound effects'));
+  const soundSwitch = el('div','switch'+(state.settings.sound?' on':''));
+  soundRow.appendChild(soundSwitch);
+  soundRow.onclick = ()=>{
+    ensureAudio();
+    state.settings.sound = !state.settings.sound;
+    saveJSON(StorageKeys.SETTINGS, state.settings);
+    if(state.settings.sound) sfxClick();
+    render('settings');
+  };
+  card.appendChild(soundRow);
+
+  // hard mode toggle
+  const hardRow = el('div','toggle-row');
+  hardRow.appendChild(el('div',null,'⌨️ Hard Mode (typed answers)'));
+  const hardSwitch = el('div','switch'+(state.settings.hardMode?' on':''));
+  hardRow.appendChild(hardSwitch);
+  hardRow.onclick = ()=>{
+    state.settings.hardMode = !state.settings.hardMode;
+    saveJSON(StorageKeys.SETTINGS, state.settings);
+    sfxClick();
+    render('settings');
+  };
+  card.appendChild(hardRow);
+
+  scr.appendChild(card);
+
+  scr.appendChild(el('div','subtitle','DIFFICULTY'));
+  const diffs = ['EASY','MEDIUM','HARD','EXPERT','MIXED'];
+  const diffCard = el('div','card');
+  diffs.forEach(d=>{
+    const row = el('div','toggle-row');
+    row.appendChild(el('div',null,d));
+    const on = state.settings.difficulty===d;
+    row.appendChild(el('div', on ? 'status-tag good':'', on?'SELECTED':''));
+    row.style.cursor='pointer';
+    row.onclick = ()=>{ state.settings.difficulty = d; saveJSON(StorageKeys.SETTINGS,state.settings); sfxClick(); render('settings'); };
+    diffCard.appendChild(row);
+  });
+  scr.appendChild(diffCard);
+
+  const resetBtn = el('button','btn btn-danger','🗑️ Reset progress & stats');
+  resetBtn.onclick = ()=>{
+    if(confirm('Reset all Moviemoji progress, scores and settings on this device?')){
+      localStorage.removeItem(StorageKeys.STATS);
+      localStorage.removeItem(StorageKeys.SEEN);
+      localStorage.removeItem(StorageKeys.DAILY);
+      state.stats = { bestStreak:0, highScore:0, played:0, correct:0 };
+      state.seen = [];
+      render('settings');
+    }
+  };
+  scr.appendChild(resetBtn);
+
+  app.appendChild(scr);
+}
+
+/* ---- LIBRARY ---- */
+function renderLibrary(){
+  const scr = el('div','screen');
+  scr.appendChild(topBar('MOVIE LIBRARY', ()=>render('title')));
+
+  const search = el('input','search-box');
+  search.type='text';
+  search.placeholder='Search title, year, or genre…';
+  search.value = state.libFilter.search;
+  search.setAttribute('aria-label','Search movie library');
+  search.oninput = (e)=>{ state.libFilter.search = e.target.value; renderLibraryList(listWrap); };
+  scr.appendChild(search);
+
+  const diffRow = el('div','filter-row');
+  ['ALL','EASY','MEDIUM','HARD','EXPERT'].forEach(d=>{
+    const chip = el('button','filter-chip'+(state.libFilter.diff===d?' active':''), d);
+    chip.onclick = ()=>{ state.libFilter.diff = d; render('library'); };
+    diffRow.appendChild(chip);
+  });
+  scr.appendChild(diffRow);
+
+  const genreRow = el('div','filter-row');
+  const genreChipAll = el('button','filter-chip'+(state.libFilter.genre==='ALL'?' active':''),'ALL GENRES');
+  genreChipAll.onclick = ()=>{ state.libFilter.genre='ALL'; render('library'); };
+  genreRow.appendChild(genreChipAll);
+  allGenres().forEach(g=>{
+    const chip = el('button','filter-chip'+(state.libFilter.genre===g?' active':''), g);
+    chip.onclick = ()=>{ state.libFilter.genre = g; render('library'); };
+    genreRow.appendChild(chip);
+  });
+  scr.appendChild(genreRow);
+
+  const listWrap = el('div');
+  scr.appendChild(listWrap);
+  app.appendChild(scr);
+  renderLibraryList(listWrap);
+}
+
+function renderLibraryList(container){
+  container.innerHTML='';
+  const diffMap = {EASY:1,MEDIUM:2,HARD:3,EXPERT:4};
+  let list = MOVIES.slice();
+  if(state.libFilter.diff!=='ALL') list = list.filter(m=>m.difficulty===diffMap[state.libFilter.diff]);
+  if(state.libFilter.genre!=='ALL') list = list.filter(m=>m.genre.includes(state.libFilter.genre));
+  const q = state.libFilter.search.trim().toLowerCase();
+  if(q){
+    list = list.filter(m => m.title.toLowerCase().includes(q) || String(m.year).includes(q) || m.genre.some(g=>g.toLowerCase().includes(q)));
+  }
+  list = list.sort((a,b)=>a.title.localeCompare(b.title));
+
+  if(!list.length){
+    container.appendChild(el('div','center-note','No films match those filters.'));
+    return;
+  }
+  list.forEach(m=>{
+    const item = el('div','lib-item');
+    item.appendChild(el('div','em', m.emojis.slice(0,3).join('')));
+    const info = el('div','info');
+    info.appendChild(el('div','title', m.title));
+    info.appendChild(el('div','sub', `<span class="diff-dot diff-${m.difficulty}"></span>${m.year} · ${difficultyLabel(m.difficulty)} · ${m.genre.join(', ')}`));
+    item.appendChild(info);
+    item.style.cursor='pointer';
+    item.onclick = ()=>{ sfxClick(); renderLibraryDetail(m); };
+    container.appendChild(item);
+  });
+}
+
+function renderLibraryDetail(movie){
+  app.innerHTML='';
+  const scr = el('div','screen');
+  scr.appendChild(topBar('FILM DETAIL', ()=>render('library')));
+
+  const card = el('div','explain-card');
+  card.appendChild(el('div','explain-title', movie.title));
+  card.appendChild(el('div','explain-year', `${movie.year} · ${difficultyLabel(movie.difficulty)} · ${movie.genre.join(', ')}`));
+  card.appendChild(el('div','explain-emoji-row', movie.emojis.join(' ')));
+  movie.emojis.forEach((em,i)=>{
+    const line = el('div','explain-line');
+    line.appendChild(el('div','em', em));
+    line.appendChild(el('div',null, movie.explanation[i]));
+    card.appendChild(line);
+  });
+  scr.appendChild(card);
+  app.appendChild(scr);
+}
+
+/* ---- PLAY ---- */
+function renderPlay(){
+  const g = state.game;
+  const movie = currentMovie();
+  const scr = el('div','screen');
+
+  scr.appendChild(topBar(g.label || 'MOVIEMOJI', ()=>{ if(confirm('Quit this game? Your progress will be lost.')) render('title'); else renderPlay(); }));
+
+  const total = totalQuestions();
+  if(total){
+    scr.appendChild(el('div','progress-label', `ROUND ${g.index+1} / ${total}`));
+    const bar = el('div','progress-bar');
+    const fill = el('div','progress-fill');
+    fill.style.width = `${Math.round(((g.index)/total)*100)}%`;
+    bar.appendChild(fill);
+    scr.appendChild(bar);
+  } else {
+    scr.appendChild(el('div','progress-label', `ROUND ${g.index+1} · ENDLESS`));
+  }
+
+  const hud = el('div','hud');
+  hud.appendChild(el('div','hud-chip', `🔥 Streak: <b>${g.streak}</b>`));
+  hud.appendChild(el('div','hud-chip', `⭐ Score: <b>${g.score}</b>`));
+  scr.appendChild(hud);
+
+  const stage = el('div','emoji-stage big', movie.emojis.join(' '));
+  stage.setAttribute('role','img');
+  stage.setAttribute('aria-label', 'Emoji clue, answer to be revealed after guessing');
+  scr.appendChild(stage);
+
+  if(g.hardMode){
+    const wrap = el('div','text-input-wrap');
+    const input = el('input');
+    input.type='text';
+    input.placeholder='Type the movie title…';
+    input.autocomplete='off';
+    input.autocapitalize='words';
+    input.setAttribute('aria-label','Type your answer');
+    wrap.appendChild(input);
+    scr.appendChild(wrap);
+
+    const submitBtn = el('button','btn btn-primary','SUBMIT ANSWER');
+    submitBtn.onclick = ()=>{
+      ensureAudio();
+      submitTypedAnswer(movie, input.value);
+    };
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ ensureAudio(); submitTypedAnswer(movie, input.value); }
+    });
+    scr.appendChild(submitBtn);
+    setTimeout(()=>input.focus(), 50);
+  } else {
+    if(!g.currentChoices){
+      const distractors = pickDistractors(movie, g.pool.length>=4?g.pool:MOVIES, 3);
+      g.currentChoices = shuffle([movie, ...distractors]);
+    }
+    const choicesWrap = el('div','choices');
+    const letters = ['A','B','C','D'];
+    g.currentChoices.forEach((choice, i)=>{
+      const btn = el('button','choice'+(choice._hidden?' dimmed':''));
+      btn.disabled = !!choice._hidden;
+      const letterEl = el('div','letter', letters[i]);
+      const label = el('div',null, choice._hidden ? '—' : choice.title);
+      btn.appendChild(letterEl);
+      btn.appendChild(label);
+      btn.onclick = ()=>{ ensureAudio(); submitAnswer(movie, choice); };
+      choicesWrap.appendChild(btn);
+    });
+    scr.appendChild(choicesWrap);
+
+    if(!g.hintUsed){
+      const hintBtn = el('button','btn btn-small btn-secondary','💡 GIVE ME A HINT (–50% points)');
+      hintBtn.style.marginTop='6px';
+      hintBtn.onclick = ()=>{ sfxClick(); useHint(); };
+      scr.appendChild(hintBtn);
+    }
+  }
+
+  app.appendChild(scr);
+}
+
+/* ---- REVEAL ---- */
+function renderReveal(){
+  const g = state.game;
+  const movie = g.questions[g.index];
+  const result = g.lastResult;
+  const scr = el('div','screen');
+
+  scr.appendChild(topBar(g.label || 'MOVIEMOJI', null));
+
+  const banner = el('div', 'feedback-banner ' + (result.correct?'good':'bad'),
+    result.correct ? pickPraise() : pickConsolation());
+  scr.appendChild(banner);
+
+  const card = el('div','explain-card');
+  card.appendChild(el('div','explain-title', movie.title));
+  card.appendChild(el('div','explain-year', `${movie.year} · ${difficultyLabel(movie.difficulty)}`));
+  card.appendChild(el('div','explain-emoji-row', movie.emojis.join(' ')));
+
+  const compare = el('div','answer-compare');
+  const yourAnswer = el('div', null, `<span>Your answer:</span> ${escapeHtml(result.playerAnswer || '(none)')} ${result.correct ? '✓ Correct' : '✕ Incorrect'}`);
+  compare.appendChild(yourAnswer);
+  if(!result.correct){
+    compare.appendChild(el('div', null, `<span>Correct answer:</span> ${escapeHtml(movie.title)}`));
+  }
+  if(result.correct){
+    compare.appendChild(el('div', null, `<span>Points earned:</span> +${result.points}`));
+  }
+  card.appendChild(compare);
+
+  movie.emojis.forEach((em,i)=>{
+    const line = el('div','explain-line');
+    line.appendChild(el('div','em', em));
+    line.appendChild(el('div',null, movie.explanation[i]));
+    card.appendChild(line);
+  });
+  scr.appendChild(card);
+
+  const nextBtn = el('button','btn btn-primary','NEXT MOVIE ▶');
+  nextBtn.onclick = ()=>{ sfxClick(); nextQuestion(); };
+  scr.appendChild(nextBtn);
+
+  app.appendChild(scr);
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+function pickPraise(){
+  const opts = ['CORRECT! 🎬','NAILED IT 🍿','BOX OFFICE GENIUS','SCENE STEALER!','ROLL CREDITS — YOU WIN'];
+  return opts[Math.floor(Math.random()*opts.length)];
+}
+function pickConsolation(){
+  const opts = ['NOT QUITE','CUT! TRY THE NEXT ONE','THAT ONE WAS SNEAKY','SO CLOSE (MAYBE)','DIRECTOR\'S CUT NEEDED'];
+  return opts[Math.floor(Math.random()*opts.length)];
+}
+
+/* ---- RESULTS ---- */
+function renderResults(){
+  const g = state.game;
+  const scr = el('div','screen');
+  scr.appendChild(topBar('RESULTS', null));
+
+  const total = g.questions.length;
+  const pct = total ? Math.round((g.correctCount/total)*100) : 0;
+
+  const hero = el('div','hero');
+  hero.appendChild(el('h1', null, 'MOVIEMOJI SCORE'));
+  hero.appendChild(el('div','subtitle', `${g.correctCount} / ${total} CORRECT · ${pct}%`));
+  scr.appendChild(hero);
+
+  const grid = el('div','stat-grid');
+  grid.appendChild(statBox(g.bestStreakRun, 'BEST STREAK'));
+  grid.appendChild(statBox(g.score.toLocaleString(), 'POINTS'));
+  grid.appendChild(statBox(g.correctCount, 'CORRECT'));
+  grid.appendChild(statBox(g.incorrectCount, 'MISSED'));
+  scr.appendChild(grid);
+
+  if(g.missed.length){
+    scr.appendChild(el('div','subtitle','MISSED FILMS — TAP TO REVIEW'));
+    g.missed.forEach(({movie, playerAnswer})=>{
+      const item = el('div','missed-item');
+      item.appendChild(el('div','em', movie.emojis.slice(0,3).join('')));
+      const info = el('div','info');
+      info.appendChild(el('div','title', movie.title));
+      info.appendChild(el('div','sub', `You said: ${escapeHtml(playerAnswer)}`));
+      item.appendChild(info);
+      item.style.cursor='pointer';
+      item.onclick = ()=>{ sfxClick(); renderLibraryDetail(movie); };
+      scr.appendChild(item);
+    });
+  }
+
+  const again = el('button','btn btn-primary','PLAY AGAIN');
+  again.onclick = ()=>{ sfxClick(); startGame({mode: g.mode, count: g.originalCount, decade: g.decade, genre: g.genre, label:g.label}); };
+  scr.appendChild(again);
+
+  const home = el('button','btn','🏠 BACK TO TITLE');
+  home.onclick = ()=>{ sfxClick(); render('title'); };
+  scr.appendChild(home);
+
+  app.appendChild(scr);
+}
+
+function statBox(num, label){
+  const b = el('div','stat-box');
+  b.appendChild(el('div','num', num));
+  b.appendChild(el('div','lbl', label));
+  return b;
+}
+
+/* ============================= INIT ============================= */
+render('title');
+
+// allow first tap anywhere to unlock audio context per browser autoplay policy
+document.addEventListener('click', ()=>{ ensureAudio(); }, { once:true });
+</script>
+</body>
+</html>
