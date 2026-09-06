@@ -47,6 +47,17 @@ export function getArtistByName(db: Database.Database, name: string): WatchedArt
   return db.prepare("SELECT * FROM watched_artists WHERE name = ?").get(name) as WatchedArtistRow | undefined;
 }
 
+/**
+ * Case-insensitive lookup, for callers matching a model-reported artist name against the watchlist
+ * when the model wasn't given the (11k+ name) list to copy from verbatim - e.g. discoverMusicNews.ts's
+ * industry-wide sweep, cross-checked against watched-artists.txt after the fact rather than by trying
+ * to fit every name into the prompt. SQLite's LOWER() only case-folds ASCII, which is fine for the
+ * band/artist names this watchlist contains.
+ */
+export function getArtistByNameCaseInsensitive(db: Database.Database, name: string): WatchedArtistRow | undefined {
+  return db.prepare("SELECT * FROM watched_artists WHERE LOWER(name) = LOWER(?)").get(name.trim()) as WatchedArtistRow | undefined;
+}
+
 export function getWatchedArtistCount(db: Database.Database): number {
   const row = db.prepare("SELECT COUNT(*) as c FROM watched_artists").get() as { c: number };
   return row.c;

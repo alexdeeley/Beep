@@ -10,6 +10,7 @@ import {
   getArtistsDueForCheck,
   markArtistsChecked,
   getArtistByName,
+  getArtistByNameCaseInsensitive,
   getWatchedArtistCount,
   getArtistsNeedingBirthDateCheck,
   recordBirthDate,
@@ -33,6 +34,7 @@ import {
 } from "../../src/newswire/db/industryReleaseItemsRepo.js";
 import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
 import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
+import { hasMusicNewsPostForDate, recordMusicNewsPost } from "../../src/newswire/db/musicNewsRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -80,6 +82,7 @@ describe("newswire SQLite DB layer", () => {
       "history_posts",
       "birthday_posts",
       "shows_runs",
+      "music_news_posts",
     ]) {
       expect(tables).toContain(t);
     }
@@ -155,6 +158,13 @@ describe("newswire SQLite DB layer", () => {
       importArtistNames(db, ["Wilco"]);
       expect(getArtistByName(db, "Wilco")?.name).toBe("Wilco");
       expect(getArtistByName(db, "wilco")).toBeUndefined(); // case-sensitive exact match
+    });
+
+    it("finds an artist case-insensitively, trimmed - for matching a model-reported name against the watchlist", () => {
+      importArtistNames(db, ["Idles"]);
+      expect(getArtistByNameCaseInsensitive(db, "idles")?.name).toBe("Idles");
+      expect(getArtistByNameCaseInsensitive(db, "  IDLES  ")?.name).toBe("Idles");
+      expect(getArtistByNameCaseInsensitive(db, "Not On The List")).toBeUndefined();
     });
 
     it("orders the rotation batch never-checked-first, then oldest-checked-first", () => {
@@ -510,6 +520,22 @@ describe("newswire SQLite DB layer", () => {
       expect(getLastShowsRun(db)?.run_date).toBe("2026-09-08");
 
       expect(() => recordShowsPost(db, { runDate: "2026-09-08", postedInRunId: run.id, itemCount: 3 })).toThrow();
+    });
+  });
+
+  describe("music_news_posts", () => {
+    it("is not recorded for a date until recordMusicNewsPost is called", () => {
+      expect(hasMusicNewsPostForDate(db, "2026-09-08")).toBe(false);
+    });
+
+    it("round-trips a recorded MUSIC NEWS post and enforces once-per-date via UNIQUE", () => {
+      const run = startHourlyRun(db, false);
+      const recorded = recordMusicNewsPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 3 });
+      expect(recorded.post_date).toBe("2026-09-08");
+      expect(hasMusicNewsPostForDate(db, "2026-09-08")).toBe(true);
+      expect(hasMusicNewsPostForDate(db, "2026-09-09")).toBe(false);
+
+      expect(() => recordMusicNewsPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 1 })).toThrow();
     });
   });
 });

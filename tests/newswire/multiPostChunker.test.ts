@@ -30,6 +30,12 @@ describe("buildCommaSeparatedPost", () => {
   it("produces just the header when there are no items", () => {
     expect(buildCommaSeparatedPost("NEW MUSIC FRIDAY 9/4/26", [])).toEqual(["NEW MUSIC FRIDAY 9/4/26"]);
   });
+
+  it("uses a space itemSeparator for punctuated sentences (MUSIC NEWS), not a comma", () => {
+    const posts = buildCommaSeparatedPost("MUSIC NEWS", ["Rivers Cuomo arrested.", "Idles breaks up."], undefined, " ");
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toBe("MUSIC NEWS\n\nRivers Cuomo arrested. Idles breaks up.");
+  });
 });
 
 describe("buildMultiLinePost", () => {

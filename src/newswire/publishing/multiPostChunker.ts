@@ -2,14 +2,22 @@ import { BLUESKY_MAX_POST_GRAPHEMES } from "../../bluesky/threadPublish.js";
 import { countGraphemes } from "./threadSplitter.js";
 
 /**
- * Chunks a header plus a flowing, comma-separated list of items (e.g. artist
- * names for NEW MUSIC FRIDAY) into grapheme-safe physical posts. The header
- * gets its own paragraph on the first post; overflow posts pick up straight
- * from the next item, comma-separated, with no header repeat. Throws if the
- * header or any single item alone exceeds the limit - fail loudly rather
- * than truncate a name.
+ * Chunks a header plus a flowing list of items (e.g. artist names for NEW
+ * MUSIC FRIDAY, or short sentences for MUSIC NEWS) into grapheme-safe
+ * physical posts. The header gets its own paragraph on the first post;
+ * overflow posts pick up straight from the next item, `itemSeparator`-joined,
+ * with no header repeat. `itemSeparator` defaults to ", " (NEW MUSIC
+ * FRIDAY's artist list); pass " " for space-joined sentences that already
+ * carry their own terminal punctuation (MUSIC NEWS). Throws if the header or
+ * any single item alone exceeds the limit - fail loudly rather than
+ * truncate a name.
  */
-export function buildCommaSeparatedPost(header: string, items: string[], maxGraphemes: number = BLUESKY_MAX_POST_GRAPHEMES): string[] {
+export function buildCommaSeparatedPost(
+  header: string,
+  items: string[],
+  maxGraphemes: number = BLUESKY_MAX_POST_GRAPHEMES,
+  itemSeparator: string = ", "
+): string[] {
   if (countGraphemes(header) > maxGraphemes) {
     throw new Error(`The post header alone exceeds ${maxGraphemes} graphemes: "${header}"`);
   }
@@ -23,7 +31,7 @@ export function buildCommaSeparatedPost(header: string, items: string[], maxGrap
     if (countGraphemes(item) > maxGraphemes) {
       throw new Error(`A single item exceeds ${maxGraphemes} graphemes: "${item.slice(0, 80)}..."`);
     }
-    const separator = currentHasItems ? ", " : "\n\n";
+    const separator = currentHasItems ? itemSeparator : "\n\n";
     const candidate = `${current}${separator}${item}`;
     if (countGraphemes(candidate) <= maxGraphemes) {
       current = candidate;

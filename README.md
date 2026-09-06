@@ -521,9 +521,12 @@ industry-wide `NEW MUSIC FRIDAY` roundup, every cycle also checks whether
 today's `TODAY IN HISTORY` post has gone out yet, every non-priority
 single posts immediately as a plain mechanical line rather than through
 the writer, any watchlist artist gets a one-line `HAPPY BIRTHDAY` post on
-their real, independently-verified birthday, and every Tuesday a `SHOWS`
-post lists upcoming Portland/Pacific-Northwest concerts, industry-wide
-like the Friday roundup (§18.7-§18.11).
+their real, independently-verified birthday, every Tuesday a `SHOWS`
+post lists upcoming Portland/Pacific-Northwest concerts industry-wide
+like the Friday roundup, and every cycle also checks for a `MUSIC NEWS`
+recap - a rare, narrow, high-bar digest of genuinely major real-world
+news (arrest, death, breakup, major lawsuit/scandal) for a watchlist
+artist (§18.7-§18.12).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -1000,3 +1003,63 @@ verifiable turns up for the window, no post goes out and nothing is
 recorded, so a later cycle the same Tuesday can retry.
 `db/showsRepo.ts`'s `shows_runs` table (keyed by the local date it ran
 on) is the once-a-week idempotency guard.
+
+### 18.12 Once a day: the `MUSIC NEWS` recap
+
+Once a day - the first cycle that finds at least one independently
+verifiable, genuinely *major* piece of dramatic real-world news for a
+watchlist artist - posts a tight, tabloid-style digest:
+
+```
+MUSIC NEWS
+
+Rivers Cuomo arrested. Idles breaks up. Avril Lavigne dies.
+```
+
+This is a deliberately narrow, high-bar category - separate from the
+regular twice-daily "news" itemType (tour dates, lineup tweaks, award
+nominations), which keeps its own full-prose posts. It only fires for an
+artist's own arrest/conviction, death, serious hospitalization, a full
+band breakup, a major lawsuit directly involving the artist, or a major
+public scandal the artist is personally at the center of. Most days have
+**zero** qualifying items, and that's correct, not a failure - this
+should be rare by design.
+
+`discovery/discoverMusicNews.ts` sweeps industry-wide (watched-artists.txt
+has 11,000+ names, far too many to fit in a discovery prompt), and
+`musicNews/postMusicNewsRecap.ts` cross-checks every verified candidate's
+artist name against the watchlist **after** verification, case-
+insensitively (`db/watchedArtistsRepo.ts`'s `getArtistByNameCaseInsensitive`)
+- the same "enforce scope in code, not just the prompt" pattern as the
+Friday roundup's date filter and SHOWS' window filter. Non-watchlist
+matches are dropped and logged, never posted.
+
+**The short "blurb" text is verification's own finding, never discovery's
+wording** - `verification/musicNewsVerificationPrompts.ts` uses a
+dedicated schema with its own `blurb` field (same reasoning as SHOWS'
+`confirmedVenue`), rather than mechanically truncating a headline. A
+candidate is only kept when the blurb comes back non-null, which the
+prompt requires only when the core claim is independently confirmed as
+`FACT` by at least two distinct source domains - "prefer null over a
+wrong or overstated guess" is stated explicitly, since this is the one
+category in the whole pipeline where a wrong claim (a false arrest/death
+report) does real harm, not just an embarrassing correction.
+
+**A live test caught a real misattribution bug before this shipped**: an
+early run surfaced "Stevie Nicks' brother Christopher Nicks dies at 72"
+under the candidate artist name "Stevie Nicks" - the watchlist check
+passed (Stevie Nicks *is* on the watchlist) but the person who actually
+died was her brother, not her. Both the discovery and verification
+prompts were tightened to explicitly require the event happen to the
+named artist *themselves*, never a family member, relative, or associate
+reported under the artist's name - re-tested live afterward to confirm
+the fix held.
+
+The same staleness guard as the rest of the pipeline
+(`verification/itemFreshness.ts`, `NEWS_MAX_ITEM_AGE_DAYS`) applies here
+too, so a genuinely old story that resurfaces in a search can't be
+reported as current. Like the other mechanical posts, this skips
+copy-edit/fact-check/duplicate-check - there's no new prose to check
+beyond what verification already confirmed. `db/musicNewsRepo.ts`'s
+`music_news_posts` table (keyed by the local date it ran on) is the
+once-a-day idempotency guard.

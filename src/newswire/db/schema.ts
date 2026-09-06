@@ -329,4 +329,21 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Once-a-day "MUSIC NEWS" recap: a tight, tabloid-style digest of genuinely major, dramatic
+    // real-world events (arrest, death, hospitalization, breakup/split, major lawsuit or scandal) for
+    // watchlist artists - deliberately a narrower, separate category from the routine tour/release
+    // "news" itemType already handled by the regular twice-daily flow, which keeps its own full-prose
+    // posts. Same once-per-day idempotency pattern as history_posts/shows_runs.
+    id: "0008_music_news_recap",
+    sql: `
+      CREATE TABLE IF NOT EXISTS music_news_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_date TEXT NOT NULL UNIQUE,
+        posted_in_run_id INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `,
+  },
 ];

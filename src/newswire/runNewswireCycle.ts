@@ -28,6 +28,7 @@ import { postWeeklyRoundup } from "./weeklyRoundup/postWeeklyRoundup.js";
 import { postMusicHistory } from "./history/postMusicHistory.js";
 import { postBirthdays } from "./birthdays/postBirthdays.js";
 import { postWeeklyShows } from "./shows/postWeeklyShows.js";
+import { postMusicNewsRecap } from "./musicNews/postMusicNewsRecap.js";
 import type { NewsRunContext } from "./runContext.js";
 import type { DraftEdition, VerifiedMusicItem } from "./types.js";
 
@@ -209,18 +210,19 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     for (const item of verified) persistVerifiedItem(ctx, item);
     markArtistsChecked(db, batch.map((a) => a.id));
 
-    // All four are independent of the per-item flow below, run their own internal eligibility checks
+    // All five are independent of the per-item flow below, run their own internal eligibility checks
     // (roundup: Friday + past the configured hour; history: once a day; birthdays: once a year per
-    // artist; shows: Tuesday + past the configured hour), and are no-ops most cycles. Placed before
-    // every early-return path so they always get a chance to run. Each returns how many physical posts
-    // it actually published, since any of them can be the only thing that posts this cycle - that count
-    // must feed into the final publishedPostCount/publishStatus below, or a cycle that published only
-    // e.g. a birthday post would be misreported as "skipped" (see the mechanicalPublishedCount fix in
-    // silentResult's history for why this matters).
+    // artist; shows: Tuesday + past the configured hour; music news recap: once a day), and are no-ops
+    // most cycles. Placed before every early-return path so they always get a chance to run. Each
+    // returns how many physical posts it actually published, since any of them can be the only thing
+    // that posts this cycle - that count must feed into the final publishedPostCount/publishStatus
+    // below, or a cycle that published only e.g. a birthday post would be misreported as "skipped"
+    // (see the mechanicalPublishedCount fix in silentResult's history for why this matters).
     const roundupPublishedCount = await postWeeklyRoundup(ctx);
     const historyPublishedCount = await postMusicHistory(ctx);
     const birthdayPublishedCount = await postBirthdays(ctx);
     const showsPublishedCount = await postWeeklyShows(ctx);
+    const musicNewsPublishedCount = await postMusicNewsRecap(ctx);
 
     // Priority artists (editorial-focus.json's priorityArtists) get VIP treatment: their album/EP/compilation
     // releases skip the Friday-only roundup hold and join the immediate queue like everything else, jumping
@@ -234,7 +236,12 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     const mechanicalSingles = individualItems.filter((item) => item.item_type === "release" && !priorityNames.has(item.artist_name));
     const singlesPublishedCount = await publishMechanicalSingles(ctx, mechanicalSingles);
     const mechanicalPublishedCount =
-      roundupPublishedCount + historyPublishedCount + birthdayPublishedCount + showsPublishedCount + singlesPublishedCount;
+      roundupPublishedCount +
+      historyPublishedCount +
+      birthdayPublishedCount +
+      showsPublishedCount +
+      musicNewsPublishedCount +
+      singlesPublishedCount;
 
     // Everything else that can reach the writer: all news items (priority or not) + priority release
     // items (always singles here, since priority albums were already pulled into priorityAlbums above).

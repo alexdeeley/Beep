@@ -202,3 +202,35 @@ export interface VerifiedShow {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw candidate surfaced by discoverMusicNews, before independent verification - a genuinely
+ * major, dramatic real-world event (arrest, death, hospitalization, breakup/split, major lawsuit or
+ * scandal), industry-wide (not scoped to watched-artists.txt at discovery time, since fitting 11k+
+ * names into the prompt isn't practical - postMusicNewsRecap.ts cross-checks artistName against the
+ * watchlist after verification instead). Deliberately a narrower category than MusicNewsCandidate's
+ * "news" itemType, which covers routine tour/lineup/award news and keeps its own full-prose posts.
+ */
+export interface DramaticNewsCandidate {
+  artistName: string;
+  headline: string;
+  eventTimeIso: string | null;
+  eventTimeConfidence: "exact" | "approximate" | "unknown";
+  sources: ReportedSource[];
+}
+
+/**
+ * Output of verifyMusicNews: a dramatic-news candidate independently re-confirmed with the 2-source
+ * rule. `blurb` is verification's OWN short, conservative restatement of what it confirmed (never
+ * discovery's wording) - see musicNewsVerificationPrompts.ts for why, same reasoning as
+ * showsVerificationPrompts.ts's confirmedVenue field. Null blurb (with meetsSourceBar left false)
+ * means verification could not produce a confident, faithful short form - that candidate is dropped,
+ * never posted with a missing or guessed summary.
+ */
+export interface VerifiedDramaticNews {
+  artistName: string;
+  headline: string;
+  blurb: string | null;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}
