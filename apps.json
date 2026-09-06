@@ -95,7 +95,9 @@
     "name": "Ricochet 8-Bit: Sequence 11",
     "description": "An expanded Ricochet 8-Bit with giant balls and homing shots.",
     "category": "Games",
-    "path": "Sequence11.html"
+    "path": "Sequence11.html",
+    "featured": true,
+    "featuredOrder": 3
   },
   {
     "id": "maisies-kitty-cat-adventure",
@@ -178,7 +180,7 @@
     "id": "artsy-v3",
     "name": "Artsy v3",
     "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
-    "category": "Daily",
+    "category": "Art",
     "path": "ArtsyV3.html"
   },
   {
@@ -724,8 +726,10 @@
     "id": "neo-hiveword",
     "name": "Hiveword",
     "description": "A game from the Neocities collection: \"Hiveword\".",
-    "category": "Daily",
-    "path": "Hiveword.html"
+    "category": "Games",
+    "path": "Hiveword.html",
+    "featured": true,
+    "featuredOrder": 1
   },
   {
     "id": "neo-prism-breaker",
@@ -1180,6 +1184,8 @@
     "name": "Moviemoji",
     "description": "Guess the movie from an emoji clue across daily, quick-play, decade, and genre modes.",
     "category": "Games",
-    "path": "Moviemoji.html"
+    "path": "Moviemoji.html",
+    "featured": true,
+    "featuredOrder": 2
   }
 ]
