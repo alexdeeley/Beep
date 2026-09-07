@@ -583,13 +583,6 @@
     "path": "LightTapBulbs.html"
   },
   {
-    "id": "neo-critter-mirror",
-    "name": "Critter Mirror \u2014 become a storybook creature",
-    "description": "Point your camera at yourself and watch a cute animated animal copy your every move. All tracking happens on your device.",
-    "category": "Art",
-    "path": "CritterMirror.html"
-  },
-  {
     "id": "neo-slither-arena",
     "name": "Lumen Arena",
     "description": "A game from the Neocities collection: \"Lumen Arena\".",
@@ -667,13 +660,6 @@
     "description": "A game from the Neocities collection: \"Ultra Contrast Strike\".",
     "category": "Games",
     "path": "UltraContrastStrike.html"
-  },
-  {
-    "id": "neo-directory-scanner",
-    "name": "Directory Scanner",
-    "description": "A generative art / visual piece from the Neocities collection: \"Directory Scanner\".",
-    "category": "Art",
-    "path": "DirectoryScanner.html"
   },
   {
     "id": "neo-air-hockey2p-colorful-goals",
@@ -758,13 +744,6 @@
     "description": "A music tool from the Neocities collection: \"Heapsort Audio Visualizer\".",
     "category": "Music Tools",
     "path": "HeapsortVoiceAudio.html"
-  },
-  {
-    "id": "neo-factorial-push-art-longform",
-    "name": "Factorial Push Art \u2014 Longform Generator",
-    "description": "A generative art / visual piece from the Neocities collection: \"Factorial Push Art \u2014 Longform Generator\".",
-    "category": "Art",
-    "path": "FactorialPushArtLongform.html"
   },
   {
     "id": "neo-303-mazie-sampler",
@@ -912,13 +891,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Maizey's Magic Spell Academy\".",
     "category": "Games",
     "path": "MaizeysMagicSpellAcademy.html"
-  },
-  {
-    "id": "neo-dot-escape-invisible-circle",
-    "name": "Dot Escape",
-    "description": "A generative art / visual piece from the Neocities collection: \"Dot Escape\".",
-    "category": "Art",
-    "path": "DotEscapeInvisibleCircle.html"
   },
   {
     "id": "neo-harsh-noise-no-text",
