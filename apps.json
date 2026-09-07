@@ -942,13 +942,6 @@
     "path": "MotionSynthBlackwhiteSquares.html"
   },
   {
-    "id": "neo-heart-canvas",
-    "name": "heart-canvas",
-    "description": "A generative art / visual piece from the Neocities collection: \"heart-canvas\".",
-    "category": "Art",
-    "path": "HeartCanvas.html"
-  },
-  {
     "id": "neo-poly-fuzz-drum-machine-clav-tempo-drift",
     "name": "Poly Fuzz Drums",
     "description": "A music tool from the Neocities collection: \"Poly Fuzz Drums\".",
