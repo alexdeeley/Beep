@@ -184,13 +184,6 @@
     "path": "SpiralFanSpinner.html"
   },
   {
-    "id": "gooey-blobs",
-    "name": "Gooey Blobs & Lines",
-    "description": "A flowing RGB isoline field \u2014 drag to drop gooey metaball blobs into the current.",
-    "category": "Art",
-    "path": "GooeyBlobs.html"
-  },
-  {
     "id": "material-cube",
     "name": "Material Cube",
     "description": "A tumbling 3D cube that cycles through chrome, wood, ice, and other procedural materials.",
@@ -420,13 +413,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Infinite Repeater\".",
     "category": "Art",
     "path": "PatternDnaInfinite.html"
-  },
-  {
-    "id": "neo-goo",
-    "name": "Goo Blob",
-    "description": "A generative art / visual piece from the Neocities collection: \"Goo Blob\".",
-    "category": "Art",
-    "path": "Goo.html"
   },
   {
     "id": "neo-pattern-dna-growing-conveyor",
