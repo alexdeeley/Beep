@@ -22,35 +22,35 @@
   },
   {
     "id": "sound-of-functions",
-    "name": "The Sound of Functions",
+    "name": "Math Sounds",
     "description": "Random math functions, drawn as glowing graphs and turned into sound.",
     "category": "Art",
     "path": "SoundOfFunctions.html"
   },
   {
     "id": "oscillate-scroll-bars",
-    "name": "Oscillate \u2014 Scroll Bars",
+    "name": "Neon Waveform",
     "description": "Turns your mic input into a scrolling neon waveform.",
     "category": "Art",
     "path": "OscillateScrollBars.html"
   },
   {
     "id": "heavy-spin-morph",
-    "name": "Heavy Spin Morph",
+    "name": "Spin Morph",
     "description": "A wireframe shape you spin and morph between forms.",
     "category": "Art",
     "path": "HeavySpinMorph.html"
   },
   {
     "id": "maisie-magic-draw",
-    "name": "Maisie's Magic Draw",
+    "name": "Magic Draw",
     "description": "A sparkly finger-painting app with glowing trails and stickers.",
     "category": "Art",
     "path": "MaisieMagicDraw.html"
   },
   {
     "id": "smooth-wave-field",
-    "name": "Smooth Wave Field",
+    "name": "Wave Field",
     "description": "A no-UI wave field you ripple with taps and drags.",
     "category": "Art",
     "path": "SmoothWaveField.html"
@@ -150,15 +150,15 @@
   },
   {
     "id": "artsy-v3",
-    "name": "Artsy v3",
-    "description": "A seeded generative painter \u2014 type a seed to get a unique abstract piece, save it as a PNG.",
+    "name": "Seeded Painter",
+    "description": "Type a seed, get a unique abstract piece.",
     "category": "Art",
     "path": "ArtsyV3.html"
   },
   {
     "id": "checker-morphs",
     "name": "Checker Morphs",
-    "description": "A checkerboard-filled shape that slowly morphs between circles, polygons, and rhombi.",
+    "description": "A checkerboard shape morphing between circles and polygons.",
     "category": "Art",
     "path": "CheckerMorphs.html"
   },
@@ -178,7 +178,7 @@
   },
   {
     "id": "spiral-fan-spinner",
-    "name": "Spiral Fan Spinner",
+    "name": "Fan Spinner",
     "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
     "category": "Art",
     "path": "SpiralFanSpinner.html"
@@ -192,8 +192,8 @@
   },
   {
     "id": "neo-swipe-drift-text",
-    "name": "Swipe & Drift Text",
-    "description": "A generative art / visual piece from the Neocities collection: \"Swipe & Drift Text\".",
+    "name": "Drift Text",
+    "description": "Swipe to send text drifting across the screen.",
     "category": "Art",
     "path": "SwipeDriftText.html"
   },
@@ -213,8 +213,8 @@
   },
   {
     "id": "neo-shapewave-color-swipe",
-    "name": "ShapeWave \u2014 color swipe",
-    "description": "A generative art / visual piece from the Neocities collection: \"ShapeWave \u2014 color swipe\".",
+    "name": "Shape Wave",
+    "description": "Swipe to send color rippling through shapes.",
     "category": "Art",
     "path": "ShapewaveColorSwipe.html"
   },
@@ -248,15 +248,15 @@
   },
   {
     "id": "neo-spiral-seed-art",
-    "name": "Seeded Spiral Generator",
-    "description": "A generative art / visual piece from the Neocities collection: \"Seeded Spiral Generator\".",
+    "name": "Seeded Spiral",
+    "description": "A spiral generator seeded by your input.",
     "category": "Art",
     "path": "SpiralSeedArt.html"
   },
   {
     "id": "neo-op-art",
     "name": "Op Art",
-    "description": "A generative art / visual piece from the Neocities collection: \"Op Art\".",
+    "description": "Classic optical-illusion art, animated.",
     "category": "Art",
     "path": "OpArt.html"
   },
@@ -283,8 +283,8 @@
   },
   {
     "id": "neo-high-contrast-kaleidoscope",
-    "name": "High-Contrast Kaleidoscope",
-    "description": "A generative art / visual piece from the Neocities collection: \"High-Contrast Kaleidoscope\".",
+    "name": "Contrast Kaleidoscope",
+    "description": "A stark black-and-white kaleidoscope.",
     "category": "Art",
     "path": "HighContrastKaleidoscope.html"
   },
@@ -298,7 +298,7 @@
   {
     "id": "neo-orbital-dots",
     "name": "Orbital Dots",
-    "description": "A generative art / visual piece from the Neocities collection: \"Orbital Dots\".",
+    "description": "Dots orbiting each other in shifting patterns.",
     "category": "Art",
     "path": "OrbitalDots.html"
   },
@@ -312,14 +312,14 @@
   {
     "id": "neo-wave-grid",
     "name": "Wave Grid",
-    "description": "A generative art / visual piece from the Neocities collection: \"Wave Grid\".",
+    "description": "A grid that ripples like water.",
     "category": "Art",
     "path": "WaveGrid.html"
   },
   {
     "id": "neo-hexwave-triangles-color-swipe-slow",
-    "name": "HexWave \u2014 Triangles (Color, Slow, Swipe\u2011Reactive)",
-    "description": "A generative art / visual piece from the Neocities collection: \"HexWave \u2014 Triangles (Color, Slow, Swipe\u2011Reactive)\".",
+    "name": "Hex Wave",
+    "description": "Color-shifting triangles rippling in slow motion.",
     "category": "Art",
     "path": "HexwaveTrianglesColorSwipeSlow.html"
   },
@@ -332,15 +332,15 @@
   },
   {
     "id": "neo-star-map-high-contrast",
-    "name": "Star Map \u2014 High\u2011Contrast",
-    "description": "A generative art / visual piece from the Neocities collection: \"Star Map \u2014 High\u2011Contrast\".",
+    "name": "Star Map",
+    "description": "A high-contrast map of the night sky.",
     "category": "Art",
     "path": "StarMapHighContrast.html"
   },
   {
     "id": "neo-generative-art-studio-polished",
-    "name": "Generative Art Studio",
-    "description": "A generative art / visual piece from the Neocities collection: \"Generative Art Studio\".",
+    "name": "Art Studio",
+    "description": "A generative art studio with adjustable presets.",
     "category": "Art",
     "path": "GenerativeArtStudioPolished.html"
   },
@@ -367,22 +367,22 @@
   },
   {
     "id": "neo-arty-three-shapes-seeded-v2",
-    "name": "Arty \u2022 Three Shapes",
-    "description": "A generative art / visual piece from the Neocities collection: \"Arty \u2022 Three Shapes\".",
+    "name": "Three Shapes",
+    "description": "Three simple shapes, endless seeded variations.",
     "category": "Art",
     "path": "ArtyThreeShapesSeededV2.html"
   },
   {
     "id": "neo-swipe-stretch-lines",
-    "name": "Swipe-Stretch Lines",
-    "description": "A generative art / visual piece from the Neocities collection: \"Swipe-Stretch Lines\".",
+    "name": "Stretch Lines",
+    "description": "Swipe to stretch and bend a field of lines.",
     "category": "Art",
     "path": "SwipeStretchLines.html"
   },
   {
     "id": "neo-seed-art-more",
-    "name": "Seed / Pattern / Future \u2014 MORE",
-    "description": "A generative art / visual piece from the Neocities collection: \"Seed / Pattern / Future \u2014 MORE\".",
+    "name": "Seed Future",
+    "description": "A generative piece grown from a seed you choose.",
     "category": "Art",
     "path": "SeedArtMore.html"
   },
@@ -395,8 +395,8 @@
   },
   {
     "id": "neo-mechanical-art-toy-rotating-rings",
-    "name": "Mechanical Art Toy \u2014 Rotating Rings",
-    "description": "A generative art / visual piece from the Neocities collection: \"Mechanical Art Toy \u2014 Rotating Rings\".",
+    "name": "Rotating Rings",
+    "description": "Interlocking rings turning like clockwork.",
     "category": "Art",
     "path": "MechanicalArtToyRotatingRings.html"
   },
@@ -409,15 +409,15 @@
   },
   {
     "id": "neo-pattern-dna-infinite",
-    "name": "Pattern DNA \u2014 Infinite Repeater",
-    "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Infinite Repeater\".",
+    "name": "Infinite DNA",
+    "description": "A pattern that repeats and mutates without end.",
     "category": "Art",
     "path": "PatternDnaInfinite.html"
   },
   {
     "id": "neo-pattern-dna-growing-conveyor",
-    "name": "Pattern DNA \u2014 Growing Conveyor",
-    "description": "A generative art / visual piece from the Neocities collection: \"Pattern DNA \u2014 Growing Conveyor\".",
+    "name": "Pattern DNA",
+    "description": "Draw a shape and watch its DNA grow along your path.",
     "category": "Art",
     "path": "PatternDnaGrowingConveyor.html"
   },
@@ -466,7 +466,7 @@
   {
     "id": "neo-swirl-studio",
     "name": "Swirl Studio",
-    "description": "A generative art / visual piece from the Neocities collection: \"Swirl Studio\".",
+    "description": "A studio for painting with swirling color.",
     "category": "Art",
     "path": "SwirlStudio.html"
   },
@@ -480,7 +480,7 @@
   {
     "id": "neo-field-lines",
     "name": "Field Lines",
-    "description": "A generative art / visual piece from the Neocities collection: \"Field Lines\".",
+    "description": "Flowing lines tracing an invisible field.",
     "category": "Art",
     "path": "FieldLines.html"
   },
@@ -528,15 +528,15 @@
   },
   {
     "id": "neo-touch-fade-grid",
-    "name": "Touch Fade Grid",
-    "description": "A generative art / visual piece from the Neocities collection: \"Touch Fade Grid\".",
+    "name": "Fade Grid",
+    "description": "A grid that fades and glows wherever you touch.",
     "category": "Art",
     "path": "TouchFadeGrid.html"
   },
   {
     "id": "neo-one-hand-moto-autojump",
-    "name": "One-Hand Moto \u2014 Auto & Ramps",
-    "description": "A generative art / visual piece from the Neocities collection: \"One-Hand Moto \u2014 Auto & Ramps\".",
+    "name": "Moto Ramps",
+    "description": "A one-handed motorcycle stunt ride with auto-ramps.",
     "category": "Art",
     "path": "OneHandMotoAutojump.html"
   },
@@ -600,8 +600,8 @@
   },
   {
     "id": "neo-simple-art",
-    "name": "simple art",
-    "description": "A generative art / visual piece from the Neocities collection: \"simple art\".",
+    "name": "Simple Art",
+    "description": "A minimal generative art piece, stripped to basics.",
     "category": "Art",
     "path": "SimpleArt.html"
   },
@@ -621,8 +621,8 @@
   },
   {
     "id": "neo-peggle-noir-minimal",
-    "name": "Peggle Noir Minimal",
-    "description": "A generative art / visual piece from the Neocities collection: \"Peggle Noir Minimal\".",
+    "name": "Peggle Noir",
+    "description": "A stripped-down, black-and-white take on Peggle.",
     "category": "Art",
     "path": "PeggleNoirMinimal.html"
   },
@@ -656,15 +656,15 @@
   },
   {
     "id": "neo-oilseed-landscape",
-    "name": "OilSeed \u2014 Landscape Generator",
-    "description": "A generative art / visual piece from the Neocities collection: \"OilSeed \u2014 Landscape Generator\".",
+    "name": "Oil Landscape",
+    "description": "A generative oil-painted landscape that keeps evolving.",
     "category": "Art",
     "path": "OilseedLandscape.html"
   },
   {
     "id": "neo-the-field-that-remembers-you",
-    "name": "The Field That Remembers You",
-    "description": "A generative art / visual piece from the Neocities collection: \"The Field That Remembers You\".",
+    "name": "Living Field",
+    "description": "A field of lines that responds to you specifically.",
     "category": "Art",
     "path": "TheFieldThatRemembersYou.html"
   },
@@ -705,8 +705,8 @@
   },
   {
     "id": "neo-vortex-pattern-lab",
-    "name": "VORTEX// Pattern Lab",
-    "description": "A generative art / visual piece from the Neocities collection: \"VORTEX// Pattern Lab\".",
+    "name": "Vortex Lab",
+    "description": "Experiment with swirling vortex patterns.",
     "category": "Art",
     "path": "VortexPatternLab.html"
   },
@@ -719,8 +719,8 @@
   },
   {
     "id": "neo-spiral",
-    "name": "Spiral",
-    "description": "A generative art / visual piece from the Neocities collection: \"Spiral\".",
+    "name": "Endless Spiral",
+    "description": "A single spiral that never stops turning.",
     "category": "Art",
     "path": "Spiral.html"
   },
@@ -810,8 +810,8 @@
   },
   {
     "id": "neo-infinite-quadrants-pure-bw-logic",
-    "name": "Infinite Quadrants \u2013 Pure B/W Logic",
-    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Pure B/W Logic\".",
+    "name": "Infinite Quadrants",
+    "description": "A black-and-white pattern that repeats forever.",
     "category": "Art",
     "path": "InfiniteQuadrantsPureBwLogic.html"
   },
@@ -825,21 +825,21 @@
   {
     "id": "neo-hypnotic-spirals-robust",
     "name": "Hypnotic Spirals",
-    "description": "A generative art / visual piece from the Neocities collection: \"Hypnotic Spirals\".",
+    "description": "Slow, mesmerizing spirals that pull the eye in.",
     "category": "Art",
     "path": "HypnoticSpiralsRobust.html"
   },
   {
     "id": "neo-infinite-quadrants-stable-grayscale-patterns-hidpi",
-    "name": "Infinite Quadrants \u2013 Stable Patterns (HiDPI)",
-    "description": "A generative art / visual piece from the Neocities collection: \"Infinite Quadrants \u2013 Stable Patterns (HiDPI)\".",
+    "name": "Stable Quadrants",
+    "description": "A sharper, steadier grayscale quadrant pattern.",
     "category": "Art",
     "path": "InfiniteQuadrantsStableGrayscalePatternsHidpi.html"
   },
   {
     "id": "neo-rings",
-    "name": "Rings",
-    "description": "A generative art / visual piece from the Neocities collection: \"Rings\".",
+    "name": "Glowing Rings",
+    "description": "Concentric rings pulsing with light.",
     "category": "Art",
     "path": "Rings.html"
   },
@@ -859,15 +859,15 @@
   },
   {
     "id": "neo-chrome-safari-optimized",
-    "name": "Chrome",
-    "description": "A generative art / visual piece from the Neocities collection: \"Chrome\".",
+    "name": "Liquid Chrome",
+    "description": "A rippling chrome surface that never sits still.",
     "category": "Art",
     "path": "ChromeSafariOptimized.html"
   },
   {
     "id": "neo-peaceful-space-explorer",
-    "name": "Peaceful Space Explorer",
-    "description": "A generative art / visual piece from the Neocities collection: \"Peaceful Space Explorer\".",
+    "name": "Space Explorer",
+    "description": "A calm drift through generative outer space.",
     "category": "Art",
     "path": "PeacefulSpaceExplorer.html"
   },
@@ -908,8 +908,8 @@
   },
   {
     "id": "neo-the-field-that-remembers-elegant",
-    "name": "The Field That Remembers",
-    "description": "A generative art / visual piece from the Neocities collection: \"The Field That Remembers\".",
+    "name": "Field Memory",
+    "description": "An elegant field that remembers every touch.",
     "category": "Art",
     "path": "TheFieldThatRemembersElegant.html"
   },
@@ -957,15 +957,15 @@
   },
   {
     "id": "neo-lines-slow-long-trails",
-    "name": "Lines",
-    "description": "A generative art / visual piece from the Neocities collection: \"Lines\".",
+    "name": "Long Trails",
+    "description": "Slow-moving lines leaving long glowing trails.",
     "category": "Art",
     "path": "LinesSlowLongTrails.html"
   },
   {
     "id": "neo-smooth-v2",
-    "name": "smooth",
-    "description": "A generative art / visual piece from the Neocities collection: \"smooth\".",
+    "name": "Smooth Flow",
+    "description": "Smooth, flowing generative shapes in motion.",
     "category": "Art",
     "path": "SmoothV2.html"
   },
