@@ -128,13 +128,6 @@
     "path": "NeonBladeXenowave.html"
   },
   {
-    "id": "swirling-color-strips",
-    "name": "Swirling Color Strips",
-    "description": "Draw glowing, swirling ribbons of color that drift and fade.",
-    "category": "Art",
-    "path": "SwirlingColorStrips.html"
-  },
-  {
     "id": "unicorn-cat-bubble-pop",
     "name": "Unicorn Cat Bubble Pop",
     "description": "Slide a kitty side to side to pop falling bubbles before time runs out.",
@@ -233,13 +226,6 @@
     "path": "LiquidCheckerboard.html"
   },
   {
-    "id": "triangle-kaleidoscope",
-    "name": "Triangle Kaleidoscope",
-    "description": "Drag to morph a triangle into a swirling kaleidoscope, then settle into a diamond.",
-    "category": "Art",
-    "path": "TriangleKaleidoscope.html"
-  },
-  {
     "id": "gooey-blobs",
     "name": "Gooey Blobs & Lines",
     "description": "A flowing RGB isoline field \u2014 drag to drop gooey metaball blobs into the current.",
@@ -329,13 +315,6 @@
     "description": "A generative art / visual piece from the Neocities collection: \"Op Art\".",
     "category": "Art",
     "path": "OpArt.html"
-  },
-  {
-    "id": "neo-unicorn-tilt-maze-curvy5-levels",
-    "name": "Unicorn Tilt Maze // Curvy 5 Levels",
-    "description": "A generative art / visual piece from the Neocities collection: \"Unicorn Tilt Maze // Curvy 5 Levels\".",
-    "category": "Art",
-    "path": "UnicornTiltMazeCurvy5Levels.html"
   },
   {
     "id": "neo-majormetal-saves-the-universe-d-b-splash",
@@ -1048,9 +1027,9 @@
   },
   {
     "id": "neo-maizeys-magic-spell-academy",
-    "name": "Maizey's Magic Spell Academy",
+    "name": "Maisie's Spell Academy",
     "description": "A generative art / visual piece from the Neocities collection: \"Maizey's Magic Spell Academy\".",
-    "category": "Art",
+    "category": "Games",
     "path": "MaizeysMagicSpellAcademy.html"
   },
   {
