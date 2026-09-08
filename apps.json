@@ -1,24 +1,27 @@
 [
   {
     "id": "bitcrusher-worklet-demo",
-    "name": "BitCrusher Worklet Demo",
+    "name": "Bit Crusher",
     "description": "A real-time bitcrusher built as an AudioWorklet.",
     "category": "Music Tools",
-    "path": "BitCrusherWorkletDemo.html"
+    "path": "BitCrusherWorkletDemo.html",
+    "musicGroup": "synth"
   },
   {
     "id": "hnw9",
-    "name": "HNW9",
+    "name": "Nine Pads",
     "description": "A nine-pad noise wall instrument you sculpt by dragging.",
     "category": "Music Tools",
-    "path": "HNW9.html"
+    "path": "HNW9.html",
+    "musicGroup": "synth"
   },
   {
     "id": "factorial-melody-generator",
-    "name": "Factorial Melody Generator",
+    "name": "Factorial Melody",
     "description": "Turns factorials into an evolving melody.",
     "category": "Music Tools",
-    "path": "FactorialMelodyGenerator.html"
+    "path": "FactorialMelodyGenerator.html",
+    "musicGroup": "synth"
   },
   {
     "id": "sound-of-functions",
@@ -146,7 +149,8 @@
     "name": "Merzbow Machine",
     "description": "A harsh noise wall synthesizer \u2014 six modules, three step sequencers, and chaos/glitch controls.",
     "category": "Music Tools",
-    "path": "MerzbowMachine.html"
+    "path": "MerzbowMachine.html",
+    "musicGroup": "synth"
   },
   {
     "id": "artsy-v3",
@@ -167,7 +171,8 @@
     "name": "Chord Morph",
     "description": "Tap to morph between randomized maj7 and min7 chords, played as pure sine tones.",
     "category": "Music Tools",
-    "path": "ChordMorpher.html"
+    "path": "ChordMorpher.html",
+    "musicGroup": "synth"
   },
   {
     "id": "snake-circle-enemy",
@@ -207,9 +212,10 @@
   {
     "id": "neo-echo-warp",
     "name": "Echo Warp",
-    "description": "A music tool from the Neocities collection: \"Echo Warp\".",
+    "description": "Warps your mic input through a delay and reverb.",
     "category": "Music Tools",
-    "path": "EchoWarp.html"
+    "path": "EchoWarp.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-shapewave-color-swipe",
@@ -241,10 +247,11 @@
   },
   {
     "id": "neo-op-art-toy",
-    "name": "Op-Art Toy",
-    "description": "A music tool from the Neocities collection: \"Op-Art Toy\".",
+    "name": "Op Toy",
+    "description": "An audio-reactive op-art pattern generator.",
     "category": "Music Tools",
-    "path": "OpArtToy.html"
+    "path": "OpArtToy.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-spiral-seed-art",
@@ -269,17 +276,19 @@
   },
   {
     "id": "neo-aether-classical-ambient-composer",
-    "name": "Aether \u2014 Classical Ambient Composer",
-    "description": "A generative art / visual piece from the Neocities collection: \"Aether \u2014 Classical Ambient Composer\".",
+    "name": "Aether Composer",
+    "description": "A generative classical-ambient music composer.",
     "category": "Music Tools",
-    "path": "AetherClassicalAmbientComposer.html"
+    "path": "AetherClassicalAmbientComposer.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-fuzz303-lofi-beat-machine",
-    "name": "FUZZ-303 \u00b7 Lo-Fi Beat Machine",
-    "description": "A music tool from the Neocities collection: \"FUZZ-303 \u00b7 Lo-Fi Beat Machine\".",
+    "name": "Lofi Beats",
+    "description": "A fuzzed-out lo-fi beat machine.",
     "category": "Music Tools",
-    "path": "Fuzz303LofiBeatMachine.html"
+    "path": "Fuzz303LofiBeatMachine.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-high-contrast-kaleidoscope",
@@ -305,9 +314,10 @@
   {
     "id": "neo-tick-clock",
     "name": "Tick Clock",
-    "description": "A music tool from the Neocities collection: \"Tick Clock\".",
+    "description": "A visual metronome and tempo clock.",
     "category": "Music Tools",
-    "path": "TickClock.html"
+    "path": "TickClock.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-wave-grid",
@@ -325,10 +335,11 @@
   },
   {
     "id": "neo-ambient-generator011",
-    "name": "Ambient Generator 01.1",
-    "description": "A music tool from the Neocities collection: \"Ambient Generator 01.1\".",
+    "name": "Ambient Drift",
+    "description": "A generative ambient pad that drifts forever.",
     "category": "Music Tools",
-    "path": "AmbientGenerator011.html"
+    "path": "AmbientGenerator011.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-star-map-high-contrast",
@@ -437,31 +448,34 @@
   },
   {
     "id": "neo-noise-mic-visualizer",
-    "name": "Noise + Mic Visualizer (Echo/Reverb)",
-    "description": "A music tool from the Neocities collection: \"Noise + Mic Visualizer (Echo/Reverb)\".",
-    "category": "Music Tools",
+    "name": "Mic Echo",
+    "description": "Turns your mic input into a scrolling neon waveform with echo.",
+    "category": "Art",
     "path": "NoiseMicVisualizer.html"
   },
   {
     "id": "neo-harsh-noise-wall9-squares-sequencer-fix",
-    "name": "HNW 9 + Seq",
-    "description": "A music tool from the Neocities collection: \"HNW 9 + Seq\".",
+    "name": "Noise Sequencer",
+    "description": "A nine-pad noise wall with a built-in step sequencer.",
     "category": "Music Tools",
-    "path": "HarshNoiseWall9SquaresSequencerFix.html"
+    "path": "HarshNoiseWall9SquaresSequencerFix.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-808-glitch-drum-machine",
-    "name": "808 Glitch Drums",
-    "description": "A music tool from the Neocities collection: \"808 Glitch Drums\".",
+    "name": "808 Glitch",
+    "description": "An 808-style drum machine with glitch effects.",
     "category": "Music Tools",
-    "path": "808GlitchDrumMachine.html"
+    "path": "808GlitchDrumMachine.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-harsh-noise-wall-play-then-seq-then-pads",
-    "name": "HNW Play",
-    "description": "A music tool from the Neocities collection: \"HNW Play\".",
+    "name": "Noise Pads",
+    "description": "A noise wall you play, sequence, then perform on pads.",
     "category": "Music Tools",
-    "path": "HarshNoiseWallPlayThenSeqThenPads.html"
+    "path": "HarshNoiseWallPlayThenSeqThenPads.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-swirl-studio",
@@ -486,44 +500,49 @@
   },
   {
     "id": "neo-drum-machine8step-blast-speed",
-    "name": "Drum 8",
-    "description": "A music tool from the Neocities collection: \"Drum 8\".",
+    "name": "Blast Beats",
+    "description": "An 8-step drum machine with a speed dial.",
     "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeed.html"
+    "path": "DrumMachine8stepBlastSpeed.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-mini909-bass-sequencer",
-    "name": "Mini 909 + Bass",
-    "description": "A music tool from the Neocities collection: \"Mini 909 + Bass\".",
+    "name": "909 Bass",
+    "description": "A 909-style drum machine with a bassline sequencer.",
     "category": "Music Tools",
-    "path": "Mini909BassSequencer.html"
+    "path": "Mini909BassSequencer.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-drum-machine8step-blast-speed-pitch",
-    "name": "Drum 8 Pitch",
-    "description": "A music tool from the Neocities collection: \"Drum 8 Pitch\".",
+    "name": "Pitch Beats",
+    "description": "An 8-step drum machine with speed and pitch control.",
     "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeedPitch.html"
+    "path": "DrumMachine8stepBlastSpeedPitch.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-mini909-bass-notext",
-    "name": "909",
-    "description": "A music tool from the Neocities collection: \"909\".",
+    "name": "Mini 909",
+    "description": "A compact 909-style drum machine.",
     "category": "Music Tools",
-    "path": "Mini909BassNotext.html"
+    "path": "Mini909BassNotext.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-spin-textless-fixed",
-    "name": "Spin",
-    "description": "A music tool from the Neocities collection: \"Spin\".",
+    "name": "Audio Spin",
+    "description": "A spinning tone toy with no text, just sound.",
     "category": "Music Tools",
-    "path": "SpinTextlessFixed.html"
+    "path": "SpinTextlessFixed.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-one-hand-moto-ios",
     "name": "One-Hand Moto (iOS fix)",
     "description": "A music tool from the Neocities collection: \"One-Hand Moto (iOS fix)\".",
-    "category": "Music Tools",
+    "category": "Games",
     "path": "OneHandMotoIos.html"
   },
   {
@@ -556,10 +575,11 @@
   },
   {
     "id": "neo-vaporwave-generator",
-    "name": "Vaporwave Generator",
-    "description": "A music tool from the Neocities collection: \"Vaporwave Generator\".",
+    "name": "Vaporwave Synth",
+    "description": "A generative vaporwave music maker.",
     "category": "Music Tools",
-    "path": "VaporwaveGenerator.html"
+    "path": "VaporwaveGenerator.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-light-tap-bulbs",
@@ -607,17 +627,19 @@
   },
   {
     "id": "neo-echo",
-    "name": "Echo",
-    "description": "A music tool from the Neocities collection: \"Echo\".",
+    "name": "Echo Chamber",
+    "description": "Turns your mic input into a live echo chamber.",
     "category": "Music Tools",
-    "path": "Echo.html"
+    "path": "Echo.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-oscillate",
-    "name": "Oscillate",
-    "description": "A music tool from the Neocities collection: \"Oscillate\".",
+    "name": "Pure Oscillator",
+    "description": "A simple, live audio oscillator.",
     "category": "Music Tools",
-    "path": "Oscillate.html"
+    "path": "Oscillate.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-peggle-noir-minimal",
@@ -693,7 +715,7 @@
     "id": "neo-snes-birds",
     "name": "SNES Birds \u2014 3 Levels",
     "description": "A music tool from the Neocities collection: \"SNES Birds \u2014 3 Levels\".",
-    "category": "Music Tools",
+    "category": "Games",
     "path": "SnesBirds.html"
   },
   {
@@ -712,10 +734,11 @@
   },
   {
     "id": "neo-voxmorph",
-    "name": "Voxmorph",
-    "description": "A music tool from the Neocities collection: \"Voxmorph\".",
+    "name": "Voice Morph",
+    "description": "Morphs your recorded voice into new sounds.",
     "category": "Music Tools",
-    "path": "Voxmorph.html"
+    "path": "Voxmorph.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-spiral",
@@ -726,86 +749,96 @@
   },
   {
     "id": "neo-heapsort-voice-audio",
-    "name": "Heapsort Audio Visualizer",
-    "description": "A music tool from the Neocities collection: \"Heapsort Audio Visualizer\".",
-    "category": "Music Tools",
+    "name": "Sort Visual",
+    "description": "Watch a sorting algorithm play out as sound and color.",
+    "category": "Art",
     "path": "HeapsortVoiceAudio.html"
   },
   {
     "id": "neo-303-mazie-sampler",
-    "name": "303 + Mazie Sampler",
-    "description": "A music tool from the Neocities collection: \"303 + Mazie Sampler\".",
+    "name": "303 Sampler",
+    "description": "A 303-style acid bassline synth with a sampler.",
     "category": "Music Tools",
-    "path": "303MazieSampler.html"
+    "path": "303MazieSampler.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-composer",
-    "name": "Composer",
-    "description": "A music tool from the Neocities collection: \"Composer\".",
+    "name": "Music Composer",
+    "description": "A simple generative music composer.",
     "category": "Music Tools",
-    "path": "Composer.html"
+    "path": "Composer.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-hz-lab03-real-planet-orbits",
-    "name": "Hz Lab 03.0 \u2014 Real Planet Orbits",
-    "description": "A music tool from the Neocities collection: \"Hz Lab 03.0 \u2014 Real Planet Orbits\".",
+    "name": "Planet Orbits",
+    "description": "Frequencies mapped to real planetary orbits.",
     "category": "Music Tools",
-    "path": "HzLab03RealPlanetOrbits.html"
+    "path": "HzLab03RealPlanetOrbits.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-dm1-minimal",
-    "name": "DM1",
-    "description": "A music tool from the Neocities collection: \"DM1\".",
+    "name": "DM1 Drums",
+    "description": "A minimal classic-style drum machine.",
     "category": "Music Tools",
-    "path": "Dm1Minimal.html"
+    "path": "Dm1Minimal.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-hz-lab",
     "name": "Hz Lab",
-    "description": "A music tool from the Neocities collection: \"Hz Lab\".",
+    "description": "Experiment with raw frequencies and tones.",
     "category": "Music Tools",
-    "path": "HzLab.html"
+    "path": "HzLab.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-cr70-poly-funk2",
-    "name": "Cr-70 Poly-Funk",
-    "description": "A music tool from the Neocities collection: \"Cr-70 Poly-Funk\".",
+    "name": "Funk Machine",
+    "description": "A polyrhythmic funk drum machine, remixed.",
     "category": "Music Tools",
-    "path": "Cr70PolyFunk2.html"
+    "path": "Cr70PolyFunk2.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-euclidean-math-synth",
-    "name": "Euclidean Math Synth",
-    "description": "A music tool from the Neocities collection: \"Euclidean Math Synth\".",
+    "name": "Math Synth",
+    "description": "A synth driven by Euclidean rhythm math.",
     "category": "Music Tools",
-    "path": "EuclideanMathSynth.html"
+    "path": "EuclideanMathSynth.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-cr70-poly-funk",
-    "name": "Cr-70 Poly-Funk",
-    "description": "A music tool from the Neocities collection: \"Cr-70 Poly-Funk\".",
+    "name": "Poly Funk",
+    "description": "A polyrhythmic funk drum machine.",
     "category": "Music Tools",
-    "path": "Cr70PolyFunk.html"
+    "path": "Cr70PolyFunk.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-panda-drum",
     "name": "Panda Drum",
-    "description": "A music tool from the Neocities collection: \"Panda Drum\".",
+    "description": "A playful panda-themed drum machine.",
     "category": "Music Tools",
-    "path": "PandaDrum.html"
+    "path": "PandaDrum.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-cr70-jungle-generator",
-    "name": "Cr-70 Jungle Generator",
-    "description": "A music tool from the Neocities collection: \"Cr-70 Jungle Generator\".",
+    "name": "Jungle Beats",
+    "description": "A jungle/breakbeat rhythm generator.",
     "category": "Music Tools",
-    "path": "Cr70JungleGenerator.html"
+    "path": "Cr70JungleGenerator.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-aurora-dance-permission",
     "name": "Aurora Dance",
-    "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
-    "category": "Music Tools",
+    "description": "Move in front of your camera or mic to paint the sky.",
+    "category": "Art",
     "path": "AuroraDancePermission.html"
   },
   {
@@ -817,9 +850,9 @@
   },
   {
     "id": "neo-aurora-dance-spotify-rhythm",
-    "name": "Aurora Dance",
-    "description": "A music tool from the Neocities collection: \"Aurora Dance\".",
-    "category": "Music Tools",
+    "name": "Aurora Rhythm",
+    "description": "A rhythm-reactive aurora that dances to nearby sound.",
+    "category": "Art",
     "path": "AuroraDanceSpotifyRhythm.html"
   },
   {
@@ -845,10 +878,11 @@
   },
   {
     "id": "neo-glitch-acid-workstation",
-    "name": "Glitch-Acid Workstation",
-    "description": "A music tool from the Neocities collection: \"Glitch-Acid Workstation\".",
+    "name": "Acid Glitch",
+    "description": "A glitchy acid-synth workstation.",
     "category": "Music Tools",
-    "path": "GlitchAcidWorkstation.html"
+    "path": "GlitchAcidWorkstation.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-unicorn-air-hockey",
@@ -881,23 +915,26 @@
   {
     "id": "neo-harsh-noise-no-text",
     "name": "Harsh Noise",
-    "description": "A music tool from the Neocities collection: \"Harsh Noise\".",
+    "description": "A no-frills harsh noise generator.",
     "category": "Music Tools",
-    "path": "HarshNoiseNoText.html"
+    "path": "HarshNoiseNoText.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-noise-wall",
     "name": "Noise Wall",
-    "description": "A music tool from the Neocities collection: \"Noise Wall\".",
+    "description": "A wall of tunable generative noise.",
     "category": "Music Tools",
-    "path": "NoiseWall.html"
+    "path": "NoiseWall.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-ems-synthi100",
-    "name": "Ems Synthi 100",
-    "description": "A music tool from the Neocities collection: \"Ems Synthi 100\".",
+    "name": "Synthi 100",
+    "description": "A tribute to the classic EMS Synthi 100 modular synth.",
     "category": "Music Tools",
-    "path": "EmsSynthi100.html"
+    "path": "EmsSynthi100.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-white-hole",
@@ -917,7 +954,7 @@
     "id": "neo-touch-sort-lines",
     "name": "Touch Sort Lines",
     "description": "A music tool from the Neocities collection: \"Touch Sort Lines\".",
-    "category": "Music Tools",
+    "category": "Games",
     "path": "TouchSortLines.html"
   },
   {
@@ -931,29 +968,32 @@
     "id": "neo-verti-fall-draw-walls",
     "name": "Verti-Fall Draw Walls",
     "description": "A music tool from the Neocities collection: \"Verti-Fall Draw Walls\".",
-    "category": "Music Tools",
+    "category": "Games",
     "path": "VertiFallDrawWalls.html"
   },
   {
     "id": "neo-motion-synth-blackwhite-squares",
     "name": "Motion Synth",
-    "description": "A music tool from the Neocities collection: \"Motion Synth\".",
+    "description": "A synth played by moving black-and-white squares.",
     "category": "Music Tools",
-    "path": "MotionSynthBlackwhiteSquares.html"
+    "path": "MotionSynthBlackwhiteSquares.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-poly-fuzz-drum-machine-clav-tempo-drift",
-    "name": "Poly Fuzz Drums",
-    "description": "A music tool from the Neocities collection: \"Poly Fuzz Drums\".",
+    "name": "Poly Drums",
+    "description": "A fuzzy drum machine with drifting tempo.",
     "category": "Music Tools",
-    "path": "PolyFuzzDrumMachineClavTempoDrift.html"
+    "path": "PolyFuzzDrumMachineClavTempoDrift.html",
+    "musicGroup": "drum"
   },
   {
     "id": "neo-oscillate-persistent",
-    "name": "OSCILLATE \u2014 Persistent",
-    "description": "A music tool from the Neocities collection: \"OSCILLATE \u2014 Persistent\".",
+    "name": "Persistent Oscillator",
+    "description": "An oscillator that keeps playing between visits.",
     "category": "Music Tools",
-    "path": "OscillatePersistent.html"
+    "path": "OscillatePersistent.html",
+    "musicGroup": "synth"
   },
   {
     "id": "neo-lines-slow-long-trails",
@@ -971,10 +1011,11 @@
   },
   {
     "id": "neo-d-s-s12",
-    "name": "DSS1 - Digital Sound Studio",
-    "description": "A music tool from the Neocities collection: \"DSS1 - Digital Sound Studio\".",
+    "name": "Sound Studio",
+    "description": "A digital sound studio for building tones.",
     "category": "Music Tools",
-    "path": "DSS12.html"
+    "path": "DSS12.html",
+    "musicGroup": "synth"
   },
   {
     "id": "moviemoji",
@@ -987,9 +1028,10 @@
   },
   {
     "id": "yakbox-3000",
-    "name": "YAKBOX 3000",
+    "name": "Voice Mutator",
     "description": "A voice-mutator toy \u2014 record your voice and warp it with speed, pitch, and FX presets like Robot, Monster, and Chipmunk.",
     "category": "Music Tools",
-    "path": "YakBox3000.html"
+    "path": "YakBox3000.html",
+    "musicGroup": "synth"
   }
 ]
