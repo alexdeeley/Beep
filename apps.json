@@ -63,86 +63,98 @@
     "name": "Maisie Eats Everything 2",
     "description": "Grow a rainbow unicorn by eating everything smaller than you.",
     "category": "Games",
-    "path": "MaisieEatsEverything2.html"
+    "path": "MaisieEatsEverything2.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "maisie-eats-everything-original",
     "name": "Maisie Eats Everything",
     "description": "The original unicorn-eating game across ten sparkly levels.",
     "category": "Games",
-    "path": "MaisieEatsEverything.html"
+    "path": "MaisieEatsEverything.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "peggle-minimal-forge",
-    "name": "Peggle Minimal Forge",
+    "name": "Peggle Forge",
     "description": "Drop balls to bounce and ricochet through a peg board.",
     "category": "Games",
-    "path": "PeggleMinimalForge.html"
+    "path": "PeggleMinimalForge.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "star-bucket",
     "name": "Star Bucket",
     "description": "Catch falling stars and dodge squares in this arcade catcher.",
     "category": "Games",
-    "path": "StarBucket.html"
+    "path": "StarBucket.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "ricochet-8bit",
     "name": "Ricochet 8-Bit",
     "description": "A pixel-art Peggle/Breakout hybrid with power-ups.",
     "category": "Games",
-    "path": "Ricochet8Bit.html"
+    "path": "Ricochet8Bit.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "ricochet-8bit-sequence11",
-    "name": "Ricochet 8-Bit: Sequence 11",
+    "name": "Ricochet Sequence",
     "description": "An expanded Ricochet 8-Bit with giant balls and homing shots.",
     "category": "Games",
     "path": "Sequence11.html",
     "featured": true,
-    "featuredOrder": 3
+    "featuredOrder": 3,
+    "gameGroup": "arcade"
   },
   {
     "id": "maisies-kitty-cat-adventure",
     "name": "Maisie's Kitty Cat Adventure",
     "description": "Grow a hungry kitty from Tiny to WORLD size.",
     "category": "Games",
-    "path": "MaisiesKittyCatAdventure.html"
+    "path": "MaisiesKittyCatAdventure.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "maisie-emoji-guess",
     "name": "Maisie's Magical Emoji Guess!",
     "description": "A guess-the-emoji quiz with hints and three modes.",
     "category": "Games",
-    "path": "MaisieEmojiGuess.html"
+    "path": "MaisieEmojiGuess.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "emoji-scramble",
     "name": "Emoji Scramble",
     "description": "Guess the emoji through glitchy scrambled effects.",
     "category": "Games",
-    "path": "EmojiScramble.html"
+    "path": "EmojiScramble.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neon-blade-xenowave",
-    "name": "Neon Blade: Xenowave",
+    "name": "Neon Blade",
     "description": "A neon cyberpunk side-scrolling brawler \u2014 slash through enemies to a boss fight.",
     "category": "Games",
-    "path": "NeonBladeXenowave.html"
+    "path": "NeonBladeXenowave.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "unicorn-cat-bubble-pop",
-    "name": "Unicorn Cat Bubble Pop",
+    "name": "Bubble Pop",
     "description": "Slide a kitty side to side to pop falling bubbles before time runs out.",
     "category": "Games",
-    "path": "UnicornCatBubblePop.html"
+    "path": "UnicornCatBubblePop.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "chunky-shape-shooter",
-    "name": "Chunky Shape Shooter",
+    "name": "Chunky Shooter",
     "description": "A chunky, pixel-art twin-stick style shooter \u2014 blast waves of shapes for score.",
     "category": "Games",
-    "path": "ChunkyShapeShooter.html"
+    "path": "ChunkyShapeShooter.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "merzbow-machine",
@@ -176,10 +188,11 @@
   },
   {
     "id": "snake-circle-enemy",
-    "name": "Snake! Big Circle Enemy",
+    "name": "Circle Snake",
     "description": "Classic snake with a twist \u2014 a slow-regenerating circle enemy that dies if it crashes into you.",
     "category": "Games",
-    "path": "SnakeCircleEnemy.html"
+    "path": "SnakeCircleEnemy.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "spiral-fan-spinner",
@@ -205,9 +218,10 @@
   {
     "id": "neo-space-shooter",
     "name": "Space Shooter",
-    "description": "A game from the Neocities collection: \"Space Shooter\".",
+    "description": "A classic top-down space shooter.",
     "category": "Games",
-    "path": "SpaceShooter.html"
+    "path": "SpaceShooter.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-echo-warp",
@@ -227,23 +241,26 @@
   {
     "id": "neo-spider-kingdom-jungle-triangle",
     "name": "Spider Kingdom",
-    "description": "A game from the Neocities collection: \"Spider Kingdom\".",
+    "description": "An arcade jungle adventure ruled by spiders.",
     "category": "Games",
-    "path": "SpiderKingdomJungleTriangle.html"
+    "path": "SpiderKingdomJungleTriangle.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-blockdrop-quake-v2",
-    "name": "Blockdrop",
-    "description": "A game from the Neocities collection: \"Blockdrop\".",
+    "name": "Block Drop",
+    "description": "A falling-block puzzle game with a shaking twist.",
     "category": "Games",
-    "path": "BlockdropQuakeV2.html"
+    "path": "BlockdropQuakeV2.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-space-shooter-v4",
-    "name": "SPACE BLAST \u2014 Vertical (Remake)",
-    "description": "A game from the Neocities collection: \"SPACE BLAST \u2014 Vertical (Remake)\".",
+    "name": "Space Blast",
+    "description": "A vertical space shooter, remade.",
     "category": "Games",
-    "path": "SpaceShooterV4.html"
+    "path": "SpaceShooterV4.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-op-art-toy",
@@ -269,10 +286,11 @@
   },
   {
     "id": "neo-majormetal-saves-the-universe-d-b-splash",
-    "name": "Majormetal Saves The God Damn Universe",
-    "description": "A game from the Neocities collection: \"Majormetal Saves The God Damn Universe\".",
+    "name": "Major Metal",
+    "description": "A retro hero saves the universe.",
     "category": "Games",
-    "path": "MajormetalSavesTheUniverseDBSplash.html"
+    "path": "MajormetalSavesTheUniverseDBSplash.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-aether-classical-ambient-composer",
@@ -299,10 +317,11 @@
   },
   {
     "id": "neo-hive-multiplier",
-    "name": "HIVE MULTIPLIER \u2014 Timed + Zen Spelling Bee",
-    "description": "A game from the Neocities collection: \"HIVE MULTIPLIER \u2014 Timed + Zen Spelling Bee\".",
+    "name": "Hive Multiplier",
+    "description": "A timed spelling-bee word game.",
     "category": "Games",
-    "path": "HiveMultiplier.html"
+    "path": "HiveMultiplier.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-orbital-dots",
@@ -358,23 +377,26 @@
   {
     "id": "neo-arkanoid-high-contrast",
     "name": "Arkanoid HC",
-    "description": "A game from the Neocities collection: \"Arkanoid HC\".",
+    "description": "A high-contrast Arkanoid-style brick breaker.",
     "category": "Games",
-    "path": "ArkanoidHighContrast.html"
+    "path": "ArkanoidHighContrast.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-hyper-bowling-chain",
-    "name": "HYPER BOWLING \u2014 Chain Reactions",
-    "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Chain Reactions\".",
+    "name": "Bowling Chain",
+    "description": "Bowling with chain-reaction pin combos.",
     "category": "Games",
-    "path": "HyperBowlingChain.html"
+    "path": "HyperBowlingChain.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-snake-wormio",
-    "name": "SNAKE! (Worm.io style)",
-    "description": "A game from the Neocities collection: \"SNAKE! (Worm.io style)\".",
+    "name": "Worm Snake",
+    "description": "A Worm.io-style multiplayer-feel snake game.",
     "category": "Games",
-    "path": "SnakeWormio.html"
+    "path": "SnakeWormio.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-arty-three-shapes-seeded-v2",
@@ -399,10 +421,11 @@
   },
   {
     "id": "neo-hyper-bowling",
-    "name": "HYPER BOWLING \u2014 Swipe to Roll",
-    "description": "A game from the Neocities collection: \"HYPER BOWLING \u2014 Swipe to Roll\".",
+    "name": "Hyper Bowling",
+    "description": "Swipe-to-roll arcade bowling.",
     "category": "Games",
-    "path": "HyperBowling.html"
+    "path": "HyperBowling.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-mechanical-art-toy-rotating-rings",
@@ -413,10 +436,11 @@
   },
   {
     "id": "neo-miami-strike-diamonds",
-    "name": "MIAMI STRIKE \u2014 Neon Bowling (Diamond Blockers)",
-    "description": "A game from the Neocities collection: \"MIAMI STRIKE \u2014 Neon Bowling (Diamond Blockers)\".",
+    "name": "Miami Strike",
+    "description": "Neon bowling with diamond-shaped blockers.",
     "category": "Games",
-    "path": "MiamiStrikeDiamonds.html"
+    "path": "MiamiStrikeDiamonds.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-pattern-dna-infinite",
@@ -434,17 +458,19 @@
   },
   {
     "id": "neo-snake-one-hand-v3",
-    "name": "Snake \u2014 One-Hand (v3)",
-    "description": "A game from the Neocities collection: \"Snake \u2014 One-Hand (v3)\".",
+    "name": "One-Hand Snake",
+    "description": "A one-handed take on classic Snake.",
     "category": "Games",
-    "path": "SnakeOneHandV3.html"
+    "path": "SnakeOneHandV3.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-unicorn-rainbow-blast",
-    "name": "Unicorn Rainbow Blast",
-    "description": "A game from the Neocities collection: \"Unicorn Rainbow Blast\".",
+    "name": "Rainbow Blast",
+    "description": "Blast through rainbows in this unicorn arcade game.",
     "category": "Games",
-    "path": "UnicornRainbowBlast.html"
+    "path": "UnicornRainbowBlast.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-noise-mic-visualizer",
@@ -487,9 +513,10 @@
   {
     "id": "neo-maisies-unicorn-maze-fixed",
     "name": "\ud83e\udd84 Maisie's Unicorn Maze!",
-    "description": "A game from the Neocities collection: \"\ud83e\udd84 Maisie's Unicorn Maze!\".",
+    "description": "Guide a unicorn through a sparkly maze.",
     "category": "Games",
-    "path": "MaisiesUnicornMazeFixed.html"
+    "path": "MaisiesUnicornMazeFixed.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-field-lines",
@@ -540,10 +567,11 @@
   },
   {
     "id": "neo-one-hand-moto-ios",
-    "name": "One-Hand Moto (iOS fix)",
-    "description": "A music tool from the Neocities collection: \"One-Hand Moto (iOS fix)\".",
+    "name": "Moto Fix",
+    "description": "A one-handed motorcycle stunt ride, iOS-fixed.",
     "category": "Games",
-    "path": "OneHandMotoIos.html"
+    "path": "OneHandMotoIos.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-touch-fade-grid",
@@ -561,17 +589,19 @@
   },
   {
     "id": "neo-rhythm-bubbles-happy-birthday",
-    "name": "Unicorn Rhythm Bubbles \u2014 Happy Birthday",
-    "description": "A game from the Neocities collection: \"Unicorn Rhythm Bubbles \u2014 Happy Birthday\".",
+    "name": "Birthday Bubbles",
+    "description": "Pop bubbles to the beat in this birthday-themed game.",
     "category": "Games",
-    "path": "RhythmBubblesHappyBirthday.html"
+    "path": "RhythmBubblesHappyBirthday.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-rotating-ring-feeder-time-attack-compat",
-    "name": "Rotating Ring Feeder \u2014 Time Attack (Compat)",
-    "description": "A game from the Neocities collection: \"Rotating Ring Feeder \u2014 Time Attack (Compat)\".",
+    "name": "Ring Feeder",
+    "description": "A rotating ring you feed against the clock.",
     "category": "Games",
-    "path": "RotatingRingFeederTimeAttackCompat.html"
+    "path": "RotatingRingFeederTimeAttackCompat.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-vaporwave-generator",
@@ -583,40 +613,45 @@
   },
   {
     "id": "neo-light-tap-bulbs",
-    "name": "Light Tap \u2022 Bulbs",
-    "description": "A game from the Neocities collection: \"Light Tap \u2022 Bulbs\".",
+    "name": "Tap Bulbs",
+    "description": "Tap glowing bulbs in time before they fade.",
     "category": "Games",
-    "path": "LightTapBulbs.html"
+    "path": "LightTapBulbs.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-slither-arena",
     "name": "Lumen Arena",
-    "description": "A game from the Neocities collection: \"Lumen Arena\".",
+    "description": "A glowing slither-style arena battle.",
     "category": "Games",
-    "path": "SlitherArena.html"
+    "path": "SlitherArena.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-hiveword",
-    "name": "Hiveword",
-    "description": "A game from the Neocities collection: \"Hiveword\".",
+    "name": "Hive Word",
+    "description": "A daily word puzzle, date-seeded so everyone gets the same one.",
     "category": "Games",
     "path": "Hiveword.html",
     "featured": true,
-    "featuredOrder": 1
+    "featuredOrder": 1,
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-prism-breaker",
-    "name": "AggroAlex's Ball Busters",
-    "description": "A game from the Neocities collection: \"AggroAlex's Ball Busters\".",
+    "name": "Ball Busters",
+    "description": "A colorful ball-and-paddle breakout game.",
     "category": "Games",
-    "path": "PrismBreaker.html"
+    "path": "PrismBreaker.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-listening-club-whos-bigger",
-    "name": "Listening Club Trivia: Top Artist",
-    "description": "A game from the Neocities collection: \"Listening Club Trivia: Top Artist\".",
+    "name": "Music Trivia",
+    "description": "Guess which artist has the bigger stats.",
     "category": "Games",
-    "path": "ListeningClubWhosBigger.html"
+    "path": "ListeningClubWhosBigger.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-simple-art",
@@ -650,31 +685,35 @@
   },
   {
     "id": "neo-infinite-tic-tac-toe",
-    "name": "Infinite Tic-Tac-Toe",
-    "description": "A game from the Neocities collection: \"Infinite Tic-Tac-Toe\".",
+    "name": "Tic Tac",
+    "description": "Tic-tac-toe that keeps going after three in a row.",
     "category": "Games",
-    "path": "InfiniteTicTacToe.html"
+    "path": "InfiniteTicTacToe.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-ultra-dynamic-strike",
-    "name": "Ultra Dynamic Strike",
-    "description": "A game from the Neocities collection: \"Ultra Dynamic Strike\".",
+    "name": "Dynamic Strike",
+    "description": "A fast-paced arcade strike game.",
     "category": "Games",
-    "path": "UltraDynamicStrike.html"
+    "path": "UltraDynamicStrike.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-ultra-contrast-strike",
-    "name": "Ultra Contrast Strike",
-    "description": "A game from the Neocities collection: \"Ultra Contrast Strike\".",
+    "name": "Contrast Strike",
+    "description": "A high-contrast arcade strike game.",
     "category": "Games",
-    "path": "UltraContrastStrike.html"
+    "path": "UltraContrastStrike.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-air-hockey2p-colorful-goals",
-    "name": "Air Hockey \u2014 2P",
-    "description": "A game from the Neocities collection: \"Air Hockey \u2014 2P\".",
+    "name": "Air Hockey",
+    "description": "Two-player air hockey with colorful goals.",
     "category": "Games",
-    "path": "AirHockey2pColorfulGoals.html"
+    "path": "AirHockey2pColorfulGoals.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-oilseed-landscape",
@@ -693,37 +732,42 @@
   {
     "id": "neo-shape-shooter",
     "name": "Shape Shooter",
-    "description": "A game from the Neocities collection: \"Shape Shooter\".",
+    "description": "A shape-based arcade shooter.",
     "category": "Games",
-    "path": "ShapeShooter.html"
+    "path": "ShapeShooter.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-unicorn-air-hockey-v2",
-    "name": "UNICORN AIR HOCKEY \u2014 2P v2",
-    "description": "A game from the Neocities collection: \"UNICORN AIR HOCKEY \u2014 2P v2\".",
+    "name": "Hockey Rematch",
+    "description": "A rematch of unicorn air hockey, refined.",
     "category": "Games",
-    "path": "UnicornAirHockeyV2.html"
+    "path": "UnicornAirHockeyV2.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-snake-many-pickups-skull-v6",
-    "name": "SNAKE! \u2014 Many Pickups + Skull (v6)",
-    "description": "A game from the Neocities collection: \"SNAKE! \u2014 Many Pickups + Skull (v6)\".",
+    "name": "Skull Snake",
+    "description": "Snake with extra pickups and a skull hazard.",
     "category": "Games",
-    "path": "SnakeManyPickupsSkullV6.html"
+    "path": "SnakeManyPickupsSkullV6.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-snes-birds",
-    "name": "SNES Birds \u2014 3 Levels",
-    "description": "A music tool from the Neocities collection: \"SNES Birds \u2014 3 Levels\".",
+    "name": "SNES Birds",
+    "description": "A retro side-scrolling bird game across 3 levels.",
     "category": "Games",
-    "path": "SnesBirds.html"
+    "path": "SnesBirds.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-wander-adventure",
-    "name": "Wander",
-    "description": "A game from the Neocities collection: \"Wander\".",
+    "name": "Wander Adventure",
+    "description": "A gentle, exploratory wandering game.",
     "category": "Games",
-    "path": "WanderAdventure.html"
+    "path": "WanderAdventure.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-vortex-pattern-lab",
@@ -886,10 +930,11 @@
   },
   {
     "id": "neo-unicorn-air-hockey",
-    "name": "Unicorn Air Hockey \u2014 2P",
-    "description": "A game from the Neocities collection: \"Unicorn Air Hockey \u2014 2P\".",
+    "name": "Unicorn Hockey",
+    "description": "Two-player air hockey with a unicorn twist.",
     "category": "Games",
-    "path": "UnicornAirHockey.html"
+    "path": "UnicornAirHockey.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-chrome-safari-optimized",
@@ -908,9 +953,10 @@
   {
     "id": "neo-maizeys-magic-spell-academy",
     "name": "Maisie's Spell Academy",
-    "description": "A generative art / visual piece from the Neocities collection: \"Maizey's Magic Spell Academy\".",
+    "description": "Cast spells and learn magic at a sparkly academy.",
     "category": "Games",
-    "path": "MaizeysMagicSpellAcademy.html"
+    "path": "MaizeysMagicSpellAcademy.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-harsh-noise-no-text",
@@ -939,9 +985,10 @@
   {
     "id": "neo-white-hole",
     "name": "White Hole",
-    "description": "A game from the Neocities collection: \"White Hole\".",
+    "description": "An arcade game orbiting a white hole.",
     "category": "Games",
-    "path": "WhiteHole.html"
+    "path": "WhiteHole.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-the-field-that-remembers-elegant",
@@ -952,24 +999,27 @@
   },
   {
     "id": "neo-touch-sort-lines",
-    "name": "Touch Sort Lines",
-    "description": "A music tool from the Neocities collection: \"Touch Sort Lines\".",
+    "name": "Sort Lines",
+    "description": "Watch a sort algorithm race across glowing lines.",
     "category": "Games",
-    "path": "TouchSortLines.html"
+    "path": "TouchSortLines.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-unicorn-tetris",
     "name": "Unicorn Blocks",
-    "description": "A game from the Neocities collection: \"Unicorn Blocks\".",
+    "description": "A unicorn-themed falling-blocks puzzle game.",
     "category": "Games",
-    "path": "UnicornTetris.html"
+    "path": "UnicornTetris.html",
+    "gameGroup": "maisie"
   },
   {
     "id": "neo-verti-fall-draw-walls",
-    "name": "Verti-Fall Draw Walls",
-    "description": "A music tool from the Neocities collection: \"Verti-Fall Draw Walls\".",
+    "name": "Draw Walls",
+    "description": "Draw walls to guide a falling ball to safety.",
     "category": "Games",
-    "path": "VertiFallDrawWalls.html"
+    "path": "VertiFallDrawWalls.html",
+    "gameGroup": "arcade"
   },
   {
     "id": "neo-motion-synth-blackwhite-squares",
@@ -1019,12 +1069,13 @@
   },
   {
     "id": "moviemoji",
-    "name": "Moviemoji",
+    "name": "Movie Emoji",
     "description": "Guess the movie from an emoji clue across daily, quick-play, decade, and genre modes.",
     "category": "Games",
     "path": "Moviemoji.html",
     "featured": true,
-    "featuredOrder": 2
+    "featuredOrder": 2,
+    "gameGroup": "arcade"
   },
   {
     "id": "yakbox-3000",
