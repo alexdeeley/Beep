@@ -189,14 +189,22 @@ function renderList() {
     appendSection(listEl, "Featured", featured);
   }
 
-  if (activeTab === "Music") {
-    // Music splits into Synths and Drum Machines for clearer browsing, rather than one flat list.
-    const synths = rest.filter((app) => app.musicGroup === "synth").sort(byName);
-    const drums = rest.filter((app) => app.musicGroup === "drum").sort(byName);
-    const other = rest.filter((app) => app.musicGroup !== "synth" && app.musicGroup !== "drum").sort(byName);
-    appendSection(listEl, "Synths", synths);
-    appendSection(listEl, "Drum Machines", drums);
-    appendSection(listEl, null, other);
+  // Some tabs split into named sub-sections for clearer browsing, rather than one flat
+  // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
+  // unlabeled trailing group so nothing silently disappears if a new app misses the field.
+  const TAB_SUBGROUPS = {
+    Music: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
+    Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
+  };
+
+  const subgrouping = TAB_SUBGROUPS[activeTab];
+  if (subgrouping) {
+    const { field, groups } = subgrouping;
+    const matchedKeys = groups.map(([key]) => key);
+    for (const [key, heading] of groups) {
+      appendSection(listEl, heading, rest.filter((app) => app[field] === key).sort(byName));
+    }
+    appendSection(listEl, null, rest.filter((app) => !matchedKeys.includes(app[field])).sort(byName));
   } else {
     for (const app of rest.sort(byName)) {
       listEl.appendChild(buildItem(app));
