@@ -44,7 +44,7 @@
     text-transform: uppercase;
     margin: 0;
   }
-  .featured-heading {
+  .list-heading {
     color: #6b6b78;
     font-weight: 800;
     font-size: 0.7rem;
@@ -178,24 +178,41 @@ function renderList() {
     return;
   }
 
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+
   const featured = filtered
     .filter((app) => app.featured)
     .sort((a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0));
-  const rest = filtered
-    .filter((app) => !app.featured)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const rest = filtered.filter((app) => !app.featured);
 
   if (featured.length > 0) {
-    const heading = document.createElement("div");
-    heading.className = "featured-heading";
-    heading.textContent = "Featured";
-    listEl.appendChild(heading);
-    for (const app of featured) {
+    appendSection(listEl, "Featured", featured);
+  }
+
+  if (activeTab === "Music") {
+    // Music splits into Synths and Drum Machines for clearer browsing, rather than one flat list.
+    const synths = rest.filter((app) => app.musicGroup === "synth").sort(byName);
+    const drums = rest.filter((app) => app.musicGroup === "drum").sort(byName);
+    const other = rest.filter((app) => app.musicGroup !== "synth" && app.musicGroup !== "drum").sort(byName);
+    appendSection(listEl, "Synths", synths);
+    appendSection(listEl, "Drum Machines", drums);
+    appendSection(listEl, null, other);
+  } else {
+    for (const app of rest.sort(byName)) {
       listEl.appendChild(buildItem(app));
     }
   }
+}
 
-  for (const app of rest) {
+function appendSection(listEl, heading, appsInSection) {
+  if (appsInSection.length === 0) return;
+  if (heading) {
+    const headingEl = document.createElement("div");
+    headingEl.className = "list-heading";
+    headingEl.textContent = heading;
+    listEl.appendChild(headingEl);
+  }
+  for (const app of appsInSection) {
     listEl.appendChild(buildItem(app));
   }
 }
