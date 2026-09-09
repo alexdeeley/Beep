@@ -36,6 +36,29 @@ Then open <http://localhost:3000>.
 
 Set a different port with `PORT=8080 npm start` if 3000 is taken.
 
+## Deploy
+
+NEWSY needs a host that keeps a Node process running (its backend fetches
+and caches RSS in memory) — a static host like GitHub Pages can't serve
+`/api/news`.
+
+**Render (free tier):**
+
+1. Push this repo to GitHub (already done if you're reading this from the repo).
+2. In the [Render dashboard](https://dashboard.render.com), click **New →
+   Blueprint** and connect the repo. Render reads `render.yaml` at the repo
+   root, which points at `newsy/` as the service's root directory, runs
+   `npm install`, and starts it with `npm start`.
+3. Alternatively, **New → Web Service** by hand: set the root directory to
+   `newsy`, build command `npm install`, start command `npm start`, and
+   plan `Free`. Render sets `PORT` itself; the server already reads it.
+4. First deploy takes a minute or two. Once live, Render gives you a
+   `https://<service-name>.onrender.com` URL — that's your NEWSY feed.
+
+The free plan spins the service down after inactivity and takes ~30-60s to
+wake back up on the next request; that's a Render free-tier tradeoff, not a
+NEWSY limitation.
+
 ## How it's put together
 
 ```
