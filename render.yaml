@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: newsy
+    runtime: node
+    plan: free
+    rootDir: newsy
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/news
+    autoDeployTrigger: commit
