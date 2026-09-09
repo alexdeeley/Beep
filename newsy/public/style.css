@@ -1,0 +1,170 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: Helvetica, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.masthead {
+  padding: 28px clamp(20px, 6vw, 64px) 8px;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.filters {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.filter-btn {
+  background: none;
+  border: none;
+  color: #666;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 6px 0;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.filter-btn.is-active {
+  color: #fff;
+}
+
+.filter-btn:focus-visible,
+.headline-link:focus-visible,
+.settings-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.feed {
+  padding: 8px clamp(20px, 6vw, 64px) 140px;
+}
+
+.headline {
+  border-top: 1px solid #1a1a1a;
+  padding: 22px 0;
+}
+
+.headline:first-child {
+  border-top: none;
+}
+
+.headline.is-hidden {
+  display: none;
+}
+
+.headline.is-new {
+  animation: fade-in 0.6s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.headline-link {
+  display: block;
+  color: #fff;
+  text-decoration: none;
+}
+
+.headline-title {
+  font-size: clamp(38px, 5vw, 90px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.93;
+}
+
+.headline-meta {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #777;
+  text-transform: uppercase;
+}
+
+.empty-state {
+  padding: 40px clamp(20px, 6vw, 64px);
+  color: #666;
+  font-size: 16px;
+}
+
+.status-dot {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b33;
+}
+
+.settings-btn {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #333;
+  background: #000;
+  color: #888;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-panel {
+  position: fixed;
+  bottom: 66px;
+  right: 14px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+.autoscroll-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #ccc;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.autoscroll-toggle input {
+  width: 20px;
+  height: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headline.is-new {
+    animation: none;
+  }
+}
