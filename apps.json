@@ -1084,5 +1084,13 @@
     "category": "Music Tools",
     "path": "YakBox3000.html",
     "musicGroup": "synth"
+  },
+  {
+    "id": "trex-tag",
+    "name": "T. rex Tag",
+    "description": "Dodge a chasing T. rex, hide in glow zones, and hatch eggs to win.",
+    "category": "Games",
+    "gameGroup": "maisie",
+    "path": "TrexTag.html"
   }
 ]
