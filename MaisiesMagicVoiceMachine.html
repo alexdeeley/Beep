@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Maisie's Magic Voice Machine</title>
+<style>
+  :root{
+    --pink:#ff6ec7;
+    --hotpink:#ff2e93;
+    --purple:#a855f7;
+    --deep-purple:#6d28d9;
+    --turquoise:#2dd4bf;
+    --yellow:#ffd23f;
+    --sky:#7dd3fc;
+    --white:#fffdf9;
+    --ink:#2b1150;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overscroll-behavior:none;
+    touch-action: manipulation;
+    -webkit-user-select:none; user-select:none;
+    font-family: -apple-system, BlinkMacSystemFont, "Baloo 2", "Comic Sans MS", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg,#2b1150 0%, #6d28d9 45%, #ff2e93 100%);
+    color: var(--white);
+    overflow:hidden;
+  }
+  button{ font-family:inherit; -webkit-user-select:none; user-select:none; }
+  #bgCanvas{ position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+
+  /* ---------- FIRST RUN ---------- */
+  #firstRun{
+    position:fixed; inset:0; z-index:50;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding: calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
+    background: radial-gradient(circle at 50% 30%, #ff6ec7 0%, #a855f7 45%, #2b1150 100%);
+  }
+  #firstRun .rainbow{ font-size: 3.2rem; margin-bottom:4px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); animation: float 3s ease-in-out infinite; }
+  #firstRun h1{
+    font-size: clamp(1.8rem, 8vw, 3rem); line-height:1.05; margin: 6px 0 4px;
+    text-shadow: 0 4px 0 rgba(0,0,0,.15);
+    letter-spacing: 0.5px;
+  }
+  #firstRun p.tag{ font-size:1.15rem; opacity:.95; margin: 6px 0 34px; font-weight:600; }
+  #startBtn{
+    font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight:800; color:#5b1091;
+    background: linear-gradient(180deg, #fff, #ffe9fb);
+    border:none; border-radius: 999px; padding: 22px 42px;
+    box-shadow: 0 10px 0 #c94fc9, 0 18px 30px rgba(0,0,0,.35);
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+    transition: transform .08s ease;
+  }
+  #startBtn:active{ transform: translateY(6px); box-shadow: 0 4px 0 #c94fc9, 0 10px 20px rgba(0,0,0,.3); }
+  #startBtn:disabled{ opacity:.45; box-shadow: 0 10px 0 rgba(0,0,0,.25), 0 18px 30px rgba(0,0,0,.2); cursor:not-allowed; }
+  #micPermBtn{
+    font-size: 1.05rem; font-weight:800; color:#fff;
+    background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.7);
+    border-radius: 999px; padding: 14px 28px; margin-bottom:16px;
+    display:flex; align-items:center; gap:10px; cursor:pointer;
+    transition: transform .08s ease, background .2s ease;
+  }
+  #micPermBtn:active{ transform: translateY(3px); }
+  #micPermBtn.granted{ background: linear-gradient(180deg,#dcffe0,#a7f3a7); color:#14532d; border-color:#a7f3a7; }
+  #micPermStatus{ min-height: 1.3em; margin-bottom:10px; font-size:.95rem; font-weight:700; opacity:.95; }
+  #micHint{ margin-top:22px; font-size:.95rem; opacity:.85; max-width:320px; }
+  #permError{
+    display:none; margin-top:18px; background:rgba(0,0,0,.25); border-radius:16px; padding:14px 18px; max-width: 320px; font-size:.95rem;
+  }
+
+  /* ---------- APP SHELL ---------- */
+  #app{ display:none; position:fixed; inset:0; z-index:5; }
+  #app.visible{ display:block; }
+
+  #scrollArea{
+    position:absolute; inset:0; z-index:2; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding: calc(10px + var(--safe-top)) calc(10px + var(--safe-right)) calc(24px + var(--safe-bottom)) calc(10px + var(--safe-left));
+  }
+
+  header.title{
+    text-align:center; padding: 4px 0 2px; padding-left: 44px;
+  }
+  header.title h1{
+    font-size: clamp(1.1rem, 5vw, 1.5rem); margin:0; text-shadow: 0 3px 0 rgba(0,0,0,.2);
+  }
+
+  .mic-wrap{ display:flex; flex-direction:column; align-items:center; margin: 10px 0 14px; position:relative; }
+  #micBtn{
+    width: min(42vw, 190px); height: min(42vw, 190px); border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #ffe0f5, #ff6ec7 55%, #c026d3 100%);
+    border: 6px solid #fff; box-shadow: 0 14px 0 #a3168e, 0 22px 34px rgba(0,0,0,.35);
+    font-size: clamp(3rem, 14vw, 4.5rem); color:#fff;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: transform .08s ease;
+    position:relative; z-index:2;
+  }
+  #micBtn:active{ transform: translateY(6px); }
+  #micBtn.listening{ animation: pulseMic 1.1s ease-in-out infinite; background: radial-gradient(circle at 35% 30%, #e3ffe0, #2dd4bf 55%, #0f766e 100%); }
+  #micBtn.frozen{ background: radial-gradient(circle at 35% 30%, #e0f4ff, #7dd3fc 55%, #0369a1 100%); }
+  @keyframes pulseMic{ 0%,100%{ box-shadow: 0 14px 0 #a3168e, 0 22px 34px rgba(0,0,0,.35);} 50%{ box-shadow: 0 14px 0 #a3168e, 0 22px 60px rgba(45,212,191,.55);} }
+  @keyframes float{ 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-8px);} }
+
+  #micLabel{ margin-top:10px; font-weight:800; font-size:1.1rem; letter-spacing:.5px; text-shadow:0 2px 0 rgba(0,0,0,.2); }
+
+  .card{
+    background: rgba(255,255,255,.14); backdrop-filter: blur(6px);
+    border-radius: 24px; padding: 14px; margin: 10px auto; max-width: 640px;
+    border: 2px solid rgba(255,255,255,.35);
+  }
+  .card h2{ margin: 2px 0 10px; font-size: 1.05rem; text-align:center; }
+
+  .grid{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .grid.wide{ grid-template-columns: repeat(2, 1fr); }
+  .bigbtn{
+    border:none; border-radius: 18px; padding: 14px 6px; min-height: 78px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    font-weight:800; font-size: .82rem; color:#3a0d5e;
+    background: linear-gradient(180deg, #ffffff, #ffe6f6);
+    box-shadow: 0 6px 0 rgba(0,0,0,.18);
+    cursor:pointer; transition: transform .07s ease;
+  }
+  .bigbtn .emoji{ font-size: 1.7rem; }
+  .bigbtn:active{ transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .bigbtn.on{ background: linear-gradient(180deg,#fff6b8,#ffd23f); box-shadow: 0 6px 0 #c9941e, inset 0 0 0 3px #fff; }
+
+  .presetbtn{ background: linear-gradient(180deg,#fff,#e6f7ff); }
+  .comboBtn{ background: linear-gradient(180deg,#fff,#eaffea); }
+
+  .toggleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 8px 0; }
+  .toggleRow span{ font-weight:800; font-size:.95rem; }
+  .switch{
+    width:64px; height:34px; border-radius:20px; border:none; background:#d1c4e9; position:relative; cursor:pointer; flex:0 0 auto;
+  }
+  .switch::after{ content:""; position:absolute; top:3px; left:3px; width:28px; height:28px; border-radius:50%; background:#fff; transition: left .15s ease; box-shadow:0 2px 4px rgba(0,0,0,.3); }
+  .switch.on{ background: linear-gradient(90deg,#2dd4bf,#22c55e); }
+  .switch.on::after{ left:33px; }
+
+  .sliderRow{ margin: 10px 0; }
+  .sliderRow label{ display:flex; justify-content:space-between; font-size:.85rem; font-weight:700; margin-bottom:4px; }
+  input[type=range]{
+    width:100%; height: 34px; -webkit-appearance:none; appearance:none; background:transparent; touch-action: pan-y;
+  }
+  input[type=range]::-webkit-slider-runnable-track{ height:10px; border-radius:8px; background: linear-gradient(90deg,var(--turquoise),var(--pink)); }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:30px; height:30px; border-radius:50%; background:#fff; border:4px solid var(--deep-purple);
+    margin-top:-10px; box-shadow: 0 3px 6px rgba(0,0,0,.35);
+  }
+  input[type=range]::-moz-range-track{ height:10px; border-radius:8px; background: linear-gradient(90deg,var(--turquoise),var(--pink)); }
+  input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%; background:#fff; border:4px solid var(--deep-purple); }
+
+  .modeRow{ display:flex; gap:8px; }
+  .modeRow .bigbtn{ flex:1; min-height:60px; }
+
+  .actionsGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .fullbtn{ grid-column: 1 / -1; }
+
+  #moreMagicBtn{
+    display:block; margin: 6px auto 0; background: rgba(255,255,255,.2); color:#fff; border: 2px solid rgba(255,255,255,.5);
+    border-radius: 999px; padding: 10px 18px; font-weight:700; font-size:.9rem; cursor:pointer;
+  }
+  #advancedPanel{ display:none; }
+  #advancedPanel.open{ display:block; }
+
+  .soundboardGrid{ display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; }
+  .soundboardGrid .bigbtn{ min-height:60px; font-size:1.4rem; padding:8px 2px; }
+
+  #toast{
+    position:fixed; left:50%; top: 14%; transform: translateX(-50%);
+    background: rgba(0,0,0,.55); color:#fff; padding: 14px 22px; border-radius:18px; font-weight:800; text-align:center;
+    z-index:60; display:none; font-size:1.15rem; pointer-events:none; white-space:pre-line;
+  }
+
+  #unicornFly{ position:fixed; top: 12%; left:-120px; font-size:3.5rem; z-index:55; pointer-events:none; }
+  @keyframes flyAcross{ from{ left:-120px; } to{ left: 110%; } }
+
+  .recRow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .recRow .bigbtn{ flex:1 1 40%; min-height:60px; font-size:.8rem; }
+  #recStatus{ text-align:center; font-size:.85rem; font-weight:700; margin-top:6px; min-height:1.2em; }
+  audio#playback{ width:100%; margin-top:8px; display:none; }
+  #saveLink{ display:none; text-align:center; margin-top:8px; }
+  #saveLink a{ color:#fff; font-weight:800; text-decoration: underline; }
+
+  ::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to Artcade" title="Back to Artcade">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- ================= FIRST RUN ================= -->
+<div id="firstRun">
+  <div class="rainbow">🌈</div>
+  <h1>MAISIE'S MAGIC<br>VOICE MACHINE</h1>
+  <p class="tag">Make your voice magical!</p>
+  <button id="micPermBtn">🎤 Allow Microphone</button>
+  <div id="micPermStatus"></div>
+  <button id="startBtn" disabled>🎤 START THE MAGIC</button>
+  <div id="micHint">First, allow the microphone. Then tap Start to make your voice magical!</div>
+  <div id="permError">
+    We couldn't hear the microphone. 🎤<br>
+    Please allow microphone access in your browser settings, then tap the button again.
+    <div style="margin-top:10px;"><button id="retryBtn" style="padding:10px 18px;border-radius:999px;border:none;font-weight:800;background:#fff;color:#5b1091;">Try Again</button></div>
+  </div>
+</div>
+
+<!-- ================= MAIN APP ================= -->
+<div id="app">
+  <div id="scrollArea">
+    <header class="title"><h1>🌈 MAISIE'S MAGIC VOICE MACHINE 🌈</h1></header>
+
+    <div class="mic-wrap">
+      <button id="micBtn">🎤</button>
+      <div id="micLabel">TAP TO TALK</div>
+    </div>
+
+    <!-- MAGIC EFFECT PRESET BUTTONS -->
+    <div class="card">
+      <h2>✨ Magic Voices ✨</h2>
+      <div class="grid" id="presetGrid"></div>
+    </div>
+
+    <!-- MAGIC BUTTONS (combo presets) -->
+    <div class="card">
+      <h2>🪄 Magic Buttons</h2>
+      <div class="grid" id="comboGrid"></div>
+    </div>
+
+    <!-- MAGIC ECHO -->
+    <div class="card">
+      <div class="toggleRow">
+        <span>✨ MAGIC ECHO ✨</span>
+        <button class="switch on" id="echoToggle"></button>
+      </div>
+      <div class="sliderRow">
+        <label><span>⏱️ ECHO TRAIL</span><span id="echoTrailVal">30s</span></label>
+        <input type="range" id="echoTrail" min="1" max="60" value="30">
+      </div>
+      <div class="toggleRow">
+        <span>🌀 SPLIT PITCH SPIRAL</span>
+        <button class="switch on" id="spiralToggle"></button>
+      </div>
+      <div class="modeRow" id="spiralModeRow">
+        <button class="bigbtn" data-mode="up"><span class="emoji">⬆️</span>UP ONLY</button>
+        <button class="bigbtn on" data-mode="both"><span class="emoji">🌀</span>BOTH</button>
+        <button class="bigbtn" data-mode="down"><span class="emoji">⬇️</span>DOWN ONLY</button>
+      </div>
+      <div class="toggleRow">
+        <span>💫 EVOLVING ECHO</span>
+        <button class="switch on" id="evolveToggle"></button>
+      </div>
+    </div>
+
+    <!-- FUN BUTTONS -->
+    <div class="card">
+      <div class="actionsGrid">
+        <button class="bigbtn" id="freezeBtn"><span class="emoji">❄️</span>FREEZE ECHO</button>
+        <button class="bigbtn" id="whisperBtn"><span class="emoji">🤫</span>WHISPER MAGIC</button>
+        <button class="bigbtn" id="warpBtn"><span class="emoji">🔮</span>TIME WARP</button>
+        <button class="bigbtn fullbtn" id="clearBtn" style="background:linear-gradient(180deg,#ffdada,#ff8a8a);"><span class="emoji">💥</span>CLEAR ALL ECHOES</button>
+      </div>
+    </div>
+
+    <!-- RECORDING -->
+    <div class="card">
+      <h2>🔴 Record the Magic</h2>
+      <div class="recRow">
+        <button class="bigbtn" id="recBtn"><span class="emoji">🔴</span>RECORD</button>
+        <button class="bigbtn" id="recStopBtn"><span class="emoji">⏹️</span>STOP</button>
+        <button class="bigbtn" id="recPlayBtn"><span class="emoji">▶️</span>PLAY</button>
+        <button class="bigbtn" id="recDeleteBtn"><span class="emoji">🗑️</span>DELETE</button>
+      </div>
+      <div id="recStatus"></div>
+      <audio id="playback" controls></audio>
+      <div id="saveLink"><a id="saveA" download="maisie-magic-voice.webm">💾 Save / Share Recording</a></div>
+    </div>
+
+    <!-- SOUNDBOARD -->
+    <div class="card">
+      <h2>🎉 Fun Sound Board</h2>
+      <div class="soundboardGrid" id="soundboard"></div>
+    </div>
+
+    <button id="moreMagicBtn">⚙️ MORE MAGIC</button>
+
+    <!-- ADVANCED PANEL -->
+    <div class="card" id="advancedPanel">
+      <h2>⚙️ More Magic (Grown-Up Controls)</h2>
+      <div class="sliderRow">
+        <label><span>🚶 REPEAT SPEED</span><span id="repeatSpeedVal">600 ms</span></label>
+        <input type="range" id="repeatSpeed" min="100" max="2000" value="600">
+      </div>
+      <div class="sliderRow">
+        <label><span>🌫️ ECHO FADE</span><span id="echoFadeVal">Medium</span></label>
+        <input type="range" id="echoFade" min="0" max="100" value="70">
+      </div>
+      <div class="sliderRow">
+        <label><span>🎚️ PITCH CHANGE PER ECHO</span><span id="pitchStepVal">30 cents</span></label>
+        <input type="range" id="pitchStep" min="1" max="200" value="30">
+      </div>
+      <div class="sliderRow">
+        <label><span>🎙️ INPUT VOLUME</span><span id="inputGainVal">100%</span></label>
+        <input type="range" id="inputGainSlider" min="0" max="300" value="120">
+      </div>
+      <div class="sliderRow">
+        <label><span>🌊 REVERB</span><span id="reverbVal">Medium</span></label>
+        <input type="range" id="reverbSlider" min="0" max="100" value="45">
+      </div>
+      <div class="sliderRow">
+        <label><span>↔️ STEREO SPREAD</span><span id="spreadVal">Medium</span></label>
+        <input type="range" id="spreadSlider" min="0" max="100" value="60">
+      </div>
+    </div>
+
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="unicornFly" style="display:none;">🦄</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =========================================================================
+   MAISIE'S MAGIC VOICE MACHINE
+   Single-file Web Audio playground: mic -> presets -> long split-pitch-spiral
+   echo -> master limiter -> output. No external assets, no network calls.
+   ========================================================================= */
+
+/* ---------------------- small utils ---------------------- */
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function randRange(a,b){ return a + Math.random()*(b-a); }
+function semitonesToRatio(s){ return Math.pow(2, s/12); }
+function centsToRatio(c){ return Math.pow(2, c/1200); }
+
+/* ============================================================
+   GLOBAL STATE
+   ============================================================ */
+const state = {
+  ctx: null,
+  micStream: null,
+  micSource: null,
+  running: false,
+  listening: false,
+  frozen: false,
+  whisper: false,
+  kidMode: true,
+  currentPreset: 'normal',
+  lastPreset: null,
+  echo: {
+    enabled: true,
+    trailSec: 30,
+    repeatMs: 600,
+    fade: 0.70,        // 0..1 UI -> mapped internally to safe feedback amount
+    pitchStepCents: 30,
+    spiralOn: true,
+    spiralMode: 'both', // up | down | both
+    evolving: true,
+  },
+  reverbAmount: 0.45,
+  stereoSpread: 0.6,
+  inputGainPct: 120,
+};
+
+/* sample rate & ring buffer, set up once audio starts */
+let sampleRate = 44100;
+let RING_SECONDS = 4;
+let ringBuffer = null;
+let ringLength = 0;
+let writePos = 0; // monotonically increasing sample counter
+
+/* audio graph nodes (persistent) */
+let inputGainNode, preCompressor, captureProcessor, silentSink;
+let masterGain, limiter, convolver, reverbReturn;
+
+/* live level / VAD */
+let currentLevel = 0;          // smoothed RMS 0..~0.5
+let vadState = 'idle';         // idle | speaking | hangover
+let vadStartWritePos = 0;
+let vadLastSpeakingPos = 0;
+let vadHangoverUntil = 0;
+
+/* active systems */
+let liveVoice = null;   // PresetChain instance
+let echoChains = [];    // active EchoChain instances
+const MAX_ECHO_CHAINS = 6;
+const MAX_ACTIVE_SOURCES = 60;
+let activeSourceCount = 0;
+
+/* recording */
+let grantedMicStream = null; // set once the user explicitly grants mic permission
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordedBlobUrl = null;
+let destStream = null;
+
+/* mic tap-counter easter egg */
+let micTapTimes = [];
+
+/* ============================================================
+   PRESET DEFINITIONS (voice character effects)
+   Each preset = array of "voice" specs. Each voice reads short
+   overlapping grains from the ring buffer, pitch-shifts them via
+   playbackRate, and routes them through small per-voice effect
+   chains (filter / ring-mod / reverb send / pan).
+   ============================================================ */
+const PRESETS = {
+  normal:  { label:'😀 NORMAL',  emoji:'😀', voices:[ {semi:0, pan:0, reverb:0.05} ] },
+  unicorn: { label:'UNICORN',  emoji:'🦄', voices:[ {semi:7, pan:0, filter:{type:'highpass',freq:500}, reverb:0.35, shimmer:true} ] },
+  mouse:   { label:'TINY MOUSE', emoji:'🐭', voices:[ {semi:14, pan:0, reverb:0.1} ] },
+  giant:   { label:'GIANT', emoji:'👹', voices:[ {semi:-11, pan:0, filter:{type:'lowpass',freq:1400}, reverb:0.15} ] },
+  robot:   { label:'ROBOT', emoji:'🤖', voices:[ {semi:0, pan:0, ringmod:32, filter:{type:'bandpass',freq:1200,q:1.2}, reverb:0.05} ] },
+  alien:   { label:'ALIEN', emoji:'👽', voices:[ {semi:4, pan:0, ringmod:6, wobble:{rate:0.4,depth:15}, reverb:0.25} ] },
+  kitty:   { label:'KITTY', emoji:'🐱', voices:[ {semi:8, pan:0, filter:{type:'bandpass',freq:1800,q:3}, reverb:0.15} ] },
+  trex:    { label:'T-REX', emoji:'🦖', voices:[ {semi:-13, pan:0, filter:{type:'lowpass',freq:900,q:2}, reverb:0.2} ] },
+  fairy:   { label:'FAIRY', emoji:'🧚', voices:[ {semi:9, pan:-0.15, reverb:0.5, shimmer:true}, {semi:21, pan:0.15, gain:0.35, reverb:0.6} ] },
+  ghost:   { label:'GHOST', emoji:'👻', voices:[ {semi:-2, pan:0, filter:{type:'highpass',freq:800}, reverb:0.75, gain:0.8, breathDelay:true} ] },
+  underwater: { label:'UNDERWATER', emoji:'🫧', voices:[ {semi:-3, pan:0, filter:{type:'lowpass',freq:600,q:1.5}, filterLFO:{rate:0.5,depth:250}, reverb:0.2} ] },
+  space:   { label:'SPACE VOICE', emoji:'🌌', voices:[ {semi:2, pan:0, ringmod:3, reverb:0.6, wobble:{rate:0.15,depth:10} } ] },
+  helium:  { label:'HELIUM', emoji:'🎈', voices:[ {semi:12, pan:0, reverb:0.1} ] },
+  slowmo:  { label:'SLOW-MO', emoji:'🐌', voices:[ {semi:-4, pan:0, filter:{type:'lowpass',freq:2200}, reverb:0.3} ] },
+  wobble:  { label:'WOBBLE', emoji:'🌀', voices:[ {semi:0, pan:0, wobble:{rate:3.2,depth:80}, reverb:0.15} ] },
+  choir:   { label:'CHOIR', emoji:'🎶', voices:[ {semi:0, pan:-0.4, reverb:0.4}, {semi:0.15, pan:0.4, gain:0.85, reverb:0.4}, {semi:-0.2, pan:0, gain:0.8, reverb:0.4}, {semi:12, pan:0.15, gain:0.5, reverb:0.5} ] },
+  rainbow: { label:'RAINBOW VOICE', emoji:'🌈', voices:[ {semi:0, pan:0, rainbowDrift:true, reverb:0.3} ] },
+};
+const PRESET_ORDER = ['unicorn','mouse','giant','robot','alien','kitty','trex','fairy','ghost','underwater','space','helium','slowmo','wobble','choir','rainbow'];
+
+const BIG_PRESETS = {
+  rainbowEcho:  { label:'RAINBOW ECHO', emoji:'🌈', preset:'rainbow', echo:{enabled:true, trailSec:25, repeatMs:550, fade:0.75, pitchStepCents:35, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.5, spread:0.6 },
+  unicornCave:  { label:'UNICORN CAVE', emoji:'🦄', preset:'unicorn', echo:{enabled:true, trailSec:40, repeatMs:700, fade:0.85, pitchStepCents:20, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.6, spread:0.5 },
+  dinosaurCave: { label:'DINOSAUR CAVE', emoji:'🦖', preset:'trex', echo:{enabled:true, trailSec:50, repeatMs:900, fade:0.9, pitchStepCents:15, spiralOn:false, spiralMode:'both', evolving:true}, reverb:0.5, spread:0.3 },
+  alienSwarm:   { label:'ALIEN SWARM', emoji:'👽', preset:'alien', echo:{enabled:true, trailSec:25, repeatMs:500, fade:0.75, pitchStepCents:45, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.4, spread:0.7 },
+  kittyChoir:   { label:'KITTY CHOIR', emoji:'🐱', preset:'choir', echo:{enabled:true, trailSec:20, repeatMs:650, fade:0.65, pitchStepCents:25, spiralOn:true, spiralMode:'up', evolving:true}, reverb:0.4, spread:0.5 },
+  fairyTunnel:  { label:'FAIRY TUNNEL', emoji:'✨', preset:'fairy', echo:{enabled:true, trailSec:35, repeatMs:600, fade:0.85, pitchStepCents:30, spiralOn:true, spiralMode:'up', evolving:true}, reverb:0.65, spread:0.6 },
+  monsterTunnel:{ label:'MONSTER TUNNEL', emoji:'🌋', preset:'giant', echo:{enabled:true, trailSec:35, repeatMs:600, fade:0.85, pitchStepCents:30, spiralOn:true, spiralMode:'down', evolving:true}, reverb:0.4, spread:0.6 },
+  voiceVortex:  { label:'VOICE VORTEX', emoji:'🌀', preset:'normal', echo:{enabled:true, trailSec:45, repeatMs:450, fade:0.88, pitchStepCents:60, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.5, spread:0.8 },
+  infiniteSpace:{ label:'INFINITE SPACE', emoji:'🌌', preset:'space', echo:{enabled:true, trailSec:60, repeatMs:800, fade:0.94, pitchStepCents:12, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.75, spread:0.7 },
+  sillyMode:    { label:'SILLY MODE', emoji:'😂', preset:'__random__', echo:{enabled:true, trailSec:30, repeatMs:550, fade:0.75, pitchStepCents:40, spiralOn:true, spiralMode:'both', evolving:true}, reverb:0.4, spread:0.6 },
+};
+const BIG_PRESET_ORDER = ['rainbowEcho','unicornCave','dinosaurCave','alienSwarm','kittyChoir','fairyTunnel','monsterTunnel','voiceVortex','infiniteSpace','sillyMode'];
+
+/* ============================================================
+   AUDIO INITIALIZATION
+   ============================================================ */
+async function initAudio(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  state.ctx = new AC();
+  sampleRate = state.ctx.sampleRate;
+  ringLength = Math.ceil(sampleRate * RING_SECONDS);
+  ringBuffer = new Float32Array(ringLength);
+
+  // Reuse the stream from the explicit "Allow Microphone" button if we already
+  // have one; otherwise request it now (fallback path, still user-gesture-driven).
+  state.micStream = grantedMicStream || await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:false }
+  });
+
+  state.micSource = state.ctx.createMediaStreamSource(state.micStream);
+
+  // Input gain (clamped, ramped) - protects ears & speakers.
+  inputGainNode = state.ctx.createGain();
+  inputGainNode.gain.value = clamp(state.inputGainPct/100, 0, 3);
+
+  // Gentle protective compressor before anything else touches the signal.
+  preCompressor = state.ctx.createDynamicsCompressor();
+  preCompressor.threshold.value = -28;
+  preCompressor.knee.value = 18;
+  preCompressor.ratio.value = 6;
+  preCompressor.attack.value = 0.003;
+  preCompressor.release.value = 0.18;
+
+  // Capture processor: writes samples into the ring buffer & measures level.
+  // (ScriptProcessorNode: broadly compatible incl. Safari, no async module load needed.)
+  captureProcessor = state.ctx.createScriptProcessor(2048, 1, 1);
+  captureProcessor.onaudioprocess = onCapture;
+  silentSink = state.ctx.createGain();
+  silentSink.gain.value = 0; // never let raw mic reach speakers directly (feedback safety)
+
+  state.micSource.connect(inputGainNode);
+  inputGainNode.connect(preCompressor);
+  preCompressor.connect(captureProcessor);
+  captureProcessor.connect(silentSink);
+  silentSink.connect(state.ctx.destination);
+
+  // Master output bus with a true limiter at the very end.
+  masterGain = state.ctx.createGain();
+  masterGain.gain.value = 0.9;
+  limiter = state.ctx.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.2;
+  masterGain.connect(limiter);
+  limiter.connect(state.ctx.destination);
+
+  // Shared algorithmic reverb (generated impulse response - no files needed).
+  convolver = state.ctx.createConvolver();
+  convolver.buffer = generateImpulseResponse(state.ctx, 2.2, 2.2);
+  reverbReturn = state.ctx.createGain();
+  reverbReturn.gain.value = 1.0;
+  convolver.connect(reverbReturn);
+  reverbReturn.connect(masterGain);
+
+  // Recording tap
+  destStream = state.ctx.createMediaStreamDestination();
+  masterGain.connect(destStream);
+
+  state.running = true;
+
+  // Kick off the default experience.
+  setPreset('normal');
+  requestAnimationFrame(visLoop);
+
+  document.addEventListener('visibilitychange', handleVisibility);
+}
+
+function generateImpulseResponse(ctx, seconds, decay){
+  const len = Math.floor(ctx.sampleRate * seconds);
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for(let ch=0; ch<2; ch++){
+    const data = buf.getChannelData(ch);
+    for(let i=0;i<len;i++){
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/len, decay);
+    }
+  }
+  return buf;
+}
+
+function handleVisibility(){
+  if(!state.ctx) return;
+  if(document.hidden){
+    state.ctx.suspend();
+  } else if(state.running){
+    state.ctx.resume();
+  }
+}
+
+/* ============================================================
+   CAPTURE / VAD (voice activity detection) -> feeds echo engine
+   ============================================================ */
+function onCapture(e){
+  const input = e.inputBuffer.getChannelData(0);
+  let sumSq = 0;
+  for(let i=0;i<input.length;i++){
+    const s = input[i];
+    ringBuffer[writePos % ringLength] = s;
+    writePos++;
+    sumSq += s*s;
+  }
+  const blockRms = Math.sqrt(sumSq/input.length);
+  currentLevel = currentLevel*0.75 + blockRms*0.25; // smoothing
+
+  if(state.frozen) return; // FREEZE: stop listening for new utterances
+
+  const threshold = state.whisper ? 0.006 : 0.02;
+  const now = state.ctx.currentTime;
+  const speaking = currentLevel > threshold;
+
+  if(vadState === 'idle'){
+    if(speaking){
+      vadState = 'speaking';
+      vadStartWritePos = Math.max(0, writePos - input.length*2); // small lookback to catch onset
+      vadLastSpeakingPos = writePos;
+    }
+  } else if(vadState === 'speaking'){
+    if(speaking){
+      vadLastSpeakingPos = writePos;
+    } else {
+      vadState = 'hangover';
+      vadHangoverUntil = now + 0.35;
+    }
+  } else if(vadState === 'hangover'){
+    if(speaking){
+      vadState = 'speaking';
+      vadLastSpeakingPos = writePos;
+    } else if(now >= vadHangoverUntil){
+      finalizeUtterance();
+      vadState = 'idle';
+    }
+  }
+}
+
+function finalizeUtterance(){
+  const maxSamples = Math.floor(sampleRate * 5); // safety cap on utterance length
+  let len = vadLastSpeakingPos - vadStartWritePos;
+  len = clamp(len, Math.floor(sampleRate*0.08), maxSamples);
+  if(len < sampleRate*0.05) return; // too short / noise blip
+
+  const segment = new Float32Array(len);
+  const startAbs = vadLastSpeakingPos - len;
+  for(let i=0;i<len;i++){
+    const idx = (startAbs + i) % ringLength;
+    segment[i] = ringBuffer[idx < 0 ? idx+ringLength : idx];
+  }
+  const buf = state.ctx.createBuffer(1, len, sampleRate);
+  buf.copyToChannel(segment, 0);
+
+  if(state.echo.enabled){
+    spawnEchoChain(buf);
+  }
+}
+
+/* ============================================================
+   LIVE VOICE PRESET ENGINE (granular pitch-shift + character FX)
+   ============================================================ */
+const GRAIN_SIZE = 0.09;      // 90ms grains
+const GRAIN_INTERVAL = 0.045; // 50% overlap
+let hannCurveCache = {};
+function hannCurve(len){
+  if(hannCurveCache[len]) return hannCurveCache[len];
+  const c = new Float32Array(len);
+  for(let i=0;i<len;i++){ c[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(len-1)); }
+  hannCurveCache[len] = c;
+  return c;
+}
+
+class PresetChain{
+  constructor(presetKey){
+    this.key = presetKey;
+    this.def = PRESETS[presetKey] || PRESETS.normal;
+    this.voices = [];
+    this.startTime = state.ctx.currentTime;
+    this.def.voices.forEach((spec, idx) => this._buildVoice(spec, idx));
+  }
+  _buildVoice(spec, idx){
+    const ctx = state.ctx;
+    const panNode = ctx.createStereoPanner();
+    panNode.pan.value = clamp(spec.pan||0, -1, 1);
+    const voiceGain = ctx.createGain();
+    voiceGain.gain.value = spec.gain!==undefined ? spec.gain : 1.0;
+
+    let chainInput; // where each grain's envelope connects into
+    let lastNode;
+
+    if(spec.filter){
+      const f = ctx.createBiquadFilter();
+      f.type = spec.filter.type;
+      f.frequency.value = spec.filter.freq;
+      f.Q.value = spec.filter.q || 0.7;
+      chainInput = f; lastNode = f;
+      if(spec.filterLFO){
+        const lfo = ctx.createOscillator();
+        lfo.type = 'sine'; lfo.frequency.value = spec.filterLFO.rate;
+        const lfoGain = ctx.createGain(); lfoGain.gain.value = spec.filterLFO.depth;
+        lfo.connect(lfoGain); lfoGain.connect(f.frequency);
+        lfo.start();
+        this._extraNodes = this._extraNodes || []; this._extraNodes.push(lfo);
+      }
+    }
+    if(spec.ringmod){
+      const ringGain = ctx.createGain();
+      ringGain.gain.value = 0; // ring mod: base 0, carrier supplies the multiplying AC value
+      const carrier = ctx.createOscillator();
+      carrier.type = 'sine'; carrier.frequency.value = spec.ringmod;
+      carrier.connect(ringGain.gain);
+      carrier.start();
+      this._extraNodes = this._extraNodes || []; this._extraNodes.push(carrier);
+      if(lastNode) lastNode.connect(ringGain); else chainInput = ringGain;
+      lastNode = ringGain;
+    }
+    if(!chainInput){ chainInput = panNode==null? voiceGain : ctx.createGain(); if(!lastNode) lastNode = chainInput; }
+
+    // wire: chainInput [->...->] lastNode -> panNode -> voiceGain -> masterGain (+ reverb send)
+    if(lastNode !== panNode) lastNode.connect(panNode);
+    panNode.connect(voiceGain);
+    voiceGain.connect(masterGain);
+
+    if(spec.reverb){
+      const send = ctx.createGain();
+      send.gain.value = spec.reverb * (0.5 + state.reverbAmount);
+      voiceGain.connect(send);
+      send.connect(convolver);
+    }
+
+    const voice = {
+      spec, chainInput, panNode, voiceGain, active:true,
+      rainbowPhase: Math.random()*1000,
+      timer: null,
+    };
+    this.voices.push(voice);
+
+    const startDelay = idx * 12; // stagger multi-voice choir slightly
+    setTimeout(() => {
+      if(!voice.active) return;
+      this._fireGrain(voice);
+      voice.timer = setInterval(() => this._fireGrain(voice), GRAIN_INTERVAL*1000 + randRange(-4,4));
+    }, startDelay);
+  }
+  _fireGrain(voice){
+    if(!state.running || writePos < sampleRate*0.2) return;
+    const ctx = state.ctx;
+    const spec = voice.spec;
+    const t = ctx.currentTime - this.startTime;
+
+    let ratio = semitonesToRatio(spec.semi||0);
+    if(spec.wobble){
+      const cents = spec.wobble.depth * Math.sin(2*Math.PI*spec.wobble.rate*t);
+      ratio *= centsToRatio(cents);
+    }
+    if(spec.rainbowDrift){
+      const cents = 60*Math.sin(t*0.3 + voice.rainbowPhase) + 25*Math.sin(t*0.77+voice.rainbowPhase*1.3);
+      ratio *= centsToRatio(cents);
+      voice.panNode.pan.value = clamp(0.5*Math.sin(t*0.2+voice.rainbowPhase), -1, 1);
+    }
+    if(spec.shimmer){
+      ratio *= centsToRatio(randRange(-4,4));
+    }
+
+    const grainLenSamples = Math.floor(sampleRate*GRAIN_SIZE);
+    const lookback = grainLenSamples + Math.floor(sampleRate*0.02);
+    let startAbs = writePos - lookback;
+    if(startAbs < 0) return;
+    const data = new Float32Array(grainLenSamples);
+    for(let i=0;i<grainLenSamples;i++){
+      const idx = (startAbs+i) % ringLength;
+      data[i] = ringBuffer[idx];
+    }
+    const buf = ctx.createBuffer(1, grainLenSamples, sampleRate);
+    buf.copyToChannel(data,0);
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = clamp(ratio, 0.2, 5);
+
+    const env = ctx.createGain();
+    env.gain.setValueCurveAtTime(hannCurve(64), ctx.currentTime, GRAIN_SIZE/ratio);
+
+    src.connect(env);
+    env.connect(voice.chainInput);
+    src.start();
+    src.stop(ctx.currentTime + GRAIN_SIZE/ratio + 0.02);
+    activeSourceCount++;
+    src.onended = () => { activeSourceCount = Math.max(0,activeSourceCount-1); try{src.disconnect(); env.disconnect();}catch(e){} };
+  }
+  stop(){
+    this.voices.forEach(v=>{
+      v.active = false;
+      if(v.timer) clearInterval(v.timer);
+      try{ v.voiceGain.gain.setTargetAtTime(0, state.ctx.currentTime, 0.05); }catch(e){}
+    });
+    if(this._extraNodes){ this._extraNodes.forEach(n=>{ try{n.stop();}catch(e){} }); }
+  }
+}
+
+function setPreset(key, silent){
+  if(!PRESETS[key]) key = 'normal';
+  if(liveVoice) liveVoice.stop();
+  liveVoice = new PresetChain(key);
+  state.lastPreset = state.currentPreset;
+  state.currentPreset = key;
+  highlightPreset(key);
+  checkComboEasterEgg(key, state.lastPreset);
+  if(!silent) spawnEdgeSparkle();
+}
+
+/* ============================================================
+   LONG ECHO ENGINE  (30-60s cascading trail)
+   ============================================================ */
+class EchoChain{
+  constructor(buffer){
+    this.buffer = buffer;
+    this.generation = 0;
+    this.cleared = false;
+    this.timer = null;
+    this.activeSources = [];
+    this.startTime = state.ctx.currentTime;
+    this.opts = {
+      trailSec: state.echo.trailSec,
+      repeatMs: state.echo.repeatMs,
+      fade: mapFadeToFeedback(state.echo.fade),
+      pitchStepCents: state.echo.pitchStepCents,
+      spiralOn: state.echo.spiralOn,
+      spiralMode: state.echo.spiralMode,
+      evolving: state.echo.evolving,
+    };
+    this._scheduleNext();
+  }
+  _scheduleNext(){
+    if(this.cleared) return;
+    const elapsed = state.ctx.currentTime - this.startTime;
+    const gainAtGen = 0.85*Math.pow(this.opts.fade, this.generation);
+    if(elapsed >= this.opts.trailSec || gainAtGen < 0.01 || this.generation > 300 || echoChains.length===0){
+      this._finish(); return;
+    }
+    if(activeSourceCount < MAX_ACTIVE_SOURCES){
+      this.generation++;
+      if(this.opts.spiralOn){
+        if(this.opts.spiralMode === 'up' || this.opts.spiralMode === 'both') this._spawnRepeat('up', this.generation);
+        if(this.opts.spiralMode === 'down' || this.opts.spiralMode === 'both') this._spawnRepeat('down', this.generation);
+      } else {
+        this._spawnRepeat('flat', this.generation);
+      }
+    } else {
+      this.generation++; // still advance so it eventually fades out even if throttled
+    }
+    this.timer = setTimeout(()=>this._scheduleNext(), this.opts.repeatMs);
+  }
+  _spawnRepeat(direction, gen){
+    const ctx = state.ctx;
+    let cents;
+    if(direction==='up') cents = clamp(gen*this.opts.pitchStepCents, -2400, 2400);
+    else if(direction==='down') cents = clamp(-gen*this.opts.pitchStepCents, -2400, 2400);
+    else cents = 0;
+    if(this.opts.evolving) cents += randRange(-3,3);
+    const ratio = clamp(centsToRatio(cents), 0.15, 6);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.buffer;
+    src.playbackRate.value = ratio;
+
+    const gainNode = ctx.createGain();
+    const targetGain = 0.85*Math.pow(this.opts.fade, gen);
+    gainNode.gain.value = 0;
+    gainNode.gain.linearRampToValueAtTime(targetGain, ctx.currentTime+0.02);
+
+    let lastNode = src;
+    if(this.opts.evolving){
+      const filt = ctx.createBiquadFilter();
+      if(direction==='up'){ filt.type='highpass'; filt.frequency.value = clamp(200 + gen*40, 200, 4000); }
+      else if(direction==='down'){ filt.type='lowpass'; filt.frequency.value = clamp(6000 - gen*60, 400, 6000); }
+      else { filt.type='allpass'; filt.frequency.value = 1000; }
+      src.connect(filt);
+      lastNode = filt;
+    }
+
+    const panNode = ctx.createStereoPanner();
+    let panBase = direction==='up' ? state.stereoSpread : direction==='down' ? -state.stereoSpread : 0;
+    let panWander = this.opts.evolving ? Math.min(1, gen*0.08) : Math.min(1, gen*0.04);
+    let pan = clamp(panBase*panWander + randRange(-0.06,0.06), -1, 1);
+    panNode.pan.value = pan;
+
+    lastNode.connect(panNode);
+    panNode.connect(gainNode);
+    gainNode.connect(masterGain);
+
+    if(this.opts.evolving || (PRESETS[state.currentPreset] && PRESETS[state.currentPreset].voices[0].reverb)){
+      const send = ctx.createGain();
+      const reverbGrowth = this.opts.evolving ? Math.min(0.9, 0.15 + gen*0.04) : 0.15;
+      send.gain.value = reverbGrowth * (0.4+state.reverbAmount);
+      gainNode.connect(send);
+      send.connect(convolver);
+    }
+
+    const dur = this.buffer.duration/ratio;
+    src.start();
+    src.stop(ctx.currentTime + dur + 0.05);
+    activeSourceCount++;
+    const rec = {src, gainNode};
+    this.activeSources.push(rec);
+    src.onended = () => {
+      this.activeSources = this.activeSources.filter(r=>r!==rec);
+      activeSourceCount = Math.max(0, activeSourceCount-1);
+      try{ src.disconnect(); gainNode.disconnect(); panNode.disconnect(); }catch(e){}
+    };
+
+    onEchoRepeat(direction, gen, pan, targetGain);
+  }
+  _finish(){
+    this.cleared = true;
+    echoChains = echoChains.filter(c=>c!==this);
+  }
+  hardStop(){
+    this.cleared = true;
+    if(this.timer) clearTimeout(this.timer);
+    const now = state.ctx.currentTime;
+    this.activeSources.forEach(({src, gainNode}) => {
+      try{
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(0, now+0.04);
+        src.stop(now+0.05);
+      }catch(e){}
+    });
+  }
+}
+
+function mapFadeToFeedback(uiFade){
+  // uiFade 0..1 -> internal decay-per-repeat, capped for stability
+  return clamp(lerp(0.45, 0.96, uiFade), 0.3, 0.96);
+}
+
+function spawnEchoChain(buffer){
+  if(echoChains.length >= MAX_ECHO_CHAINS){
+    const oldest = echoChains.shift();
+    if(oldest) oldest.hardStop();
+  }
+  const chain = new EchoChain(buffer);
+  echoChains.push(chain);
+  if(state.echo.trailSec >= 55) spawnEdgeSparkleBurst();
+}
+
+function clearAllEchoes(){
+  echoChains.forEach(c=>c.hardStop());
+  echoChains = [];
+}
+
+/* ============================================================
+   FREEZE / WHISPER / TIME WARP
+   ============================================================ */
+function toggleFreeze(){
+  state.frozen = !state.frozen;
+  document.getElementById('micBtn').classList.toggle('frozen', state.frozen);
+  document.getElementById('freezeBtn').classList.toggle('on', state.frozen);
+  document.getElementById('micLabel').textContent = state.frozen ? 'FROZEN ❄️' : (state.listening ? 'LISTENING...' : 'TAP TO TALK');
+}
+
+function toggleWhisper(){
+  state.whisper = !state.whisper;
+  document.getElementById('whisperBtn').classList.toggle('on', state.whisper);
+  if(!state.ctx) return;
+  const now = state.ctx.currentTime;
+  const targetGain = clamp((state.whisper ? 2.6 : 1.0) * (state.inputGainPct/100), 0, 4);
+  inputGainNode.gain.setTargetAtTime(targetGain, now, 0.1);
+}
+
+function triggerTimeWarp(){
+  if(!state.ctx || writePos < sampleRate*0.5) return;
+  const ctx = state.ctx;
+  const totalLen = Math.floor(sampleRate*1.0);
+  const startAbs = Math.max(0, writePos - totalLen - 4096);
+  const fragCount = 8;
+  const fragLen = Math.floor(totalLen/fragCount);
+  const order = [4,1,6,0,7,2,5,3]; // shuffled playback order
+  let t = ctx.currentTime + 0.02;
+  order.forEach((fragIdx, seq) => {
+    const data = new Float32Array(fragLen);
+    for(let i=0;i<fragLen;i++){
+      const idx = (startAbs + fragIdx*fragLen + i) % ringLength;
+      data[i] = ringBuffer[idx];
+    }
+    const buf = ctx.createBuffer(1, fragLen, sampleRate);
+    buf.copyToChannel(data,0);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const rate = randRange(0.55, 1.5);
+    src.playbackRate.value = rate;
+
+    const filt = ctx.createBiquadFilter();
+    filt.type='bandpass';
+    filt.frequency.value = lerp(300, 3000, seq/fragCount);
+    filt.Q.value = 1.5;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.7, t+0.01);
+    g.gain.linearRampToValueAtTime(0, t + fragLen/sampleRate/rate);
+
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = randRange(-0.7,0.7);
+
+    src.connect(filt); filt.connect(g); g.connect(pan); pan.connect(masterGain);
+    src.start(t);
+    src.stop(t + fragLen/sampleRate/rate + 0.05);
+    activeSourceCount++;
+    src.onended = () => { activeSourceCount=Math.max(0,activeSourceCount-1); try{src.disconnect();filt.disconnect();g.disconnect();pan.disconnect();}catch(e){} };
+
+    t += (fragLen/sampleRate/rate) * randRange(0.5, 0.95);
+  });
+}
+
+/* ============================================================
+   SOUNDBOARD  (fully synthesized one-shot sfx, no samples)
+   ============================================================ */
+function sfxEnv(node, param, from, to, t0, t1){
+  param.setValueAtTime(from, t0);
+  param.linearRampToValueAtTime(to, t1);
+}
+function playSparkle(){
+  const ctx = state.ctx; const t0 = ctx.currentTime;
+  for(let i=0;i<6;i++){
+    const o = ctx.createOscillator(); o.type='sine';
+    const g = ctx.createGain();
+    const start = t0 + i*0.05;
+    o.frequency.setValueAtTime(1800+i*220, start);
+    o.frequency.exponentialRampToValueAtTime(3200+i*200, start+0.12);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.18, start+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, start+0.25);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start+0.3);
+  }
+}
+function playBoom(){
+  const ctx = state.ctx; const t0 = ctx.currentTime;
+  const o = ctx.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(160, t0); o.frequency.exponentialRampToValueAtTime(35, t0+0.4);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.9, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0+0.5);
+  o.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+0.55);
+
+  const noiseBuf = ctx.createBuffer(1, sampleRate*0.3, sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
+  const n = ctx.createBufferSource(); n.buffer=noiseBuf;
+  const nf = ctx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=400;
+  const ng = ctx.createGain(); ng.gain.value=0.5;
+  n.connect(nf); nf.connect(ng); ng.connect(masterGain); n.start(t0);
+}
+function playMeow(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  const o=ctx.createOscillator(); o.type='sawtooth';
+  o.frequency.setValueAtTime(500,t0);
+  o.frequency.linearRampToValueAtTime(900,t0+0.12);
+  o.frequency.linearRampToValueAtTime(400,t0+0.32);
+  const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1200; f.Q.value=4;
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.linearRampToValueAtTime(0.35,t0+0.05); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.4);
+  o.connect(f); f.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+0.42);
+}
+function playChime(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  [523,659,784,1047].forEach((f,i)=>{
+    const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+    const g=ctx.createGain(); const s=t0+i*0.08;
+    g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.25,s+0.02); g.gain.exponentialRampToValueAtTime(0.0001,s+0.9);
+    o.connect(g); g.connect(convolver); g.connect(masterGain); o.start(s); o.stop(s+1.0);
+  });
+}
+function playRoar(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  const o=ctx.createOscillator(); o.type='sawtooth';
+  o.frequency.setValueAtTime(90,t0); o.frequency.linearRampToValueAtTime(60,t0+0.6);
+  const shaper=ctx.createWaveShaper();
+  const curve=new Float32Array(256); for(let i=0;i<256;i++){const x=i/128-1; curve[i]=Math.tanh(x*3);}
+  shaper.curve=curve;
+  const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=800;
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.linearRampToValueAtTime(0.4,t0+0.15); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.8);
+  o.connect(shaper); shaper.connect(f); f.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+0.85);
+}
+function playBoing(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  const o=ctx.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(180,t0);
+  o.frequency.exponentialRampToValueAtTime(700,t0+0.1);
+  o.frequency.exponentialRampToValueAtTime(220,t0+0.35);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.4,t0); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.4);
+  o.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+0.42);
+}
+function playBubbles(){
+  const ctx=state.ctx;
+  for(let i=0;i<10;i++){
+    const t0=ctx.currentTime+i*0.06+Math.random()*0.03;
+    const o=ctx.createOscillator(); o.type='sine';
+    const f0=randRange(400,900);
+    o.frequency.setValueAtTime(f0,t0); o.frequency.exponentialRampToValueAtTime(f0*1.8,t0+0.08);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.15,t0+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.12);
+    o.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+0.15);
+  }
+}
+function playHorn(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  [220,220,330,440].forEach((f,i)=>{
+    const o=ctx.createOscillator(); o.type='square'; o.frequency.value=f;
+    const g=ctx.createGain(); const s=t0+i*0.13;
+    g.gain.setValueAtTime(0.0001,s); g.gain.linearRampToValueAtTime(0.15,s+0.02); g.gain.linearRampToValueAtTime(0.0001,s+0.12);
+    o.connect(g); g.connect(masterGain); o.start(s); o.stop(s+0.14);
+  });
+}
+function playTwinkle(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  [1046,1318,1568,2093,1568,1318].forEach((f,i)=>{
+    const o=ctx.createOscillator(); o.type='triangle'; o.frequency.value=f;
+    const g=ctx.createGain(); const s=t0+i*0.09;
+    g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.2,s+0.01); g.gain.exponentialRampToValueAtTime(0.0001,s+0.3);
+    o.connect(g); g.connect(convolver); g.connect(masterGain); o.start(s); o.stop(s+0.32);
+  });
+}
+function playWhoosh(){
+  const ctx=state.ctx; const t0=ctx.currentTime;
+  const len=sampleRate*0.5;
+  const buf=ctx.createBuffer(1,len,sampleRate); const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  const src=ctx.createBufferSource(); src.buffer=buf;
+  const f=ctx.createBiquadFilter(); f.type='bandpass'; f.Q.value=1.2;
+  f.frequency.setValueAtTime(300,t0); f.frequency.exponentialRampToValueAtTime(4000,t0+0.45);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.5,t0); g.gain.linearRampToValueAtTime(0.0001,t0+0.5);
+  src.connect(f); f.connect(g); g.connect(masterGain); src.start(t0);
+}
+const SOUNDBOARD = [
+  {emoji:'✨', fn:playSparkle, label:'sparkle'},
+  {emoji:'💥', fn:playBoom, label:'boom'},
+  {emoji:'🐱', fn:playMeow, label:'meow'},
+  {emoji:'🦄', fn:playChime, label:'chime'},
+  {emoji:'🦖', fn:playRoar, label:'roar'},
+  {emoji:'😂', fn:playBoing, label:'boing'},
+  {emoji:'🫧', fn:playBubbles, label:'bubbles'},
+  {emoji:'🎺', fn:playHorn, label:'horn'},
+  {emoji:'🌈', fn:playTwinkle, label:'twinkle'},
+  {emoji:'🚀', fn:playWhoosh, label:'whoosh'},
+];
+
+/* ============================================================
+   VISUALIZATION (canvas particles)
+   ============================================================ */
+const canvas = document.getElementById('bgCanvas');
+const vctx = canvas.getContext('2d');
+let particles = [];
+const MAX_PARTICLES = 400;
+let ambientTimer = 0;
+let extraSparkleUntil = 0;
+
+function resizeCanvas(){
+  canvas.width = window.innerWidth * (window.devicePixelRatio||1);
+  canvas.height = window.innerHeight * (window.devicePixelRatio||1);
+  canvas.style.width = window.innerWidth+'px';
+  canvas.style.height = window.innerHeight+'px';
+  vctx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function spawnParticle(p){
+  if(particles.length >= MAX_PARTICLES) particles.shift();
+  particles.push(p);
+}
+function micScreenPos(){
+  const el = document.getElementById('micBtn');
+  const r = el.getBoundingClientRect();
+  return { x: r.left+r.width/2, y: r.top+r.height/2 };
+}
+function onEchoRepeat(direction, gen, pan, gainAmt){
+  const {x,y} = micScreenPos();
+  const w = window.innerWidth;
+  const px = clamp(x + pan*(w*0.4), 20, w-20);
+  const colorUp = ['#ffd23f','#ff9ecb','#fff'];
+  const colorDown = ['#7dd3fc','#a855f7','#2dd4bf'];
+  const color = direction==='down' ? colorDown[gen%colorDown.length] : colorUp[gen%colorUp.length];
+  spawnParticle({
+    x: px, y: y, vx: randRange(-8,8), vy: direction==='down' ? randRange(20,45) : direction==='up'? -randRange(20,45) : randRange(-10,10),
+    size: clamp(6+gainAmt*26, 4, 26), color, alpha: clamp(0.35+gainAmt,0.2,1), life: 1, shape: (gen%3)
+  });
+}
+function spawnEdgeSparkle(){
+  for(let i=0;i<10;i++){
+    spawnParticle({ x: randRange(0,window.innerWidth), y: randRange(0,window.innerHeight),
+      vx: randRange(-6,6), vy: randRange(-30,-8), size: randRange(3,7),
+      color:'#fff', alpha:1, life:1, shape:0 });
+  }
+}
+function spawnEdgeSparkleBurst(){ extraSparkleUntil = performance.now()+4000; }
+
+let lastVisT = performance.now();
+function visLoop(now){
+  requestAnimationFrame(visLoop);
+  const dt = Math.min(0.05, (now-lastVisT)/1000); lastVisT = now;
+  vctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+
+  // ambient decorative motes
+  ambientTimer -= dt;
+  const ambientRate = performance.now()<extraSparkleUntil ? 0.05 : 0.35;
+  if(ambientTimer<=0){
+    ambientTimer = ambientRate;
+    const shapes=['⭐','🫧','💫','💗'];
+    spawnParticle({ x: randRange(0,window.innerWidth), y: window.innerHeight+20,
+      vx: randRange(-10,10), vy: -randRange(10,26), size: randRange(10,20),
+      color:'#ffffff', alpha: randRange(0.25,0.6), life:1, emoji: shapes[Math.floor(Math.random()*shapes.length)] });
+  }
+
+  // mic-level ripple
+  if(state.listening && !state.frozen){
+    const {x,y} = micScreenPos();
+    if(Math.random() < currentLevel*6){
+      spawnParticle({ x: x+randRange(-30,30), y: y+randRange(-30,30), vx: randRange(-15,15), vy: randRange(-25,-5),
+        size: clamp(currentLevel*120, 3, 16), color:'#fff', alpha:0.7, life:1, shape:0 });
+    }
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.5;
+    if(p.life<=0 || p.y<-40 || p.y>window.innerHeight+40){ particles.splice(i,1); continue; }
+    vctx.globalAlpha = clamp(p.alpha*p.life,0,1);
+    if(p.emoji){
+      vctx.font = p.size+'px sans-serif';
+      vctx.fillText(p.emoji, p.x, p.y);
+    } else {
+      vctx.fillStyle = p.color;
+      vctx.beginPath();
+      if(p.shape===1){
+        // little star-ish diamond
+        vctx.moveTo(p.x, p.y-p.size); vctx.lineTo(p.x+p.size,p.y); vctx.lineTo(p.x,p.y+p.size); vctx.lineTo(p.x-p.size,p.y);
+        vctx.closePath();
+      } else if(p.shape===2){
+        // heart-ish
+        vctx.arc(p.x-p.size*0.5,p.y,p.size*0.6,0,Math.PI*2);
+        vctx.arc(p.x+p.size*0.5,p.y,p.size*0.6,0,Math.PI*2);
+      } else {
+        vctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+      }
+      vctx.fill();
+    }
+  }
+  vctx.globalAlpha = 1;
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+const el = id => document.getElementById(id);
+
+function highlightPreset(key){
+  document.querySelectorAll('#presetGrid .bigbtn').forEach(b=>{
+    b.classList.toggle('on', b.dataset.preset===key);
+  });
+}
+
+function buildPresetGrid(){
+  const grid = el('presetGrid');
+  PRESET_ORDER.forEach(key=>{
+    const def = PRESETS[key];
+    const b = document.createElement('button');
+    b.className = 'bigbtn presetbtn';
+    b.dataset.preset = key;
+    b.innerHTML = `<span class="emoji">${def.emoji}</span>${def.label}`;
+    b.addEventListener('click', ()=> setPreset(key));
+    grid.appendChild(b);
+  });
+}
+function buildComboGrid(){
+  const grid = el('comboGrid');
+  BIG_PRESET_ORDER.forEach(key=>{
+    const def = BIG_PRESETS[key];
+    const b = document.createElement('button');
+    b.className = 'bigbtn comboBtn';
+    b.innerHTML = `<span class="emoji">${def.emoji}</span>${def.label}`;
+    b.addEventListener('click', ()=> applyBigPreset(key));
+    grid.appendChild(b);
+  });
+}
+function buildSoundboard(){
+  const grid = el('soundboard');
+  SOUNDBOARD.forEach(s=>{
+    const b = document.createElement('button');
+    b.className='bigbtn';
+    b.innerHTML = `<span class="emoji">${s.emoji}</span>`;
+    b.addEventListener('click', ()=>{ if(state.ctx) s.fn(); });
+    grid.appendChild(b);
+  });
+}
+
+function applyBigPreset(key){
+  const def = BIG_PRESETS[key];
+  if(!def) return;
+  let presetKey = def.preset;
+  if(presetKey === '__random__'){
+    presetKey = PRESET_ORDER[Math.floor(Math.random()*PRESET_ORDER.length)];
+  }
+  setPreset(presetKey, true);
+  Object.assign(state.echo, def.echo);
+  state.reverbAmount = def.reverb;
+  state.stereoSpread = def.spread;
+  syncEchoControlsToState();
+  spawnEdgeSparkle();
+  if(key==='sillyMode') startSillyModeCycle();
+}
+let sillyInterval = null;
+function startSillyModeCycle(){
+  if(sillyInterval) clearInterval(sillyInterval);
+  sillyInterval = setInterval(()=>{
+    if(state.currentPreset !== undefined){
+      const k = PRESET_ORDER[Math.floor(Math.random()*PRESET_ORDER.length)];
+      setPreset(k, true);
+    }
+  }, 4000);
+}
+
+function syncEchoControlsToState(){
+  el('echoToggle').classList.toggle('on', state.echo.enabled);
+  el('echoTrail').value = state.echo.trailSec;
+  el('echoTrailVal').textContent = state.echo.trailSec+'s';
+  el('spiralToggle').classList.toggle('on', state.echo.spiralOn);
+  el('evolveToggle').classList.toggle('on', state.echo.evolving);
+  document.querySelectorAll('#spiralModeRow .bigbtn').forEach(b=> b.classList.toggle('on', b.dataset.mode===state.echo.spiralMode));
+  el('repeatSpeed').value = state.echo.repeatMs;
+  el('repeatSpeedVal').textContent = state.echo.repeatMs+' ms';
+  el('echoFade').value = Math.round(state.echo.fade*100);
+  el('echoFadeVal').textContent = fadeLabel(state.echo.fade);
+  el('pitchStep').value = state.echo.pitchStepCents;
+  el('pitchStepVal').textContent = state.echo.pitchStepCents+' cents';
+  el('reverbSlider').value = Math.round(state.reverbAmount*100);
+  el('reverbVal').textContent = levelLabel(state.reverbAmount);
+  el('spreadSlider').value = Math.round(state.stereoSpread*100);
+  el('spreadVal').textContent = levelLabel(state.stereoSpread);
+}
+function fadeLabel(f){ return f<0.4?'Quick':f<0.75?'Medium':'Almost Forever'; }
+function levelLabel(f){ return f<0.3?'Low':f<0.65?'Medium':'High'; }
+
+function checkComboEasterEgg(newKey, prevKey){
+  if((newKey==='trex' && prevKey==='unicorn') || (newKey==='unicorn' && prevKey==='trex')){
+    showToast('🦖💖🦄\nDINOSAUR UNICORN MODE!');
+    Object.assign(state.echo, {enabled:true, spiralOn:true, spiralMode:'both'});
+    syncEchoControlsToState();
+  }
+}
+function showToast(msg){
+  const t = el('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(()=>{ t.style.display='none'; }, 2200);
+}
+function flyUnicorn(){
+  const u = el('unicornFly');
+  u.style.display='block';
+  u.style.animation='none'; void u.offsetWidth;
+  u.style.animation = 'flyAcross 2.6s linear forwards';
+  setTimeout(()=>{ u.style.display='none'; }, 2700);
+}
+
+/* ---- mic button ---- */
+function setListening(on){
+  state.listening = on;
+  const btn = el('micBtn');
+  btn.classList.toggle('listening', on);
+  el('micLabel').textContent = state.frozen ? 'FROZEN ❄️' : (on ? 'LISTENING...' : 'TAP TO TALK');
+}
+
+async function onMicTap(){
+  const now = performance.now();
+  micTapTimes.push(now);
+  micTapTimes = micTapTimes.filter(t => now-t < 2500);
+  if(micTapTimes.length >= 5){ flyUnicorn(); micTapTimes = []; }
+
+  if(!state.running){
+    await startEverything();
+    return;
+  }
+  if(state.ctx.state === 'suspended') await state.ctx.resume();
+  setListening(!state.listening);
+}
+
+async function requestMicPermission(){
+  const btn = el('micPermBtn');
+  const status = el('micPermStatus');
+  btn.disabled = true;
+  status.textContent = 'Asking for microphone access...';
+  try{
+    grantedMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:false }
+    });
+    btn.classList.add('granted');
+    btn.innerHTML = '✅ Microphone Allowed';
+    status.textContent = 'Great! Now tap Start the Magic.';
+    el('startBtn').disabled = false;
+    el('permError').style.display='none';
+  }catch(err){
+    console.error(err);
+    btn.disabled = false;
+    btn.classList.remove('granted');
+    btn.innerHTML = '🎤 Allow Microphone';
+    status.textContent = "We couldn't get the microphone — check your browser settings and try again.";
+    el('startBtn').disabled = true;
+  }
+}
+
+async function startEverything(){
+  if(!grantedMicStream){
+    // Safety net: if Start is somehow reachable before permission was granted,
+    // request it now instead of doing nothing.
+    await requestMicPermission();
+    if(!grantedMicStream) return;
+  }
+  try{
+    el('permError').style.display='none';
+    await initAudio();
+    el('firstRun').style.display='none';
+    el('app').classList.add('visible');
+    setListening(true);
+    syncEchoControlsToState();
+  }catch(err){
+    console.error(err);
+    el('permError').style.display='block';
+  }
+}
+
+/* ============================================================
+   WIRE UP ALL CONTROLS
+   ============================================================ */
+function wireUI(){
+  buildPresetGrid();
+  buildComboGrid();
+  buildSoundboard();
+
+  el('micPermBtn').addEventListener('click', requestMicPermission);
+  el('startBtn').addEventListener('click', startEverything);
+  el('retryBtn').addEventListener('click', requestMicPermission);
+  el('micBtn').addEventListener('click', onMicTap);
+
+  el('echoToggle').addEventListener('click', ()=>{
+    state.echo.enabled = !state.echo.enabled;
+    el('echoToggle').classList.toggle('on', state.echo.enabled);
+    if(!state.echo.enabled) clearAllEchoes();
+  });
+  el('echoTrail').addEventListener('input', e=>{
+    state.echo.trailSec = parseInt(e.target.value,10);
+    el('echoTrailVal').textContent = state.echo.trailSec+'s';
+  });
+  el('spiralToggle').addEventListener('click', ()=>{
+    state.echo.spiralOn = !state.echo.spiralOn;
+    el('spiralToggle').classList.toggle('on', state.echo.spiralOn);
+  });
+  document.querySelectorAll('#spiralModeRow .bigbtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.echo.spiralMode = b.dataset.mode;
+      document.querySelectorAll('#spiralModeRow .bigbtn').forEach(x=>x.classList.toggle('on', x===b));
+    });
+  });
+  el('evolveToggle').addEventListener('click', ()=>{
+    state.echo.evolving = !state.echo.evolving;
+    el('evolveToggle').classList.toggle('on', state.echo.evolving);
+  });
+
+  el('freezeBtn').addEventListener('click', toggleFreeze);
+  el('whisperBtn').addEventListener('click', toggleWhisper);
+  el('warpBtn').addEventListener('click', ()=>{ if(state.ctx) triggerTimeWarp(); });
+  el('clearBtn').addEventListener('click', clearAllEchoes);
+
+  el('moreMagicBtn').addEventListener('click', ()=>{
+    state.kidMode = !state.kidMode;
+    el('advancedPanel').classList.toggle('open', !state.kidMode);
+    el('moreMagicBtn').textContent = state.kidMode ? '⚙️ MORE MAGIC' : '⚙️ KID MODE';
+  });
+
+  el('repeatSpeed').addEventListener('input', e=>{
+    state.echo.repeatMs = parseInt(e.target.value,10);
+    el('repeatSpeedVal').textContent = state.echo.repeatMs+' ms';
+  });
+  el('echoFade').addEventListener('input', e=>{
+    state.echo.fade = parseInt(e.target.value,10)/100;
+    el('echoFadeVal').textContent = fadeLabel(state.echo.fade);
+  });
+  el('pitchStep').addEventListener('input', e=>{
+    state.echo.pitchStepCents = parseInt(e.target.value,10);
+    el('pitchStepVal').textContent = state.echo.pitchStepCents+' cents';
+  });
+  el('inputGainSlider').addEventListener('input', e=>{
+    state.inputGainPct = parseInt(e.target.value,10);
+    el('inputGainVal').textContent = state.inputGainPct+'%';
+    if(inputGainNode && state.ctx){
+      const target = clamp((state.whisper?2.6:1.0)*(state.inputGainPct/100), 0, 4);
+      inputGainNode.gain.setTargetAtTime(target, state.ctx.currentTime, 0.1);
+    }
+  });
+  el('reverbSlider').addEventListener('input', e=>{
+    state.reverbAmount = parseInt(e.target.value,10)/100;
+    el('reverbVal').textContent = levelLabel(state.reverbAmount);
+  });
+  el('spreadSlider').addEventListener('input', e=>{
+    state.stereoSpread = parseInt(e.target.value,10)/100;
+    el('spreadVal').textContent = levelLabel(state.stereoSpread);
+  });
+
+  /* ---- Recording ---- */
+  el('recBtn').addEventListener('click', ()=>{
+    if(!state.ctx || !destStream) return;
+    recordedChunks = [];
+    try{
+      mediaRecorder = new MediaRecorder(destStream.stream);
+    }catch(e){
+      el('recStatus').textContent = "Recording isn't supported in this browser.";
+      return;
+    }
+    mediaRecorder.ondataavailable = ev => { if(ev.data.size>0) recordedChunks.push(ev.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, {type: mediaRecorder.mimeType || 'audio/webm'});
+      if(recordedBlobUrl) URL.revokeObjectURL(recordedBlobUrl);
+      recordedBlobUrl = URL.createObjectURL(blob);
+      el('playback').src = recordedBlobUrl;
+      el('saveA').href = recordedBlobUrl;
+      el('saveLink').style.display = 'block';
+      el('recStatus').textContent = 'Recording ready! 🎉';
+    };
+    mediaRecorder.start();
+    el('recStatus').textContent = 'Recording... 🔴';
+  });
+  el('recStopBtn').addEventListener('click', ()=>{
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  });
+  el('recPlayBtn').addEventListener('click', ()=>{
+    const p = el('playback');
+    if(p.src){ p.style.display='block'; p.play(); }
+  });
+  el('recDeleteBtn').addEventListener('click', ()=>{
+    if(recordedBlobUrl) URL.revokeObjectURL(recordedBlobUrl);
+    recordedBlobUrl = null;
+    el('playback').removeAttribute('src'); el('playback').style.display='none';
+    el('saveLink').style.display='none';
+    el('recStatus').textContent = 'Deleted.';
+  });
+}
+
+wireUI();
+
+/* prevent double-tap zoom on iOS while allowing normal button taps */
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(e){
+  const now = Date.now();
+  if(now - lastTouchEnd <= 300){ e.preventDefault(); }
+  lastTouchEnd = now;
+}, {passive:false});
+
+})();
+</script>
+</body>
+</html>
