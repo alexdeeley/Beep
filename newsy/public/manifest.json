@@ -1,0 +1,9 @@
+{
+  "name": "NEWSY",
+  "short_name": "NEWSY",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "An ultra-minimal, automatically refreshing news headline feed."
+}
