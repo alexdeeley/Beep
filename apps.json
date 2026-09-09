@@ -1092,5 +1092,13 @@
     "category": "Games",
     "gameGroup": "maisie",
     "path": "TrexTag.html"
+  },
+  {
+    "id": "maisies-magic-voice-machine",
+    "name": "Maisie's Magic Voice Machine",
+    "description": "Warp your voice into a unicorn, T-Rex, robot, and more, with long spiraling echoes.",
+    "category": "Music Tools",
+    "musicGroup": "synth",
+    "path": "MaisiesMagicVoiceMachine.html"
   }
 ]
