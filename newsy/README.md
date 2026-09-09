@@ -10,7 +10,9 @@ downward, like a living newspaper front page.
   (BBC, NPR, The Guardian, ABC News, CBS News, NBC News, and Google News as
   an aggregator), normalizes them into a common shape, filters out
   near-duplicate stories covering the same event, sorts newest-first, and
-  lightly balances sources so no single outlet dominates the feed.
+  lightly balances sources so no single outlet dominates the feed. Every
+  feed is filed under one of WORLD / U.S. / TECH / CULTURE up front, so the
+  category filter never has to guess.
 - A plain HTML/CSS/JS frontend renders the result as huge, bold, tightly
   kerned headlines on a black background, and quietly re-fetches every 5
   minutes without ever reloading the page.

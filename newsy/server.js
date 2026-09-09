@@ -11,23 +11,35 @@ const FEED_TIMEOUT_MS = 8000;
 const MAX_HEADLINES = 65;
 const MAX_CONSECUTIVE_SAME_SOURCE = 2;
 
-// Each feed declares the category NEWSY should file it under. Categories
-// are assigned per-feed (not guessed per-article), which is what keeps the
-// ALL/WORLD/U.S./TECH/CULTURE filter reliable enough to ship.
+// Each feed declares the category NEWSY should file it under, and every
+// feed gets a real category (no generic "uncategorized" bucket) so nothing
+// silently disappears the moment a visitor picks WORLD/U.S./TECH/CULTURE
+// instead of ALL. Categories are assigned per-feed, not guessed per-article,
+// which is what keeps the filter reliable enough to ship.
 const FEEDS = [
-  { url: 'http://feeds.bbci.co.uk/news/rss.xml', source: 'BBC News', category: 'world' },
-  { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC News', category: 'world' },
+  // WORLD
+  { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC', category: 'world' },
+  { url: 'https://www.theguardian.com/world/rss', source: 'GUARDIAN', category: 'world' },
+  { url: 'https://feeds.npr.org/1004/rss.xml', source: 'NPR', category: 'world' },
+  { url: 'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en', source: 'GOOGLE', category: 'world' },
+
+  // U.S.
   { url: 'https://feeds.npr.org/1001/rss.xml', source: 'NPR', category: 'us' },
-  { url: 'https://www.theguardian.com/world/rss', source: 'The Guardian', category: 'world' },
-  { url: 'https://www.theguardian.com/us-news/rss', source: 'The Guardian', category: 'us' },
-  { url: 'https://abcnews.go.com/abcnews/topstories', source: 'ABC News', category: 'us' },
-  { url: 'https://www.cbsnews.com/latest/rss/main', source: 'CBS News', category: 'us' },
-  { url: 'http://feeds.nbcnews.com/nbcnews/public/news', source: 'NBC News', category: 'us' },
-  { url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en', source: 'Google News', category: 'all' },
-  { url: 'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en', source: 'Google News', category: 'world' },
-  { url: 'https://news.google.com/rss/headlines/section/topic/NATION?hl=en-US&gl=US&ceid=US:en', source: 'Google News', category: 'us' },
-  { url: 'https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en', source: 'Google News', category: 'tech' },
-  { url: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en', source: 'Google News', category: 'culture' },
+  { url: 'https://www.theguardian.com/us-news/rss', source: 'GUARDIAN', category: 'us' },
+  { url: 'http://feeds.nbcnews.com/nbcnews/public/news', source: 'NBC', category: 'us' },
+  { url: 'https://www.cbsnews.com/latest/rss/main', source: 'CBS', category: 'us' },
+  { url: 'https://abcnews.go.com/abcnews/topstories', source: 'ABC', category: 'us' },
+  { url: 'https://news.google.com/rss/headlines/section/topic/NATION?hl=en-US&gl=US&ceid=US:en', source: 'GOOGLE', category: 'us' },
+
+  // TECH
+  { url: 'http://feeds.bbci.co.uk/news/technology/rss.xml', source: 'BBC', category: 'tech' },
+  { url: 'https://www.theguardian.com/technology/rss', source: 'GUARDIAN', category: 'tech' },
+  { url: 'https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en', source: 'GOOGLE', category: 'tech' },
+
+  // CULTURE
+  { url: 'https://www.theguardian.com/culture/rss', source: 'GUARDIAN', category: 'culture' },
+  { url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml', source: 'BBC', category: 'culture' },
+  { url: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en', source: 'GOOGLE', category: 'culture' },
 ];
 
 const parser = new Parser({
