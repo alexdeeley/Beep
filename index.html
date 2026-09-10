@@ -166,6 +166,7 @@
     <h1>artcade</h1>
     <p>tap a name to open it</p>
   </header>
+  <div id="newSection"></div>
   <div id="tabs"></div>
   <div id="appList"></div>
 </main>
@@ -181,6 +182,9 @@ let activeTab = "Games";
 // into an unrelated section that happens to share a heading name.
 let sectionSortMode = {};
 
+const NEW_COUNT = 3;
+let newestApps = [];
+
 async function main() {
   const res = await fetch("./apps.json");
   apps = await res.json();
@@ -190,8 +194,31 @@ async function main() {
     return;
   }
 
+  newestApps = [...apps]
+    .sort((a, b) => new Date(b.added) - new Date(a.added))
+    .slice(0, NEW_COUNT);
+
+  renderNewSection();
   buildTabs();
   renderList();
+}
+
+function renderNewSection() {
+  const el = document.getElementById("newSection");
+  el.innerHTML = "";
+  if (newestApps.length === 0) return;
+
+  const bar = document.createElement("div");
+  bar.className = "section-bar";
+  const heading = document.createElement("span");
+  heading.className = "list-heading";
+  heading.textContent = "New";
+  bar.appendChild(heading);
+  el.appendChild(bar);
+
+  for (const app of newestApps) {
+    el.appendChild(buildItem(app));
+  }
 }
 
 function buildTabs() {
@@ -214,7 +241,8 @@ function renderList() {
   const listEl = document.getElementById("appList");
   listEl.innerHTML = "";
 
-  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab);
+  const newIds = new Set(newestApps.map((app) => app.id));
+  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab && !newIds.has(app.id));
 
   if (filtered.length === 0) {
     listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
