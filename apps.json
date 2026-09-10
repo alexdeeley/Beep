@@ -1386,5 +1386,15 @@
     "path": "MaisiesMagicVoiceMachine.html",
     "added": "2026-09-08T18:19:24-07:00",
     "thumbnail": "thumbnails/maisies-magic-voice-machine.jpg"
+  },
+  {
+    "id": "maisie-eats-everything-3",
+    "name": "Maisie Eats Everything 3",
+    "description": "Grow a unicorn across ten cosmic chapters, from a cozy bedroom to the whole universe.",
+    "category": "Games",
+    "path": "MaisieEatsEverything3.html",
+    "gameGroup": "maisie",
+    "added": "2026-09-10T04:52:51+00:00",
+    "thumbnail": "thumbnails/maisie-eats-everything-3.jpg"
   }
 ]
