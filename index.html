@@ -110,7 +110,10 @@
     flex-direction: column;
   }
   a.app-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     text-decoration: none;
     color: #f2f2f5;
     padding: 12px 0;
@@ -121,6 +124,16 @@
   a.app-item:hover, a.app-item:active {
     color: #fff;
     padding-left: 12px;
+  }
+  a.app-item .app-text { min-width: 0; flex: 1 1 auto; }
+  a.app-item .app-thumb {
+    flex: 0 0 auto;
+    width: 84px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #141418;
+    border: 1px solid #1c1c20;
   }
   a.app-item h2 {
     margin: 0;
@@ -277,14 +290,29 @@ function buildItem(app) {
   // inside the installed standalone PWA instead of kicking out to a new
   // browser tab, which would show Safari/Chrome chrome again.
 
+  const text = document.createElement("div");
+  text.className = "app-text";
+
   const title = document.createElement("h2");
   title.textContent = app.name;
 
   const desc = document.createElement("p");
   desc.textContent = app.description;
 
-  item.appendChild(title);
-  item.appendChild(desc);
+  text.appendChild(title);
+  text.appendChild(desc);
+  item.appendChild(text);
+
+  if (app.thumbnail) {
+    const thumb = document.createElement("img");
+    thumb.className = "app-thumb";
+    thumb.src = app.thumbnail;
+    thumb.loading = "lazy";
+    thumb.alt = "";
+    thumb.addEventListener("error", () => thumb.remove());
+    item.appendChild(thumb);
+  }
+
   return item;
 }
 
