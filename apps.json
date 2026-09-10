@@ -6,7 +6,8 @@
     "category": "Music Tools",
     "path": "BitCrusherWorkletDemo.html",
     "musicGroup": "synth",
-    "added": "2026-09-01T03:02:21+00:00"
+    "added": "2026-09-01T03:02:21+00:00",
+    "thumbnail": "thumbnails/bitcrusher-worklet-demo.jpg"
   },
   {
     "id": "hnw9",
@@ -15,7 +16,8 @@
     "category": "Music Tools",
     "path": "HNW9.html",
     "musicGroup": "synth",
-    "added": "2026-09-01T03:11:53+00:00"
+    "added": "2026-09-01T03:11:53+00:00",
+    "thumbnail": "thumbnails/hnw9.jpg"
   },
   {
     "id": "factorial-melody-generator",
@@ -24,7 +26,8 @@
     "category": "Music Tools",
     "path": "FactorialMelodyGenerator.html",
     "musicGroup": "synth",
-    "added": "2026-09-01T03:24:42+00:00"
+    "added": "2026-09-01T03:24:42+00:00",
+    "thumbnail": "thumbnails/factorial-melody-generator.jpg"
   },
   {
     "id": "sound-of-functions",
@@ -32,7 +35,8 @@
     "description": "Random math functions, drawn as glowing graphs and turned into sound.",
     "category": "Art",
     "path": "SoundOfFunctions.html",
-    "added": "2026-09-01T02:59:33+00:00"
+    "added": "2026-09-01T02:59:33+00:00",
+    "thumbnail": "thumbnails/sound-of-functions.jpg"
   },
   {
     "id": "oscillate-scroll-bars",
@@ -40,7 +44,8 @@
     "description": "Turns your mic input into a scrolling neon waveform.",
     "category": "Art",
     "path": "OscillateScrollBars.html",
-    "added": "2026-09-01T03:02:21+00:00"
+    "added": "2026-09-01T03:02:21+00:00",
+    "thumbnail": "thumbnails/oscillate-scroll-bars.jpg"
   },
   {
     "id": "heavy-spin-morph",
@@ -48,7 +53,8 @@
     "description": "A wireframe shape you spin and morph between forms.",
     "category": "Art",
     "path": "HeavySpinMorph.html",
-    "added": "2026-09-01T03:11:53+00:00"
+    "added": "2026-09-01T03:11:53+00:00",
+    "thumbnail": "thumbnails/heavy-spin-morph.jpg"
   },
   {
     "id": "maisie-magic-draw",
@@ -56,7 +62,8 @@
     "description": "A sparkly finger-painting app with glowing trails and stickers.",
     "category": "Art",
     "path": "MaisieMagicDraw.html",
-    "added": "2026-09-01T03:20:04+00:00"
+    "added": "2026-09-01T03:20:04+00:00",
+    "thumbnail": "thumbnails/maisie-magic-draw.jpg"
   },
   {
     "id": "smooth-wave-field",
@@ -64,7 +71,8 @@
     "description": "A no-UI wave field you ripple with taps and drags.",
     "category": "Art",
     "path": "SmoothWaveField.html",
-    "added": "2026-09-01T03:24:42+00:00"
+    "added": "2026-09-01T03:24:42+00:00",
+    "thumbnail": "thumbnails/smooth-wave-field.jpg"
   },
   {
     "id": "maisie-eats-everything",
@@ -73,7 +81,8 @@
     "category": "Games",
     "path": "MaisieEatsEverything2.html",
     "gameGroup": "maisie",
-    "added": "2026-09-01T02:59:33+00:00"
+    "added": "2026-09-01T02:59:33+00:00",
+    "thumbnail": "thumbnails/maisie-eats-everything.jpg"
   },
   {
     "id": "maisie-eats-everything-original",
@@ -82,7 +91,8 @@
     "category": "Games",
     "path": "MaisieEatsEverything.html",
     "gameGroup": "maisie",
-    "added": "2026-09-01T02:59:33+00:00"
+    "added": "2026-09-01T02:59:33+00:00",
+    "thumbnail": "thumbnails/maisie-eats-everything-original.jpg"
   },
   {
     "id": "peggle-minimal-forge",
@@ -91,7 +101,8 @@
     "category": "Games",
     "path": "PeggleMinimalForge.html",
     "gameGroup": "arcade",
-    "added": "2026-09-01T03:02:21+00:00"
+    "added": "2026-09-01T03:02:21+00:00",
+    "thumbnail": "thumbnails/peggle-minimal-forge.jpg"
   },
   {
     "id": "star-bucket",
@@ -100,7 +111,8 @@
     "category": "Games",
     "path": "StarBucket.html",
     "gameGroup": "arcade",
-    "added": "2026-09-01T03:11:53+00:00"
+    "added": "2026-09-01T03:11:53+00:00",
+    "thumbnail": "thumbnails/star-bucket.jpg"
   },
   {
     "id": "ricochet-8bit",
@@ -109,7 +121,8 @@
     "category": "Games",
     "path": "Ricochet8Bit.html",
     "gameGroup": "arcade",
-    "added": "2026-09-01T03:20:04+00:00"
+    "added": "2026-09-01T03:20:04+00:00",
+    "thumbnail": "thumbnails/ricochet-8bit.jpg"
   },
   {
     "id": "ricochet-8bit-sequence11",
@@ -120,7 +133,8 @@
     "featured": true,
     "featuredOrder": 3,
     "gameGroup": "arcade",
-    "added": "2026-09-01T03:20:04+00:00"
+    "added": "2026-09-01T03:20:04+00:00",
+    "thumbnail": "thumbnails/ricochet-8bit-sequence11.jpg"
   },
   {
     "id": "maisies-kitty-cat-adventure",
@@ -129,7 +143,8 @@
     "category": "Games",
     "path": "MaisiesKittyCatAdventure.html",
     "gameGroup": "maisie",
-    "added": "2026-09-01T03:24:42+00:00"
+    "added": "2026-09-01T03:24:42+00:00",
+    "thumbnail": "thumbnails/maisies-kitty-cat-adventure.jpg"
   },
   {
     "id": "maisie-emoji-guess",
@@ -138,7 +153,8 @@
     "category": "Games",
     "path": "MaisieEmojiGuess.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T01:04:41+00:00"
+    "added": "2026-09-04T01:04:41+00:00",
+    "thumbnail": "thumbnails/maisie-emoji-guess.jpg"
   },
   {
     "id": "emoji-scramble",
@@ -147,7 +163,8 @@
     "category": "Games",
     "path": "EmojiScramble.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T01:17:15+00:00"
+    "added": "2026-09-04T01:17:15+00:00",
+    "thumbnail": "thumbnails/emoji-scramble.jpg"
   },
   {
     "id": "neon-blade-xenowave",
@@ -156,7 +173,8 @@
     "category": "Games",
     "path": "NeonBladeXenowave.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T02:25:28+00:00"
+    "added": "2026-09-04T02:25:28+00:00",
+    "thumbnail": "thumbnails/neon-blade-xenowave.jpg"
   },
   {
     "id": "unicorn-cat-bubble-pop",
@@ -165,7 +183,8 @@
     "category": "Games",
     "path": "UnicornCatBubblePop.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T02:47:12+00:00"
+    "added": "2026-09-04T02:47:12+00:00",
+    "thumbnail": "thumbnails/unicorn-cat-bubble-pop.jpg"
   },
   {
     "id": "chunky-shape-shooter",
@@ -174,7 +193,8 @@
     "category": "Games",
     "path": "ChunkyShapeShooter.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T02:47:12+00:00"
+    "added": "2026-09-04T02:47:12+00:00",
+    "thumbnail": "thumbnails/chunky-shape-shooter.jpg"
   },
   {
     "id": "merzbow-machine",
@@ -183,7 +203,8 @@
     "category": "Music Tools",
     "path": "MerzbowMachine.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T18:11:49+00:00"
+    "added": "2026-09-04T18:11:49+00:00",
+    "thumbnail": "thumbnails/merzbow-machine.jpg"
   },
   {
     "id": "artsy-v3",
@@ -191,7 +212,8 @@
     "description": "Type a seed, get a unique abstract piece.",
     "category": "Art",
     "path": "ArtsyV3.html",
-    "added": "2026-09-04T18:19:22+00:00"
+    "added": "2026-09-04T18:19:22+00:00",
+    "thumbnail": "thumbnails/artsy-v3.jpg"
   },
   {
     "id": "checker-morphs",
@@ -199,7 +221,8 @@
     "description": "A checkerboard shape morphing between circles and polygons.",
     "category": "Art",
     "path": "CheckerMorphs.html",
-    "added": "2026-09-04T18:19:22+00:00"
+    "added": "2026-09-04T18:19:22+00:00",
+    "thumbnail": "thumbnails/checker-morphs.jpg"
   },
   {
     "id": "chord-morpher",
@@ -208,7 +231,8 @@
     "category": "Music Tools",
     "path": "ChordMorpher.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T18:24:33+00:00"
+    "added": "2026-09-04T18:24:33+00:00",
+    "thumbnail": "thumbnails/chord-morpher.jpg"
   },
   {
     "id": "snake-circle-enemy",
@@ -217,7 +241,8 @@
     "category": "Games",
     "path": "SnakeCircleEnemy.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T18:24:33+00:00"
+    "added": "2026-09-04T18:24:33+00:00",
+    "thumbnail": "thumbnails/snake-circle-enemy.jpg"
   },
   {
     "id": "spiral-fan-spinner",
@@ -225,7 +250,8 @@
     "description": "A pleated fan you drag and flick to spin, with inertia, rustling sound, and haptics.",
     "category": "Art",
     "path": "SpiralFanSpinner.html",
-    "added": "2026-09-04T18:24:33+00:00"
+    "added": "2026-09-04T18:24:33+00:00",
+    "thumbnail": "thumbnails/spiral-fan-spinner.jpg"
   },
   {
     "id": "material-cube",
@@ -233,7 +259,8 @@
     "description": "A tumbling 3D cube that cycles through chrome, wood, ice, and other procedural materials.",
     "category": "Art",
     "path": "MaterialCube.html",
-    "added": "2026-09-04T18:27:02+00:00"
+    "added": "2026-09-04T18:27:02+00:00",
+    "thumbnail": "thumbnails/material-cube.jpg"
   },
   {
     "id": "neo-swipe-drift-text",
@@ -241,7 +268,8 @@
     "description": "Swipe to send text drifting across the screen.",
     "category": "Art",
     "path": "SwipeDriftText.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-swipe-drift-text.jpg"
   },
   {
     "id": "neo-space-shooter",
@@ -250,7 +278,8 @@
     "category": "Games",
     "path": "SpaceShooter.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-space-shooter.jpg"
   },
   {
     "id": "neo-echo-warp",
@@ -259,7 +288,8 @@
     "category": "Music Tools",
     "path": "EchoWarp.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-echo-warp.jpg"
   },
   {
     "id": "neo-shapewave-color-swipe",
@@ -267,7 +297,8 @@
     "description": "Swipe to send color rippling through shapes.",
     "category": "Art",
     "path": "ShapewaveColorSwipe.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-shapewave-color-swipe.jpg"
   },
   {
     "id": "neo-spider-kingdom-jungle-triangle",
@@ -276,7 +307,8 @@
     "category": "Games",
     "path": "SpiderKingdomJungleTriangle.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-spider-kingdom-jungle-triangle.jpg"
   },
   {
     "id": "neo-blockdrop-quake-v2",
@@ -285,7 +317,8 @@
     "category": "Games",
     "path": "BlockdropQuakeV2.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-blockdrop-quake-v2.jpg"
   },
   {
     "id": "neo-space-shooter-v4",
@@ -294,7 +327,8 @@
     "category": "Games",
     "path": "SpaceShooterV4.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-space-shooter-v4.jpg"
   },
   {
     "id": "neo-op-art-toy",
@@ -303,7 +337,8 @@
     "category": "Music Tools",
     "path": "OpArtToy.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-op-art-toy.jpg"
   },
   {
     "id": "neo-spiral-seed-art",
@@ -311,7 +346,8 @@
     "description": "A spiral generator seeded by your input.",
     "category": "Art",
     "path": "SpiralSeedArt.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-spiral-seed-art.jpg"
   },
   {
     "id": "neo-op-art",
@@ -319,7 +355,8 @@
     "description": "Classic optical-illusion art, animated.",
     "category": "Art",
     "path": "OpArt.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-op-art.jpg"
   },
   {
     "id": "neo-majormetal-saves-the-universe-d-b-splash",
@@ -328,7 +365,8 @@
     "category": "Games",
     "path": "MajormetalSavesTheUniverseDBSplash.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-majormetal-saves-the-universe-d-b-splash.jpg"
   },
   {
     "id": "neo-aether-classical-ambient-composer",
@@ -337,7 +375,8 @@
     "category": "Music Tools",
     "path": "AetherClassicalAmbientComposer.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-aether-classical-ambient-composer.jpg"
   },
   {
     "id": "neo-fuzz303-lofi-beat-machine",
@@ -346,7 +385,8 @@
     "category": "Music Tools",
     "path": "Fuzz303LofiBeatMachine.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-fuzz303-lofi-beat-machine.jpg"
   },
   {
     "id": "neo-high-contrast-kaleidoscope",
@@ -354,7 +394,8 @@
     "description": "A stark black-and-white kaleidoscope.",
     "category": "Art",
     "path": "HighContrastKaleidoscope.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-high-contrast-kaleidoscope.jpg"
   },
   {
     "id": "neo-hive-multiplier",
@@ -363,7 +404,8 @@
     "category": "Games",
     "path": "HiveMultiplier.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hive-multiplier.jpg"
   },
   {
     "id": "neo-orbital-dots",
@@ -371,7 +413,8 @@
     "description": "Dots orbiting each other in shifting patterns.",
     "category": "Art",
     "path": "OrbitalDots.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-orbital-dots.jpg"
   },
   {
     "id": "neo-tick-clock",
@@ -380,7 +423,8 @@
     "category": "Music Tools",
     "path": "TickClock.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-tick-clock.jpg"
   },
   {
     "id": "neo-wave-grid",
@@ -388,7 +432,8 @@
     "description": "A grid that ripples like water.",
     "category": "Art",
     "path": "WaveGrid.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-wave-grid.jpg"
   },
   {
     "id": "neo-hexwave-triangles-color-swipe-slow",
@@ -396,7 +441,8 @@
     "description": "Color-shifting triangles rippling in slow motion.",
     "category": "Art",
     "path": "HexwaveTrianglesColorSwipeSlow.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hexwave-triangles-color-swipe-slow.jpg"
   },
   {
     "id": "neo-ambient-generator011",
@@ -405,7 +451,8 @@
     "category": "Music Tools",
     "path": "AmbientGenerator011.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-ambient-generator011.jpg"
   },
   {
     "id": "neo-star-map-high-contrast",
@@ -413,7 +460,8 @@
     "description": "A high-contrast map of the night sky.",
     "category": "Art",
     "path": "StarMapHighContrast.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-star-map-high-contrast.jpg"
   },
   {
     "id": "neo-generative-art-studio-polished",
@@ -421,7 +469,8 @@
     "description": "A generative art studio with adjustable presets.",
     "category": "Art",
     "path": "GenerativeArtStudioPolished.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-generative-art-studio-polished.jpg"
   },
   {
     "id": "neo-arkanoid-high-contrast",
@@ -430,7 +479,8 @@
     "category": "Games",
     "path": "ArkanoidHighContrast.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-arkanoid-high-contrast.jpg"
   },
   {
     "id": "neo-hyper-bowling-chain",
@@ -439,7 +489,8 @@
     "category": "Games",
     "path": "HyperBowlingChain.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hyper-bowling-chain.jpg"
   },
   {
     "id": "neo-snake-wormio",
@@ -448,7 +499,8 @@
     "category": "Games",
     "path": "SnakeWormio.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-snake-wormio.jpg"
   },
   {
     "id": "neo-arty-three-shapes-seeded-v2",
@@ -456,7 +508,8 @@
     "description": "Three simple shapes, endless seeded variations.",
     "category": "Art",
     "path": "ArtyThreeShapesSeededV2.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-arty-three-shapes-seeded-v2.jpg"
   },
   {
     "id": "neo-swipe-stretch-lines",
@@ -464,7 +517,8 @@
     "description": "Swipe to stretch and bend a field of lines.",
     "category": "Art",
     "path": "SwipeStretchLines.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-swipe-stretch-lines.jpg"
   },
   {
     "id": "neo-seed-art-more",
@@ -472,7 +526,8 @@
     "description": "A generative piece grown from a seed you choose.",
     "category": "Art",
     "path": "SeedArtMore.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-seed-art-more.jpg"
   },
   {
     "id": "neo-hyper-bowling",
@@ -481,7 +536,8 @@
     "category": "Games",
     "path": "HyperBowling.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hyper-bowling.jpg"
   },
   {
     "id": "neo-mechanical-art-toy-rotating-rings",
@@ -489,7 +545,8 @@
     "description": "Interlocking rings turning like clockwork.",
     "category": "Art",
     "path": "MechanicalArtToyRotatingRings.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-mechanical-art-toy-rotating-rings.jpg"
   },
   {
     "id": "neo-miami-strike-diamonds",
@@ -498,7 +555,8 @@
     "category": "Games",
     "path": "MiamiStrikeDiamonds.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-miami-strike-diamonds.jpg"
   },
   {
     "id": "neo-pattern-dna-infinite",
@@ -506,7 +564,8 @@
     "description": "A pattern that repeats and mutates without end.",
     "category": "Art",
     "path": "PatternDnaInfinite.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-pattern-dna-infinite.jpg"
   },
   {
     "id": "neo-pattern-dna-growing-conveyor",
@@ -514,7 +573,8 @@
     "description": "Draw a shape and watch its DNA grow along your path.",
     "category": "Art",
     "path": "PatternDnaGrowingConveyor.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-pattern-dna-growing-conveyor.jpg"
   },
   {
     "id": "neo-snake-one-hand-v3",
@@ -523,7 +583,8 @@
     "category": "Games",
     "path": "SnakeOneHandV3.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-snake-one-hand-v3.jpg"
   },
   {
     "id": "neo-unicorn-rainbow-blast",
@@ -532,7 +593,8 @@
     "category": "Games",
     "path": "UnicornRainbowBlast.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-unicorn-rainbow-blast.jpg"
   },
   {
     "id": "neo-noise-mic-visualizer",
@@ -540,7 +602,8 @@
     "description": "Turns your mic input into a scrolling neon waveform with echo.",
     "category": "Art",
     "path": "NoiseMicVisualizer.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-noise-mic-visualizer.jpg"
   },
   {
     "id": "neo-harsh-noise-wall9-squares-sequencer-fix",
@@ -549,7 +612,8 @@
     "category": "Music Tools",
     "path": "HarshNoiseWall9SquaresSequencerFix.html",
     "musicGroup": "drum",
-    "added": "2026-09-01T03:11:53+00:00"
+    "added": "2026-09-01T03:11:53+00:00",
+    "thumbnail": "thumbnails/neo-harsh-noise-wall9-squares-sequencer-fix.jpg"
   },
   {
     "id": "neo-808-glitch-drum-machine",
@@ -558,7 +622,8 @@
     "category": "Music Tools",
     "path": "808GlitchDrumMachine.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-808-glitch-drum-machine.jpg"
   },
   {
     "id": "neo-harsh-noise-wall-play-then-seq-then-pads",
@@ -567,7 +632,8 @@
     "category": "Music Tools",
     "path": "HarshNoiseWallPlayThenSeqThenPads.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-harsh-noise-wall-play-then-seq-then-pads.jpg"
   },
   {
     "id": "neo-swirl-studio",
@@ -575,7 +641,8 @@
     "description": "A studio for painting with swirling color.",
     "category": "Art",
     "path": "SwirlStudio.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-swirl-studio.jpg"
   },
   {
     "id": "neo-maisies-unicorn-maze-fixed",
@@ -584,7 +651,8 @@
     "category": "Games",
     "path": "MaisiesUnicornMazeFixed.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-maisies-unicorn-maze-fixed.jpg"
   },
   {
     "id": "neo-field-lines",
@@ -592,7 +660,8 @@
     "description": "Flowing lines tracing an invisible field.",
     "category": "Art",
     "path": "FieldLines.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-field-lines.jpg"
   },
   {
     "id": "neo-drum-machine8step-blast-speed",
@@ -601,7 +670,8 @@
     "category": "Music Tools",
     "path": "DrumMachine8stepBlastSpeed.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed.jpg"
   },
   {
     "id": "neo-mini909-bass-sequencer",
@@ -610,7 +680,8 @@
     "category": "Music Tools",
     "path": "Mini909BassSequencer.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-mini909-bass-sequencer.jpg"
   },
   {
     "id": "neo-drum-machine8step-blast-speed-pitch",
@@ -619,7 +690,8 @@
     "category": "Music Tools",
     "path": "DrumMachine8stepBlastSpeedPitch.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed-pitch.jpg"
   },
   {
     "id": "neo-mini909-bass-notext",
@@ -628,7 +700,8 @@
     "category": "Music Tools",
     "path": "Mini909BassNotext.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-mini909-bass-notext.jpg"
   },
   {
     "id": "neo-spin-textless-fixed",
@@ -637,7 +710,8 @@
     "category": "Music Tools",
     "path": "SpinTextlessFixed.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-spin-textless-fixed.jpg"
   },
   {
     "id": "neo-one-hand-moto-ios",
@@ -646,7 +720,8 @@
     "category": "Games",
     "path": "OneHandMotoIos.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-one-hand-moto-ios.jpg"
   },
   {
     "id": "neo-touch-fade-grid",
@@ -654,7 +729,8 @@
     "description": "A grid that fades and glows wherever you touch.",
     "category": "Art",
     "path": "TouchFadeGrid.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-touch-fade-grid.jpg"
   },
   {
     "id": "neo-one-hand-moto-autojump",
@@ -662,7 +738,8 @@
     "description": "A one-handed motorcycle stunt ride with auto-ramps.",
     "category": "Art",
     "path": "OneHandMotoAutojump.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-one-hand-moto-autojump.jpg"
   },
   {
     "id": "neo-rhythm-bubbles-happy-birthday",
@@ -671,7 +748,8 @@
     "category": "Games",
     "path": "RhythmBubblesHappyBirthday.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-rhythm-bubbles-happy-birthday.jpg"
   },
   {
     "id": "neo-rotating-ring-feeder-time-attack-compat",
@@ -680,7 +758,8 @@
     "category": "Games",
     "path": "RotatingRingFeederTimeAttackCompat.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-rotating-ring-feeder-time-attack-compat.jpg"
   },
   {
     "id": "neo-vaporwave-generator",
@@ -689,7 +768,8 @@
     "category": "Music Tools",
     "path": "VaporwaveGenerator.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-vaporwave-generator.jpg"
   },
   {
     "id": "neo-light-tap-bulbs",
@@ -698,7 +778,8 @@
     "category": "Games",
     "path": "LightTapBulbs.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-light-tap-bulbs.jpg"
   },
   {
     "id": "neo-slither-arena",
@@ -707,7 +788,8 @@
     "category": "Games",
     "path": "SlitherArena.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-slither-arena.jpg"
   },
   {
     "id": "neo-hiveword",
@@ -718,7 +800,8 @@
     "featured": true,
     "featuredOrder": 1,
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hiveword.jpg"
   },
   {
     "id": "neo-prism-breaker",
@@ -727,7 +810,8 @@
     "category": "Games",
     "path": "PrismBreaker.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-prism-breaker.jpg"
   },
   {
     "id": "neo-listening-club-whos-bigger",
@@ -736,7 +820,8 @@
     "category": "Games",
     "path": "ListeningClubWhosBigger.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-listening-club-whos-bigger.jpg"
   },
   {
     "id": "neo-simple-art",
@@ -744,7 +829,8 @@
     "description": "A minimal generative art piece, stripped to basics.",
     "category": "Art",
     "path": "SimpleArt.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-simple-art.jpg"
   },
   {
     "id": "neo-echo",
@@ -753,7 +839,8 @@
     "category": "Music Tools",
     "path": "Echo.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-echo.jpg"
   },
   {
     "id": "neo-oscillate",
@@ -762,7 +849,8 @@
     "category": "Music Tools",
     "path": "Oscillate.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-oscillate.jpg"
   },
   {
     "id": "neo-peggle-noir-minimal",
@@ -770,7 +858,8 @@
     "description": "A stripped-down, black-and-white take on Peggle.",
     "category": "Art",
     "path": "PeggleNoirMinimal.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-peggle-noir-minimal.jpg"
   },
   {
     "id": "neo-infinite-tic-tac-toe",
@@ -779,7 +868,8 @@
     "category": "Games",
     "path": "InfiniteTicTacToe.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-infinite-tic-tac-toe.jpg"
   },
   {
     "id": "neo-ultra-dynamic-strike",
@@ -788,7 +878,8 @@
     "category": "Games",
     "path": "UltraDynamicStrike.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-ultra-dynamic-strike.jpg"
   },
   {
     "id": "neo-ultra-contrast-strike",
@@ -797,7 +888,8 @@
     "category": "Games",
     "path": "UltraContrastStrike.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-ultra-contrast-strike.jpg"
   },
   {
     "id": "neo-air-hockey2p-colorful-goals",
@@ -806,7 +898,8 @@
     "category": "Games",
     "path": "AirHockey2pColorfulGoals.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-air-hockey2p-colorful-goals.jpg"
   },
   {
     "id": "neo-oilseed-landscape",
@@ -814,7 +907,8 @@
     "description": "A generative oil-painted landscape that keeps evolving.",
     "category": "Art",
     "path": "OilseedLandscape.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-oilseed-landscape.jpg"
   },
   {
     "id": "neo-the-field-that-remembers-you",
@@ -822,7 +916,8 @@
     "description": "A field of lines that responds to you specifically.",
     "category": "Art",
     "path": "TheFieldThatRemembersYou.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-the-field-that-remembers-you.jpg"
   },
   {
     "id": "neo-shape-shooter",
@@ -831,7 +926,8 @@
     "category": "Games",
     "path": "ShapeShooter.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-shape-shooter.jpg"
   },
   {
     "id": "neo-unicorn-air-hockey-v2",
@@ -840,7 +936,8 @@
     "category": "Games",
     "path": "UnicornAirHockeyV2.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-unicorn-air-hockey-v2.jpg"
   },
   {
     "id": "neo-snake-many-pickups-skull-v6",
@@ -849,7 +946,8 @@
     "category": "Games",
     "path": "SnakeManyPickupsSkullV6.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T18:24:33+00:00"
+    "added": "2026-09-04T18:24:33+00:00",
+    "thumbnail": "thumbnails/neo-snake-many-pickups-skull-v6.jpg"
   },
   {
     "id": "neo-snes-birds",
@@ -858,7 +956,8 @@
     "category": "Games",
     "path": "SnesBirds.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-snes-birds.jpg"
   },
   {
     "id": "neo-wander-adventure",
@@ -867,7 +966,8 @@
     "category": "Games",
     "path": "WanderAdventure.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-wander-adventure.jpg"
   },
   {
     "id": "neo-vortex-pattern-lab",
@@ -875,7 +975,8 @@
     "description": "Experiment with swirling vortex patterns.",
     "category": "Art",
     "path": "VortexPatternLab.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-vortex-pattern-lab.jpg"
   },
   {
     "id": "neo-voxmorph",
@@ -884,7 +985,8 @@
     "category": "Music Tools",
     "path": "Voxmorph.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-voxmorph.jpg"
   },
   {
     "id": "neo-spiral",
@@ -892,7 +994,8 @@
     "description": "A single spiral that never stops turning.",
     "category": "Art",
     "path": "Spiral.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-spiral.jpg"
   },
   {
     "id": "neo-heapsort-voice-audio",
@@ -900,7 +1003,8 @@
     "description": "Watch a sorting algorithm play out as sound and color.",
     "category": "Art",
     "path": "HeapsortVoiceAudio.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-heapsort-voice-audio.jpg"
   },
   {
     "id": "neo-303-mazie-sampler",
@@ -909,7 +1013,8 @@
     "category": "Music Tools",
     "path": "303MazieSampler.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-303-mazie-sampler.jpg"
   },
   {
     "id": "neo-composer",
@@ -918,7 +1023,8 @@
     "category": "Music Tools",
     "path": "Composer.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-composer.jpg"
   },
   {
     "id": "neo-hz-lab03-real-planet-orbits",
@@ -927,7 +1033,8 @@
     "category": "Music Tools",
     "path": "HzLab03RealPlanetOrbits.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hz-lab03-real-planet-orbits.jpg"
   },
   {
     "id": "neo-dm1-minimal",
@@ -936,7 +1043,8 @@
     "category": "Music Tools",
     "path": "Dm1Minimal.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-dm1-minimal.jpg"
   },
   {
     "id": "neo-hz-lab",
@@ -945,7 +1053,8 @@
     "category": "Music Tools",
     "path": "HzLab.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hz-lab.jpg"
   },
   {
     "id": "neo-cr70-poly-funk2",
@@ -954,7 +1063,8 @@
     "category": "Music Tools",
     "path": "Cr70PolyFunk2.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-cr70-poly-funk2.jpg"
   },
   {
     "id": "neo-euclidean-math-synth",
@@ -963,7 +1073,8 @@
     "category": "Music Tools",
     "path": "EuclideanMathSynth.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-euclidean-math-synth.jpg"
   },
   {
     "id": "neo-cr70-poly-funk",
@@ -972,7 +1083,8 @@
     "category": "Music Tools",
     "path": "Cr70PolyFunk.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-cr70-poly-funk.jpg"
   },
   {
     "id": "neo-panda-drum",
@@ -981,7 +1093,8 @@
     "category": "Music Tools",
     "path": "PandaDrum.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-panda-drum.jpg"
   },
   {
     "id": "neo-cr70-jungle-generator",
@@ -990,7 +1103,8 @@
     "category": "Music Tools",
     "path": "Cr70JungleGenerator.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-cr70-jungle-generator.jpg"
   },
   {
     "id": "neo-aurora-dance-permission",
@@ -998,7 +1112,8 @@
     "description": "Move in front of your camera or mic to paint the sky.",
     "category": "Art",
     "path": "AuroraDancePermission.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-aurora-dance-permission.jpg"
   },
   {
     "id": "neo-infinite-quadrants-pure-bw-logic",
@@ -1006,7 +1121,8 @@
     "description": "A black-and-white pattern that repeats forever.",
     "category": "Art",
     "path": "InfiniteQuadrantsPureBwLogic.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-infinite-quadrants-pure-bw-logic.jpg"
   },
   {
     "id": "neo-aurora-dance-spotify-rhythm",
@@ -1014,7 +1130,8 @@
     "description": "A rhythm-reactive aurora that dances to nearby sound.",
     "category": "Art",
     "path": "AuroraDanceSpotifyRhythm.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-aurora-dance-spotify-rhythm.jpg"
   },
   {
     "id": "neo-hypnotic-spirals-robust",
@@ -1022,7 +1139,8 @@
     "description": "Slow, mesmerizing spirals that pull the eye in.",
     "category": "Art",
     "path": "HypnoticSpiralsRobust.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-hypnotic-spirals-robust.jpg"
   },
   {
     "id": "neo-infinite-quadrants-stable-grayscale-patterns-hidpi",
@@ -1030,7 +1148,8 @@
     "description": "A sharper, steadier grayscale quadrant pattern.",
     "category": "Art",
     "path": "InfiniteQuadrantsStableGrayscalePatternsHidpi.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-infinite-quadrants-stable-grayscale-patterns-hidpi.jpg"
   },
   {
     "id": "neo-rings",
@@ -1038,7 +1157,8 @@
     "description": "Concentric rings pulsing with light.",
     "category": "Art",
     "path": "Rings.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-rings.jpg"
   },
   {
     "id": "neo-glitch-acid-workstation",
@@ -1047,7 +1167,8 @@
     "category": "Music Tools",
     "path": "GlitchAcidWorkstation.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-glitch-acid-workstation.jpg"
   },
   {
     "id": "neo-unicorn-air-hockey",
@@ -1056,7 +1177,8 @@
     "category": "Games",
     "path": "UnicornAirHockey.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-unicorn-air-hockey.jpg"
   },
   {
     "id": "neo-chrome-safari-optimized",
@@ -1064,7 +1186,8 @@
     "description": "A rippling chrome surface that never sits still.",
     "category": "Art",
     "path": "ChromeSafariOptimized.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-chrome-safari-optimized.jpg"
   },
   {
     "id": "neo-peaceful-space-explorer",
@@ -1072,7 +1195,8 @@
     "description": "A calm drift through generative outer space.",
     "category": "Art",
     "path": "PeacefulSpaceExplorer.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-peaceful-space-explorer.jpg"
   },
   {
     "id": "neo-maizeys-magic-spell-academy",
@@ -1081,7 +1205,8 @@
     "category": "Games",
     "path": "MaizeysMagicSpellAcademy.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-maizeys-magic-spell-academy.jpg"
   },
   {
     "id": "neo-harsh-noise-no-text",
@@ -1090,7 +1215,8 @@
     "category": "Music Tools",
     "path": "HarshNoiseNoText.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-harsh-noise-no-text.jpg"
   },
   {
     "id": "neo-noise-wall",
@@ -1099,7 +1225,8 @@
     "category": "Music Tools",
     "path": "NoiseWall.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-noise-wall.jpg"
   },
   {
     "id": "neo-ems-synthi100",
@@ -1108,7 +1235,8 @@
     "category": "Music Tools",
     "path": "EmsSynthi100.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-ems-synthi100.jpg"
   },
   {
     "id": "neo-white-hole",
@@ -1117,7 +1245,8 @@
     "category": "Games",
     "path": "WhiteHole.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-white-hole.jpg"
   },
   {
     "id": "neo-the-field-that-remembers-elegant",
@@ -1125,7 +1254,8 @@
     "description": "An elegant field that remembers every touch.",
     "category": "Art",
     "path": "TheFieldThatRemembersElegant.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-the-field-that-remembers-elegant.jpg"
   },
   {
     "id": "neo-touch-sort-lines",
@@ -1134,7 +1264,8 @@
     "category": "Games",
     "path": "TouchSortLines.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-touch-sort-lines.jpg"
   },
   {
     "id": "neo-unicorn-tetris",
@@ -1143,7 +1274,8 @@
     "category": "Games",
     "path": "UnicornTetris.html",
     "gameGroup": "maisie",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-unicorn-tetris.jpg"
   },
   {
     "id": "neo-verti-fall-draw-walls",
@@ -1152,7 +1284,8 @@
     "category": "Games",
     "path": "VertiFallDrawWalls.html",
     "gameGroup": "arcade",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-verti-fall-draw-walls.jpg"
   },
   {
     "id": "neo-motion-synth-blackwhite-squares",
@@ -1161,7 +1294,8 @@
     "category": "Music Tools",
     "path": "MotionSynthBlackwhiteSquares.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-motion-synth-blackwhite-squares.jpg"
   },
   {
     "id": "neo-poly-fuzz-drum-machine-clav-tempo-drift",
@@ -1170,7 +1304,8 @@
     "category": "Music Tools",
     "path": "PolyFuzzDrumMachineClavTempoDrift.html",
     "musicGroup": "drum",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-poly-fuzz-drum-machine-clav-tempo-drift.jpg"
   },
   {
     "id": "neo-oscillate-persistent",
@@ -1179,7 +1314,8 @@
     "category": "Music Tools",
     "path": "OscillatePersistent.html",
     "musicGroup": "synth",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-oscillate-persistent.jpg"
   },
   {
     "id": "neo-lines-slow-long-trails",
@@ -1187,7 +1323,8 @@
     "description": "Slow-moving lines leaving long glowing trails.",
     "category": "Art",
     "path": "LinesSlowLongTrails.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-lines-slow-long-trails.jpg"
   },
   {
     "id": "neo-smooth-v2",
@@ -1195,7 +1332,8 @@
     "description": "Smooth, flowing generative shapes in motion.",
     "category": "Art",
     "path": "SmoothV2.html",
-    "added": "2026-09-04T20:29:05+00:00"
+    "added": "2026-09-04T20:29:05+00:00",
+    "thumbnail": "thumbnails/neo-smooth-v2.jpg"
   },
   {
     "id": "neo-d-s-s12",
@@ -1204,7 +1342,8 @@
     "category": "Music Tools",
     "path": "DSS12.html",
     "musicGroup": "synth",
-    "added": "2026-09-01T03:02:21+00:00"
+    "added": "2026-09-01T03:02:21+00:00",
+    "thumbnail": "thumbnails/neo-d-s-s12.jpg"
   },
   {
     "id": "moviemoji",
@@ -1215,7 +1354,8 @@
     "featured": true,
     "featuredOrder": 2,
     "gameGroup": "arcade",
-    "added": "2026-09-06T06:49:45+00:00"
+    "added": "2026-09-06T06:49:45+00:00",
+    "thumbnail": "thumbnails/moviemoji.jpg"
   },
   {
     "id": "yakbox-3000",
@@ -1224,7 +1364,8 @@
     "category": "Music Tools",
     "path": "YakBox3000.html",
     "musicGroup": "synth",
-    "added": "2026-09-06T22:05:28+00:00"
+    "added": "2026-09-06T22:05:28+00:00",
+    "thumbnail": "thumbnails/yakbox-3000.jpg"
   },
   {
     "id": "trex-tag",
@@ -1233,7 +1374,8 @@
     "category": "Games",
     "gameGroup": "maisie",
     "path": "TrexTag.html",
-    "added": "2026-09-09T00:37:38+00:00"
+    "added": "2026-09-09T00:37:38+00:00",
+    "thumbnail": "thumbnails/trex-tag.jpg"
   },
   {
     "id": "maisies-magic-voice-machine",
@@ -1242,6 +1384,7 @@
     "category": "Music Tools",
     "musicGroup": "synth",
     "path": "MaisiesMagicVoiceMachine.html",
-    "added": "2026-09-08T18:19:24-07:00"
+    "added": "2026-09-08T18:19:24-07:00",
+    "thumbnail": "thumbnails/maisies-magic-voice-machine.jpg"
   }
 ]
