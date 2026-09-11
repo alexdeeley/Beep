@@ -1396,15 +1396,5 @@
     "gameGroup": "maisie",
     "added": "2026-09-10T04:52:51+00:00",
     "thumbnail": "thumbnails/maisie-eats-everything-3.jpg"
-  },
-  {
-    "id": "the-gallery",
-    "name": "The Gallery",
-    "description": "Wander an infinite, procedurally generated museum of AI-painted canvases.",
-    "category": "Games",
-    "path": "TheGallery.html",
-    "gameGroup": "arcade",
-    "added": "2026-09-11T04:27:47+00:00",
-    "thumbnail": "thumbnails/the-gallery.jpg"
   }
 ]
