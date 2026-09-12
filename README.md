@@ -1099,25 +1099,38 @@ https://open.spotify.com/track/...
 
 Unlike every other post in this pipeline, this one isn't sourced from
 web-search discovery/verification at all - "this track is now on the
-playlist" is a fact directly checkable against Spotify's own API, so
+playlist" is a fact directly checkable against Spotify's own data, so
 there's nothing to independently corroborate. It skips the writer,
 copy-edit, fact-check, and duplicate-check stages entirely, same as the
 other mechanical posts.
+
+**Reads the playlist via Spotify's public embed page, not the official
+Web API.** `spotify/getPlaylistTracks.ts` fetches
+`open.spotify.com/embed/playlist/<id>` (the same unauthenticated page
+that powers embedded Spotify players across the web) and parses the
+track list out of its `__NEXT_DATA__` hydration JSON. No
+`SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` or any other credential is
+needed for this feature - it was originally built against the official
+Client Credentials flow, but this account's Spotify developer account
+can no longer obtain new self-serve API credentials, so it was rewritten
+to use this credential-free endpoint instead. Confirmed live against a
+real playlist. This is an unofficial, undocumented endpoint with no
+Spotify stability guarantee (unlike the real Web API) - if Spotify ever
+changes the embed page's markup this will start failing, but always
+gracefully: `getPlaylistTracks` never throws, it logs a warning and
+returns no tracks, so a cycle without a usable playlist read just skips
+this feature rather than breaking anything else.
 
 **Must be a plain public playlist you built yourself, not one of
 Spotify's own personalized/algorithmic playlists** (Discover Weekly,
 Release Radar, or Spotify's own "New Singles" recommendation feed,
 which shares the exact same name as this feature by coincidence).
-Confirmed live: a personalized playlist 404s against this pipeline's
-Client Credentials (app-only) auth even when it displays as "Public" to
-its owner in the Spotify app - personalized content is scoped to the
-requesting user's own identity, not just a visibility flag, and reading
-it requires that user's own login (Authorization Code flow), which this
-pipeline deliberately does not implement (it would need read-write
-scopes and a one-time browser consent step; app-only auth was
-sufficient for everything else this pipeline does, so that's what it
-uses). Get the plain playlist's ID from its share link:
-`open.spotify.com/playlist/<this part>`.
+Personalized content is scoped to the requesting user's own identity,
+not just a visibility flag - reading it requires that user's own login
+(Authorization Code flow) regardless of which endpoint is used, and this
+pipeline deliberately does not implement that (it would need read-write
+scopes and a one-time browser consent step). Get the plain playlist's ID
+from its share link: `open.spotify.com/playlist/<this part>`.
 
 **The first-ever check seeds every track currently on the playlist as a
 baseline without posting anything** - `db/spotifyPlaylistRepo.ts`'s
@@ -1135,10 +1148,8 @@ failure partway through a batch of several new additions leaves an
 accurate record and only the ones that didn't go out get retried next
 cycle.
 
-`spotify/spotifyAuth.ts` holds the shared Client Credentials token logic
-(also used by `lookupTrack.ts`) - a module-level in-memory cache avoids
-re-authenticating per API call within one cycle, never persisted across
-runs since a fresh token is cheap to fetch. Both `SPOTIFY_CLIENT_ID` and
-`SPOTIFY_CLIENT_SECRET` are required (see `.env.example`); leaving
-either blank, or leaving `SPOTIFY_NEW_SINGLES_PLAYLIST_ID` unset, makes
-this feature a complete no-op rather than an error.
+`spotify/spotifyAuth.ts`'s shared Client Credentials token logic is used
+only by `lookupTrack.ts` (§18.x, attaching a link to non-playlist-watch
+singles) - playlist-watch doesn't touch it at all. Leaving
+`SPOTIFY_NEW_SINGLES_PLAYLIST_ID` unset (see `.env.example`) makes this
+feature a complete no-op rather than an error.

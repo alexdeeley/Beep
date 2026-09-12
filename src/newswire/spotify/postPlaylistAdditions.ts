@@ -10,16 +10,20 @@ const TAG = "playlist-watch";
 
 /** Exported for unit testing. */
 export function buildPostText(track: PlaylistTrack): string {
-  const base = `NEW SINGLE: ${track.artists.join(", ")} - ${track.name}`;
-  return track.url ? `${base}\n\n${track.url}` : base;
+  return `NEW SINGLE: ${track.artistCredit} - ${track.name}\n\n${track.url}`;
 }
 
 /**
  * Monitors a user-maintained public Spotify playlist (config.news.newSinglesPlaylistId) and posts a
  * mechanical "NEW SINGLE" for each track added since the last check - directly built from the track's
  * own Spotify metadata, never through the writer/copy-edit/fact-check pipeline, since "this track is
- * now on the playlist" is a fact directly checkable against Spotify's own API, not a news claim
+ * now on the playlist" is a fact directly checkable against Spotify's own data, not a news claim
  * needing independent web-search corroboration the way everything else in this pipeline does.
+ *
+ * Reads the playlist via getPlaylistTracks.ts's embed-page scrape, NOT the official Spotify Web API -
+ * this account's Spotify developer account no longer has access to self-serve API credentials, so the
+ * Client Credentials flow lookupTrack.ts uses isn't an option here. No API key of any kind is needed
+ * for this feature.
  *
  * First-ever check for this playlist seeds every currently-present track as a "seen" baseline WITHOUT
  * posting anything - the point is catching new additions going forward, not retroactively announcing
@@ -37,7 +41,7 @@ export async function postPlaylistAdditions(ctx: NewsRunContext): Promise<number
   const playlistId = ctx.config.news.newSinglesPlaylistId;
   if (!playlistId) return 0;
 
-  const tracks = await getPlaylistTracks(ctx.config, ctx.logger, playlistId);
+  const tracks = await getPlaylistTracks(ctx.logger, playlistId);
   if (tracks.length === 0) {
     ctx.logger.info(TAG, "No tracks read from the playlist this cycle (empty, unavailable, or not configured correctly)");
     return 0;
