@@ -63,4 +63,16 @@ describe("loadConfig", () => {
     const config = loadConfig();
     expect(config.brand.hashtags).toEqual(["#OnThisDay", "#History", "#Today"]);
   });
+
+  it("defaults to an empty playlist-watch list when unset", () => {
+    const config = loadConfig();
+    expect(config.news.newSinglesPlaylistIds).toEqual([]);
+  });
+
+  it("splits and trims the comma-separated playlist-watch ID list", () => {
+    process.env.SPOTIFY_NEW_SINGLES_PLAYLIST_IDS = " 0G9lHmkh0TvBcng2vZWfbY, 37i9dQZF1FwPiiRHzlHpKz ,,";
+    const config = loadConfig();
+    expect(config.news.newSinglesPlaylistIds).toEqual(["0G9lHmkh0TvBcng2vZWfbY", "37i9dQZF1FwPiiRHzlHpKz"]);
+    delete process.env.SPOTIFY_NEW_SINGLES_PLAYLIST_IDS;
+  });
 });

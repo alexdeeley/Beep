@@ -234,7 +234,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     // All six are independent of the per-item flow below, run their own internal eligibility checks
     // (roundup: Friday + past the configured hour; history: once a day; birthdays: once a year per
     // artist; shows: Tuesday + past the configured hour; music news recap: once a day; playlist-watch:
-    // every cycle, no-op unless newSinglesPlaylistId is configured), and are no-ops most cycles. Placed
+    // every cycle, no-op unless newSinglesPlaylistIds is configured), and are no-ops most cycles. Placed
     // before every early-return path so they always get a chance to run. Each returns how many
     // physical posts it actually published, since any of them can be the only thing that posts this
     // cycle - that count must feed into the final publishedPostCount/publishStatus below, or a cycle

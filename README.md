@@ -1086,10 +1086,13 @@ once-a-day idempotency guard.
 
 ### 18.13 Playlist-watch: `spotify/postPlaylistAdditions.ts`
 
-Every cycle, if `SPOTIFY_NEW_SINGLES_PLAYLIST_ID` is set, checks a
-user-maintained public Spotify playlist for tracks added since the last
-check and posts a mechanical "NEW SINGLE" for each one - the same
-format singles already get, with a real clickable Spotify link:
+Every cycle, for each playlist ID in `SPOTIFY_NEW_SINGLES_PLAYLIST_IDS`
+(comma-separated, optional), checks that public Spotify playlist for
+tracks added since its last check and posts a mechanical "NEW SINGLE"
+for each one - the same format singles already get, with a real
+clickable Spotify link. Playlists are watched independently (the
+seen-track table below is keyed by playlist ID + track ID), so adding
+or removing one playlist from the list never affects another's history:
 
 ```
 NEW SINGLE: Artist Name - Track Title
@@ -1121,35 +1124,40 @@ gracefully: `getPlaylistTracks` never throws, it logs a warning and
 returns no tracks, so a cycle without a usable playlist read just skips
 this feature rather than breaking anything else.
 
-**Must be a plain public playlist you built yourself, not one of
-Spotify's own personalized/algorithmic playlists** (Discover Weekly,
-Release Radar, or Spotify's own "New Singles" recommendation feed,
-which shares the exact same name as this feature by coincidence).
-Personalized content is scoped to the requesting user's own identity,
-not just a visibility flag - reading it requires that user's own login
-(Authorization Code flow) regardless of which endpoint is used, and this
-pipeline deliberately does not implement that (it would need read-write
-scopes and a one-time browser consent step). Get the plain playlist's ID
-from its share link: `open.spotify.com/playlist/<this part>`.
+**Each playlist must be public, but doesn't have to be one you built
+manually from scratch.** Confirmed live: this also works for playlists
+under Spotify's algorithmic `37i9dQZF1...` ID space, such as an
+account's auto-generated "Favorites" - despite the ID prefix, it's still
+the same public HTML page for every reader, so the embed-page approach
+reads it fine with no login. **What still won't work is genuinely
+per-viewer personalized content** (Discover Weekly, Release Radar, or
+Spotify's own "New Singles" recommendation feed, which shares the exact
+same name as this feature by coincidence) - that content is scoped to
+the requesting user's own identity, not just a visibility flag, so
+reading it requires that user's own login (Authorization Code flow)
+regardless of which endpoint is used, and this pipeline deliberately
+does not implement that (it would need read-write scopes and a one-time
+browser consent step). Get each playlist's ID from its share link:
+`open.spotify.com/playlist/<this part>`.
 
-**The first-ever check seeds every track currently on the playlist as a
-baseline without posting anything** - `db/spotifyPlaylistRepo.ts`'s
-`spotify_playlist_tracks_seen` table (keyed by playlist + track ID) is
-the "have we seen this track before" guard. Without this, the very
+**Each playlist's first-ever check seeds every track currently on it as
+a baseline without posting anything** - `db/spotifyPlaylistRepo.ts`'s
+`spotify_playlist_tracks_seen` table (keyed by playlist ID + track ID)
+is the "have we seen this track before" guard. Without this, the very
 first check would blast-post the playlist's entire existing history as
 if every track were brand new. From the next check on, only tracks
 genuinely added since the last check post.
 
-Each track posts as its own independent post, never threaded together
-with another - unrelated singles sharing a reply chain would read as a
-non-sequitur, same reasoning as `publishing/publishMusicItems.ts`. A
-track is recorded as seen immediately after its post succeeds, so a
-failure partway through a batch of several new additions leaves an
-accurate record and only the ones that didn't go out get retried next
-cycle.
+Every new track across every watched playlist posts as its own
+independent post, never threaded together with another - unrelated
+singles sharing a reply chain would read as a non-sequitur, same
+reasoning as `publishing/publishMusicItems.ts`. A track is recorded as
+seen immediately after its post succeeds, so a failure partway through a
+batch of several new additions leaves an accurate record and only the
+ones that didn't go out get retried next cycle.
 
 `spotify/spotifyAuth.ts`'s shared Client Credentials token logic is used
 only by `lookupTrack.ts` (§18.x, attaching a link to non-playlist-watch
 singles) - playlist-watch doesn't touch it at all. Leaving
-`SPOTIFY_NEW_SINGLES_PLAYLIST_ID` unset (see `.env.example`) makes this
-feature a complete no-op rather than an error.
+`SPOTIFY_NEW_SINGLES_PLAYLIST_IDS` unset or empty (see `.env.example`)
+makes this feature a complete no-op rather than an error.
