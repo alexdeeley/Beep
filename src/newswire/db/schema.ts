@@ -346,4 +346,21 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Playlist-watch: monitors a user-maintained public Spotify playlist and posts a mechanical
+    // "NEW SINGLE" to Bluesky for each track added since the last check. playlist_id is part of the
+    // key (not just track_id) so the same track appearing on a different monitored playlist in the
+    // future - if this is ever extended beyond one - is tracked independently rather than colliding.
+    id: "0009_spotify_playlist_watch",
+    sql: `
+      CREATE TABLE IF NOT EXISTS spotify_playlist_tracks_seen (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        playlist_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        posted_in_run_id INTEGER,
+        created_at TEXT NOT NULL,
+        UNIQUE(playlist_id, track_id)
+      );
+    `,
+  },
 ];

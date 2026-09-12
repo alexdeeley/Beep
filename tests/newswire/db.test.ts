@@ -35,6 +35,7 @@ import {
 import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
 import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
 import { hasMusicNewsPostForDate, recordMusicNewsPost } from "../../src/newswire/db/musicNewsRepo.js";
+import { hasSeenPlaylistTrack, getSeenPlaylistTrackCount, recordSeenPlaylistTrack } from "../../src/newswire/db/spotifyPlaylistRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 import type { VerifiedFact } from "../../src/newswire/types.js";
@@ -83,6 +84,7 @@ describe("newswire SQLite DB layer", () => {
       "birthday_posts",
       "shows_runs",
       "music_news_posts",
+      "spotify_playlist_tracks_seen",
     ]) {
       expect(tables).toContain(t);
     }
@@ -544,6 +546,27 @@ describe("newswire SQLite DB layer", () => {
       expect(hasMusicNewsPostForDate(db, "2026-09-09")).toBe(false);
 
       expect(() => recordMusicNewsPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 1 })).toThrow();
+    });
+  });
+
+  describe("spotify_playlist_tracks_seen", () => {
+    it("has not seen a track until recordSeenPlaylistTrack is called", () => {
+      expect(hasSeenPlaylistTrack(db, "playlist1", "track1")).toBe(false);
+      expect(getSeenPlaylistTrackCount(db, "playlist1")).toBe(0);
+    });
+
+    it("round-trips a seen track, is idempotent (INSERT OR IGNORE), and scopes counts per playlist", () => {
+      const run = startHourlyRun(db, false);
+      recordSeenPlaylistTrack(db, { playlistId: "playlist1", trackId: "track1", postedInRunId: run.id });
+      expect(hasSeenPlaylistTrack(db, "playlist1", "track1")).toBe(true);
+      expect(hasSeenPlaylistTrack(db, "playlist1", "track2")).toBe(false);
+      expect(hasSeenPlaylistTrack(db, "playlist2", "track1")).toBe(false); // different playlist, same track id
+      expect(getSeenPlaylistTrackCount(db, "playlist1")).toBe(1);
+
+      // Re-recording the same (playlist, track) pair is a no-op, not an error - the first-run baseline
+      // seed and a later real post could otherwise race on the same track.
+      expect(() => recordSeenPlaylistTrack(db, { playlistId: "playlist1", trackId: "track1", postedInRunId: null })).not.toThrow();
+      expect(getSeenPlaylistTrackCount(db, "playlist1")).toBe(1);
     });
   });
 });

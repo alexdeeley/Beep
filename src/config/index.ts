@@ -143,6 +143,15 @@ export interface AppConfig {
      * large watchlist without rejecting a real miss the wire just hasn't covered yet.
      */
     maxItemAgeDays: number;
+    /**
+     * Spotify playlist ID for playlist-watch (see spotify/postPlaylistAdditions.ts) - a
+     * user-maintained PUBLIC playlist checked each cycle for newly-added tracks, each posted as a
+     * mechanical "NEW SINGLE" with a link. Optional: when unset, playlist-watch is a no-op. Must be a
+     * plain public playlist, not a private or personalized/algorithmic one (e.g. Discover Weekly) -
+     * those require the owner's own login and aren't readable via this pipeline's Client Credentials
+     * auth (confirmed live: such a playlist 404s even when "public" from the owner's perspective).
+     */
+    newSinglesPlaylistId: string | undefined;
   };
 
   storage: {
@@ -267,6 +276,7 @@ export function loadConfig(): AppConfig {
       birthDateBatchSize: envInt("NEWS_BIRTHDATE_BATCH_SIZE", 15),
       showsHourLocal: envInt("NEWS_SHOWS_HOUR_LOCAL", 8),
       maxItemAgeDays: envInt("NEWS_MAX_ITEM_AGE_DAYS", 30),
+      newSinglesPlaylistId: envStr("SPOTIFY_NEW_SINGLES_PLAYLIST_ID"),
     },
 
     storage: {

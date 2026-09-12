@@ -523,10 +523,11 @@ single posts immediately as a plain mechanical line rather than through
 the writer, any watchlist artist gets a one-line `HAPPY BIRTHDAY` post on
 their real, independently-verified birthday, every Tuesday a `SHOWS`
 post lists upcoming Portland/Pacific-Northwest concerts industry-wide
-like the Friday roundup, and every cycle also checks for a `MUSIC NEWS`
+like the Friday roundup, every cycle also checks for a `MUSIC NEWS`
 recap - a rare, narrow, high-bar digest of genuinely major real-world
 news (arrest, death, breakup, major lawsuit/scandal) for a watchlist
-artist (§18.7-§18.12).
+artist - and, if configured, every cycle also checks a user-maintained
+Spotify playlist for newly-added tracks (§18.7-§18.13).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -1082,3 +1083,62 @@ copy-edit/fact-check/duplicate-check - there's no new prose to check
 beyond what verification already confirmed. `db/musicNewsRepo.ts`'s
 `music_news_posts` table (keyed by the local date it ran on) is the
 once-a-day idempotency guard.
+
+### 18.13 Playlist-watch: `spotify/postPlaylistAdditions.ts`
+
+Every cycle, if `SPOTIFY_NEW_SINGLES_PLAYLIST_ID` is set, checks a
+user-maintained public Spotify playlist for tracks added since the last
+check and posts a mechanical "NEW SINGLE" for each one - the same
+format singles already get, with a real clickable Spotify link:
+
+```
+NEW SINGLE: Artist Name - Track Title
+
+https://open.spotify.com/track/...
+```
+
+Unlike every other post in this pipeline, this one isn't sourced from
+web-search discovery/verification at all - "this track is now on the
+playlist" is a fact directly checkable against Spotify's own API, so
+there's nothing to independently corroborate. It skips the writer,
+copy-edit, fact-check, and duplicate-check stages entirely, same as the
+other mechanical posts.
+
+**Must be a plain public playlist you built yourself, not one of
+Spotify's own personalized/algorithmic playlists** (Discover Weekly,
+Release Radar, or Spotify's own "New Singles" recommendation feed,
+which shares the exact same name as this feature by coincidence).
+Confirmed live: a personalized playlist 404s against this pipeline's
+Client Credentials (app-only) auth even when it displays as "Public" to
+its owner in the Spotify app - personalized content is scoped to the
+requesting user's own identity, not just a visibility flag, and reading
+it requires that user's own login (Authorization Code flow), which this
+pipeline deliberately does not implement (it would need read-write
+scopes and a one-time browser consent step; app-only auth was
+sufficient for everything else this pipeline does, so that's what it
+uses). Get the plain playlist's ID from its share link:
+`open.spotify.com/playlist/<this part>`.
+
+**The first-ever check seeds every track currently on the playlist as a
+baseline without posting anything** - `db/spotifyPlaylistRepo.ts`'s
+`spotify_playlist_tracks_seen` table (keyed by playlist + track ID) is
+the "have we seen this track before" guard. Without this, the very
+first check would blast-post the playlist's entire existing history as
+if every track were brand new. From the next check on, only tracks
+genuinely added since the last check post.
+
+Each track posts as its own independent post, never threaded together
+with another - unrelated singles sharing a reply chain would read as a
+non-sequitur, same reasoning as `publishing/publishMusicItems.ts`. A
+track is recorded as seen immediately after its post succeeds, so a
+failure partway through a batch of several new additions leaves an
+accurate record and only the ones that didn't go out get retried next
+cycle.
+
+`spotify/spotifyAuth.ts` holds the shared Client Credentials token logic
+(also used by `lookupTrack.ts`) - a module-level in-memory cache avoids
+re-authenticating per API call within one cycle, never persisted across
+runs since a fresh token is cheap to fetch. Both `SPOTIFY_CLIENT_ID` and
+`SPOTIFY_CLIENT_SECRET` are required (see `.env.example`); leaving
+either blank, or leaving `SPOTIFY_NEW_SINGLES_PLAYLIST_ID` unset, makes
+this feature a complete no-op rather than an error.

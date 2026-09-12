@@ -1,65 +1,23 @@
 import type { AppConfig } from "../../config/index.js";
 import type { RunLogger } from "../../utils/logger.js";
+import { getSpotifyAccessToken } from "./spotifyAuth.js";
 
 /**
  * Best-effort catalog lookup for a single's canonical open.spotify.com
  * track link, used to enrich the newswire's mechanical "NEW SINGLE:
  * Artist - Title" post. Uses the Spotify Web API's Client Credentials
- * flow (app-only auth, no user login, catalog search only) - never
- * throws; any failure (missing credentials, network error, no confident
- * match) resolves to null, and the caller posts the single without a
- * link exactly as it did before this existed. A wrong or unrelated link
- * is worse than no link, so this deliberately errs toward null over a
- * shaky guess (see isConfidentMatch below).
+ * flow (app-only auth, no user login, catalog search only - see
+ * spotifyAuth.ts) - never throws; any failure (missing credentials,
+ * network error, no confident match) resolves to null, and the caller
+ * posts the single without a link exactly as it did before this existed.
+ * A wrong or unrelated link is worse than no link, so this deliberately
+ * errs toward null over a shaky guess (see isConfidentMatch below).
  */
 
-const TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SEARCH_URL = "https://api.spotify.com/v1/search";
 
 /** How stale a matching track's own release date can be and still count as "this new single" rather than an old catalog track that happens to share a title. Generous on purpose: discovery/verification can run a few days behind the real release date, and Spotify's own release_date is sometimes the *original* release for a reissue/remaster. */
 const MAX_RELEASE_AGE_DAYS = 45;
-
-interface CachedToken {
-  accessToken: string;
-  /** Epoch ms after which the token must be refreshed - a few minutes of margin before the real expiry. */
-  expiresAt: number;
-}
-
-/** Module-level in-memory cache: one newswire cycle is a single short-lived process that may look up many singles, so this avoids re-authenticating per track. Never persisted - a fresh process always starts with no cached token, which is fine since the token is cheap to (re)fetch. */
-let cachedToken: CachedToken | null = null;
-
-async function getAccessToken(config: AppConfig, logger: RunLogger): Promise<string | null> {
-  if (!config.spotify.clientId || !config.spotify.clientSecret) return null;
-
-  if (cachedToken && cachedToken.expiresAt > Date.now()) {
-    return cachedToken.accessToken;
-  }
-
-  try {
-    const basic = Buffer.from(`${config.spotify.clientId}:${config.spotify.clientSecret}`).toString("base64");
-    const res = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basic}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { access_token: string; expires_in: number };
-    cachedToken = {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + Math.max(0, data.expires_in - 60) * 1000,
-    };
-    return cachedToken.accessToken;
-  } catch (err) {
-    logger.warn("spotify", "Failed to obtain a Spotify access token; skipping link lookups for this cycle", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return null;
-  }
-}
 
 export interface SpotifySearchTrack {
   name: string;
@@ -128,7 +86,7 @@ export async function lookupSpotifyTrackUrl(
   artistName: string,
   title: string
 ): Promise<string | null> {
-  const token = await getAccessToken(config, logger);
+  const token = await getSpotifyAccessToken(config, logger);
   if (!token) return null;
 
   try {
