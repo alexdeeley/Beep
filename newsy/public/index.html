@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NEWSY</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="An ultra-minimal, automatically refreshing news headline feed.">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="NEWSY">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' fill='%23000'/%3E%3Ctext x='90' y='108' font-family='Helvetica,Arial,sans-serif' font-size='48' font-weight='700' fill='%23fff' text-anchor='middle' letter-spacing='-2'%3ENWSY%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <h1 class="wordmark">NEWSY</h1>
+  <nav class="filters" aria-label="Category filter">
+    <button type="button" class="filter-btn is-active" data-category="all">ALL</button>
+    <button type="button" class="filter-btn" data-category="world">WORLD</button>
+    <button type="button" class="filter-btn" data-category="us">U.S.</button>
+    <button type="button" class="filter-btn" data-category="tech">TECH</button>
+    <button type="button" class="filter-btn" data-category="culture">CULTURE</button>
+  </nav>
+</header>
+
+<main id="feed" class="feed" aria-live="polite" aria-label="Headlines">
+</main>
+
+<p id="empty-state" class="empty-state" hidden>No headlines yet. Checking back shortly&hellip;</p>
+
+<div id="status-dot" class="status-dot" title="Connection status" hidden></div>
+
+<button id="settings-btn" class="settings-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Settings">&#8942;</button>
+
+<div id="settings-panel" class="settings-panel" hidden>
+  <label class="autoscroll-toggle">
+    <input type="checkbox" id="autoscroll-checkbox">
+    Auto-scroll
+  </label>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

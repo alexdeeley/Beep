@@ -44,13 +44,39 @@
     text-transform: uppercase;
     margin: 0;
   }
-  .featured-heading {
+  .section-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 20px 0 4px;
+  }
+  .list-heading {
     color: #6b6b78;
     font-weight: 800;
     font-size: 0.7rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin: 20px 0 4px;
+  }
+  .sort-btn {
+    appearance: none;
+    background: none;
+    border: 1px solid #2a2a30;
+    color: #6b6b78;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .sort-btn:hover, .sort-btn:active {
+    color: #f2f2f5;
+    border-color: #4a4a54;
   }
   #tabs {
     display: flex;
@@ -84,7 +110,10 @@
     flex-direction: column;
   }
   a.app-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     text-decoration: none;
     color: #f2f2f5;
     padding: 12px 0;
@@ -95,6 +124,16 @@
   a.app-item:hover, a.app-item:active {
     color: #fff;
     padding-left: 12px;
+  }
+  a.app-item .app-text { min-width: 0; flex: 1 1 auto; }
+  a.app-item .app-thumb {
+    flex: 0 0 auto;
+    width: 84px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #141418;
+    border: 1px solid #1c1c20;
   }
   a.app-item h2 {
     margin: 0;
@@ -127,6 +166,7 @@
     <h1>artcade</h1>
     <p>tap a name to open it</p>
   </header>
+  <div id="newSection"></div>
   <div id="tabs"></div>
   <div id="appList"></div>
 </main>
@@ -137,6 +177,13 @@ const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
 let activeTab = "Games";
+// Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
+// toggling one section's sort doesn't affect others or survive a tab switch
+// into an unrelated section that happens to share a heading name.
+let sectionSortMode = {};
+
+const NEW_COUNT = 3;
+let newestApps = [];
 
 async function main() {
   const res = await fetch("./apps.json");
@@ -147,8 +194,31 @@ async function main() {
     return;
   }
 
+  newestApps = [...apps]
+    .sort((a, b) => new Date(b.added) - new Date(a.added))
+    .slice(0, NEW_COUNT);
+
+  renderNewSection();
   buildTabs();
   renderList();
+}
+
+function renderNewSection() {
+  const el = document.getElementById("newSection");
+  el.innerHTML = "";
+  if (newestApps.length === 0) return;
+
+  const bar = document.createElement("div");
+  bar.className = "section-bar";
+  const heading = document.createElement("span");
+  heading.className = "list-heading";
+  heading.textContent = "New";
+  bar.appendChild(heading);
+  el.appendChild(bar);
+
+  for (const app of newestApps) {
+    el.appendChild(buildItem(app));
+  }
 }
 
 function buildTabs() {
@@ -171,31 +241,71 @@ function renderList() {
   const listEl = document.getElementById("appList");
   listEl.innerHTML = "";
 
-  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab);
+  const newIds = new Set(newestApps.map((app) => app.id));
+  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab && !newIds.has(app.id));
 
   if (filtered.length === 0) {
     listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
     return;
   }
 
-  const featured = filtered
-    .filter((app) => app.featured)
-    .sort((a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0));
-  const rest = filtered
-    .filter((app) => !app.featured)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const byFeaturedOrder = (a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0);
+
+  const featured = filtered.filter((app) => app.featured);
+  const rest = filtered.filter((app) => !app.featured);
 
   if (featured.length > 0) {
-    const heading = document.createElement("div");
-    heading.className = "featured-heading";
-    heading.textContent = "Featured";
-    listEl.appendChild(heading);
-    for (const app of featured) {
-      listEl.appendChild(buildItem(app));
-    }
+    appendSection(listEl, "Featured", featured, `${activeTab}:featured`, byFeaturedOrder);
   }
 
-  for (const app of rest) {
+  // Some tabs split into named sub-sections for clearer browsing, rather than one flat
+  // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
+  // unlabeled trailing group so nothing silently disappears if a new app misses the field.
+  const TAB_SUBGROUPS = {
+    Music: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
+    Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
+  };
+
+  const subgrouping = TAB_SUBGROUPS[activeTab];
+  if (subgrouping) {
+    const { field, groups } = subgrouping;
+    const matchedKeys = groups.map(([key]) => key);
+    for (const [key, heading] of groups) {
+      appendSection(listEl, heading, rest.filter((app) => app[field] === key), `${activeTab}:${key}`, byName);
+    }
+    appendSection(listEl, null, rest.filter((app) => !matchedKeys.includes(app[field])), `${activeTab}:other`, byName);
+  } else {
+    appendSection(listEl, null, rest, `${activeTab}:all`, byName);
+  }
+}
+
+function appendSection(listEl, heading, appsInSection, sectionKey, defaultSort) {
+  if (appsInSection.length === 0) return;
+
+  const byAge = (a, b) => new Date(a.added) - new Date(b.added);
+  const mode = sectionSortMode[sectionKey] || "default";
+  const sorted = [...appsInSection].sort(mode === "age" ? byAge : defaultSort);
+
+  const barEl = document.createElement("div");
+  barEl.className = "section-bar";
+  if (heading) {
+    const headingEl = document.createElement("span");
+    headingEl.className = "list-heading";
+    headingEl.textContent = heading;
+    barEl.appendChild(headingEl);
+  }
+  const sortBtn = document.createElement("button");
+  sortBtn.className = "sort-btn";
+  sortBtn.textContent = mode === "age" ? "Default order" : "Oldest first";
+  sortBtn.addEventListener("click", () => {
+    sectionSortMode[sectionKey] = mode === "age" ? "default" : "age";
+    renderList();
+  });
+  barEl.appendChild(sortBtn);
+  listEl.appendChild(barEl);
+
+  for (const app of sorted) {
     listEl.appendChild(buildItem(app));
   }
 }
@@ -208,14 +318,29 @@ function buildItem(app) {
   // inside the installed standalone PWA instead of kicking out to a new
   // browser tab, which would show Safari/Chrome chrome again.
 
+  const text = document.createElement("div");
+  text.className = "app-text";
+
   const title = document.createElement("h2");
   title.textContent = app.name;
 
   const desc = document.createElement("p");
   desc.textContent = app.description;
 
-  item.appendChild(title);
-  item.appendChild(desc);
+  text.appendChild(title);
+  text.appendChild(desc);
+  item.appendChild(text);
+
+  if (app.thumbnail) {
+    const thumb = document.createElement("img");
+    thumb.className = "app-thumb";
+    thumb.src = app.thumbnail;
+    thumb.loading = "lazy";
+    thumb.alt = "";
+    thumb.addEventListener("error", () => thumb.remove());
+    item.appendChild(thumb);
+  }
+
   return item;
 }
 
