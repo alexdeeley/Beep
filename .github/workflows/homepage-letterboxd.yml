@@ -1,0 +1,48 @@
+name: Homepage Letterboxd recent films
+
+# Refreshes recent-films.json (the Home tab's "recently watched" widget)
+# from Letterboxd's public RSS feed - no credentials needed at all, unlike
+# the Spotify widget. See src/homepage/fetchRecentFilms.ts.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: homepage-letterboxd
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch recent films
+        run: npm run homepage:letterboxd-recent
+
+      - name: Commit and push if changed
+        run: |
+          if [ -z "$(git status --porcelain -- recent-films.json)" ]; then
+            echo "No change to recent-films.json - nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add recent-films.json
+          git commit -m "Refresh recent-films.json"
+          git push

@@ -267,6 +267,48 @@
     transition: color 0.15s;
   }
   a.track-item:hover .track-artist, a.track-item:active .track-artist { color: #8c8c9a; }
+  a.film-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: #f2f2f5;
+    padding: 10px 0;
+    border-bottom: 1px solid #141416;
+    transition: color 0.15s, padding-left 0.15s;
+  }
+  a.film-item:last-child { border-bottom: 0; }
+  a.film-item:hover, a.film-item:active {
+    color: #fff;
+    padding-left: 12px;
+  }
+  a.film-item .film-poster {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 57px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: #141418;
+    border: 1px solid #1c1c20;
+  }
+  a.film-item .film-text { min-width: 0; }
+  a.film-item .film-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  a.film-item .film-meta {
+    margin-top: 1px;
+    color: #5c5c68;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s;
+  }
+  a.film-item:hover .film-meta, a.film-item:active .film-meta { color: #8c8c9a; }
 </style>
 </head>
 <body>
@@ -284,6 +326,7 @@
     <p class="blurb">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 
     <div id="recentTracks"></div>
+    <div id="recentFilms"></div>
 
     <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
     <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
@@ -340,8 +383,71 @@ async function main() {
   renderActiveTab();
   restoreScroll();
   renderRecentTracks();
+  renderRecentFilms();
 
   window.addEventListener("pagehide", saveLastState);
+}
+
+function formatStars(rating) {
+  const full = Math.floor(rating);
+  const half = rating % 1 !== 0;
+  return "★".repeat(full) + (half ? "½" : "");
+}
+
+// Same idea as renderRecentTracks: recent-films.json only exists once the
+// homepage-letterboxd.yml workflow has run at least once, so a 404 just
+// means "not populated yet", not an error.
+async function renderRecentFilms() {
+  const el = document.getElementById("recentFilms");
+  let data;
+  try {
+    const res = await fetch("./recent-films.json");
+    if (!res.ok) return;
+    data = await res.json();
+  } catch (e) {
+    return;
+  }
+
+  const films = data && Array.isArray(data.films) ? data.films : [];
+  if (films.length === 0) return;
+
+  const heading = document.createElement("div");
+  heading.className = "list-heading";
+  heading.style.marginTop = "28px";
+  heading.textContent = "Recently watched";
+  el.appendChild(heading);
+
+  for (const film of films) {
+    const item = document.createElement("a");
+    item.className = "film-item";
+    item.href = film.url;
+    item.target = "_blank";
+    item.rel = "noopener noreferrer";
+
+    if (film.poster) {
+      const img = document.createElement("img");
+      img.className = "film-poster";
+      img.src = film.poster;
+      img.alt = "";
+      img.loading = "lazy";
+      img.addEventListener("error", () => img.remove());
+      item.appendChild(img);
+    }
+
+    const text = document.createElement("div");
+    text.className = "film-text";
+    const title = document.createElement("div");
+    title.className = "film-title";
+    title.textContent = film.year ? `${film.title} (${film.year})` : film.title;
+    const meta = document.createElement("div");
+    meta.className = "film-meta";
+    meta.textContent = typeof film.rating === "number" ? formatStars(film.rating) : "Watched";
+    text.appendChild(title);
+    text.appendChild(meta);
+    item.appendChild(text);
+
+    el.appendChild(item);
+  }
 }
 
 // The file this fetches only exists once Spotify's been set up (see

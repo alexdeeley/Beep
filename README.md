@@ -544,6 +544,24 @@ a 404 on `recent-tracks.json` and skips rendering the section.
      The response's `refresh_token` is long-lived (doesn't expire from use)
      — save it as the `SPOTIFY_REFRESH_TOKEN` repo secret.
 
+### 17.2 Homepage: "Recently watched" (Letterboxd)
+
+Same idea as §17.1, but for films — and no credentials at all, since
+Letterboxd exposes a public RSS diary feed per user.
+
+- **`src/homepage/fetchRecentFilms.ts`** — fetches
+  `https://letterboxd.com/<username>/rss/`, regex-parses each `<item>`
+  (Letterboxd's feed is flat, non-nested XML, so a small dependency-free
+  parser is enough - no XML library needed), and writes `recent-films.json`
+  with up to 5 entries: title, year, star rating (when logged with one),
+  poster image (pulled out of the description's embedded `<img>`), and the
+  Letterboxd URL.
+- **`.github/workflows/homepage-letterboxd.yml`** — runs the script above
+  every 30 minutes and commits `recent-films.json` only if it changed. No
+  secrets needed.
+- The username is hardcoded in `fetchRecentFilms.ts` (`LETTERBOXD_USERNAME`)
+  since it's public, not sensitive - change it there directly if needed.
+
 ---
 
 ## 18. The music news wire
