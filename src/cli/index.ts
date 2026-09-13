@@ -25,7 +25,6 @@ import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
-import { fetchAndSaveRecentTracks } from "../homepage/fetchRecentTracks.js";
 import { fetchAndSaveRecentFilms } from "../homepage/fetchRecentFilms.js";
 
 const program = new Command();
@@ -249,13 +248,6 @@ program
       return;
     }
     console.log(JSON.stringify(data, null, 2));
-  });
-
-program
-  .command("homepage:spotify-recent")
-  .description("Refresh recent-tracks.json from Spotify's recently-played endpoint for the homepage widget")
-  .action(async () => {
-    await fetchAndSaveRecentTracks();
   });
 
 program

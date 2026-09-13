@@ -225,48 +225,6 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
-  a.track-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    text-decoration: none;
-    color: #f2f2f5;
-    padding: 10px 0;
-    border-bottom: 1px solid #141416;
-    transition: color 0.15s, padding-left 0.15s;
-  }
-  a.track-item:last-child { border-bottom: 0; }
-  a.track-item:hover, a.track-item:active {
-    color: #fff;
-    padding-left: 12px;
-  }
-  a.track-item .track-art {
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    border-radius: 6px;
-    object-fit: cover;
-    background: #141418;
-    border: 1px solid #1c1c20;
-  }
-  a.track-item .track-text { min-width: 0; }
-  a.track-item .track-title {
-    font-weight: 700;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  a.track-item .track-artist {
-    margin-top: 1px;
-    color: #5c5c68;
-    font-size: 0.72rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: color 0.15s;
-  }
-  a.track-item:hover .track-artist, a.track-item:active .track-artist { color: #8c8c9a; }
   a.film-item {
     display: flex;
     align-items: center;
@@ -325,7 +283,6 @@
     <p class="blurb">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
     <p class="blurb">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 
-    <div id="recentTracks"></div>
     <div id="recentFilms"></div>
 
     <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
@@ -382,7 +339,6 @@ async function main() {
   buildTabs();
   renderActiveTab();
   restoreScroll();
-  renderRecentTracks();
   renderRecentFilms();
 
   window.addEventListener("pagehide", saveLastState);
@@ -394,9 +350,9 @@ function formatStars(rating) {
   return "★".repeat(full) + (half ? "½" : "");
 }
 
-// Same idea as renderRecentTracks: recent-films.json only exists once the
-// homepage-letterboxd.yml workflow has run at least once, so a 404 just
-// means "not populated yet", not an error.
+// recent-films.json only exists once the homepage-letterboxd.yml workflow
+// has run at least once, so a 404 just means "not populated yet", not an
+// error.
 async function renderRecentFilms() {
   const el = document.getElementById("recentFilms");
   let data;
@@ -444,62 +400,6 @@ async function renderRecentFilms() {
     meta.textContent = typeof film.rating === "number" ? formatStars(film.rating) : "Watched";
     text.appendChild(title);
     text.appendChild(meta);
-    item.appendChild(text);
-
-    el.appendChild(item);
-  }
-}
-
-// The file this fetches only exists once Spotify's been set up (see
-// src/homepage/fetchRecentTracks.ts) and is refreshed by a scheduled GitHub
-// Action - so a 404 here just means "not configured yet", not an error.
-async function renderRecentTracks() {
-  const el = document.getElementById("recentTracks");
-  let data;
-  try {
-    const res = await fetch("./recent-tracks.json");
-    if (!res.ok) return;
-    data = await res.json();
-  } catch (e) {
-    return;
-  }
-
-  const tracks = data && Array.isArray(data.tracks) ? data.tracks : [];
-  if (tracks.length === 0) return;
-
-  const heading = document.createElement("div");
-  heading.className = "list-heading";
-  heading.style.marginTop = "28px";
-  heading.textContent = "Recently played";
-  el.appendChild(heading);
-
-  for (const track of tracks) {
-    const item = document.createElement("a");
-    item.className = "track-item";
-    item.href = track.url;
-    item.target = "_blank";
-    item.rel = "noopener noreferrer";
-
-    if (track.image) {
-      const img = document.createElement("img");
-      img.className = "track-art";
-      img.src = track.image;
-      img.alt = "";
-      img.loading = "lazy";
-      img.addEventListener("error", () => img.remove());
-      item.appendChild(img);
-    }
-
-    const text = document.createElement("div");
-    text.className = "track-text";
-    const title = document.createElement("div");
-    title.className = "track-title";
-    title.textContent = track.title;
-    const artist = document.createElement("div");
-    artist.className = "track-artist";
-    artist.textContent = track.artist;
-    text.appendChild(title);
-    text.appendChild(artist);
     item.appendChild(text);
 
     el.appendChild(item);

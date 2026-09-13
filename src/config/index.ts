@@ -181,17 +181,10 @@ export interface AppConfig {
    * src/newswire/spotify/lookupTrack.ts). Optional: when either value is
    * missing, lookups are skipped entirely and singles post exactly as
    * they did before - this is additive, never a hard dependency.
-   *
-   * refreshToken is a separate, unrelated use of the same app registration:
-   * an Authorization Code grant (user-read-recently-played scope) obtained
-   * once via a manual login, used only by
-   * src/homepage/fetchRecentTracks.ts to publish the homepage's "recently
-   * played" widget. Optional - that script no-ops without it.
    */
   spotify: {
     clientId: string | undefined;
     clientSecret: string | undefined;
-    refreshToken: string | undefined;
   };
 
   qa: {
@@ -312,7 +305,6 @@ export function loadConfig(): AppConfig {
     spotify: {
       clientId: envStr("SPOTIFY_CLIENT_ID"),
       clientSecret: envStr("SPOTIFY_CLIENT_SECRET"),
-      refreshToken: envStr("SPOTIFY_REFRESH_TOKEN"),
     },
 
     qa: {
