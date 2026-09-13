@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Cross Fission</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #fff;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw; height: 100vh;
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+<script>
+(function(){
+  'use strict';
+
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d', { alpha: false });
+
+  var WHITE = 0, BLACK = 1;
+  var DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  var W = 0, H = 0;
+
+  // ---- Tunables ----
+  var MAX_DEPTH = 26;
+  var MIN_LEAF_PX = 5;            // screen-space floor for a leaf to be allowed to split further
+  var SPLIT_ANIM_MS = 140;
+  var STEP_DELAY_MIN = 12, STEP_DELAY_MAX = 45;
+  var CELL_COOLDOWN = 90;
+  var PROPAGATE_PROB = 0.86;
+  var CHILD_RECURSE_PROB = 0.6;
+  var REVISIT_RECURSE_PROB = 0.55;
+  var MAX_QUEUE = 1200;
+  var MAX_VOICES = 22;
+  var MAX_NODES = 80000;
+
+  var ZOOM_GROWTH_PER_SEC = 1.6;  // fast continuous infinite zoom-in
+  var ZOOM_ACCEL = 1.01;          // it keeps getting a little faster over time
+  var FOCUS_LERP = 0.08;
+  var FRAG_MIN_MS = 90, FRAG_MAX_MS = 180;   // how often the whole view gets hit with fresh fragmentation
+  var FRAG_FRACTION = 0.45;                   // portion of visible leaves triggered each tick
+  var FRAG_SCAN_CAP = 900;                    // perf cap on visible-leaf scan
+  var GC_INTERVAL_MS = 1500;                  // reclaim far off-screen detail so depth can grow forever
+
+  var grid = [], cols = 0, rows = 0, coarseSize = 80;
+  var queue = [];
+  var pulseVisuals = [];
+  var burstVisuals = [];
+  var totalNodes = 0;
+  var lastFrameTime = 0;
+  var nextFrag = 0;
+  var nextGC = 0;
+
+  var camera = { scale: 1, fx: 0, fy: 0, tfx: 0, tfy: 0 };
+
+  // ---- Audio ----
+  var actx = null, voiceCount = 0;
+  function ensureAudio(){
+    if (!actx){
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ actx = null; }
+    } else if (actx.state === 'suspended'){
+      actx.resume();
+    }
+  }
+  function playTone(depth){
+    if (!actx || voiceCount >= MAX_VOICES) return;
+    voiceCount++;
+    var now = actx.currentTime;
+    var base = 620;
+    var freq = base * Math.pow(1.5, Math.min(depth, 14)) * (0.97 + Math.random()*0.06);
+    var osc = actx.createOscillator();
+    var gain = actx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    var dur = 0.045 + Math.min(depth, 14) * 0.01;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.10 / Math.sqrt(depth+1), now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(gain).connect(actx.destination);
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
+    osc.onended = function(){ voiceCount = Math.max(0, voiceCount-1); };
+  }
+
+  // ---- Quadtree node ----
+  function makeNode(x,y,w,h,color,depth){
+    totalNodes++;
+    return { x:x, y:y, w:w, h:h, color:color, depth:depth,
+             children:null, splitting:false, splitStart:0 };
+  }
+
+  function countNodes(node){
+    if (!node.children) return 1;
+    var n = 1;
+    for (var i=0;i<4;i++) n += countNodes(node.children[i]);
+    return n;
+  }
+
+  function triggerNode(node, now){
+    if (node.children){
+      for (var i=0;i<node.children.length;i++){
+        if (Math.random() < REVISIT_RECURSE_PROB){
+          (function(c){
+            queue.push({ type:'node', node:c, time: now + rnd(STEP_DELAY_MIN, STEP_DELAY_MAX) });
+          })(node.children[i]);
+        }
+      }
+      return;
+    }
+    node.color = node.color === WHITE ? BLACK : WHITE;
+    playTone(node.depth);
+
+    // screen-space stopping condition: keeps unlocking deeper splits as the camera zooms in
+    var screenHalfW = (node.w/2) * camera.scale;
+    if (screenHalfW >= MIN_LEAF_PX && node.depth < MAX_DEPTH && totalNodes < MAX_NODES){
+      node.splitting = true;
+      node.splitStart = now;
+      var hw = node.w/2, hh = node.h/2;
+      var childColor = node.color === WHITE ? BLACK : WHITE;
+      node.children = [
+        makeNode(node.x,     node.y,     hw, hh, childColor, node.depth+1),
+        makeNode(node.x+hw,  node.y,     hw, hh, childColor, node.depth+1),
+        makeNode(node.x,     node.y+hh,  hw, hh, childColor, node.depth+1),
+        makeNode(node.x+hw,  node.y+hh,  hw, hh, childColor, node.depth+1)
+      ];
+      for (var j=0;j<4;j++){
+        if (Math.random() < CHILD_RECURSE_PROB && queue.length < MAX_QUEUE){
+          (function(c){
+            queue.push({ type:'node', node:c, time: now + SPLIT_ANIM_MS + rnd(STEP_DELAY_MIN, STEP_DELAY_MAX) });
+          })(node.children[j]);
+        }
+      }
+    }
+  }
+
+  function rnd(a,b){ return a + Math.random()*(b-a); }
+
+  // ---- Coarse grid / macro propagation ----
+  function buildGrid(){
+    coarseSize = Math.max(64, Math.min(100, W/13));
+    cols = Math.ceil(W / coarseSize);
+    rows = Math.ceil(H / coarseSize);
+    grid = [];
+    totalNodes = 0;
+    for (var gy=0; gy<rows; gy++){
+      var row = [];
+      for (var gx=0; gx<cols; gx++){
+        var cx = gx*coarseSize, cy = gy*coarseSize;
+        var cw = Math.min(coarseSize, W-cx), ch = Math.min(coarseSize, H-cy);
+        row.push({ gx:gx, gy:gy, x:cx, y:cy, w:cw, h:ch,
+                   root: makeNode(cx,cy,cw,ch, WHITE, 0),
+                   lastTrigger: -99999 });
+      }
+      grid.push(row);
+    }
+    queue = [];
+    pulseVisuals = [];
+    burstVisuals = [];
+    camera.scale = 1;
+    camera.fx = camera.tfx = W/2;
+    camera.fy = camera.tfy = H/2;
+    ZOOM_GROWTH_PER_SEC = 1.6;
+    var now = performance.now();
+    nextFrag = now + rnd(FRAG_MIN_MS, FRAG_MAX_MS);
+    nextGC = now + GC_INTERVAL_MS;
+  }
+
+  function fireCoarseCell(cell, now, fromDir, fromCell){
+    if (now - cell.lastTrigger < CELL_COOLDOWN) return;
+    cell.lastTrigger = now;
+    triggerNode(cell.root, now);
+
+    if (fromCell){
+      pulseVisuals.push({ from:fromCell, to:cell, start: now, dur: 140 });
+    }
+
+    var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (var i=0;i<dirs.length;i++){
+      var dx = dirs[i][0], dy = dirs[i][1];
+      if (fromDir && dx === -fromDir[0] && dy === -fromDir[1]) continue;
+      var ngx = cell.gx+dx, ngy = cell.gy+dy;
+      if (ngx<0 || ngy<0 || ngx>=cols || ngy>=rows) continue;
+      if (Math.random() > PROPAGATE_PROB) continue;
+      if (queue.length > MAX_QUEUE) continue;
+      queue.push({ type:'pulse', gx:ngx, gy:ngy, dir:[dx,dy], from:cell,
+                   time: now + rnd(STEP_DELAY_MIN, STEP_DELAY_MAX) });
+    }
+  }
+
+  function cellAtWorld(px, py){
+    var gx = Math.floor(px / coarseSize);
+    var gy = Math.floor(py / coarseSize);
+    gx = Math.max(0, Math.min(cols-1, gx));
+    gy = Math.max(0, Math.min(rows-1, gy));
+    return grid[gy][gx];
+  }
+
+  function origin(wx, wy, now, setFocus){
+    ensureAudio();
+    var cell = cellAtWorld(wx, wy);
+    fireCoarseCell(cell, now, null, null);
+    burstVisuals.push({ x:wx, y:wy, start: now, dur: 260 });
+    if (setFocus){
+      camera.tfx = wx;
+      camera.tfy = wy;
+    }
+  }
+
+  function viewportRect(){
+    var s = camera.scale;
+    return { left: camera.fx-(W/2)/s, top: camera.fy-(H/2)/s, w: W/s, h: H/s };
+  }
+
+  function collectVisibleLeaves(vr, maxCount){
+    var out = [];
+    var left = vr.left, top = vr.top, right = vr.left+vr.w, bottom = vr.top+vr.h;
+    function overlaps(n){ return !(n.x+n.w < left || n.x > right || n.y+n.h < top || n.y > bottom); }
+    function walk(n){
+      if (out.length >= maxCount || !overlaps(n)) return;
+      if (n.children){
+        for (var i=0;i<4;i++) walk(n.children[i]);
+      } else {
+        out.push(n);
+      }
+    }
+    for (var gy=0; gy<rows && out.length<maxCount; gy++){
+      for (var gx=0; gx<cols && out.length<maxCount; gx++){
+        var cell = grid[gy][gx];
+        if (overlaps(cell)) walk(cell.root);
+      }
+    }
+    return out;
+  }
+
+  function fragmentVisible(now){
+    var vr = viewportRect();
+    var leaves = collectVisibleLeaves(vr, FRAG_SCAN_CAP);
+    if (!leaves.length) return;
+    var picks = Math.max(2, Math.floor(leaves.length * FRAG_FRACTION));
+    for (var i=0;i<picks;i++){
+      triggerNode(leaves[Math.floor(Math.random()*leaves.length)], now);
+    }
+  }
+
+  function garbageCollectOffscreen(now){
+    var vr = viewportRect();
+    var margin = Math.max(vr.w, vr.h) * 4;
+    var left = vr.left-margin, top = vr.top-margin, right = vr.left+vr.w+margin, bottom = vr.top+vr.h+margin;
+    for (var gy=0; gy<rows; gy++){
+      for (var gx=0; gx<cols; gx++){
+        var cell = grid[gy][gx];
+        var overlaps = !(cell.x+cell.w < left || cell.x > right || cell.y+cell.h < top || cell.y > bottom);
+        if (!overlaps && cell.root.children){
+          totalNodes -= countNodes(cell.root);
+          cell.root = makeNode(cell.x, cell.y, cell.w, cell.h, cell.root.color, 0);
+        }
+      }
+    }
+  }
+
+  // ---- Frame loop ----
+  function step(now){
+    if (!lastFrameTime) lastFrameTime = now;
+    var dt = now - lastFrameTime;
+    lastFrameTime = now;
+
+    ZOOM_GROWTH_PER_SEC *= Math.pow(ZOOM_ACCEL, dt/1000);
+    camera.scale *= Math.pow(ZOOM_GROWTH_PER_SEC, dt/1000);
+    camera.fx += (camera.tfx - camera.fx) * FOCUS_LERP;
+    camera.fy += (camera.tfy - camera.fy) * FOCUS_LERP;
+
+    if (now >= nextFrag){
+      fragmentVisible(now);
+      nextFrag = now + rnd(FRAG_MIN_MS, FRAG_MAX_MS);
+    }
+    if (now >= nextGC){
+      garbageCollectOffscreen(now);
+      nextGC = now + GC_INTERVAL_MS;
+    }
+
+    var i = 0;
+    while (i < queue.length){
+      var ev = queue[i];
+      if (ev.time <= now){
+        queue.splice(i,1);
+        if (ev.type === 'pulse'){
+          var cell = grid[ev.gy][ev.gx];
+          fireCoarseCell(cell, now, ev.dir, ev.from);
+        } else if (ev.type === 'node'){
+          triggerNode(ev.node, now);
+        }
+      } else {
+        i++;
+      }
+    }
+    render(now);
+    requestAnimationFrame(step);
+  }
+
+  function clamp01(t){ return t<0?0:(t>1?1:t); }
+
+  function renderNode(node, now){
+    if (node.splitting){
+      var t = clamp01((now - node.splitStart) / SPLIT_ANIM_MS);
+      if (t >= 1) node.splitting = false;
+      ctx.fillStyle = node.color === WHITE ? '#fff' : '#000';
+      ctx.fillRect(node.x, node.y, node.w, node.h);
+      var cx = node.x + node.w/2, cy = node.y + node.h/2;
+      ctx.strokeStyle = node.color === WHITE ? '#000' : '#fff';
+      ctx.lineWidth = Math.max(1/camera.scale, node.w*0.035);
+      ctx.beginPath();
+      ctx.moveTo(cx, node.y + node.h*(0.5-0.5*t));
+      ctx.lineTo(cx, node.y + node.h*(0.5+0.5*t));
+      ctx.moveTo(node.x + node.w*(0.5-0.5*t), cy);
+      ctx.lineTo(node.x + node.w*(0.5+0.5*t), cy);
+      ctx.stroke();
+      if (t >= 1 && node.children){
+        for (var k=0;k<4;k++) renderNode(node.children[k], now);
+      }
+    } else if (node.children){
+      for (var j=0;j<4;j++) renderNode(node.children[j], now);
+    } else {
+      ctx.fillStyle = node.color === WHITE ? '#fff' : '#000';
+      ctx.fillRect(node.x, node.y, node.w, node.h);
+    }
+  }
+
+  function renderPulses(now){
+    ctx.lineCap = 'round';
+    for (var i=pulseVisuals.length-1; i>=0; i--){
+      var p = pulseVisuals[i];
+      var age = now - p.start;
+      if (age > p.dur){ pulseVisuals.splice(i,1); continue; }
+      var t = clamp01(age / p.dur);
+      var x1 = p.from.x + p.from.w/2, y1 = p.from.y + p.from.h/2;
+      var x2 = p.to.x + p.to.w/2,     y2 = p.to.y + p.to.h/2;
+      var bx = x1 + (x2-x1)*t, by = y1 + (y2-y1)*t;
+      var dark = p.to.root.color === BLACK;
+      ctx.strokeStyle = dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = Math.max(2/camera.scale, coarseSize*0.045);
+      ctx.beginPath();
+      ctx.moveTo(x1,y1); ctx.lineTo(bx,by); ctx.stroke();
+    }
+  }
+
+  function renderBursts(now){
+    for (var i=burstVisuals.length-1; i>=0; i--){
+      var b = burstVisuals[i];
+      var age = now - b.start;
+      if (age > b.dur){ burstVisuals.splice(i,1); continue; }
+      var t = clamp01(age / b.dur);
+      var len = coarseSize * 1.3 * t;
+      var alpha = 1 - t;
+      ctx.strokeStyle = 'rgba(0,0,0,' + (alpha*0.9) + ')';
+      ctx.lineWidth = Math.max(1/camera.scale, 5*(1-t*0.6));
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y - len); ctx.lineTo(b.x, b.y + len);
+      ctx.moveTo(b.x - len, b.y); ctx.lineTo(b.x + len, b.y);
+      ctx.stroke();
+    }
+  }
+
+  function render(now){
+    var s = camera.scale;
+    ctx.setTransform(DPR*s, 0, 0, DPR*s, DPR*(W/2 - camera.fx*s), DPR*(H/2 - camera.fy*s));
+
+    var vr = viewportRect();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(vr.left-vr.w, vr.top-vr.h, vr.w*3, vr.h*3);
+
+    for (var gy=0; gy<rows; gy++){
+      for (var gx=0; gx<cols; gx++){
+        renderNode(grid[gy][gx].root, now);
+      }
+    }
+    renderPulses(now);
+    renderBursts(now);
+  }
+
+  // ---- Input ----
+  var twoFingerLastTime = 0;
+  var usingTouch = false;
+
+  function screenToWorld(sx, sy){
+    return {
+      x: (sx - W/2)/camera.scale + camera.fx,
+      y: (sy - H/2)/camera.scale + camera.fy
+    };
+  }
+
+  function toCanvasPoint(clientX, clientY){
+    var rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left), y: (clientY - rect.top) };
+  }
+
+  canvas.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    usingTouch = true;
+    var now = performance.now();
+    if (e.touches.length >= 2){
+      if (now - twoFingerLastTime < 400){
+        buildGrid();
+        twoFingerLastTime = 0;
+        return;
+      }
+      twoFingerLastTime = now;
+      return;
+    }
+    var t = e.changedTouches[0];
+    var p = toCanvasPoint(t.clientX, t.clientY);
+    var w = screenToWorld(p.x, p.y);
+    origin(w.x, w.y, now, true);
+  }, { passive:false });
+
+  canvas.addEventListener('touchmove', function(e){ e.preventDefault(); }, { passive:false });
+
+  canvas.addEventListener('mousedown', function(e){
+    if (usingTouch) return;
+    var now = performance.now();
+    var p = toCanvasPoint(e.clientX, e.clientY);
+    var w = screenToWorld(p.x, p.y);
+    origin(w.x, w.y, now, true);
+  });
+
+  function resize(){
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    buildGrid();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function(){ setTimeout(resize, 200); });
+
+  resize();
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
