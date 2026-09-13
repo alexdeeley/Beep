@@ -1,6 +1,6 @@
 {
-  "name": "Artcade",
-  "short_name": "Artcade",
+  "name": "deeley.org",
+  "short_name": "deeley.org",
   "description": "A small gallery of self-contained apps — games and art.",
   "start_url": "./index.html",
   "scope": "./",
