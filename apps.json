@@ -1396,5 +1396,14 @@
     "gameGroup": "maisie",
     "added": "2026-09-10T04:52:51+00:00",
     "thumbnail": "thumbnails/maisie-eats-everything-3.jpg"
+  },
+  {
+    "id": "cross-fission",
+    "name": "Cross Fission",
+    "description": "A black-and-white quadtree that keeps splitting and zooming in, forever.",
+    "category": "Art",
+    "path": "CrossFission.html",
+    "added": "2026-09-13T21:05:43+00:00",
+    "thumbnail": "thumbnails/cross-fission.jpg"
   }
 ]
