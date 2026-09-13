@@ -28,7 +28,13 @@
     margin: 0 auto;
     padding: 56px 24px 100px;
   }
-  header { margin-bottom: 24px; }
+  header {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
   h1 {
     font-weight: 800;
     letter-spacing: -0.02em;
@@ -44,6 +50,18 @@
     text-transform: uppercase;
     margin: 0;
   }
+  #aboutLink {
+    color: #46464f;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    padding-top: 2px;
+    transition: color 0.15s;
+  }
+  #aboutLink:hover, #aboutLink:active { color: #b8b8c2; }
   .section-bar {
     display: flex;
     align-items: center;
@@ -163,8 +181,11 @@
 <body>
 <main>
   <header>
-    <h1>deeley.org</h1>
-    <p>tap a name to open it</p>
+    <div>
+      <h1>deeley.org</h1>
+      <p>tap a name to open it</p>
+    </div>
+    <a id="aboutLink" href="About.html">about</a>
   </header>
   <div id="newSection"></div>
   <div id="tabs"></div>
