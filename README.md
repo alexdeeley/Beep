@@ -504,6 +504,46 @@ and whatever gets added later), published together as a static site via
   human has to go to **Settings → Pages → Source → GitHub Actions** once —
   GitHub's API won't let a workflow token create a Pages site itself.
 
+### 17.1 Homepage: "Recently played" (Spotify)
+
+The gallery's default **Home** tab can show a small "recently played"
+widget backed by real Spotify listening history. It's entirely optional —
+with nothing configured, `renderRecentTracks()` in `index.html` just gets
+a 404 on `recent-tracks.json` and skips rendering the section.
+
+- **`src/homepage/fetchRecentTracks.ts`** — refreshes an access token via
+  a stored refresh token, calls Spotify's `/me/player/recently-played`,
+  collapses consecutive repeat plays, and writes `recent-tracks.json`
+  (repo root, so the Pages deploy publishes it like any other static
+  file) with up to 5 tracks.
+- **`.github/workflows/homepage-spotify.yml`** — runs the script above
+  every 30 minutes and commits `recent-tracks.json` only if it changed.
+  Needs `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` (shared with the
+  Client Credentials use in §18.13/lookupTrack.ts) and
+  `SPOTIFY_REFRESH_TOKEN` (below) as repo secrets.
+- **One-time setup to get `SPOTIFY_REFRESH_TOKEN`** (this is real personal
+  listening history, so it needs an Authorization Code grant — a normal
+  login, not just an API key):
+  1. In the [Spotify developer dashboard](https://developer.spotify.com/dashboard),
+     open the existing app (the one `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`
+     already belong to) and add `https://deeley.org/SpotifyCallback.html`
+     under Redirect URIs.
+  2. Visit `https://accounts.spotify.com/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https%3A%2F%2Fdeeley.org%2FSpotifyCallback.html&scope=user-read-recently-played`
+     (with the real client ID), log in, and approve.
+  3. `SpotifyCallback.html` (a static page in this repo, not linked from
+     anywhere else) reads the `code` param straight out of the URL client-side
+     and displays it for you to copy — nothing is sent anywhere.
+  4. Exchange it for a refresh token:
+     ```
+     curl -X POST https://accounts.spotify.com/api/token \
+       -d grant_type=authorization_code \
+       -d code=<CODE_FROM_STEP_3> \
+       -d redirect_uri=https://deeley.org/SpotifyCallback.html \
+       -u <CLIENT_ID>:<CLIENT_SECRET>
+     ```
+     The response's `refresh_token` is long-lived (doesn't expire from use)
+     — save it as the `SPOTIFY_REFRESH_TOKEN` repo secret.
+
 ---
 
 ## 18. The music news wire
