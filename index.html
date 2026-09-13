@@ -177,60 +177,58 @@
     font-size: 0.85rem;
   }
   .hidden { display: none !important; }
-  #splash {
-    position: fixed;
-    inset: 0;
+  .blurb {
+    color: #9a9aa4;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 4px 0 8px;
+  }
+  .blurb + .blurb { margin-top: 14px; }
+  a.link-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 40px;
-    padding: 24px;
-  }
-  #splash .splash-title {
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    text-transform: lowercase;
-    font-size: clamp(1.4rem, 6vw, 2rem);
-    color: #6b6b78;
-  }
-  .splash-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    width: min(86vw, 340px);
-  }
-  .splash-btn {
-    appearance: none;
-    background: none;
-    border: 1px solid #2a2a30;
+    justify-content: space-between;
+    gap: 12px;
+    text-decoration: none;
     color: #f2f2f5;
-    font-family: inherit;
+    padding: 16px 0;
+    border-bottom: 1px solid #141416;
+    transition: color 0.15s, padding-left 0.15s;
+  }
+  a.link-item:last-child { border-bottom: 0; }
+  a.link-item:hover, a.link-item:active {
+    color: #fff;
+    padding-left: 12px;
+  }
+  a.link-item h2 {
+    margin: 0;
     font-weight: 800;
+    font-size: clamp(1.4rem, 5.5vw, 1.9rem);
     letter-spacing: -0.02em;
-    text-transform: lowercase;
-    font-size: clamp(1.3rem, 5vw, 1.7rem);
-    padding: 20px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    line-height: 1.08;
   }
-  .splash-btn:hover, .splash-btn:active {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: #4a4a54;
+  a.link-item p {
+    margin: 3px 0 0;
+    color: #5c5c68;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    line-height: 1.4;
+    transition: color 0.15s;
   }
+  a.link-item:hover p, a.link-item:active p { color: #8c8c9a; }
+  a.link-item .arrow {
+    flex: 0 0 auto;
+    color: #46464f;
+    font-size: 1.4rem;
+    transition: color 0.15s;
+  }
+  a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
 </style>
 </head>
 <body>
-<div id="splash" class="hidden">
-  <div class="splash-title">deeley.org</div>
-  <div class="splash-buttons">
-    <button class="splash-btn" data-splash-tab="Games">Games</button>
-    <button class="splash-btn" data-splash-tab="Art">Art</button>
-    <button class="splash-btn" data-splash-tab="Music">Music</button>
-  </div>
-</div>
-<main id="mainView" class="hidden">
+<main id="mainView">
   <header>
     <div>
       <h1>deeley.org</h1>
@@ -238,17 +236,37 @@
     </div>
     <a id="aboutLink" href="About.html">about</a>
   </header>
-  <div id="newSection"></div>
   <div id="tabs"></div>
+  <div id="homeContent" class="hidden">
+    <p class="blurb">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <p class="blurb">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
+    <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
+      <div>
+        <h2>Substack</h2>
+        <p>@alexdeeley</p>
+      </div>
+      <span class="arrow">&#8599;</span>
+    </a>
+    <a class="link-item" href="https://www.instagram.com/_alexs_art_alt_/" target="_blank" rel="noopener noreferrer">
+      <div>
+        <h2>Instagram</h2>
+        <p>@_alexs_art_alt_</p>
+      </div>
+      <span class="arrow">&#8599;</span>
+    </a>
+  </div>
+  <div id="newSection"></div>
   <div id="appList"></div>
 </main>
 
 <script>
-const TABS = ["Games", "Art", "Music"];
+const TABS = ["Home", "Games", "Art", "Music"];
 const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
-let activeTab = "Games";
+let activeTab = "Home";
 // Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
 // toggling one section's sort doesn't affect others or survive a tab switch
 // into an unrelated section that happens to share a heading name.
@@ -257,24 +275,13 @@ let sectionSortMode = {};
 const NEW_COUNT = 3;
 let newestApps = [];
 
-const SPLASH_SEEN_KEY = "deeley_seen_splash";
 const LAST_STATE_KEY = "deeley_last_state";
 
 async function main() {
-  const seenSplash = !!localStorage.getItem(SPLASH_SEEN_KEY);
-  const loadApps = fetch("./apps.json").then((r) => r.json());
+  restoreLastTab();
 
-  if (!seenSplash) {
-    await new Promise((resolve) => showSplash(resolve));
-    localStorage.setItem(SPLASH_SEEN_KEY, "1");
-  } else {
-    restoreLastTab();
-  }
-
-  document.getElementById("splash").classList.add("hidden");
-  document.getElementById("mainView").classList.remove("hidden");
-
-  apps = await loadApps;
+  const res = await fetch("./apps.json");
+  apps = await res.json();
 
   if (apps.length === 0) {
     document.getElementById("appList").innerHTML = '<p class="empty">Nothing here yet.</p>';
@@ -285,30 +292,11 @@ async function main() {
     .sort((a, b) => new Date(b.added) - new Date(a.added))
     .slice(0, NEW_COUNT);
 
-  renderNewSection();
   buildTabs();
-  renderList();
-
-  if (seenSplash) restoreScroll();
+  renderActiveTab();
+  restoreScroll();
 
   window.addEventListener("pagehide", saveLastState);
-}
-
-// First-run only: a full-screen category picker instead of defaulting to the
-// Games tab. Resolves once a button is tapped, having already set activeTab.
-function showSplash(onPick) {
-  const splashEl = document.getElementById("splash");
-  splashEl.classList.remove("hidden");
-  for (const btn of splashEl.querySelectorAll("[data-splash-tab]")) {
-    btn.addEventListener(
-      "click",
-      () => {
-        activeTab = btn.dataset.splashTab;
-        onPick();
-      },
-      { once: true }
-    );
-  }
 }
 
 function restoreLastTab() {
@@ -364,10 +352,20 @@ function buildTabs() {
     btn.addEventListener("click", () => {
       activeTab = tab;
       [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-      renderList();
+      renderActiveTab();
     });
     tabsEl.appendChild(btn);
   }
+}
+
+function renderActiveTab() {
+  const isHome = activeTab === "Home";
+  document.getElementById("homeContent").classList.toggle("hidden", !isHome);
+  document.getElementById("newSection").classList.toggle("hidden", isHome);
+  document.getElementById("appList").classList.toggle("hidden", isHome);
+  if (isHome) return;
+  renderNewSection();
+  renderList();
 }
 
 function renderList() {
