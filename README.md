@@ -486,7 +486,7 @@ self-contained single-page apps (`symphonic-noise/`, `OneThumbRacer.html`,
 and whatever gets added later), published together as a static site via
 `.github/workflows/deploy-pages.yml`.
 
-- **Live at:** `https://alexdeeley.github.io/Beep/`
+- **Live at:** `https://deeley.org/` (custom domain; the underlying GitHub Pages URL `https://alexdeeley.github.io/Beep/` redirects here)
 - **Root `index.html`** is the gallery page — it reads `apps.json` and
   renders a live iframe preview, name, and description for each app,
   grouped into sections (Music Tools, Games, Art, ...).
