@@ -21,13 +21,6 @@ on:
       - ".env.example"
       - "README.md"
       - ".github/workflows/daily.yml"
-  # homepage-letterboxd.yml (and any future homepage-*.yml) pushes its
-  # refreshed JSON using the default GITHUB_TOKEN, which - by GitHub's
-  # own loop-prevention design - never fires other workflows' `push`
-  # triggers. This is what actually gets that new data deployed.
-  workflow_run:
-    workflows: ["Homepage Letterboxd recent films"]
-    types: [completed]
   workflow_dispatch: {}
 
 permissions:
@@ -41,7 +34,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
