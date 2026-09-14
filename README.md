@@ -527,7 +527,7 @@ like the Friday roundup, every cycle also checks for a `MUSIC NEWS`
 recap - a rare, narrow, high-bar digest of genuinely major real-world
 news (arrest, death, breakup, major lawsuit/scandal) for a watchlist
 artist - and, if configured, every cycle also checks a user-maintained
-Spotify playlist for newly-added tracks (§18.7-§18.13).
+Spotify playlist for newly-added tracks (§18.7-§18.14).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -1084,7 +1084,65 @@ beyond what verification already confirmed. `db/musicNewsRepo.ts`'s
 `music_news_posts` table (keyed by the local date it ran on) is the
 once-a-day idempotency guard.
 
-### 18.13 Playlist-watch: `spotify/postPlaylistAdditions.ts`
+### 18.13 Once a day: the `TOP MUSIC STORIES` recap
+
+Once a day - the first cycle that finds at least one independently
+verifiable, genuinely major music story of **any** kind - posts a short,
+ranked digest:
+
+```
+TOP MUSIC STORIES 9/14
+
+Olivia Rodrigo's new album breaks the platform's first-week streaming record.
+
+Live Nation agrees to pay $50M to settle an antitrust lawsuit.
+```
+
+This is a **separate, broader** post from §18.12's `MUSIC NEWS` recap,
+not a replacement for it. `MUSIC NEWS` stays narrowly scoped to dramatic
+events (arrests, deaths, breakups, lawsuits) for watchlist artists only.
+`TOP MUSIC STORIES` is industry-wide and deliberately covers exactly what
+`MUSIC NEWS` excludes as "routine" - new releases, chart/streaming
+records, awards, major business news, huge tour/festival announcements -
+selected purely on real-world significance, not category. The two can
+both post on the same day, and there is no cross-check between them or
+against `watched-artists.txt`; a story doesn't need to be about a single
+named artist at all (a label, platform, or industry-wide story qualifies
+just as well), so unlike `MUSIC NEWS` there's no `artistName` field on
+its candidates.
+
+`discovery/discoverBiggestStories.ts` runs one industry-wide web-search
+sweep asking specifically for the day's *biggest* stories, ranked most
+significant first, capped at 8 items - most days should have only a
+handful, sometimes zero, and that's the normal, expected outcome, not a
+failure to search hard enough.
+
+**The blurb text is verification's own finding, never discovery's
+wording** - `verification/biggestStoriesVerificationPrompts.ts` uses a
+dedicated schema with its own `blurb` field, same reasoning as `MUSIC
+NEWS`'s. Unlike `MUSIC NEWS`'s tight 2-6-word blurb (tuned for "X
+arrested"-style items), this blurb is a full sentence (roughly 8-25
+words) written like a wire headline, since these stories are often more
+involved (a settlement amount, a record broken, an album title). A
+candidate is only kept when the blurb comes back non-null, which the
+prompt requires only when the core claim is independently confirmed as
+`FACT` by at least two distinct source domains.
+
+Items post in the order verification returns them, which preserves
+discovery's own most-significant-first ranking - unlike `TODAY IN
+HISTORY` (§18.9), there's no re-sort by any other field. The same
+staleness guard as the rest of the pipeline
+(`verification/itemFreshness.ts`, `NEWS_MAX_ITEM_AGE_DAYS`) applies here
+too. Like the other mechanical posts, this skips
+copy-edit/fact-check/duplicate-check - there's no new prose to check
+beyond what verification already confirmed, and it reuses
+`musicNews/postMusicNewsRecap.ts`'s `formatBlurbAsSentence` helper to
+capitalize/punctuate each line. `db/biggestStoriesRepo.ts`'s
+`biggest_stories_posts` table (keyed by the local date it ran on) is the
+once-a-day idempotency guard, entirely separate from `MUSIC NEWS`'s own
+`music_news_posts` table.
+
+### 18.14 Playlist-watch: `spotify/postPlaylistAdditions.ts`
 
 Every cycle, for each playlist ID in `SPOTIFY_NEW_SINGLES_PLAYLIST_IDS`
 (comma-separated, optional), checks that public Spotify playlist for
@@ -1157,7 +1215,7 @@ batch of several new additions leaves an accurate record and only the
 ones that didn't go out get retried next cycle.
 
 `spotify/spotifyAuth.ts`'s shared Client Credentials token logic is used
-only by `lookupTrack.ts` (§18.x, attaching a link to non-playlist-watch
+only by `lookupTrack.ts` (attaching a link to non-playlist-watch
 singles) - playlist-watch doesn't touch it at all. Leaving
 `SPOTIFY_NEW_SINGLES_PLAYLIST_IDS` unset or empty (see `.env.example`)
 makes this feature a complete no-op rather than an error.

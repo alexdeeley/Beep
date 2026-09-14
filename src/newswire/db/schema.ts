@@ -363,4 +363,21 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Once-a-day "TOP MUSIC STORIES" recap: a short, industry-wide digest of the day's biggest,
+    // most significant music news of ANY kind (releases, chart records, awards, major business news,
+    // huge tour/festival announcements, deaths, scandals). Deliberately separate from music_news_posts
+    // (which is narrowly scoped to dramatic events for watchlist artists only) - this one is broad and
+    // industry-wide. Same once-per-day idempotency pattern as music_news_posts/history_posts.
+    id: "0010_biggest_stories_recap",
+    sql: `
+      CREATE TABLE IF NOT EXISTS biggest_stories_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_date TEXT NOT NULL UNIQUE,
+        posted_in_run_id INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `,
+  },
 ];

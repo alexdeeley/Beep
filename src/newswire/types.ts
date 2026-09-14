@@ -234,3 +234,33 @@ export interface VerifiedDramaticNews {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw candidate surfaced by discoverBiggestStories, before independent verification - the day's
+ * most significant, genuinely major music-industry stories of ANY kind (releases, chart/streaming
+ * records, awards, major business/deal news, huge tour or festival announcements, deaths, lawsuits,
+ * etc.), ranked by real-world newsworthiness. Deliberately the OPPOSITE scope from
+ * DramaticNewsCandidate, which excludes exactly the routine-but-major news (releases, tours, awards)
+ * this category exists to cover. Not tied to a single artist or watched-artists.txt - a story can be
+ * about a label, platform, or the industry generally, so there's no artistName field here.
+ */
+export interface BiggestStoryCandidate {
+  headline: string;
+  eventTimeIso: string | null;
+  eventTimeConfidence: "exact" | "approximate" | "unknown";
+  sources: ReportedSource[];
+}
+
+/**
+ * Output of verifyBiggestStories: a biggest-stories candidate independently re-confirmed with the
+ * 2-source rule. `blurb` is verification's OWN faithful one-sentence restatement of what it confirmed
+ * (never discovery's wording) - same reasoning as VerifiedDramaticNews.blurb. Null blurb (with
+ * meetsSourceBar left false) means verification could not produce a confident, faithful summary -
+ * that candidate is dropped, never posted with a missing or guessed summary.
+ */
+export interface VerifiedBiggestStory {
+  headline: string;
+  blurb: string | null;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}

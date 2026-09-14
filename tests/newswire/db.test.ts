@@ -35,6 +35,7 @@ import {
 import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "../../src/newswire/db/historyPostsRepo.js";
 import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
 import { hasMusicNewsPostForDate, recordMusicNewsPost } from "../../src/newswire/db/musicNewsRepo.js";
+import { hasBiggestStoriesPostForDate, recordBiggestStoriesPost } from "../../src/newswire/db/biggestStoriesRepo.js";
 import { hasSeenPlaylistTrack, getSeenPlaylistTrackCount, recordSeenPlaylistTrack } from "../../src/newswire/db/spotifyPlaylistRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
@@ -84,6 +85,7 @@ describe("newswire SQLite DB layer", () => {
       "birthday_posts",
       "shows_runs",
       "music_news_posts",
+      "biggest_stories_posts",
       "spotify_playlist_tracks_seen",
     ]) {
       expect(tables).toContain(t);
@@ -546,6 +548,22 @@ describe("newswire SQLite DB layer", () => {
       expect(hasMusicNewsPostForDate(db, "2026-09-09")).toBe(false);
 
       expect(() => recordMusicNewsPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 1 })).toThrow();
+    });
+  });
+
+  describe("biggest_stories_posts", () => {
+    it("is not recorded for a date until recordBiggestStoriesPost is called", () => {
+      expect(hasBiggestStoriesPostForDate(db, "2026-09-08")).toBe(false);
+    });
+
+    it("round-trips a recorded TOP MUSIC STORIES post and enforces once-per-date via UNIQUE", () => {
+      const run = startHourlyRun(db, false);
+      const recorded = recordBiggestStoriesPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 4 });
+      expect(recorded.post_date).toBe("2026-09-08");
+      expect(hasBiggestStoriesPostForDate(db, "2026-09-08")).toBe(true);
+      expect(hasBiggestStoriesPostForDate(db, "2026-09-09")).toBe(false);
+
+      expect(() => recordBiggestStoriesPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 1 })).toThrow();
     });
   });
 
