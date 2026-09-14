@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Artcade</title>
+<title>deeley.org</title>
 <meta name="description" content="A small gallery of self-contained apps — games and art." />
 <meta name="theme-color" content="#000000" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Artcade" />
+<meta name="apple-mobile-web-app-title" content="deeley.org" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -26,22 +26,18 @@
   main {
     max-width: 720px;
     margin: 0 auto;
-    padding: 56px 24px 100px;
+    padding: 20px 24px 100px;
   }
-  header { margin-bottom: 24px; }
+  header {
+    margin-bottom: 20px;
+  }
   h1 {
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    font-size: 0.95rem;
-    text-transform: lowercase;
-    color: #6b6b78;
-    margin: 0 0 4px;
-  }
-  header p {
-    color: #46464f;
-    font-size: 0.65rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-size: clamp(2.2rem, 11vw, 4rem);
+    text-align: center;
+    color: #f2f2f5;
     margin: 0;
   }
   .section-bar {
@@ -158,25 +154,92 @@
     color: #46464f;
     font-size: 0.85rem;
   }
+  .hidden { display: none !important; }
+  .blurb {
+    color: #9a9aa4;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 4px 0 8px;
+  }
+  .blurb + .blurb { margin-top: 14px; }
+  a.link-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-decoration: none;
+    color: #f2f2f5;
+    padding: 16px 0;
+    border-bottom: 1px solid #141416;
+    transition: color 0.15s, padding-left 0.15s;
+  }
+  a.link-item:last-child { border-bottom: 0; }
+  a.link-item:hover, a.link-item:active {
+    color: #fff;
+    padding-left: 12px;
+  }
+  a.link-item h2 {
+    margin: 0;
+    font-weight: 800;
+    font-size: clamp(1.4rem, 5.5vw, 1.9rem);
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+  }
+  a.link-item p {
+    margin: 3px 0 0;
+    color: #5c5c68;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    line-height: 1.4;
+    transition: color 0.15s;
+  }
+  a.link-item:hover p, a.link-item:active p { color: #8c8c9a; }
+  a.link-item .arrow {
+    flex: 0 0 auto;
+    color: #46464f;
+    font-size: 1.4rem;
+    transition: color 0.15s;
+  }
+  a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
 </style>
 </head>
 <body>
-<main>
+<main id="mainView">
   <header>
-    <h1>artcade</h1>
-    <p>tap a name to open it</p>
+    <h1>Deeley.org</h1>
   </header>
-  <div id="newSection"></div>
   <div id="tabs"></div>
+  <div id="homeContent" class="hidden">
+    <p class="blurb">Thank you for coming to our website. This page is designed for folks who are site impaired so some of the graphics and visuals may be flashing or pulsing quickly. Be careful if you're somebody with epilepsy. I made all these things myself using ChatGPT, Claude, and Gemini. There are many downsides to AI, but it is fundamentally changed the way I can be creative. I hope you enjoy it.</p>
+
+    <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
+    <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
+      <div>
+        <h2>Substack</h2>
+        <p>@alexdeeley</p>
+      </div>
+      <span class="arrow">&#8599;</span>
+    </a>
+    <a class="link-item" href="https://www.instagram.com/_alexs_art_alt_/" target="_blank" rel="noopener noreferrer">
+      <div>
+        <h2>Instagram</h2>
+        <p>@_alexs_art_alt_</p>
+      </div>
+      <span class="arrow">&#8599;</span>
+    </a>
+  </div>
+  <div id="newSection"></div>
   <div id="appList"></div>
 </main>
 
 <script>
-const TABS = ["Games", "Art", "Music"];
+const TABS = ["Home", "Games", "Art", "Music"];
 const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
-let activeTab = "Games";
+let activeTab = "Home";
 // Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
 // toggling one section's sort doesn't affect others or survive a tab switch
 // into an unrelated section that happens to share a heading name.
@@ -185,7 +248,11 @@ let sectionSortMode = {};
 const NEW_COUNT = 3;
 let newestApps = [];
 
+const LAST_STATE_KEY = "deeley_last_state";
+
 async function main() {
+  restoreLastTab();
+
   const res = await fetch("./apps.json");
   apps = await res.json();
 
@@ -198,9 +265,36 @@ async function main() {
     .sort((a, b) => new Date(b.added) - new Date(a.added))
     .slice(0, NEW_COUNT);
 
-  renderNewSection();
   buildTabs();
-  renderList();
+  renderActiveTab();
+  restoreScroll();
+
+  window.addEventListener("pagehide", saveLastState);
+}
+
+function restoreLastTab() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(LAST_STATE_KEY) || "null");
+    if (saved && TABS.includes(saved.tab)) activeTab = saved.tab;
+  } catch (e) {}
+}
+
+function restoreScroll() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(LAST_STATE_KEY) || "null");
+    if (saved && typeof saved.scroll === "number") {
+      requestAnimationFrame(() => window.scrollTo(0, saved.scroll));
+    }
+  } catch (e) {}
+}
+
+// Runs right before navigating to an app (or closing the tab) so the back
+// button - which just links to index.html - lands back on the same tab and
+// scroll position, instead of always resetting to Games at the top.
+function saveLastState() {
+  try {
+    sessionStorage.setItem(LAST_STATE_KEY, JSON.stringify({ tab: activeTab, scroll: window.scrollY }));
+  } catch (e) {}
 }
 
 function renderNewSection() {
@@ -231,10 +325,20 @@ function buildTabs() {
     btn.addEventListener("click", () => {
       activeTab = tab;
       [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-      renderList();
+      renderActiveTab();
     });
     tabsEl.appendChild(btn);
   }
+}
+
+function renderActiveTab() {
+  const isHome = activeTab === "Home";
+  document.getElementById("homeContent").classList.toggle("hidden", !isHome);
+  document.getElementById("newSection").classList.toggle("hidden", isHome);
+  document.getElementById("appList").classList.toggle("hidden", isHome);
+  if (isHome) return;
+  renderNewSection();
+  renderList();
 }
 
 function renderList() {
