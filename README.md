@@ -504,27 +504,6 @@ and whatever gets added later), published together as a static site via
   human has to go to **Settings → Pages → Source → GitHub Actions** once —
   GitHub's API won't let a workflow token create a Pages site itself.
 
-### 17.1 Homepage: "Recently watched" (Letterboxd)
-
-The gallery's default **Home** tab can show a small "recently watched"
-widget backed by a public Letterboxd diary feed — no credentials needed.
-It's entirely optional: with `recent-films.json` absent,
-`renderRecentFilms()` in `index.html` just gets a 404 and skips rendering
-the section.
-
-- **`src/homepage/fetchRecentFilms.ts`** — fetches
-  `https://letterboxd.com/<username>/rss/`, regex-parses each `<item>`
-  (Letterboxd's feed is flat, non-nested XML, so a small dependency-free
-  parser is enough - no XML library needed), and writes `recent-films.json`
-  with up to 5 entries: title, year, star rating (when logged with one),
-  poster image (pulled out of the description's embedded `<img>`), and the
-  Letterboxd URL.
-- **`.github/workflows/homepage-letterboxd.yml`** — runs the script above
-  every 30 minutes and commits `recent-films.json` only if it changed. No
-  secrets needed.
-- The username is hardcoded in `fetchRecentFilms.ts` (`LETTERBOXD_USERNAME`)
-  since it's public, not sensitive - change it there directly if needed.
-
 ---
 
 ## 18. The music news wire

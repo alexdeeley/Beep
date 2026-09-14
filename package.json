@@ -22,7 +22,6 @@
     "news:publish": "tsx src/cli/index.ts news:publish",
     "news:status": "tsx src/cli/index.ts news:status",
     "news:deep-research": "tsx src/cli/index.ts news:deep-research",
-    "homepage:letterboxd-recent": "tsx src/cli/index.ts homepage:letterboxd-recent",
     "inspect": "tsx src/cli/index.ts inspect",
     "test": "vitest run",
     "test:watch": "vitest"
