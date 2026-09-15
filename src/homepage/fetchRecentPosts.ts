@@ -71,6 +71,12 @@ function parseItems(xml: string): RecentPost[] {
 // reuse that same browser context to request the feed directly. Going
 // through the context's request API rather than page.goto() for the feed
 // itself avoids Chromium's XML-viewer wrapping the raw bytes we need.
+//
+// waitUntil: "networkidle" is the wrong signal here - Cloudflare's
+// challenge page keeps background beacons alive so the network never goes
+// idle, even once the challenge itself has cleared in a few seconds. Wait
+// for concrete evidence instead: the document title stops being the
+// challenge's "Just a moment..." placeholder.
 async function fetchFeedXml(): Promise<string> {
   const browser = await chromium.launch();
   try {
@@ -79,7 +85,8 @@ async function fetchFeedXml(): Promise<string> {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     });
     const page = await context.newPage();
-    await page.goto(SUBSTACK_BASE_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(SUBSTACK_BASE_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForFunction(() => !document.title.includes("Just a moment"), { timeout: 45000 });
 
     const res = await context.request.get(SUBSTACK_FEED_URL);
     if (!res.ok()) {
