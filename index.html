@@ -211,35 +211,6 @@
   @media (min-width: 640px) {
     .home-split { grid-template-columns: 1fr 1fr; }
   }
-  a.post-item {
-    display: block;
-    text-decoration: none;
-    color: #f2f2f5;
-    padding: 14px 0;
-    border-bottom: 1px solid #141416;
-    transition: color 0.15s, padding-left 0.15s;
-  }
-  a.post-item:last-child { border-bottom: 0; }
-  a.post-item:hover, a.post-item:active {
-    color: #fff;
-    padding-left: 12px;
-  }
-  a.post-item .post-title {
-    font-weight: 800;
-    font-size: 1.05rem;
-    letter-spacing: -0.01em;
-    line-height: 1.25;
-  }
-  a.post-item .post-date {
-    margin-top: 3px;
-    color: #5c5c68;
-    font-size: 0.66rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-weight: 700;
-    transition: color 0.15s;
-  }
-  a.post-item:hover .post-date, a.post-item:active .post-date { color: #8c8c9a; }
 </style>
 </head>
 <body>
@@ -251,9 +222,7 @@
   <div id="homeContent" class="hidden">
     <div class="home-split">
       <div>
-        <p class="blurb">Thank you for coming to our website. This page is designed for folks who are site impaired so some of the graphics and visuals may be flashing or pulsing quickly. Be careful if you're somebody with epilepsy. I made all these things myself using ChatGPT, Claude, and Gemini. There are many downsides to AI, but it is fundamentally changed the way I can be creative. I hope you enjoy it.</p>
-
-        <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
+        <div class="list-heading">Elsewhere</div>
         <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
           <div>
             <h2>Substack</h2>
@@ -270,8 +239,9 @@
         </a>
       </div>
       <div>
-        <div class="list-heading">Latest posts</div>
-        <div id="recentPosts"></div>
+        <p class="blurb"><strong>Hi, I'm Alex.</strong> I'm an artist in the Pacific Northwest. I am legally blind and create art and tools which are designed to make creativity easier for folks with limited sight.</p>
+        <p class="blurb">These pieces, tools and experiments are purely my own. Some may be broken, some may not work in the way they should, so caveat emptor.</p>
+        <p class="blurb">Thank you for coming by!<br>&mdash; Alex</p>
       </div>
     </div>
   </div>
@@ -313,59 +283,8 @@ async function main() {
   buildTabs();
   renderActiveTab();
   restoreScroll();
-  renderRecentPosts();
 
   window.addEventListener("pagehide", saveLastState);
-}
-
-function formatPostDate(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-// recent-posts.json is refreshed every 30 minutes by homepage-substack.yml
-// from a public RSS feed - no credentials needed, so unlike the other
-// homepage widgets this one is always "configured." An empty posts array
-// just means nothing's been published yet, which gets its own message
-// rather than silently showing nothing, since the split-pane layout is
-// meant to be visible either way.
-async function renderRecentPosts() {
-  const el = document.getElementById("recentPosts");
-  let data = null;
-  try {
-    const res = await fetch("./recent-posts.json");
-    if (res.ok) data = await res.json();
-  } catch (e) {}
-
-  const posts = data && Array.isArray(data.posts) ? data.posts : [];
-  if (posts.length === 0) {
-    el.innerHTML = '<p class="empty">Nothing published yet — check back soon.</p>';
-    return;
-  }
-
-  el.innerHTML = "";
-  for (const post of posts) {
-    const item = document.createElement("a");
-    item.className = "post-item";
-    item.href = post.url;
-    item.target = "_blank";
-    item.rel = "noopener noreferrer";
-
-    const title = document.createElement("div");
-    title.className = "post-title";
-    title.textContent = post.title;
-    item.appendChild(title);
-
-    if (post.publishedAt) {
-      const date = document.createElement("div");
-      date.className = "post-date";
-      date.textContent = formatPostDate(post.publishedAt);
-      item.appendChild(date);
-    }
-
-    el.appendChild(item);
-  }
 }
 
 function restoreLastTab() {
