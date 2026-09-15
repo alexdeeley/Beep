@@ -203,6 +203,14 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
+  .home-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px 40px;
+  }
+  @media (min-width: 640px) {
+    .home-split { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -212,23 +220,30 @@
   </header>
   <div id="tabs"></div>
   <div id="homeContent" class="hidden">
-    <p class="blurb">Thank you for coming to our website. This page is designed for folks who are site impaired so some of the graphics and visuals may be flashing or pulsing quickly. Be careful if you're somebody with epilepsy. I made all these things myself using ChatGPT, Claude, and Gemini. There are many downsides to AI, but it is fundamentally changed the way I can be creative. I hope you enjoy it.</p>
-
-    <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
-    <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
+    <div class="home-split">
       <div>
-        <h2>Substack</h2>
-        <p>@alexdeeley</p>
+        <div class="list-heading">Elsewhere</div>
+        <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
+          <div>
+            <h2>Substack</h2>
+            <p>@alexdeeley</p>
+          </div>
+          <span class="arrow">&#8599;</span>
+        </a>
+        <a class="link-item" href="https://www.instagram.com/_alexs_art_alt_/" target="_blank" rel="noopener noreferrer">
+          <div>
+            <h2>Instagram</h2>
+            <p>@_alexs_art_alt_</p>
+          </div>
+          <span class="arrow">&#8599;</span>
+        </a>
       </div>
-      <span class="arrow">&#8599;</span>
-    </a>
-    <a class="link-item" href="https://www.instagram.com/_alexs_art_alt_/" target="_blank" rel="noopener noreferrer">
       <div>
-        <h2>Instagram</h2>
-        <p>@_alexs_art_alt_</p>
+        <p class="blurb"><strong>Hi, I'm Alex.</strong> I'm an artist in the Pacific Northwest. I am legally blind and create art and tools which are designed to make creativity easier for folks with limited sight.</p>
+        <p class="blurb">These pieces, tools and experiments are purely my own. Some may be broken, some may not work in the way they should, so caveat emptor.</p>
+        <p class="blurb">Thank you for coming by!<br>&mdash; Alex</p>
       </div>
-      <span class="arrow">&#8599;</span>
-    </a>
+    </div>
   </div>
   <div id="newSection"></div>
   <div id="appList"></div>
