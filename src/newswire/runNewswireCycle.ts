@@ -309,20 +309,32 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       logger.error("orchestrator", "Fact-check gate blocked publishing - one or more claims did not come back SUPPORTED", {
         claims: factCheck.claims,
       });
+      // Blocking the writer's prose edition is NOT the same as "the cycle produced nothing" - one or
+      // more of the mechanical posts above (playlist-watch, MUSIC NEWS, TOP MUSIC STORIES, etc.) may
+      // already have posted successfully this same cycle. Hardcoding "failed" here regardless of
+      // mechanicalPublishedCount (as this used to) made the CLI exit 1 - and GitHub Actions send a
+      // failure email - on every cycle where the fact-check gate correctly declined one unconfirmed
+      // detail, even when real content had already gone out. Same mechanicalPublishedCount > 0 check as
+      // silentResult and the real-publish branch below.
+      const publishStatus: NewswireCycleSummary["publishStatus"] = options.dryRun
+        ? "dry_run"
+        : mechanicalPublishedCount > 0
+          ? "published"
+          : "failed";
       finishHourlyRun(db, hourlyRun.id, {
         status: "failed",
         quiet_hours_outcome: quietDecision.outcome,
         candidates_found: candidates.length,
         candidates_rejected: candidatesRejected,
         final_edition_json: JSON.stringify(edition),
-        publish_status: "failed",
+        publish_status: publishStatus,
         error_message: "fact-check gate: not all material claims SUPPORTED",
       });
       return {
         hourlyRunId: hourlyRun.id,
         quietHoursOutcome: quietDecision.outcome,
         publishedPostCount: mechanicalPublishedCount,
-        publishStatus: "failed",
+        publishStatus,
         editionPreview: edition?.posts.map((p) => ({ text: p.text })) ?? null,
       };
     }
