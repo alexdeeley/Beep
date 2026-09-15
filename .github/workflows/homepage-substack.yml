@@ -1,0 +1,50 @@
+name: Homepage Substack recent posts
+
+# Refreshes recent-posts.json (the Home tab's "latest posts" widget) from
+# Substack's public RSS feed - no credentials needed. See
+# src/homepage/fetchRecentPosts.ts.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: homepage-substack
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch recent posts
+        run: npm run homepage:substack-recent
+
+      - name: Commit and push if changed
+        run: |
+          # git diff alone misses this on the very first run, when the file
+          # is new and untracked rather than modified - status catches both.
+          if [ -z "$(git status --porcelain -- recent-posts.json)" ]; then
+            echo "No change to recent-posts.json - nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add recent-posts.json
+          git commit -m "Refresh recent-posts.json"
+          git push
