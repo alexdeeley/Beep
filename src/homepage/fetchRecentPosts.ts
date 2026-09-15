@@ -1,5 +1,7 @@
 import { writeFile } from "node:fs/promises";
+import { chromium } from "playwright";
 
+const SUBSTACK_BASE_URL = "https://alexdeeley.substack.com/";
 const SUBSTACK_FEED_URL = "https://alexdeeley.substack.com/feed";
 const OUTPUT_PATH = "recent-posts.json";
 const POST_COUNT = 5;
@@ -60,12 +62,37 @@ function parseItems(xml: string): RecentPost[] {
   return posts;
 }
 
-export async function fetchAndSaveRecentPosts(): Promise<void> {
-  const res = await fetch(SUBSTACK_FEED_URL);
-  if (!res.ok) {
-    throw new Error(`Substack RSS fetch failed: ${res.status} ${await res.text()}`);
+// Substack fronts the RSS feed with a Cloudflare JS challenge that a plain
+// fetch() can never pass (confirmed live: GitHub Actions runner IPs get the
+// "Just a moment..." interstitial, a 403 with no usable body). A real
+// headless browser executes the challenge automatically like any visitor
+// would, so: load the actual publication page first (HTML, not XML - lets
+// the challenge clear and sets the clearance cookie on the context), then
+// reuse that same browser context to request the feed directly. Going
+// through the context's request API rather than page.goto() for the feed
+// itself avoids Chromium's XML-viewer wrapping the raw bytes we need.
+async function fetchFeedXml(): Promise<string> {
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    });
+    const page = await context.newPage();
+    await page.goto(SUBSTACK_BASE_URL, { waitUntil: "networkidle", timeout: 30000 });
+
+    const res = await context.request.get(SUBSTACK_FEED_URL);
+    if (!res.ok()) {
+      throw new Error(`Substack RSS fetch failed: ${res.status()} ${(await res.text()).slice(0, 300)}`);
+    }
+    return await res.text();
+  } finally {
+    await browser.close();
   }
-  const xml = await res.text();
+}
+
+export async function fetchAndSaveRecentPosts(): Promise<void> {
+  const xml = await fetchFeedXml();
   const posts = parseItems(xml);
 
   await writeFile(
