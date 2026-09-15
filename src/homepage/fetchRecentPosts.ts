@@ -77,12 +77,25 @@ function parseItems(xml: string): RecentPost[] {
 // idle, even once the challenge itself has cleared in a few seconds. Wait
 // for concrete evidence instead: the document title stops being the
 // challenge's "Just a moment..." placeholder.
+//
+// The title never cleared even across the wait above, though - Cloudflare's
+// JS challenge auto-solves only when it believes it's talking to a real
+// browser, and stock Playwright Chromium reports navigator.webdriver = true
+// (plus other automation tells), so the challenge just never fires its own
+// resolution script. --disable-blink-features=AutomationControlled plus
+// patching navigator.webdriver out before any page script runs is the
+// standard, minimal way around that.
 async function fetchFeedXml(): Promise<string> {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--disable-blink-features=AutomationControlled"],
+  });
   try {
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    });
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
     });
     const page = await context.newPage();
     await page.goto(SUBSTACK_BASE_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
