@@ -241,6 +241,42 @@
     font-size: 0.92rem;
     margin: 16px 0 4px;
   }
+  .hero-emoji {
+    font-size: 4rem;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  .art-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 10px 0 20px;
+  }
+  .art-strip a {
+    display: block;
+    text-decoration: none;
+    border: 1px solid #1c1c20;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .art-strip a:hover, .art-strip a:active { border-color: #4a4a54; }
+  .art-strip img {
+    display: block;
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    background: #141418;
+  }
+  .art-strip span {
+    display: block;
+    padding: 6px 8px;
+    color: #9a9aa4;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body>
@@ -269,6 +305,7 @@
         </a>
       </div>
       <div>
+        <div class="hero-emoji" role="img" aria-label="Person with a white cane">&#128104;&zwj;&#129455;</div>
         <p class="a11y-note"><strong>Accessibility note:</strong> This site includes flashing and strobing light effects. If you are sensitive to these effects, please do not continue. Individual project pages may also include additional content warnings where needed.</p>
 
         <p class="blurb">Thank you for visiting. My name is Alex Deeley. I am a legally blind artist based in the Pacific Northwest.</p>
@@ -297,6 +334,25 @@
 
         <div class="essay-heading">My process for visual art</div>
         <p class="blurb">I typically use an iPad and Apple Pencil for graphical work. My main tools include SketchClub, Procreate, and several custom-built apps that help me generate or repeat specific forms, patterns, and visual behaviors. Some of those tools are available on this site under the Art section.</p>
+
+        <div class="art-strip">
+          <a href="./SmoothWaveField.html">
+            <img src="./thumbnails/smooth-wave-field.jpg" alt="Wave Field — a bold orange and black triangle wave pattern" loading="lazy">
+            <span>Wave Field</span>
+          </a>
+          <a href="./HighContrastKaleidoscope.html">
+            <img src="./thumbnails/neo-high-contrast-kaleidoscope.jpg" alt="Contrast Kaleidoscope — stark black-and-white kaleidoscope" loading="lazy">
+            <span>Contrast Kaleidoscope</span>
+          </a>
+          <a href="./OrbitalDots.html">
+            <img src="./thumbnails/neo-orbital-dots.jpg" alt="Orbital Dots — a grid of glowing dots on a dark violet field" loading="lazy">
+            <span>Orbital Dots</span>
+          </a>
+          <a href="./SwipeStretchLines.html">
+            <img src="./thumbnails/neo-swipe-stretch-lines.jpg" alt="Stretch Lines — high-contrast vertical white lines on black" loading="lazy">
+            <span>Stretch Lines</span>
+          </a>
+        </div>
 
         <div class="essay-heading">My process for music</div>
         <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
