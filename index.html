@@ -28,17 +28,22 @@
     margin: 0 auto;
     padding: 20px 24px 100px;
   }
-  header {
-    margin-bottom: 20px;
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1c1c20;
   }
   h1 {
     font-family: Helvetica, Arial, sans-serif;
     font-weight: 700;
     letter-spacing: -0.03em;
-    font-size: clamp(2.2rem, 11vw, 4rem);
-    text-align: center;
+    font-size: clamp(0.95rem, 4.2vw, 2rem);
     color: #f2f2f5;
     margin: 0;
+    flex: 0 0 auto;
   }
   .section-bar {
     display: flex;
@@ -77,8 +82,9 @@
   #tabs {
     display: flex;
     gap: 4px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid #1c1c20;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
   }
   .tab {
     appearance: none;
@@ -88,10 +94,11 @@
     font-family: inherit;
     font-weight: 800;
     letter-spacing: -0.02em;
-    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    font-size: clamp(0.8rem, 3.6vw, 1.8rem);
     text-transform: lowercase;
-    padding: 6px 4px 12px;
-    margin-right: 22px;
+    white-space: nowrap;
+    padding: 6px 4px 10px;
+    margin-right: 12px;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color 0.15s, border-color 0.15s;
@@ -215,10 +222,10 @@
 </head>
 <body>
 <main id="mainView">
-  <header>
+  <div class="topbar">
     <h1>Deeley.org</h1>
-  </header>
-  <div id="tabs"></div>
+    <div id="tabs"></div>
+  </div>
   <div id="homeContent" class="hidden">
     <div class="home-split">
       <div>
