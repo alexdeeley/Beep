@@ -259,6 +259,77 @@
     line-height: 1.55;
     margin: 0 0 20px;
   }
+  .a2hs-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #2a2a30;
+    background: #0c0c0e;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+  }
+  .a2hs-banner .icon { font-size: 1.6rem; flex: 0 0 auto; line-height: 1; }
+  .a2hs-banner .text { flex: 1 1 auto; min-width: 0; }
+  .a2hs-banner .text strong { display: block; font-size: 0.85rem; color: #f2f2f5; }
+  .a2hs-banner .text span { display: block; font-size: 0.72rem; color: #6b6b78; margin-top: 2px; }
+  .a2hs-banner .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .a2hs-how {
+    appearance: none;
+    background: #f2f2f5;
+    color: #000;
+    border: 0;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .a2hs-dismiss {
+    appearance: none;
+    background: none;
+    border: 0;
+    color: #46464f;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .a2hs-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.86);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 100;
+  }
+  .a2hs-card {
+    width: min(90vw, 340px);
+    background: #0c0c0e;
+    border: 1px solid #2a2a30;
+    border-radius: 14px;
+    padding: 22px 20px;
+  }
+  .a2hs-card h3 { margin: 0 0 14px; font-size: 0.95rem; }
+  .a2hs-card ol { margin: 0 0 18px; padding-left: 20px; color: #b8b8c2; font-size: 0.82rem; line-height: 1.8; }
+  .a2hs-card ol .glyph { display: inline-block; padding: 1px 7px; border: 1px solid #4a4a54; border-radius: 5px; font-size: 0.9rem; margin: 0 2px; }
+  .a2hs-card button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2a2a30;
+    background: transparent;
+    color: #f2f2f5;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
   .essay-heading {
     color: #f2f2f5;
     font-weight: 800;
@@ -326,6 +397,28 @@
     <input type="search" id="appSearch" placeholder="Search apps by name or keyword&hellip;" autocomplete="off" />
   </div>
   <div id="homeContent" class="hidden">
+      <div id="a2hsBanner" class="a2hs-banner hidden">
+        <span class="icon">&#128241;</span>
+        <div class="text">
+          <strong>Add to Home Screen</strong>
+          <span>Get deeley.org as a full-screen app icon</span>
+        </div>
+        <div class="actions">
+          <button class="a2hs-how" id="a2hsHowBtn">How</button>
+          <button class="a2hs-dismiss" id="a2hsDismissBtn" aria-label="Dismiss">&times;</button>
+        </div>
+      </div>
+      <div class="a2hs-overlay hidden" id="a2hsOverlay">
+        <div class="a2hs-card">
+          <h3>Add to Home Screen</h3>
+          <ol>
+            <li>Tap the Share button <span class="glyph">&#8593;</span> in Safari's toolbar</li>
+            <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+            <li>Tap <strong>Add</strong> in the top right</li>
+          </ol>
+          <button id="a2hsCloseBtn">Got it</button>
+        </div>
+      </div>
       <div class="hero-row">
         <div class="hero-emoji" role="img" aria-label="Illustration of Alex: a man with brown hair, a beard, and glasses, wearing a plaid shirt, blue jeans, and AirPods, holding a white cane">
           <svg viewBox="0 0 100 150" aria-hidden="true" focusable="false">
@@ -506,6 +599,7 @@ async function main() {
   buildTabs();
   render();
   restoreScroll();
+  initAddToHomeScreen();
 
   document.getElementById("appSearch").addEventListener("input", (e) => {
     searchQuery = e.target.value;
@@ -551,6 +645,39 @@ function renderSearchResults() {
   }
 
   for (const app of matches) listEl.appendChild(buildItem(app));
+}
+
+const A2HS_DISMISSED_KEY = "deeley_a2hs_dismissed";
+
+// There's no cross-browser way to trigger the native "Add to Home Screen"
+// action from a button - Android/Chrome exposes beforeinstallprompt for
+// that, but iOS Safari deliberately does not let a page trigger it at all,
+// only the person tapping Share -> Add to Home Screen themselves. Since
+// that's the only real path on iOS, this just shows a banner pointing
+// at those exact steps rather than pretending to be a real install button.
+function initAddToHomeScreen() {
+  const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  let dismissed = false;
+  try {
+    dismissed = localStorage.getItem(A2HS_DISMISSED_KEY) === "1";
+  } catch (e) {}
+
+  if (isStandalone || dismissed) return;
+
+  document.getElementById("a2hsBanner").classList.remove("hidden");
+
+  const overlay = document.getElementById("a2hsOverlay");
+  document.getElementById("a2hsHowBtn").addEventListener("click", () => overlay.classList.remove("hidden"));
+  document.getElementById("a2hsCloseBtn").addEventListener("click", () => overlay.classList.add("hidden"));
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.classList.add("hidden");
+  });
+  document.getElementById("a2hsDismissBtn").addEventListener("click", () => {
+    document.getElementById("a2hsBanner").classList.add("hidden");
+    try {
+      localStorage.setItem(A2HS_DISMISSED_KEY, "1");
+    } catch (e) {}
+  });
 }
 
 function restoreLastTab() {
