@@ -225,6 +225,17 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
+  #musicSpecial { margin-bottom: 4px; }
+  a.special-link {
+    border: 1px solid #3a2a1a;
+    background: #14100a;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 4px;
+  }
+  a.special-link:last-child { border-bottom: 1px solid #3a2a1a; }
+  a.special-link:hover, a.special-link:active { border-color: #6b4a1a; padding-left: 16px; }
+  a.special-link .arrow { color: #c9a877; font-size: 1.6rem; }
   .site-footer {
     margin-top: 36px;
     padding-top: 16px;
@@ -447,6 +458,15 @@
 
         <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
   </div>
+  <div id="musicSpecial" class="hidden">
+    <a class="link-item special-link" href="JamSession.html">
+      <div>
+        <h2>&#127925; Jam Session</h2>
+        <p>Play a drum machine and a synth together, side by side</p>
+      </div>
+      <span class="arrow">&#8250;</span>
+    </a>
+  </div>
   <div id="newSection"></div>
   <div id="appList"></div>
 </main>
@@ -508,6 +528,7 @@ function render() {
 
 function renderSearchResults() {
   document.getElementById("homeContent").classList.add("hidden");
+  document.getElementById("musicSpecial").classList.add("hidden");
   const newSectionEl = document.getElementById("newSection");
   newSectionEl.classList.add("hidden");
   newSectionEl.innerHTML = "";
@@ -598,6 +619,7 @@ function renderActiveTab() {
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
   document.getElementById("appList").classList.toggle("hidden", isHome);
+  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Music");
   if (isHome) return;
   renderNewSection();
   renderList();
