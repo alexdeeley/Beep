@@ -108,6 +108,21 @@
     border-bottom-color: #fff;
   }
   .tab:hover { color: #b8b8c2; }
+  .search-bar { margin-bottom: 14px; }
+  #appSearch {
+    width: 100%;
+    background: #0c0c0e;
+    border: 1px solid #2a2a30;
+    color: #f2f2f5;
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #appSearch::placeholder { color: #5c5c68; }
+  #appSearch:focus { border-color: #6b6b78; }
   #appList {
     display: flex;
     flex-direction: column;
@@ -285,6 +300,9 @@
     <h1>Deeley.org</h1>
     <div id="tabs"></div>
   </div>
+  <div class="search-bar">
+    <input type="search" id="appSearch" placeholder="Search apps by name or keyword&hellip;" autocomplete="off" />
+  </div>
   <div id="homeContent" class="hidden">
     <div class="home-split">
       <div>
@@ -376,6 +394,7 @@ const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
 let activeTab = "Home";
+let searchQuery = "";
 // Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
 // toggling one section's sort doesn't affect others or survive a tab switch
 // into an unrelated section that happens to share a heading name.
@@ -402,10 +421,52 @@ async function main() {
     .slice(0, NEW_COUNT);
 
   buildTabs();
-  renderActiveTab();
+  render();
   restoreScroll();
 
+  document.getElementById("appSearch").addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    render();
+  });
+
   window.addEventListener("pagehide", saveLastState);
+}
+
+// Search takes over the content area regardless of which tab is active -
+// it searches across every app, not just the current tab's category - and
+// hands back to the normal tab view the moment the query is cleared.
+function render() {
+  if (searchQuery.trim()) {
+    renderSearchResults();
+  } else {
+    renderActiveTab();
+  }
+}
+
+function renderSearchResults() {
+  document.getElementById("homeContent").classList.add("hidden");
+  const newSectionEl = document.getElementById("newSection");
+  newSectionEl.classList.add("hidden");
+  newSectionEl.innerHTML = "";
+
+  const listEl = document.getElementById("appList");
+  listEl.classList.remove("hidden");
+  listEl.innerHTML = "";
+
+  const q = searchQuery.trim().toLowerCase();
+  const matches = apps
+    .filter((app) => `${app.name} ${app.description} ${app.category}`.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+  if (matches.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = `No apps match "${searchQuery.trim()}".`;
+    listEl.appendChild(empty);
+    return;
+  }
+
+  for (const app of matches) listEl.appendChild(buildItem(app));
 }
 
 function restoreLastTab() {
@@ -460,8 +521,10 @@ function buildTabs() {
     btn.dataset.tab = tab;
     btn.addEventListener("click", () => {
       activeTab = tab;
+      searchQuery = "";
+      document.getElementById("appSearch").value = "";
       [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-      renderActiveTab();
+      render();
     });
     tabsEl.appendChild(btn);
   }
