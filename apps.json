@@ -1416,5 +1416,16 @@
     "path": "ShapesMatch3.html",
     "added": "2026-09-18T00:00:00+00:00",
     "thumbnail": "thumbnails/shape-match.jpg"
+  },
+  {
+    "id": "jam-session",
+    "name": "Jam Session",
+    "description": "Pick any drum machine and any synth and run them side by side, so you can play both at once.",
+    "category": "Music Tools",
+    "featured": true,
+    "featuredOrder": 0,
+    "path": "JamSession.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/jam-session.jpg"
   }
 ]

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Jam Session</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: #f2f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: max(10px, env(safe-area-inset-top)) 14px 10px 54px;
+    border-bottom: 1px solid #1c1c20;
+  }
+  h1 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    flex: 0 0 auto;
+  }
+  .picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
+  .picker label {
+    color: #6b6b78;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex: 0 0 auto;
+  }
+  select {
+    flex: 1 1 auto;
+    min-width: 0;
+    appearance: none;
+    background: #0c0c0e;
+    border: 1px solid #2a2a30;
+    color: #f2f2f5;
+    font-family: inherit;
+    font-size: 0.78rem;
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+  #panes {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+  }
+  @media (max-width: 640px) {
+    #panes { flex-direction: column; }
+  }
+  .pane {
+    flex: 1 1 50%;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+  }
+  .pane + .pane {
+    border-left: 1px solid #1c1c20;
+  }
+  @media (max-width: 640px) {
+    .pane + .pane {
+      border-left: 0;
+      border-top: 1px solid #1c1c20;
+    }
+  }
+  .pane iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #000;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #46464f;
+    font-size: 0.8rem;
+    padding: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>Jam Session</h1>
+    <div class="picker">
+      <label for="drumSelect">Drums</label>
+      <select id="drumSelect"></select>
+    </div>
+    <div class="picker">
+      <label for="synthSelect">Synth</label>
+      <select id="synthSelect"></select>
+    </div>
+  </header>
+  <div id="panes">
+    <div class="pane" id="drumPane"><p class="empty">Loading&hellip;</p></div>
+    <div class="pane" id="synthPane"><p class="empty">Loading&hellip;</p></div>
+  </div>
+</div>
+
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+
+// Each tool below is a fully independent page with its own Web Audio
+// context - two of them loaded in side-by-side iframes just mix together
+// naturally through the OS/browser's audio output, no special wiring
+// needed. The one thing that DOES need handling: every tool carries its
+// own beep-back button (same snippet as everywhere else on the site),
+// which inside an iframe would navigate that iframe away rather than
+// returning to the gallery - so once each frame loads, its back button
+// is hidden (same-origin, so reaching into the iframe's DOM is allowed).
+const LAST_CHOICE_KEY = "deeley_jam_last_choice";
+
+const drumSelect = document.getElementById("drumSelect");
+const synthSelect = document.getElementById("synthSelect");
+const drumPane = document.getElementById("drumPane");
+const synthPane = document.getElementById("synthPane");
+
+function loadPane(pane, path) {
+  pane.innerHTML = "";
+  if (!path) {
+    pane.innerHTML = '<p class="empty">Nothing here yet.</p>';
+    return;
+  }
+  const iframe = document.createElement("iframe");
+  iframe.src = "./" + path;
+  iframe.title = path;
+  iframe.addEventListener("load", () => {
+    try {
+      const back = iframe.contentDocument.getElementById("beep-back");
+      if (back) back.style.display = "none";
+    } catch (e) {}
+  });
+  pane.appendChild(iframe);
+}
+
+function populateSelect(selectEl, list) {
+  selectEl.innerHTML = "";
+  for (const app of list) {
+    const opt = document.createElement("option");
+    opt.value = app.path;
+    opt.textContent = app.name;
+    selectEl.appendChild(opt);
+  }
+}
+
+function saveLastChoice() {
+  try {
+    sessionStorage.setItem(LAST_CHOICE_KEY, JSON.stringify({ drum: drumSelect.value, synth: synthSelect.value }));
+  } catch (e) {}
+}
+function restoreLastChoice() {
+  try {
+    return JSON.parse(sessionStorage.getItem(LAST_CHOICE_KEY) || "null");
+  } catch (e) {
+    return null;
+  }
+}
+
+async function main() {
+  const res = await fetch("./apps.json");
+  const apps = await res.json();
+  const music = apps.filter((a) => a.category === "Music Tools");
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const drums = music.filter((a) => a.musicGroup === "drum").sort(byName);
+  const synths = music.filter((a) => a.musicGroup === "synth").sort(byName);
+
+  populateSelect(drumSelect, drums);
+  populateSelect(synthSelect, synths);
+
+  const saved = restoreLastChoice();
+  if (saved && drums.some((a) => a.path === saved.drum)) drumSelect.value = saved.drum;
+  if (saved && synths.some((a) => a.path === saved.synth)) synthSelect.value = saved.synth;
+
+  loadPane(drumPane, drumSelect.value);
+  loadPane(synthPane, synthSelect.value);
+
+  drumSelect.addEventListener("change", () => {
+    loadPane(drumPane, drumSelect.value);
+    saveLastChoice();
+  });
+  synthSelect.addEventListener("change", () => {
+    loadPane(synthPane, synthSelect.value);
+    saveLastChoice();
+  });
+}
+
+main();
+})();
+</script>
+
+</body>
+</html>
