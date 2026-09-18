@@ -256,11 +256,20 @@
     font-size: 0.92rem;
     margin: 16px 0 4px;
   }
-  .hero-emoji {
-    line-height: 1;
-    margin-bottom: 12px;
+  .hero-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
   }
-  .hero-emoji svg { display: block; width: 76px; height: auto; }
+  @media (min-width: 480px) {
+    .hero-row { flex-direction: row; align-items: center; }
+    .hero-row .hero-emoji { flex: 0 0 25%; max-width: 25%; }
+    .hero-row .a11y-note { flex: 1 1 0; margin: 0; }
+  }
+  .hero-emoji { line-height: 1; }
+  .hero-emoji svg { display: block; width: 76px; max-width: 100%; height: auto; }
   .art-strip {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -304,6 +313,7 @@
     <input type="search" id="appSearch" placeholder="Search apps by name or keyword&hellip;" autocomplete="off" />
   </div>
   <div id="homeContent" class="hidden">
+      <div class="hero-row">
         <div class="hero-emoji" role="img" aria-label="Illustration of Alex: a man with brown hair, a beard, and glasses, wearing a plaid shirt, blue jeans, and AirPods, holding a white cane">
           <svg viewBox="0 0 100 150" aria-hidden="true" focusable="false">
             <line x1="74" y1="92" x2="87" y2="147" stroke="#e7e7ea" stroke-width="3" stroke-linecap="round"/>
@@ -359,6 +369,7 @@
           </svg>
         </div>
         <p class="a11y-note"><strong>Accessibility note:</strong> This site includes flashing and strobing light effects. If you are sensitive to these effects, please do not continue. Individual project pages may also include additional content warnings where needed.</p>
+      </div>
 
         <p class="blurb">Thank you for visiting. My name is Alex Deeley. I am a legally blind artist based in the Pacific Northwest.</p>
         <p class="blurb">I have retinitis pigmentosa, and my vision shapes the way I work. Much of what I create relies on contrast, saturation, movement, and visual intensity. My work often explores what remains visible, what breaks apart, and what demands attention when sight is partial, unstable, or changing.</p>
