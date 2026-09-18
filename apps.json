@@ -1427,5 +1427,14 @@
     "path": "JamSession.html",
     "added": "2026-09-18T00:00:00+00:00",
     "thumbnail": "thumbnails/jam-session.jpg"
+  },
+  {
+    "id": "oscillon",
+    "name": "Oscillon",
+    "description": "A Lissajous curve that automatically speeds up, weaving denser and denser patterns.",
+    "category": "Art",
+    "path": "Oscillon.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/oscillon.jpg"
   }
 ]
