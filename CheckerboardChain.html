@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Checkerboard Chain</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  :root { color-scheme: light dark; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    background: #000000;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100dvh;
+    touch-action: none;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="board"></canvas>
+<script>
+(function() {
+  "use strict";
+
+  var COLS = 30;
+  var ROWS = 40;
+  var BASE_TICK = 115;   // ms, base unit for both flip timing and flip animation length
+
+  function randTick() {
+    // random multiple of the base tick, between 0.5x and 1.5x
+    return BASE_TICK * (0.5 + Math.random());
+  }
+
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
+
+  var dpr = Math.max(1, window.devicePixelRatio || 1);
+  var cssW = 0, cssH = 0, cellSize = 0, offsetX = 0, offsetY = 0;
+
+  // 0 = black, 1 = white — board starts, and always settles back to, all white
+  var state = new Uint8Array(ROWS * COLS);
+  state.fill(1);
+  var needsReset = false;
+
+  function colorFor(v) { return v ? '#FFFFFF' : '#000000'; }
+
+  function resize() {
+    cssW = window.innerWidth;
+    cssH = window.innerHeight;
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Cells are always perfect squares: size to the tighter dimension and
+    // letterbox any leftover space (filled with black, no border/decoration).
+    cellSize = Math.min(cssW / COLS, cssH / ROWS);
+    offsetX = (cssW - cellSize * COLS) / 2;
+    offsetY = (cssH - cellSize * ROWS) / 2;
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    drawAll();
+  }
+
+  function drawAll() {
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        drawCellSolid(r, c, state[r * COLS + c]);
+      }
+    }
+  }
+
+  function drawCellSolid(r, c, v) {
+    var x = offsetX + c * cellSize, y = offsetY + r * cellSize;
+    ctx.fillStyle = colorFor(v);
+    // slight overscan to avoid subpixel seams between cells
+    ctx.fillRect(Math.floor(x) - 0.5, Math.floor(y) - 0.5, Math.ceil(cellSize) + 1, Math.ceil(cellSize) + 1);
+  }
+
+  // ---- Flip animation state ----
+  // Map key "r,c" -> {start, from, to}
+  var animating = new Map();
+
+  // ---- Click sound ----
+  var audioCtx = null;
+  var noiseBuffer = null;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function getNoiseBuffer() {
+    if (noiseBuffer) return noiseBuffer;
+    var duration = 0.03;
+    var length = Math.max(1, Math.floor(audioCtx.sampleRate * duration));
+    var buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    noiseBuffer = buffer;
+    return buffer;
+  }
+
+  function playClick() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    var now = audioCtx.currentTime;
+
+    var src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 1800 + Math.random() * 2200;
+
+    var gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    src.start(now);
+    src.stop(now + 0.04);
+  }
+
+  function flipCell(r, c) {
+    var idx = r * COLS + c;
+    var prev = state[idx];
+    var next = 1 - prev;
+    state[idx] = next;
+    var key = r * COLS + c;
+    needsReset = true;
+    playClick();
+    animating.set(key, {
+      r: r, c: c,
+      start: performance.now(),
+      duration: randTick(),
+      from: colorFor(prev),
+      to: colorFor(next)
+    });
+  }
+
+  function renderAnimations(now) {
+    animating.forEach(function(anim, key) {
+      var t = (now - anim.start) / anim.duration;
+      var x = offsetX + anim.c * cellSize, y = offsetY + anim.r * cellSize;
+      var w = Math.ceil(cellSize) + 1, h = Math.ceil(cellSize) + 1;
+      var px = Math.floor(x) - 0.5, py = Math.floor(y) - 0.5;
+
+      if (t >= 1) {
+        ctx.fillStyle = anim.to;
+        ctx.fillRect(px, py, w, h);
+        animating.delete(key);
+        return;
+      }
+
+      // background fill (page-neutral: white) then scaled colored rect
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(px, py, w, h);
+
+      var scaleX = Math.abs(Math.cos(Math.PI * t));
+      var color = t < 0.5 ? anim.from : anim.to;
+      var rectW = w * scaleX;
+      var rectX = px + (w - rectW) / 2;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(rectX, py, rectW, h);
+    });
+  }
+
+  // ---- Ripple logic ----
+  // Each touch/swipe starts an independent wave. Every cell that flips
+  // schedules its own onward pulse to each unvisited neighbor, with a
+  // randomized delay rolled at the moment of that flip — so the ripple
+  // spreads outward with organic, uneven timing rather than in lockstep rings.
+  var pulses = []; // { r, c, fireTime, visited }
+  var NEIGHBOR_OFFSETS = [
+    { dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: -1, dc: 1 },
+    { dr: 0, dc: -1 },                     { dr: 0, dc: 1 },
+    { dr: 1, dc: -1 },  { dr: 1, dc: 0 },  { dr: 1, dc: 1 }
+  ];
+
+  function inBounds(r, c) {
+    return r >= 0 && r < ROWS && c >= 0 && c < COLS;
+  }
+
+  function startWave(r, c) {
+    var visited = new Set([r * COLS + c]);
+    flipCell(r, c);
+    pulses.push({ r: r, c: c, fireTime: performance.now() + randTick(), visited: visited });
+  }
+
+  function stepWaves(now) {
+    for (var i = pulses.length - 1; i >= 0; i--) {
+      var p = pulses[i];
+      if (now < p.fireTime) continue;
+      pulses.splice(i, 1);
+
+      for (var n = 0; n < NEIGHBOR_OFFSETS.length; n++) {
+        var off = NEIGHBOR_OFFSETS[n];
+        var nr = p.r + off.dr, nc = p.c + off.dc;
+        if (!inBounds(nr, nc)) continue;
+        var key = nr * COLS + nc;
+        if (p.visited.has(key)) continue;
+        p.visited.add(key);
+        flipCell(nr, nc);
+        pulses.push({ r: nr, c: nc, fireTime: now + randTick(), visited: p.visited });
+      }
+    }
+  }
+
+  // ---- Main loop ----
+  function resetToWhite() {
+    state.fill(1);
+    animating.clear();
+    needsReset = false;
+    drawAll();
+  }
+
+  function loop(now) {
+    stepWaves(now);
+    renderAnimations(now);
+    if (needsReset && pulses.length === 0 && animating.size === 0) {
+      resetToWhite();
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---- Input handling ----
+  function cellFromPoint(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var x = clientX - rect.left - offsetX;
+    var y = clientY - rect.top - offsetY;
+    var c = Math.floor(x / cellSize);
+    var r = Math.floor(y / cellSize);
+    if (c < 0) c = 0; if (c >= COLS) c = COLS - 1;
+    if (r < 0) r = 0; if (r >= ROWS) r = ROWS - 1;
+    return { r: r, c: c };
+  }
+
+  var pointerLastCell = new Map(); // pointerId -> {r,c}
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    ensureAudio();
+    var cell = cellFromPoint(e.clientX, e.clientY);
+    pointerLastCell.set(e.pointerId, cell);
+    startWave(cell.r, cell.c);
+  }
+
+  function onPointerMove(e) {
+    if (!pointerLastCell.has(e.pointerId)) return;
+    e.preventDefault();
+    var cell = cellFromPoint(e.clientX, e.clientY);
+    var last = pointerLastCell.get(e.pointerId);
+    if (last.r !== cell.r || last.c !== cell.c) {
+      pointerLastCell.set(e.pointerId, cell);
+      startWave(cell.r, cell.c);
+    }
+  }
+
+  function onPointerUp(e) {
+    pointerLastCell.delete(e.pointerId);
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
+  canvas.addEventListener('pointermove', onPointerMove, { passive: false });
+  canvas.addEventListener('pointerup', onPointerUp, { passive: false });
+  canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
+  canvas.addEventListener('pointerleave', onPointerUp, { passive: false });
+
+  document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+  document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  resize();
+})();
+</script>
+</body>
+</html>
