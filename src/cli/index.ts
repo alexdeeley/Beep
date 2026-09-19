@@ -25,7 +25,6 @@ import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
-import { fetchAndSaveRecentPosts } from "../homepage/fetchRecentPosts.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -248,13 +247,6 @@ program
       return;
     }
     console.log(JSON.stringify(data, null, 2));
-  });
-
-program
-  .command("homepage:substack-recent")
-  .description("Refresh recent-posts.json from Substack's public RSS feed for the homepage widget")
-  .action(async () => {
-    await fetchAndSaveRecentPosts();
   });
 
 program.parseAsync(process.argv).catch((err) => {

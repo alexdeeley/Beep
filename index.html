@@ -28,17 +28,22 @@
     margin: 0 auto;
     padding: 20px 24px 100px;
   }
-  header {
-    margin-bottom: 20px;
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1c1c20;
   }
   h1 {
     font-family: Helvetica, Arial, sans-serif;
     font-weight: 700;
     letter-spacing: -0.03em;
-    font-size: clamp(2.2rem, 11vw, 4rem);
-    text-align: center;
+    font-size: clamp(0.95rem, 4.2vw, 2rem);
     color: #f2f2f5;
     margin: 0;
+    flex: 0 0 auto;
   }
   .section-bar {
     display: flex;
@@ -77,8 +82,9 @@
   #tabs {
     display: flex;
     gap: 4px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid #1c1c20;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
   }
   .tab {
     appearance: none;
@@ -88,10 +94,11 @@
     font-family: inherit;
     font-weight: 800;
     letter-spacing: -0.02em;
-    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    font-size: clamp(0.8rem, 3.6vw, 1.8rem);
     text-transform: lowercase;
-    padding: 6px 4px 12px;
-    margin-right: 22px;
+    white-space: nowrap;
+    padding: 6px 4px 10px;
+    margin-right: 12px;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color 0.15s, border-color 0.15s;
@@ -101,6 +108,21 @@
     border-bottom-color: #fff;
   }
   .tab:hover { color: #b8b8c2; }
+  .search-bar { margin-bottom: 14px; }
+  #appSearch {
+    width: 100%;
+    background: #0c0c0e;
+    border: 1px solid #2a2a30;
+    color: #f2f2f5;
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #appSearch::placeholder { color: #5c5c68; }
+  #appSearch:focus { border-color: #6b6b78; }
   #appList {
     display: flex;
     flex-direction: column;
@@ -203,55 +225,313 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
-  .home-split {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px 40px;
+  #musicSpecial { margin-bottom: 4px; }
+  a.special-link {
+    border: 1px solid #3a2a1a;
+    background: #14100a;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 4px;
   }
-  @media (min-width: 640px) {
-    .home-split { grid-template-columns: 1fr 1fr; }
+  a.special-link:last-child { border-bottom: 1px solid #3a2a1a; }
+  a.special-link:hover, a.special-link:active { border-color: #6b4a1a; padding-left: 16px; }
+  a.special-link .arrow { color: #c9a877; font-size: 1.6rem; }
+  .site-footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid #1c1c20;
+    color: #46464f;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
-  a.post-item {
-    display: block;
-    text-decoration: none;
+  .site-footer img { display: block; opacity: 0.75; }
+  .a11y-note {
+    border-left: 3px solid #6b4a1a;
+    background: #16130d;
+    color: #c9a877;
+    padding: 12px 14px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+  }
+  .a2hs-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #2a2a30;
+    background: #0c0c0e;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+  }
+  .a2hs-banner .icon { font-size: 1.6rem; flex: 0 0 auto; line-height: 1; }
+  .a2hs-banner .text { flex: 1 1 auto; min-width: 0; }
+  .a2hs-banner .text strong { display: block; font-size: 0.85rem; color: #f2f2f5; }
+  .a2hs-banner .text span { display: block; font-size: 0.72rem; color: #6b6b78; margin-top: 2px; }
+  .a2hs-banner .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .a2hs-how {
+    appearance: none;
+    background: #f2f2f5;
+    color: #000;
+    border: 0;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .a2hs-dismiss {
+    appearance: none;
+    background: none;
+    border: 0;
+    color: #46464f;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .a2hs-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.86);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 100;
+  }
+  .a2hs-card {
+    width: min(90vw, 340px);
+    background: #0c0c0e;
+    border: 1px solid #2a2a30;
+    border-radius: 14px;
+    padding: 22px 20px;
+  }
+  .a2hs-card h3 { margin: 0 0 14px; font-size: 0.95rem; }
+  .a2hs-card ol { margin: 0 0 18px; padding-left: 20px; color: #b8b8c2; font-size: 0.82rem; line-height: 1.8; }
+  .a2hs-card ol .glyph { display: inline-block; padding: 1px 7px; border: 1px solid #4a4a54; border-radius: 5px; font-size: 0.9rem; margin: 0 2px; }
+  .a2hs-card button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2a2a30;
+    background: transparent;
     color: #f2f2f5;
-    padding: 14px 0;
-    border-bottom: 1px solid #141416;
-    transition: color 0.15s, padding-left 0.15s;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
   }
-  a.post-item:last-child { border-bottom: 0; }
-  a.post-item:hover, a.post-item:active {
-    color: #fff;
-    padding-left: 12px;
-  }
-  a.post-item .post-title {
+  .essay-heading {
+    color: #f2f2f5;
     font-weight: 800;
     font-size: 1.05rem;
     letter-spacing: -0.01em;
-    line-height: 1.25;
+    margin: 28px 0 10px;
   }
-  a.post-item .post-date {
-    margin-top: 3px;
-    color: #5c5c68;
+  .step-heading {
+    color: #f2f2f5;
+    font-weight: 700;
+    font-size: 0.92rem;
+    margin: 16px 0 4px;
+  }
+  .hero-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .hero-row .hero-emoji { flex: 0 0 40%; max-width: 40%; }
+  .hero-row .a11y-note { flex: 1 1 0; margin: 0; }
+  .hero-emoji { line-height: 1; }
+  .hero-emoji svg { display: block; width: 100%; max-width: 130px; height: auto; }
+  .art-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 10px 0 20px;
+  }
+  .art-strip a {
+    display: block;
+    text-decoration: none;
+    border: 1px solid #1c1c20;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .art-strip a:hover, .art-strip a:active { border-color: #4a4a54; }
+  .art-strip img {
+    display: block;
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    background: #141418;
+  }
+  .art-strip span {
+    display: block;
+    padding: 6px 8px;
+    color: #9a9aa4;
     font-size: 0.66rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     font-weight: 700;
-    transition: color 0.15s;
   }
-  a.post-item:hover .post-date, a.post-item:active .post-date { color: #8c8c9a; }
 </style>
 </head>
 <body>
 <main id="mainView">
-  <header>
+  <div class="topbar">
     <h1>Deeley.org</h1>
-  </header>
-  <div id="tabs"></div>
+    <div id="tabs"></div>
+  </div>
+  <div class="search-bar">
+    <input type="search" id="appSearch" placeholder="Search apps by name or keyword&hellip;" autocomplete="off" />
+  </div>
   <div id="homeContent" class="hidden">
-    <div class="home-split">
-      <div>
-        <p class="blurb">Thank you for coming to our website. This page is designed for folks who are site impaired so some of the graphics and visuals may be flashing or pulsing quickly. Be careful if you're somebody with epilepsy. I made all these things myself using ChatGPT, Claude, and Gemini. There are many downsides to AI, but it is fundamentally changed the way I can be creative. I hope you enjoy it.</p>
+      <div id="a2hsBanner" class="a2hs-banner hidden">
+        <span class="icon">&#128241;</span>
+        <div class="text">
+          <strong>Add to Home Screen</strong>
+          <span>Get deeley.org as a full-screen app icon</span>
+        </div>
+        <div class="actions">
+          <button class="a2hs-how" id="a2hsHowBtn">How</button>
+          <button class="a2hs-dismiss" id="a2hsDismissBtn" aria-label="Dismiss">&times;</button>
+        </div>
+      </div>
+      <div class="a2hs-overlay hidden" id="a2hsOverlay">
+        <div class="a2hs-card">
+          <h3>Add to Home Screen</h3>
+          <ol>
+            <li>Tap the Share button <span class="glyph">&#8593;</span> in Safari's toolbar</li>
+            <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+            <li>Tap <strong>Add</strong> in the top right</li>
+          </ol>
+          <button id="a2hsCloseBtn">Got it</button>
+        </div>
+      </div>
+      <div class="hero-row">
+        <div class="hero-emoji" role="img" aria-label="Illustration of Alex: a man with brown hair, a beard, and glasses, wearing a plaid shirt, blue jeans, and AirPods, holding a white cane">
+          <svg viewBox="0 0 100 150" aria-hidden="true" focusable="false">
+            <line x1="74" y1="92" x2="87" y2="147" stroke="#e7e7ea" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="87" cy="147" r="2.5" fill="#c9c9d0"/>
+
+            <rect x="38" y="98" width="12" height="40" rx="4" fill="#39547a"/>
+            <rect x="52" y="98" width="12" height="40" rx="4" fill="#2f4666"/>
+            <line x1="44" y1="100" x2="44" y2="136" stroke="#24344c" stroke-width="1"/>
+            <line x1="58" y1="100" x2="58" y2="136" stroke="#1c2940" stroke-width="1"/>
+            <rect x="36" y="136" width="16" height="7" rx="3" fill="#1c1c20"/>
+            <rect x="50" y="136" width="16" height="7" rx="3" fill="#141418"/>
+
+            <rect x="23" y="59" width="10" height="34" rx="5" fill="#7a2c2c"/>
+            <circle cx="28" cy="95" r="5.5" fill="#dba179"/>
+            <rect x="69" y="59" width="10" height="34" rx="5" fill="#7a2c2c"/>
+            <circle cx="74" cy="95" r="5.5" fill="#dba179"/>
+
+            <rect x="32" y="58" width="40" height="42" rx="6" fill="#8a3232"/>
+            <g stroke="#2a2020" stroke-width="1.4" opacity="0.55">
+              <line x1="32" y1="70" x2="72" y2="70"/>
+              <line x1="32" y1="82" x2="72" y2="82"/>
+              <line x1="32" y1="94" x2="72" y2="94"/>
+              <line x1="44" y1="58" x2="44" y2="100"/>
+              <line x1="60" y1="58" x2="60" y2="100"/>
+            </g>
+            <g stroke="#c98f6b" stroke-width="0.8" opacity="0.5">
+              <line x1="32" y1="64" x2="72" y2="64"/>
+              <line x1="32" y1="88" x2="72" y2="88"/>
+              <line x1="38" y1="58" x2="38" y2="100"/>
+              <line x1="66" y1="58" x2="66" y2="100"/>
+            </g>
+
+            <rect x="45" y="48" width="10" height="10" fill="#dba179"/>
+            <circle cx="34" cy="35" r="3" fill="#dba179"/>
+            <circle cx="66" cy="35" r="3" fill="#dba179"/>
+
+            <ellipse cx="50" cy="41" rx="17" ry="17" fill="#5b3a29"/>
+            <circle cx="50" cy="34" r="16" fill="#e0ac82"/>
+            <path d="M34,26 Q34,10 50,9 Q66,10 66,26 Q66,17 50,15 Q34,17 34,26 Z" fill="#5b3a29"/>
+
+            <circle cx="43" cy="33" r="6.5" fill="rgba(255,255,255,0.08)" stroke="#1a1a1a" stroke-width="2"/>
+            <circle cx="57" cy="33" r="6.5" fill="rgba(255,255,255,0.08)" stroke="#1a1a1a" stroke-width="2"/>
+            <line x1="49.5" y1="33" x2="50.5" y2="33" stroke="#1a1a1a" stroke-width="2"/>
+            <line x1="36.5" y1="31" x2="32" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+            <line x1="63.5" y1="31" x2="68" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+
+            <g fill="#f2f2f5">
+              <ellipse cx="32" cy="37" rx="2.4" ry="3.6"/>
+              <rect x="30.5" y="39" width="1.6" height="6" rx="0.8" transform="rotate(-10 31.3 42)"/>
+              <ellipse cx="68" cy="37" rx="2.4" ry="3.6"/>
+              <rect x="67.9" y="39" width="1.6" height="6" rx="0.8" transform="rotate(10 68.7 42)"/>
+            </g>
+          </svg>
+        </div>
+        <p class="a11y-note"><strong>Accessibility note:</strong> This site includes flashing and strobing light effects. If you are sensitive to these effects, please do not continue. Individual project pages may also include additional content warnings where needed.</p>
+      </div>
+
+        <p class="blurb">Thank you for visiting. My name is Alex Deeley. I am a legally blind artist based in the Pacific Northwest.</p>
+        <p class="blurb">I have retinitis pigmentosa, and my vision shapes the way I work. Much of what I create relies on contrast, saturation, movement, and visual intensity. My work often explores what remains visible, what breaks apart, and what demands attention when sight is partial, unstable, or changing.</p>
+        <p class="blurb">This site is an active workspace as much as a portfolio. Some projects are complete, some are still developing, and some may not work as intended. I&rsquo;ve left that visible on purpose. Experimentation, revision, and failure are all part of the process.</p>
+        <p class="blurb">Projects are organized by category in the menu above. Most of the apps and interactive pieces here are designed to work on both mobile phones and desktop computers.</p>
+
+        <div class="essay-heading">My creative process</div>
+
+        <div class="step-heading">1. Idea phase</div>
+        <p class="blurb">This usually takes the longest. Inspiration can come from another artist&rsquo;s work, from natural forms like water or weather, or from ordinary visual patterns such as passing traffic, reflected light, repetition, or motion. I&rsquo;m often interested in translating these experiences into something more graphic, exaggerated, or immersive.</p>
+
+        <div class="step-heading">2. Planning phase</div>
+        <p class="blurb">Once I know the direction I want to explore, I choose the tools that best fit the project. For many recent works, that process begins with AI-assisted prompt writing. I use ChatGPT to help me structure ideas into detailed prompts that reflect my visual style and accessibility needs, including a preference for bold contrast, strong separation, and other features that work with my eyesight rather than against it.</p>
+        <p class="blurb">I then use those prompts in Claude to generate prototypes, code experiments, or interactive pieces. This allows me to move quickly from concept to testable draft.</p>
+
+        <div class="step-heading">3. Refinement phase</div>
+        <p class="blurb">This is where the real work begins. I treat generated outputs as raw material, not finished pieces. My role is to direct, edit, test, and push the work until it becomes more specific, more intentional, and more fully mine. I often try to find the limits of a tool, system, or visual idea to see what happens when it starts to strain or fail.</p>
+
+        <div class="step-heading">4. Deployment phase</div>
+        <p class="blurb">Once a piece is close to what I want&mdash;or has taken an unexpected turn worth keeping&mdash;I save and move it into the environment where I publish and maintain my work. This site also houses several of my other AI-based experiments.</p>
+
+        <div class="step-heading">5. Recording / production phase</div>
+        <p class="blurb">This part changes depending on the project. For music visualizers and video-based work, I often choose sound after the visual concept is already underway. I listen widely until I find something that fits the structure, movement, or mood of the piece.</p>
+        <p class="blurb">That might mean fast, nervous electronic percussion for work built around rigid forms and sharp motion, or a quieter and more restrained sound for something slower, softer, or less defined. I usually do not begin with music first; I build toward it.</p>
+
+        <div class="essay-heading">My process for visual art</div>
+        <p class="blurb">I typically use an iPad and Apple Pencil for graphical work. My main tools include SketchClub, Procreate, and several custom-built apps that help me generate or repeat specific forms, patterns, and visual behaviors. Some of those tools are available on this site under the Art section.</p>
+
+        <div class="art-strip">
+          <a href="./SmoothWaveField.html">
+            <img src="./thumbnails/smooth-wave-field.jpg" alt="Wave Field — a bold orange and black triangle wave pattern" loading="lazy">
+            <span>Wave Field</span>
+          </a>
+          <a href="./HighContrastKaleidoscope.html">
+            <img src="./thumbnails/neo-high-contrast-kaleidoscope.jpg" alt="Contrast Kaleidoscope — stark black-and-white kaleidoscope" loading="lazy">
+            <span>Contrast Kaleidoscope</span>
+          </a>
+          <a href="./OrbitalDots.html">
+            <img src="./thumbnails/neo-orbital-dots.jpg" alt="Orbital Dots — a grid of glowing dots on a dark violet field" loading="lazy">
+            <span>Orbital Dots</span>
+          </a>
+          <a href="./SwipeStretchLines.html">
+            <img src="./thumbnails/neo-swipe-stretch-lines.jpg" alt="Stretch Lines — high-contrast vertical white lines on black" loading="lazy">
+            <span>Stretch Lines</span>
+          </a>
+        </div>
+
+        <div class="essay-heading">My process for music</div>
+        <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
+        <p class="blurb">Depending on the kind of piece I&rsquo;m making, I begin in different places. For more traditional song-based work, I often start in GarageBand and export through DistroKid.</p>
+        <p class="blurb">I also use Suno AI as part of my process. As with app development, I use AI tools to help translate rough ideas into structured prompts, which can lead to results that are unpredictable, strange, or unexpectedly useful.</p>
+        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Music section of Deeley.org.</p>
+
+        <p class="blurb" style="margin-top: 28px;">Thank you for spending time here.</p>
+        <p class="blurb">I hope the work on this site offers a clearer sense of how I make art, how I use technology, and how disability informs the way I see, choose, and build.</p>
+        <p class="blurb">&mdash; Alex</p>
 
         <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
         <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
@@ -268,12 +548,17 @@
           </div>
           <span class="arrow">&#8599;</span>
         </a>
-      </div>
+
+        <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
+  </div>
+  <div id="musicSpecial" class="hidden">
+    <a class="link-item special-link" href="JamSession.html">
       <div>
-        <div class="list-heading">Latest posts</div>
-        <div id="recentPosts"></div>
+        <h2>&#127925; Jam Session</h2>
+        <p>Play a drum machine and a synth together, side by side</p>
       </div>
-    </div>
+      <span class="arrow">&#8250;</span>
+    </a>
   </div>
   <div id="newSection"></div>
   <div id="appList"></div>
@@ -285,6 +570,7 @@ const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
 
 let apps = [];
 let activeTab = "Home";
+let searchQuery = "";
 // Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
 // toggling one section's sort doesn't affect others or survive a tab switch
 // into an unrelated section that happens to share a heading name.
@@ -311,61 +597,87 @@ async function main() {
     .slice(0, NEW_COUNT);
 
   buildTabs();
-  renderActiveTab();
+  render();
   restoreScroll();
-  renderRecentPosts();
+  initAddToHomeScreen();
+
+  document.getElementById("appSearch").addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    render();
+  });
 
   window.addEventListener("pagehide", saveLastState);
 }
 
-function formatPostDate(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+// Search takes over the content area regardless of which tab is active -
+// it searches across every app, not just the current tab's category - and
+// hands back to the normal tab view the moment the query is cleared.
+function render() {
+  if (searchQuery.trim()) {
+    renderSearchResults();
+  } else {
+    renderActiveTab();
+  }
 }
 
-// recent-posts.json is refreshed every 30 minutes by homepage-substack.yml
-// from a public RSS feed - no credentials needed, so unlike the other
-// homepage widgets this one is always "configured." An empty posts array
-// just means nothing's been published yet, which gets its own message
-// rather than silently showing nothing, since the split-pane layout is
-// meant to be visible either way.
-async function renderRecentPosts() {
-  const el = document.getElementById("recentPosts");
-  let data = null;
-  try {
-    const res = await fetch("./recent-posts.json");
-    if (res.ok) data = await res.json();
-  } catch (e) {}
+function renderSearchResults() {
+  document.getElementById("homeContent").classList.add("hidden");
+  document.getElementById("musicSpecial").classList.add("hidden");
+  const newSectionEl = document.getElementById("newSection");
+  newSectionEl.classList.add("hidden");
+  newSectionEl.innerHTML = "";
 
-  const posts = data && Array.isArray(data.posts) ? data.posts : [];
-  if (posts.length === 0) {
-    el.innerHTML = '<p class="empty">Nothing published yet — check back soon.</p>';
+  const listEl = document.getElementById("appList");
+  listEl.classList.remove("hidden");
+  listEl.innerHTML = "";
+
+  const q = searchQuery.trim().toLowerCase();
+  const matches = apps
+    .filter((app) => `${app.name} ${app.description} ${app.category}`.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+  if (matches.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = `No apps match "${searchQuery.trim()}".`;
+    listEl.appendChild(empty);
     return;
   }
 
-  el.innerHTML = "";
-  for (const post of posts) {
-    const item = document.createElement("a");
-    item.className = "post-item";
-    item.href = post.url;
-    item.target = "_blank";
-    item.rel = "noopener noreferrer";
+  for (const app of matches) listEl.appendChild(buildItem(app));
+}
 
-    const title = document.createElement("div");
-    title.className = "post-title";
-    title.textContent = post.title;
-    item.appendChild(title);
+const A2HS_DISMISSED_KEY = "deeley_a2hs_dismissed";
 
-    if (post.publishedAt) {
-      const date = document.createElement("div");
-      date.className = "post-date";
-      date.textContent = formatPostDate(post.publishedAt);
-      item.appendChild(date);
-    }
+// There's no cross-browser way to trigger the native "Add to Home Screen"
+// action from a button - Android/Chrome exposes beforeinstallprompt for
+// that, but iOS Safari deliberately does not let a page trigger it at all,
+// only the person tapping Share -> Add to Home Screen themselves. Since
+// that's the only real path on iOS, this just shows a banner pointing
+// at those exact steps rather than pretending to be a real install button.
+function initAddToHomeScreen() {
+  const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  let dismissed = false;
+  try {
+    dismissed = localStorage.getItem(A2HS_DISMISSED_KEY) === "1";
+  } catch (e) {}
 
-    el.appendChild(item);
-  }
+  if (isStandalone || dismissed) return;
+
+  document.getElementById("a2hsBanner").classList.remove("hidden");
+
+  const overlay = document.getElementById("a2hsOverlay");
+  document.getElementById("a2hsHowBtn").addEventListener("click", () => overlay.classList.remove("hidden"));
+  document.getElementById("a2hsCloseBtn").addEventListener("click", () => overlay.classList.add("hidden"));
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.classList.add("hidden");
+  });
+  document.getElementById("a2hsDismissBtn").addEventListener("click", () => {
+    document.getElementById("a2hsBanner").classList.add("hidden");
+    try {
+      localStorage.setItem(A2HS_DISMISSED_KEY, "1");
+    } catch (e) {}
+  });
 }
 
 function restoreLastTab() {
@@ -420,8 +732,10 @@ function buildTabs() {
     btn.dataset.tab = tab;
     btn.addEventListener("click", () => {
       activeTab = tab;
+      searchQuery = "";
+      document.getElementById("appSearch").value = "";
       [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-      renderActiveTab();
+      render();
     });
     tabsEl.appendChild(btn);
   }
@@ -432,6 +746,7 @@ function renderActiveTab() {
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
   document.getElementById("appList").classList.toggle("hidden", isHome);
+  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Music");
   if (isHome) return;
   renderNewSection();
   renderList();

@@ -90,14 +90,20 @@ const CONFIG = {
   GIANT_RADIUS_MULT: 1.9,
   GIANT_DAMAGE_MULT: 3,
   BALL_SPEED: 660,               // logical px / sec
-  LAUNCH_INTERVAL_MIN: 55,
-  LAUNCH_INTERVAL_MAX: 85,
+  LAUNCH_INTERVAL_MIN: 30,
+  LAUNCH_INTERVAL_MAX: 46,
   STARTING_BALLS: 10,
   MIN_AIM_DEG: 12,                // minimum degrees above horizontal
   CANCEL_ZONE_H: 64,              // drag your finger this close to the bottom edge to cancel the shot
   MAX_PREVIEW_COLLISIONS: 18,
   PREVIEW_MAX_DIST_MULT: 34,
   MAX_COLLISIONS_PER_FRAME: 10,
+  // Anti-stuck gravity: a ball in flight for a long time (e.g. trapped
+  // bouncing wall-to-wall) very gradually gets pulled downward, easing in
+  // from nothing so short, normal shots never feel it.
+  GRAVITY_RAMP_START: 3.5,  // seconds of flight before gravity starts at all
+  GRAVITY_RAMP_FULL: 8,     // seconds of flight until gravity reaches full strength
+  GRAVITY_MAX: 0.6,         // full-strength downward pull added to direction per second
   ROW_ADVANCE_PAUSE_MS: 300,
   ROW_ADVANCE_ANIM_MS: 220,
   AUDIO_VOLUME_DEFAULT: 0.6,
@@ -303,6 +309,45 @@ class AudioEngine {
     this._osc("square", base, base * 0.6, 0.05, 0.14, t);
     this._sub(70 + (strength || 0) * 2, 0.07, 0.07, t);
   }
+  // A bright transient "pop" plus a filtered-noise "fizz" that sparkles as
+  // it decays -- the fizzy soda-pop quality layered onto block destruction.
+  _fizzPop(t0, pitch) {
+    if (!this.enabled || !this.ctx) return;
+    const ctx = this.ctx;
+    pitch = pitch || 1;
+
+    // quick bright pop transient
+    const pop = ctx.createOscillator();
+    const popGain = ctx.createGain();
+    pop.type = "triangle";
+    pop.frequency.setValueAtTime(1900 * pitch, t0);
+    pop.frequency.exponentialRampToValueAtTime(3400 * pitch, t0 + 0.02);
+    popGain.gain.setValueAtTime(0.0001, t0);
+    popGain.gain.linearRampToValueAtTime(0.2, t0 + 0.005);
+    popGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+    pop.connect(popGain); popGain.connect(this.master);
+    pop.start(t0); pop.stop(t0 + 0.1);
+
+    // fizzing sparkle decay: bandpass-filtered noise sweeping downward
+    const dur = 0.32;
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.Q.value = 1.1;
+    filt.frequency.setValueAtTime(3800 * pitch, t0 + 0.01);
+    filt.frequency.exponentialRampToValueAtTime(900, t0 + dur);
+    const fizzGain = ctx.createGain();
+    fizzGain.gain.setValueAtTime(0.0001, t0 + 0.01);
+    fizzGain.gain.linearRampToValueAtTime(0.11, t0 + 0.035);
+    fizzGain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filt); filt.connect(fizzGain); fizzGain.connect(this.master);
+    src.start(t0 + 0.01); src.stop(t0 + dur + 0.02);
+  }
   blockDestroy(comboLevel) {
     if (!this.ctx) return;
     const t = this.now();
@@ -310,12 +355,39 @@ class AudioEngine {
     this._osc("sawtooth", 260 * pitch, 60, 0.22, 0.16, t);
     this._noise(0.16, 0.12, t, 1800);
     this._sub(120 * pitch, 0.3, 0.15, t);
+    this._fizzPop(t, pitch);
+  }
+  // Lighter-weight fizzy pop on its own, for instant destroys (laser beams,
+  // second chance) that can trigger many at once -- avoids stacking the
+  // heavier sawtooth/sub layers into a wall of noise.
+  fizzPop(pitch) {
+    if (!this.ctx) return;
+    const now = performance.now();
+    if (now - (this._lastFizzAt || 0) < 18) {
+      this._fizzBurst = (this._fizzBurst || 0) + 1;
+      if (this._fizzBurst % 2 !== 0) return; // thin out simultaneous pops
+    } else {
+      this._fizzBurst = 0;
+    }
+    this._lastFizzAt = now;
+    this._fizzPop(this.now(), pitch || 1);
   }
   bonusCollect() {
     if (!this.ctx) return;
     const t = this.now();
     this._osc("square", 520, 1180, 0.18, 0.14, t);
     this._osc("square", 780, 1560, 0.16, 0.09, t + 0.03);
+  }
+  // Distinct bell-like chime played whenever a power-up activates -- a
+  // bright triangle-wave arpeggio with a shimmer, so it reads as clearly
+  // different from the plain +1-ball pickup sound.
+  powerChime() {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("triangle", 660, 660, 0.16, 0.13, t);
+    this._osc("triangle", 990, 990, 0.18, 0.12, t + 0.06);
+    this._osc("triangle", 1320, 1980, 0.26, 0.13, t + 0.12);
+    this._osc("sine", 1324, 1984, 0.26, 0.06, t + 0.12); // slight shimmer/detune
   }
   laserFire() {
     if (!this.ctx) return;
@@ -330,6 +402,12 @@ class AudioEngine {
     this._osc("sawtooth", 300, 900, 0.22, 0.16, t);
     this._noise(0.18, 0.1, t + 0.02, 900);
     this._sub(80, 0.24, 0.14, t);
+  }
+  blackHoleWarp() {
+    if (!this.ctx) return;
+    const t = this.now();
+    this._osc("sine", 900, 140, 0.16, 0.09, t);
+    this._sub(50, 0.2, 0.08, t);
   }
   secondChance() {
     if (!this.ctx) return;
@@ -558,7 +636,28 @@ class PowerToken {
   }
 }
 
+// A permanent hazard tile balls pass THROUGH rather than bounce off --
+// each successive ball to pass through this shot gets deflected by a
+// larger angle than the last (1 deg for the 1st ball, 2 for the 2nd, ...).
+class BlackHole {
+  constructor(row, col) {
+    this.row = row;
+    this.col = col;
+    this.hitsThisVolley = 0;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+  center(board) {
+    return {
+      x: board.x + (this.col + 0.5) * CONFIG.CELL,
+      y: board.gridY + (this.row + 0.5) * CONFIG.CELL
+    };
+  }
+}
+
 const POWER_TYPES = ["fireball", "split", "ricochet", "bomb", "freeze", "rewind", "double", "giant", "homing"];
+// Weighted pool used when rolling which power-up token to spawn -- Giant
+// Balls appears extra times so it comes up noticeably more often than the rest.
+const POWER_SPAWN_POOL = ["fireball", "split", "ricochet", "bomb", "freeze", "rewind", "double", "giant", "giant", "giant", "homing"];
 const POWER_INFO = {
   fireball: { label: "FIREBALL", color: PALETTE.orange, icon: "F" },
   split:    { label: "SPLIT BALL", color: PALETTE.cyan, icon: "S" },
@@ -580,8 +679,10 @@ class Board {
     this.blocks = [];
     this.tokens = [];
     this.powerTokens = [];
+    this.blackHoles = [];
     this.explosivePickup = null; // {col} -- sits fixed in the bottom row, doesn't scroll
     this.lastExplosiveTurn = -99;
+    this.lastHazardTurn = -99; // cooldown for black holes
     this.rng = makeRng(seed);
     this.seed = seed;
     this.lastTokenTurn = -99;
@@ -596,8 +697,10 @@ class Board {
     this.blocks = [];
     this.tokens = [];
     this.powerTokens = [];
+    this.blackHoles = [];
     this.explosivePickup = null;
     this.lastExplosiveTurn = -99;
+    this.lastHazardTurn = -99;
     this.lastTokenTurn = -99;
     this.lastPowerTurn = -99;
   }
@@ -634,6 +737,10 @@ class Board {
       if (t.collected) continue;
       if (Math.round(t.row) !== rowIndex) continue;
       occ[t.col] = true;
+    }
+    for (const h of this.blackHoles) {
+      if (Math.round(h.row) !== rowIndex) continue;
+      occ[h.col] = true;
     }
     return occ;
   }
@@ -739,21 +846,33 @@ class Board {
       }
 
       // power-up token (separate from the ball token, rarer)
-      let placePower = guaranteePower || (turn >= 2 && this.rng.next() < 0.16);
+      let placePower = guaranteePower || (turn >= 2 && this.rng.next() < 0.20);
       if (placePower && openCols.length > 0) {
         const idx = Math.floor(this.rng.next() * openCols.length);
         const c = openCols.splice(idx, 1)[0];
-        const type = POWER_TYPES[Math.floor(this.rng.next() * POWER_TYPES.length)];
+        const type = POWER_SPAWN_POOL[Math.floor(this.rng.next() * POWER_SPAWN_POOL.length)];
         powerSpecs.push({ col: c, power: type });
       } else if (guaranteePower && openCols.length === 0) {
         continue;
       }
 
-      return { blockSpecs, tokenSpecs, powerSpecs };
+      // black hole hazard tile -- rare, needs an open cell
+      let hazardType = null;
+      if (turn >= 6 && (turn - (this.lastHazardTurn || -99)) >= 5 && openCols.length > 0) {
+        if (this.rng.next() < 0.10) hazardType = "blackhole";
+      }
+      let hazardSpec = null;
+      if (hazardType && openCols.length > 0) {
+        const idx = Math.floor(this.rng.next() * openCols.length);
+        const c = openCols.splice(idx, 1)[0];
+        hazardSpec = { col: c, type: hazardType };
+      }
+
+      return { blockSpecs, tokenSpecs, powerSpecs, hazardSpec };
     }
     // Fallback: guaranteed-safe simple row
     const mid = Math.floor(CONFIG.COLS / 2);
-    return { blockSpecs: [{ col: 0, cells: [{ dr: 0, dc: 0 }], hp: this.rollHp(turn), isBomb: false, isLaser: false }], tokenSpecs: [{ col: mid, value: 1 }], powerSpecs: [] };
+    return { blockSpecs: [{ col: 0, cells: [{ dr: 0, dc: 0 }], hp: this.rollHp(turn), isBomb: false, isLaser: false }], tokenSpecs: [{ col: mid, value: 1 }], powerSpecs: [], hazardSpec: null };
   }
 
   rollHp(turn) {
@@ -775,6 +894,9 @@ class Board {
     for (const ps of (spec.powerSpecs || [])) {
       this.powerTokens.push(new PowerToken(0, ps.col, ps.power));
     }
+    if (spec.hazardSpec) {
+      if (spec.hazardSpec.type === "blackhole") this.blackHoles.push(new BlackHole(0, spec.hazardSpec.col));
+    }
   }
 
   // returns true if a block crossed the danger line (uses each block's
@@ -783,9 +905,11 @@ class Board {
     for (const b of this.blocks) b.row += 1;
     for (const t of this.tokens) t.row += 1;
     for (const p of this.powerTokens) p.row += 1;
-    // purge tokens that fell fully out (safety)
+    for (const h of this.blackHoles) h.row += 1;
+    // purge tokens/hazards that fell fully out (safety)
     this.tokens = this.tokens.filter(t => t.row < CONFIG.VISIBLE_ROWS + 1);
     this.powerTokens = this.powerTokens.filter(p => p.row < CONFIG.VISIBLE_ROWS + 1);
+    this.blackHoles = this.blackHoles.filter(h => h.row < CONFIG.VISIBLE_ROWS + 1);
     let danger = false;
     for (const b of this.blocks) {
       if (b.destroyed) continue;
@@ -820,6 +944,8 @@ class Ball {
     this.fireballCharge = false;
     this.splitCharge = false;
     this.bombCharge = false;
+    this.blackHolesPassed = new Set(); // black-hole instances already deflected this ball
+    this.flightTime = 0; // seconds airborne -- drives the slow-building anti-stuck gravity
   }
 }
 
@@ -1251,10 +1377,12 @@ class Game {
       linesCleared: this.linesCleared,
       secondChanceUsed: this.secondChanceUsed,
       lastExplosiveTurn: this.board.lastExplosiveTurn,
+      lastHazardTurn: this.board.lastHazardTurn,
       explosivePickup: this.board.explosivePickup ? { col: this.board.explosivePickup.col } : null,
       blocks: this.board.blocks.filter(b => !b.destroyed).map(b => ({ row: b.row, col: b.col, cells: b.cells, hp: b.hp, maxHp: b.maxHp, isBomb: b.isBomb, isLaser: b.isLaser })),
       tokens: this.board.tokens.filter(t => !t.collected).map(t => ({ row: t.row, col: t.col, value: t.value })),
       powerTokens: this.board.powerTokens.filter(p => !p.collected).map(p => ({ row: p.row, col: p.col, power: p.power })),
+      blackHoles: this.board.blackHoles.map(h => ({ row: h.row, col: h.col })),
     };
   }
 
@@ -1274,6 +1402,7 @@ class Game {
     this.linesCleared = snap.linesCleared || 0;
     this.secondChanceUsed = !!snap.secondChanceUsed;
     this.board.lastExplosiveTurn = snap.lastExplosiveTurn != null ? snap.lastExplosiveTurn : -99;
+    this.board.lastHazardTurn = snap.lastHazardTurn != null ? snap.lastHazardTurn : -99;
     this.board.explosivePickup = snap.explosivePickup ? { col: snap.explosivePickup.col } : null;
     this.board.blocks = snap.blocks.map(s => {
       const b = new Block(s.row, s.col, s.hp, s.isBomb, s.isLaser, s.cells);
@@ -1282,6 +1411,7 @@ class Game {
     });
     this.board.tokens = snap.tokens.map(s => new Token(s.row, s.col, s.value));
     this.board.powerTokens = snap.powerTokens.map(s => new PowerToken(s.row, s.col, s.power));
+    this.board.blackHoles = (snap.blackHoles || []).map(s => new BlackHole(s.row, s.col));
     this.balls = [];
     this.queuedPower = null;
     this.volleyPower = null;
@@ -1301,7 +1431,7 @@ class Game {
 
   /* ---------------- Input handlers ---------------- */
   onPointerDown(x, y) {
-    if (this.state === STATE.SPLASH) { this.audio.unlock(); this.state = STATE.TITLE; return; }
+    if (this.state === STATE.SPLASH) { this.audio.unlock(); this.startGame(); return; }
     if (this._hitButtons(x, y)) return;
     if (this.state === STATE.AIMING) {
       this.aiming = true;
@@ -1409,6 +1539,7 @@ class Game {
   launchVolley() {
     if (this.state !== STATE.AIMING) return;
     this.keyboardAiming = false;
+    this.aiming = false;
     this.audio.shotRelease();
     this.state = STATE.LAUNCHING;
     this.launchQueueRemaining = this.ballCount;
@@ -1433,10 +1564,16 @@ class Game {
       bl.hitStreak = 0;
       bl.hitThisVolley = false;
     }
+    // black holes deflect by an increasing angle each ball that passes through
+    for (const bh of this.board.blackHoles) bh.hitsThisVolley = 0;
   }
 
   spawnBall() {
-    const b = new Ball(this.launcherX, this.launcherY, this.aimDX, this.aimDY);
+    // slight perpendicular jitter so the volley reads as a tight stream/tube
+    // of balls rather than a single perfect line
+    const perpX = -this.aimDY, perpY = this.aimDX;
+    const jitter = (Math.random() - 0.5) * 7;
+    const b = new Ball(this.launcherX + perpX * jitter, this.launcherY + perpY * jitter, this.aimDX, this.aimDY);
     const isFirst = this.ballsLaunchedThisVolley === 0;
     if (isFirst) {
       if (this.volleyPower === "fireball") b.fireballCharge = true;
@@ -1464,7 +1601,7 @@ class Game {
     if (this.state === STATE.PAUSED) return;
     if (this.state === STATE.SPLASH) {
       this.splashT += dt;
-      if (this.splashT > 2.0) this.state = STATE.TITLE;
+      if (this.splashT > 2.0) this.startGame();
       return;
     }
 
@@ -1543,6 +1680,8 @@ class Game {
 
     for (const ball of this.balls) {
       if (ball.returned) continue;
+      ball.flightTime += dt;
+      this.applyAntiStuckGravity(ball, dt);
       if (this.volleyHoming) this.applyHoming(ball, dt);
       let remaining = ball.speed * dt;
       let collisions = 0;
@@ -1562,9 +1701,11 @@ class Game {
         if (hit.rect) {
           const idx = blockRects.indexOf(hit.rect);
           const blk = blockRefs[idx];
-          const passThrough = ball.fireballCharge;
+          // Giant Balls now smashes straight through everything it hits
+          // (never reflects off blocks) instead of just being bigger.
+          const passThrough = ball.fireballCharge || this.volleyGiant;
           if (passThrough) {
-            // Fireball: no reflection -- burn straight through the first block.
+            // Fireball/Giant: no reflection -- plow straight through.
             ball.x += ball.dx * 0.6; ball.y += ball.dy * 0.6;
             ball.fireballCharge = false;
           } else {
@@ -1603,8 +1744,9 @@ class Game {
           }
         }
       }
-      // token collection check along updated position
+      // token / hazard collection checks along updated position
       this.checkTokenCollision(ball);
+      this.checkBlackHoles(ball);
 
       // return check
       if (!ball.returned && ball.dy > 0 && ball.y > this.board.y + this.board.h + ball.radius) {
@@ -1713,6 +1855,7 @@ class Game {
     const bcolor = colorOverride || this.blockColor(blk);
     this.particles.explosion(cx, cy, bcolor);
     this.particles.pop(cx, cy, bcolor);
+    this.audio.fizzPop();
     const pts = Math.round((15 + blk.maxHp) * this.getVarietyMultiplier());
     this.score += pts;
     this.particles.scorePopup(cx, cy, "+" + pts, PALETTE.cyan);
@@ -1845,6 +1988,20 @@ class Game {
     ball.dy = Math.sin(newAngle);
   }
 
+  // Anti-stuck safety net: any ball airborne long enough (e.g. trapped
+  // bouncing wall-to-wall on a near-horizontal path) gets a very gentle,
+  // slowly-building downward pull -- negligible for a normal quick shot,
+  // but guaranteed to eventually break a degenerate horizontal loop.
+  applyAntiStuckGravity(ball, dt) {
+    const t = ball.flightTime - CONFIG.GRAVITY_RAMP_START;
+    if (t <= 0) return;
+    const rampT = Math.min(1, t / (CONFIG.GRAVITY_RAMP_FULL - CONFIG.GRAVITY_RAMP_START));
+    const g = rampT * rampT * CONFIG.GRAVITY_MAX; // eases in from ~nothing to full strength
+    ball.dy += g * dt;
+    const len = Math.hypot(ball.dx, ball.dy) || 1;
+    ball.dx /= len; ball.dy /= len;
+  }
+
   checkTokenCollision(ball) {
     for (const tk of this.board.tokens) {
       if (tk.collected) continue;
@@ -1869,7 +2026,7 @@ class Game {
         this.score += 30;
         this.particles.starburst(c.x, c.y);
         this.particles.scorePopup(c.x, c.y, info.label, info.color);
-        this.audio.bonusCollect();
+        this.audio.powerChime();
         if (pk.power === "rewind") {
           this.rewindCharges = Math.min(2, this.rewindCharges + 1);
         } else if (pk.power === "double") {
@@ -1895,6 +2052,42 @@ class Game {
         this.particles.starburst(cx, cy);
         this.particles.scorePopup(cx, cy, "EXPLOSIVE!", PALETTE.hotRed);
         this.audio.explosivePickup();
+        this.audio.powerChime();
+      }
+    }
+  }
+
+  // Black hole: balls pass through it instead of bouncing, but get bent by
+  // an angle that grows with each successive ball this shot (1deg, 2deg, ...).
+  // The per-hit angle is capped and the result is kept away from horizontal
+  // so a ball can never get kicked into an endless wall-to-wall bounce.
+  checkBlackHoles(ball) {
+    for (const bh of this.board.blackHoles) {
+      if (ball.blackHolesPassed.has(bh)) continue;
+      const c = bh.center(this.board);
+      const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
+      if (dist < ball.radius + 15) {
+        ball.blackHolesPassed.add(bh);
+        bh.hitsThisVolley++;
+        // cap growth so a late-volley ball (10th, 20th...) doesn't get one
+        // huge single kick -- still grows per ball, just bounded
+        const deg = Math.min(bh.hitsThisVolley, 8);
+        const rad = deg * Math.PI / 180;
+        const cosA = Math.cos(rad), sinA = Math.sin(rad);
+        let ndx = ball.dx * cosA - ball.dy * sinA;
+        let ndy = ball.dx * sinA + ball.dy * cosA;
+        // never let the deflection leave the ball nearly horizontal --
+        // that's what causes the endless wall-to-wall bounce
+        const minVertical = 0.22; // roughly 13 degrees off horizontal, floor
+        if (Math.abs(ndy) < minVertical) {
+          ndy = minVertical * (ndy < 0 ? -1 : 1);
+          const dxSign = ndx < 0 ? -1 : 1;
+          ndx = dxSign * Math.sqrt(Math.max(0, 1 - ndy * ndy));
+        }
+        const len = Math.hypot(ndx, ndy) || 1;
+        ball.dx = ndx / len; ball.dy = ndy / len;
+        this.particles.starburst(c.x, c.y);
+        this.audio.blackHoleWarp();
       }
     }
   }
@@ -1949,6 +2142,7 @@ class Game {
           this.board.addRowAtTop(spec);
           if (spec.tokenSpecs.length > 0) this.board.lastTokenTurn = this.turn;
           if (spec.powerSpecs.length > 0) this.board.lastPowerTurn = this.turn;
+          if (spec.hazardSpec) this.board.lastHazardTurn = this.turn;
           this._clearBonusAwarded = false;
         }
         // explosive-ball pickup: occasionally spawns fixed in the bottom row
@@ -2042,7 +2236,6 @@ class Game {
     this.buttons = [];
 
     if (this.state === STATE.SPLASH) { this.drawSplash(ctx); }
-    else if (this.state === STATE.TITLE) { this.drawTitle(ctx); }
     else if (this.state === STATE.HOWTO) { this.drawHowTo(ctx); }
     else {
       this.drawBoardFrame(ctx);
@@ -2063,15 +2256,68 @@ class Game {
   }
 
   drawBackground(ctx) {
-    ctx.fillStyle = PALETTE.navyDeep;
+    // deep blue ocean base
+    const grad = ctx.createLinearGradient(0, 0, 0, this.LOGICAL_H);
+    grad.addColorStop(0, "#020a1a");
+    grad.addColorStop(0.5, "#041228");
+    grad.addColorStop(1, "#010613");
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
-    // overscan border
-    ctx.fillStyle = PALETTE.navy;
-    ctx.fillRect(0, 0, this.LOGICAL_W, this.LOGICAL_H);
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+
+    // slowly morphing neon-blue waves -- blurred so they read purely as an
+    // ambient backdrop and never get mistaken for actual playfield elements
+    ctx.save();
+    ctx.filter = "blur(14px)";
+    const t = performance.now() / 1000;
+    const waveDefs = [
+      { baseY: this.LOGICAL_H * 0.16, amp: 22, speed: 0.15, len: 240, color: "rgba(60,180,255,0.16)", w: 10 },
+      { baseY: this.LOGICAL_H * 0.42, amp: 30, speed: 0.10, len: 300, color: "rgba(80,220,255,0.13)", w: 14 },
+      { baseY: this.LOGICAL_H * 0.66, amp: 20, speed: 0.19, len: 210, color: "rgba(40,150,255,0.15)", w: 10 },
+      { baseY: this.LOGICAL_H * 0.90, amp: 28, speed: 0.08, len: 280, color: "rgba(90,230,255,0.11)", w: 16 },
+    ];
+    for (const wv of waveDefs) {
+      ctx.beginPath();
+      for (let x = -20; x <= this.LOGICAL_W + 20; x += 8) {
+        const y = wv.baseY + Math.sin((x / wv.len) + t * wv.speed) * wv.amp
+          + Math.sin((x / (wv.len * 0.6)) - t * wv.speed * 1.7) * (wv.amp * 0.35);
+        if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = wv.color;
+      ctx.lineWidth = wv.w;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    ctx.restore(); // clears the blur filter
+
+    // thin crisp overscan frame, drawn sharp on top so the play area's
+    // edge always reads clearly against the soft ocean behind it
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
     for (let i = 0; i < 4; i++) {
       ctx.strokeRect(2 + i, 2 + i, this.LOGICAL_W - 4 - i * 2, this.LOGICAL_H - 4 - i * 2);
     }
+  }
+
+  // Glossy sheen: a soft diagonal highlight that periodically sweeps across
+  // a shape, applied to blocks/balls/tokens/buttons for a shimmering look.
+  // `seed` offsets the timing per-object so things don't all shine in sync.
+  drawGlossSheen(ctx, x, y, w, h, seed) {
+    const period = 3400, sweepDur = 700;
+    const phase = ((performance.now() + (seed || 0) * 977) % period);
+    if (phase > sweepDur) return;
+    const p = phase / sweepDur; // 0..1 across the sweep
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    const bandW = Math.max(w, h) * 0.5;
+    const cx = x - bandW + p * (w + bandW * 2);
+    const grad = ctx.createLinearGradient(cx - bandW * 0.4, y, cx + bandW * 0.4, y + h);
+    grad.addColorStop(0, "rgba(255,255,255,0)");
+    grad.addColorStop(0.5, "rgba(255,255,255,0.35)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
   }
 
   drawScanlines(ctx) {
@@ -2109,7 +2355,8 @@ class Game {
     ctx.strokeStyle = opts.stroke || PALETTE.electricBlue;
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-    this.drawPixelText(ctx, label, x + w / 2, y + h / 2 + 1, opts.size || (large ? 20 : 17), opts.color || PALETTE.white, "center");
+    if (label) this.drawPixelText(ctx, label, x + w / 2, y + h / 2 + 1, opts.size || (large ? 20 : 17), opts.color || PALETTE.white, "center");
+    this.drawGlossSheen(ctx, x, y, w, h, x * 3 + y * 5);
     this.buttons.push({ x, y, w, h, onClick });
   }
 
@@ -2127,9 +2374,9 @@ class Game {
     ctx.scale(scale, scale);
     ctx.shadowColor = PALETTE.cyan;
     ctx.shadowBlur = 22;
-    this.drawPixelText(ctx, "SEQUENCE", 0, 0, 40, PALETTE.white, "center");
+    this.drawPixelText(ctx, "SEQUENCE 13", 0, 0, 34, PALETTE.white, "center");
     ctx.shadowBlur = 0;
-    this.drawPixelText(ctx, "SEQUENCE", 0, 0, 40, PALETTE.paleYellow, "center");
+    this.drawPixelText(ctx, "SEQUENCE 13", 0, 0, 34, PALETTE.paleYellow, "center");
     ctx.restore();
 
     if (t > 0.7) {
@@ -2141,62 +2388,27 @@ class Game {
     }
   }
 
-  drawTitle(ctx) {
-    const cx = this.LOGICAL_W / 2;
 
-    this.drawPixelText(ctx, CONFIG.TITLE, cx, 110, 28, PALETTE.paleYellow, "center");
-    ctx.save();
-    ctx.shadowColor = PALETTE.cyan;
-    ctx.shadowBlur = 14;
-    this.drawPixelText(ctx, CONFIG.TITLE, cx, 110, 28, PALETTE.white, "center");
-    ctx.restore();
-
-    // small animated demo trajectory, kept out of the way of the button
-    const demoY = 210;
-    const t = performance.now() / 1000;
-    const bx = cx + Math.sin(t * 0.6) * 46;
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.setLineDash([4, 5]);
-    ctx.strokeStyle = PALETTE.cyan;
-    ctx.lineWidth = 2;
+  _drawStar(ctx, cx, cy, r, color) {
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(cx, demoY + 60);
-    ctx.lineTo(bx, demoY);
-    ctx.lineTo(cx - (bx - cx), demoY - 50);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = PALETTE.white;
-    ctx.beginPath(); ctx.arc(bx, demoY, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const rr = i % 2 === 0 ? r : r * 0.42;
+      const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
 
-    // one big, simple, unmissable START button dominates the screen
-    const bw = Math.min(300, this.LOGICAL_W - CONFIG.BORDER * 2 - 24);
-    const bh = 96;
-    const by = this.LOGICAL_H / 2 + 10;
+  _drawChainIcon(ctx, cx, cy, r, color) {
     ctx.save();
-    const pulse = 1 + Math.sin(performance.now() / 260) * 0.02;
-    ctx.translate(cx, by + bh / 2);
-    ctx.scale(pulse, pulse);
-    ctx.translate(-cx, -(by + bh / 2));
-    ctx.shadowColor = PALETTE.brightGreen;
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = PALETTE.darkGreen;
-    ctx.fillRect(cx - bw / 2, by, bw, bh);
-    ctx.strokeStyle = PALETTE.brightGreen;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(cx - bw / 2 + 2, by + 2, bw - 4, bh - 4);
-    ctx.shadowBlur = 0;
-    this.drawPixelText(ctx, "START", cx, by + bh / 2 + 2, 40, PALETTE.white, "center");
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(cx - r * 0.5, cy, r * 0.55, r * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx + r * 0.5, cy, r * 0.55, r * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    this.buttons.push({ x: cx - bw / 2, y: by, w: bw, h: bh, onClick: () => this.startGame() });
-
-    this.drawPixelText(ctx, "HIGH SCORE " + this.save.highScore, cx, by + bh + 34, 13, PALETTE.goldYellow, "center");
-
-    // small, unobtrusive secondary link
-    const linkY = this.LOGICAL_H - 46;
-    this.drawPixelText(ctx, "HOW TO PLAY", cx, linkY, 13, PALETTE.gray, "center");
-    this.buttons.push({ x: cx - 70, y: linkY - 16, w: 140, h: 32, onClick: () => { this.state = STATE.HOWTO; } });
   }
 
   drawHowTo(ctx) {
@@ -2206,42 +2418,40 @@ class Game {
       "DRAG TO AIM, RELEASE TO FIRE.",
       "DRAG DOWN TO THE BOTTOM EDGE TO CANCEL.",
       "YOU START WITH 10 BALLS.",
-      "CLEAR BLOCKS BEFORE THEY REACH THE",
-      "DANGER LINE. GREEN TOKENS = MORE BALLS.",
+      "CLEAR BLOCKS BEFORE THE DANGER LINE.",
+      "GREEN TOKENS = MORE BALLS.",
       "",
-      "FUSE SQUARES EXPLODE ON DESTRUCTION.",
-      "LASER SQUARES FIRE BEAMS IN ALL 4",
-      "DIRECTIONS, CLEARING THEIR PATH.",
+      "FUSE SQUARES EXPLODE. LASER SQUARES",
+      "FIRE BEAMS IN ALL 4 DIRECTIONS.",
       "WATCH FOR L, T AND GIANT SQUARE",
-      "SHAPES. CLEAR THE WHOLE SCREEN FOR",
-      "A BIG BONUS.",
+      "SHAPES. CLEAR THE SCREEN FOR A BONUS.",
       "",
       "SQUARE TOKENS GRANT FIREBALL, SPLIT,",
       "RICOCHET, BOMB, FREEZE, REWIND OR",
-      "HOMING BALLS. THE STAR GIVES DOUBLE",
-      "STRENGTH; THE ROUND TOKEN GIVES",
-      "GIANT 3X-DAMAGE BALLS. THE FIERY",
-      "BOTTOM-ROW PICKUP DOUBLES EVERY HIT",
+      "HOMING. THE STAR GIVES DOUBLE",
+      "STRENGTH; THE ROUND TOKEN GIVES GIANT",
+      "BALLS THAT SMASH THROUGH ANYTHING.",
+      "THE FIERY PICKUP DOUBLES EVERY HIT",
       "FOR 3 TURNS.",
       "",
-      "REACH THE DANGER LINE AND YOU GET",
-      "ONE SECOND CHANCE THAT CLEARS THE",
-      "BOTTOM 3 ROWS. LINES CLEARED SHOW",
-      "AT THE TOP OF THE SCREEN.",
+      "BLACK HOLES BEND EACH PASSING BALL A",
+      "LITTLE MORE THAN THE LAST.",
+      "",
+      "REACH THE DANGER LINE AND YOU GET ONE",
+      "SECOND CHANCE THAT CLEARS 3 ROWS.",
       "",
       "THE GUIDE PREDICTS THE FIRST BALL --",
-      "DESTROYED BLOCKS MAY CHANGE LATER",
-      "PATHS.",
+      "DESTROYED BLOCKS MAY CHANGE LATER PATHS.",
       "",
       "ARROWS AIM \u2022 SPACE FIRES \u2022 P PAUSES",
       "F FAST-FORWARDS \u2022 M MUTES"
     ];
-    let y = 70;
+    let y = 66;
     for (const l of lines) {
-      this.drawPixelText(ctx, l, cx, y, 10.5, PALETTE.lightGray, "center");
-      y += 17;
+      this.drawPixelText(ctx, l, cx, y, 10, PALETTE.lightGray, "center");
+      y += 15.5;
     }
-    this.button(ctx, cx - 90, this.LOGICAL_H - 54, 180, 40, "BACK", () => { this.state = STATE.TITLE; }, { size: 16 });
+    this.button(ctx, cx - 90, this.LOGICAL_H - 54, 180, 40, "BACK", () => { this.state = this.prevState || STATE.AIMING; }, { size: 16 });
   }
 
   drawBoardFrame(ctx) {
@@ -2275,9 +2485,8 @@ class Game {
     ctx.setLineDash([]);
     ctx.restore();
 
-    // danger line: a chase-light pattern scrolling right-to-left, rather
-    // than a flashing on/off line. It speeds up as the nearest block gets
-    // closer to the danger row.
+    // danger line: a thick, static line that fizzes with electric sparks --
+    // it never moves, but crackles more intensely as blocks get closer.
     const dy = b.gridY + (CONFIG.VISIBLE_ROWS - 1) * CONFIG.CELL;
 
     let closestDist = Infinity;
@@ -2286,29 +2495,26 @@ class Game {
       if (d < closestDist) closestDist = d;
     }
     const proximity = closestDist === Infinity ? 0 : Math.max(0, Math.min(1, 1 - closestDist / (CONFIG.VISIBLE_ROWS - 1)));
-    const speed = 28 + proximity * 260 + (this.dangerFlash > 0 ? 90 : 0); // logical px/sec
 
-    // dim base line, always visible
-    ctx.strokeStyle = "rgba(180,40,50,0.4)";
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(b.x, dy); ctx.lineTo(b.x + b.w, dy); ctx.stroke();
-
-    // bright lights chasing right to left along the line
-    const dashLen = 16, gapLen = 14, period = dashLen + gapLen;
-    const t = performance.now() / 1000;
-    const scroll = (t * speed) % period;
-    ctx.save();
+    // thick static base line
     ctx.strokeStyle = PALETTE.hotRed;
-    ctx.lineWidth = 5;
-    ctx.shadowColor = PALETTE.hotRed;
-    ctx.shadowBlur = 5 + proximity * 12;
-    ctx.beginPath();
-    for (let x = b.x + b.w - scroll; x > b.x - dashLen; x -= period) {
-      const x1 = Math.max(b.x, x - dashLen);
-      const x2 = Math.min(b.x + b.w, x);
-      if (x2 > x1) { ctx.moveTo(x2, dy); ctx.lineTo(x1, dy); }
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(b.x, dy); ctx.lineTo(b.x + b.w, dy); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // electric fizz: random flickering sparks along the line, no motion
+    const sparkCount = 5 + Math.round(proximity * 12) + (this.dangerFlash > 0 ? 6 : 0);
+    ctx.save();
+    for (let i = 0; i < sparkCount; i++) {
+      if (Math.random() < 0.45) continue; // random on/off flicker each frame
+      const sx = b.x + Math.random() * b.w;
+      const sy = dy + (Math.random() - 0.5) * 7;
+      const sr = 1 + Math.random() * 1.8;
+      ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+      ctx.fillStyle = Math.random() < 0.6 ? PALETTE.white : PALETTE.paleYellow;
+      ctx.fillRect(sx - sr / 2, sy - sr / 2, sr, sr);
     }
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -2327,6 +2533,7 @@ class Game {
       ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
       this.drawPixelText(ctx, "+" + tk.value, c.x, c.y, 13, PALETTE.navyDeep, "center");
+      this.drawGlossSheen(ctx, c.x - 13, c.y - 13, 26, 26, c.x + c.y);
     }
 
     for (const pk of this.board.powerTokens) {
@@ -2351,6 +2558,7 @@ class Game {
       }
       ctx.restore();
       this.drawPixelText(ctx, info.icon, c.x, c.y, 15, PALETTE.navyDeep, "center");
+      this.drawGlossSheen(ctx, c.x - 14, c.y - 14, 28, 28, c.x * 2 + c.y);
     }
 
     for (const bl of this.board.blocks) {
@@ -2388,6 +2596,41 @@ class Game {
       ctx.stroke();
       ctx.restore();
       this.drawPixelText(ctx, "2\u00D7", cx, cy, 12, PALETTE.navyDeep, "center");
+    }
+
+    // black holes: a dark swirling void balls pass through and get bent by
+    for (const bh of this.board.blackHoles) {
+      const c = bh.center(this.board);
+      const spin = performance.now() / 260;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      // spiral arms
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.rotate(spin + (i / 3) * Math.PI * 2);
+        ctx.strokeStyle = PALETTE.purple;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        for (let s = 0; s <= 10; s++) {
+          const a = s * 0.35, r = s * 1.5;
+          const px = Math.cos(a) * r, py = Math.sin(a) * r;
+          if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+      const grad = ctx.createRadialGradient(0, 0, 1, 0, 0, 15);
+      grad.addColorStop(0, "#000000");
+      grad.addColorStop(0.7, PALETTE.navyDeep);
+      grad.addColorStop(1, "rgba(139,45,255,0.5)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = PALETTE.magenta;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -2563,6 +2806,7 @@ class Game {
 
     const fontSize = Math.min(26, rect.w / (String(bl.hp).length * 0.7), rect.h * 0.5);
     this.drawPixelText(ctx, String(bl.hp), rect.x + rect.w / 2, rect.y + rect.h / 2 + 1, fontSize, PALETTE.white, "center");
+    this.drawGlossSheen(ctx, rect.x, rect.y, rect.w, rect.h, bl.row * 13 + bl.col * 7);
   }
 
   drawLaunchArea(ctx) {
@@ -2592,7 +2836,6 @@ class Game {
         const stripY = this.LOGICAL_H - CONFIG.CANCEL_ZONE_H;
         ctx.fillRect(b.x, stripY, b.w, this.LOGICAL_H - stripY);
         ctx.restore();
-        this.drawPixelText(ctx, "RELEASE TO CANCEL", b.x + b.w / 2, this.LOGICAL_H - 18, 12, PALETTE.hotRed, "center");
         ctx.save();
         ctx.strokeStyle = PALETTE.hotRed;
         ctx.lineWidth = 3;
@@ -2667,8 +2910,9 @@ class Game {
   drawBalls(ctx) {
     const explosive = this.explosiveTurnsLeft > 0;
     const doubled = this.volleyDouble;
-    for (const ball of this.balls) {
-      if (ball.returned) continue;
+    const active = this.balls.filter(b => !b.returned);
+
+    for (const ball of active) {
       const giant = ball.radius > CONFIG.BALL_RADIUS + 0.1;
       const trailColor = explosive ? PALETTE.hotRed : (giant ? PALETTE.brightGreen : (doubled ? PALETTE.goldYellow : PALETTE.cyan));
       const coreColor = explosive ? PALETTE.orange : (giant ? PALETTE.brightGreen : (doubled ? PALETTE.paleYellow : PALETTE.white));
@@ -2685,6 +2929,16 @@ class Game {
       ctx.strokeStyle = ringColor;
       ctx.lineWidth = (explosive || doubled || giant) ? 2 : 1.5;
       ctx.stroke();
+      // glossy specular highlight, occasionally shimmering brighter
+      const shimmerPhase = (performance.now() + (ball.x + ball.y) * 3) % 2600;
+      const shimmerBoost = shimmerPhase < 220 ? (1 - shimmerPhase / 220) : 0;
+      ctx.save();
+      ctx.globalAlpha = 0.5 + shimmerBoost * 0.45;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.35, ball.y - ball.radius * 0.35, ball.radius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }
@@ -2699,9 +2953,9 @@ class Game {
     ctx.lineTo(this.LOGICAL_W, CONFIG.BORDER + CONFIG.HUD_H);
     ctx.stroke();
 
-    // lines-cleared readout: a big, always-visible counter across the top
+    // lines-cleared readout: a big, always-visible counter, icon instead of a label
     const linesY = CONFIG.BORDER + 17;
-    this.drawPixelText(ctx, "LINES CLEARED", this.LOGICAL_W / 2, linesY - 11, 11, PALETTE.gray, "center");
+    this._drawChainIcon(ctx, this.LOGICAL_W / 2 - 30, linesY - 11, 9, PALETTE.gray);
     const lcPulse = this.linesCleared > 0 ? 1 + Math.sin(performance.now() / 220) * 0.04 : 1;
     ctx.save();
     ctx.translate(this.LOGICAL_W / 2, linesY + 12);
@@ -2710,12 +2964,13 @@ class Game {
     ctx.restore();
 
     const statsY = CONFIG.BORDER + 60;
-    this.drawPixelText(ctx, "SCORE", CONFIG.BORDER + 4, statsY - 12, 11, PALETTE.gray, "left");
-    this.drawPixelText(ctx, String(this.score), CONFIG.BORDER + 4, statsY + 8, large ? 24 : 20, PALETTE.paleYellow, "left");
-    this.drawPixelText(ctx, "BEST " + Math.max(this.save.highScore, this.score), CONFIG.BORDER + 4, statsY + 24, 10, PALETTE.gray, "left");
+    this._drawStar(ctx, CONFIG.BORDER + 12, statsY - 12, 8, PALETTE.gray);
+    this.drawPixelText(ctx, String(this.score), CONFIG.BORDER + 24, statsY + 8, large ? 24 : 20, PALETTE.paleYellow, "left");
+    this._drawStar(ctx, CONFIG.BORDER + 8, statsY + 24, 5, PALETTE.gray);
+    this.drawPixelText(ctx, String(Math.max(this.save.highScore, this.score)), CONFIG.BORDER + 16, statsY + 24, 10, PALETTE.gray, "left");
 
-    this.drawPixelText(ctx, "TURN " + this.turn, this.LOGICAL_W / 2, statsY - 12, 12, PALETTE.gray, "center");
     this.drawPixelText(ctx, "\u00D7" + this.ballCount, this.LOGICAL_W / 2, statsY + 10, large ? 24 : 20, PALETTE.brightGreen, "center");
+    this.drawPixelText(ctx, String(this.turn), this.LOGICAL_W / 2, statsY - 12, 12, PALETTE.gray, "center");
 
     // multi-square bonus readout, shown while a shot is landing hits on
     // more than one distinct block
@@ -2725,7 +2980,7 @@ class Game {
       ctx.save();
       ctx.translate(this.LOGICAL_W / 2, statsY + 24);
       ctx.scale(flash, flash);
-      this.drawPixelText(ctx, "MULTI \u00D7" + mult.toFixed(1), 0, 0, 13, PALETTE.goldYellow, "center");
+      this.drawPixelText(ctx, "\u00D7" + mult.toFixed(1), 0, 0, 13, PALETTE.goldYellow, "center");
       ctx.restore();
     }
 
@@ -2750,16 +3005,16 @@ class Game {
     if (this.state === STATE.AIMING || this.state === STATE.LAUNCHING) {
       const items = [];
       if (this.explosiveTurnsLeft > 0) {
-        items.push({ color: PALETTE.hotRed, icon: "2\u00D7", label: String(this.explosiveTurnsLeft) + "T" });
+        items.push({ color: PALETTE.hotRed, icon: "2\u00D7", label: String(this.explosiveTurnsLeft) });
       }
       if (this.doubleCharges > 0 || this.volleyDouble) {
         const remaining = this.volleyDouble ? this.doubleCharges + 1 : this.doubleCharges;
-        items.push({ color: POWER_INFO.double.color, icon: POWER_INFO.double.icon, label: "x" + remaining });
+        items.push({ color: POWER_INFO.double.color, icon: POWER_INFO.double.icon, label: String(remaining) });
       }
       const activePower = this.volleyPower || this.queuedPower;
       if (activePower) {
         const info = POWER_INFO[activePower];
-        items.push({ color: info.color, icon: info.icon, label: info.label.split(" ")[0] });
+        items.push({ color: info.color, icon: info.icon, label: "" });
       }
       if (this.rewindCharges > 0) {
         items.push({ color: PALETTE.purple, icon: POWER_INFO.rewind.icon, label: String(this.rewindCharges), onClick: () => this.useRewind() });
@@ -2782,7 +3037,8 @@ class Game {
           ctx.strokeRect(-size / 2, -size / 2, size, size);
           ctx.restore();
           this.drawPixelText(ctx, item.icon, x + size / 2, barY + size / 2 - 6, 20, PALETTE.navyDeep, "center");
-          this.drawPixelText(ctx, item.label, x + size / 2, barY + size - 9, 11, PALETTE.navyDeep, "center");
+          if (item.label) this.drawPixelText(ctx, item.label, x + size / 2, barY + size - 9, 11, PALETTE.navyDeep, "center");
+          this.drawGlossSheen(ctx, x, barY, size, size, x * 4);
           if (item.onClick) this.buttons.push({ x, y: barY, w: size, h: size, onClick: item.onClick });
           x += size + gap;
         }
@@ -2822,7 +3078,7 @@ class Game {
     y += bh + gap;
     this.button(ctx, cx - bw / 2, y, bw, bh, "HOW TO PLAY", () => { this.prevState = STATE.PAUSED; this.state = STATE.HOWTO; });
     y += bh + gap;
-    this.button(ctx, cx - bw / 2, y, bw, bh, "RETURN TO TITLE", () => { this.state = STATE.TITLE; }, { size: 15 });
+    this.button(ctx, cx - bw / 2, y, bw, bh, "NEW GAME", () => { this.startGame(); }, { size: 15 });
   }
 
   drawGameOver(ctx) {
@@ -2848,7 +3104,7 @@ class Game {
     y += bh + 12;
     this.button(ctx, cx - 100, y, 200, 38, "REPLAY SEED", () => this.startGame(s.seed), { size: 14 });
     y += 46;
-    this.button(ctx, cx - 90, y, 180, 38, "TITLE", () => { this.state = STATE.TITLE; }, { size: 15 });
+    this.button(ctx, cx - 90, y, 180, 38, "NEW GAME", () => { this.startGame(); }, { size: 15 });
   }
 }
 

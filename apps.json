@@ -60,7 +60,8 @@
     "id": "maisie-magic-draw",
     "name": "Magic Draw",
     "description": "A sparkly finger-painting app with glowing trails and stickers.",
-    "category": "Art",
+    "category": "Games",
+    "gameGroup": "maisie",
     "path": "MaisieMagicDraw.html",
     "added": "2026-09-01T03:20:04+00:00",
     "thumbnail": "thumbnails/maisie-magic-draw.jpg"
@@ -1381,8 +1382,8 @@
     "id": "maisies-magic-voice-machine",
     "name": "Maisie's Magic Voice Machine",
     "description": "Warp your voice into a unicorn, T-Rex, robot, and more, with long spiraling echoes.",
-    "category": "Music Tools",
-    "musicGroup": "synth",
+    "category": "Games",
+    "gameGroup": "maisie",
     "path": "MaisiesMagicVoiceMachine.html",
     "added": "2026-09-08T18:19:24-07:00",
     "thumbnail": "thumbnails/maisies-magic-voice-machine.jpg"
@@ -1405,5 +1406,45 @@
     "path": "CrossFission.html",
     "added": "2026-09-13T21:05:43+00:00",
     "thumbnail": "thumbnails/cross-fission.jpg"
+  },
+  {
+    "id": "shape-match",
+    "name": "Shape Match",
+    "description": "A neon match-3 against the clock, with chain combos and screen-flashing power moves.",
+    "category": "Games",
+    "gameGroup": "arcade",
+    "path": "ShapesMatch3.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/shape-match.jpg"
+  },
+  {
+    "id": "oscillon",
+    "name": "Oscillon",
+    "description": "A Lissajous curve that automatically speeds up, weaving denser and denser patterns.",
+    "category": "Art",
+    "path": "Oscillon.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/oscillon.jpg"
+  },
+  {
+    "id": "checkerboard-chain",
+    "name": "Checkerboard Chain",
+    "description": "Tap to send an organic black ripple chaining across a white grid, then watch it settle back.",
+    "category": "Art",
+    "path": "CheckerboardChain.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/checkerboard-chain.jpg"
+  },
+  {
+    "id": "ricochet-8bit-sequence13",
+    "name": "Sequence 13",
+    "description": "The latest Ricochet 8-Bit expansion — giant balls, homing shots, and balls that won't stay stuck forever.",
+    "category": "Games",
+    "path": "Sequence13.html",
+    "featured": true,
+    "featuredOrder": 4,
+    "gameGroup": "arcade",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/ricochet-8bit-sequence13.jpg"
   }
 ]
