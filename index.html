@@ -225,17 +225,6 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
-  #musicSpecial { margin-bottom: 4px; }
-  a.special-link {
-    border: 1px solid #3a2a1a;
-    background: #14100a;
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 4px;
-  }
-  a.special-link:last-child { border-bottom: 1px solid #3a2a1a; }
-  a.special-link:hover, a.special-link:active { border-color: #6b4a1a; padding-left: 16px; }
-  a.special-link .arrow { color: #c9a877; font-size: 1.6rem; }
   .site-footer {
     margin-top: 36px;
     padding-top: 16px;
@@ -385,6 +374,85 @@
     text-transform: uppercase;
     font-weight: 700;
   }
+  #soundMixer {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    height: min(70vh, 640px);
+  }
+  .mixer-col {
+    flex: 1 1 50%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #1c1c20;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+  }
+  .mixer-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 8px 2px;
+    background: #0c0c0e;
+    border-bottom: 1px solid #1c1c20;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .mixer-tap {
+    flex: 0 0 30px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #46464f;
+    font-size: 1.3rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .mixer-tap:hover, .mixer-tap:active { color: #f2f2f5; }
+  .mixer-tap-prev::before { content: "\2039"; }
+  .mixer-tap-next::before { content: "\203A"; }
+  .mixer-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    pointer-events: none;
+  }
+  .mixer-label {
+    color: #6b6b78;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .mixer-name {
+    color: #f2f2f5;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    transition: opacity 0.12s;
+  }
+  .mixer-name.swapping { opacity: 0; }
+  .mixer-frame-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+  }
+  .mixer-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #000;
+  }
 </style>
 </head>
 <body>
@@ -527,7 +595,7 @@
         <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
         <p class="blurb">Depending on the kind of piece I&rsquo;m making, I begin in different places. For more traditional song-based work, I often start in GarageBand and export through DistroKid.</p>
         <p class="blurb">I also use Suno AI as part of my process. As with app development, I use AI tools to help translate rough ideas into structured prompts, which can lead to results that are unpredictable, strange, or unexpectedly useful.</p>
-        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Music section of Deeley.org.</p>
+        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Sound section of Deeley.org.</p>
 
         <p class="blurb" style="margin-top: 28px;">Thank you for spending time here.</p>
         <p class="blurb">I hope the work on this site offers a clearer sense of how I make art, how I use technology, and how disability informs the way I see, choose, and build.</p>
@@ -551,22 +619,37 @@
 
         <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
   </div>
-  <div id="musicSpecial" class="hidden">
-    <a class="link-item special-link" href="JamSession.html">
-      <div>
-        <h2>&#127925; Jam Session</h2>
-        <p>Play a drum machine and a synth together, side by side</p>
+  <div id="soundMixer" class="hidden">
+    <div class="mixer-col" id="mixerSynthCol">
+      <div class="mixer-header" data-role="synth">
+        <div class="mixer-tap mixer-tap-prev" aria-label="Previous synth"></div>
+        <div class="mixer-info">
+          <div class="mixer-label">Synth</div>
+          <div class="mixer-name"></div>
+        </div>
+        <div class="mixer-tap mixer-tap-next" aria-label="Next synth"></div>
       </div>
-      <span class="arrow">&#8250;</span>
-    </a>
+      <div class="mixer-frame-wrap"><iframe class="mixer-frame"></iframe></div>
+    </div>
+    <div class="mixer-col" id="mixerDrumCol">
+      <div class="mixer-header" data-role="drum">
+        <div class="mixer-tap mixer-tap-prev" aria-label="Previous drum machine"></div>
+        <div class="mixer-info">
+          <div class="mixer-label">Drums</div>
+          <div class="mixer-name"></div>
+        </div>
+        <div class="mixer-tap mixer-tap-next" aria-label="Next drum machine"></div>
+      </div>
+      <div class="mixer-frame-wrap"><iframe class="mixer-frame"></iframe></div>
+    </div>
   </div>
   <div id="newSection"></div>
   <div id="appList"></div>
 </main>
 
 <script>
-const TABS = ["Home", "Games", "Art", "Music"];
-const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
+const TABS = ["Home", "Games", "Art", "Sound"];
+const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art" };
 
 let apps = [];
 let activeTab = "Home";
@@ -622,7 +705,7 @@ function render() {
 
 function renderSearchResults() {
   document.getElementById("homeContent").classList.add("hidden");
-  document.getElementById("musicSpecial").classList.add("hidden");
+  document.getElementById("soundMixer").classList.add("hidden");
   const newSectionEl = document.getElementById("newSection");
   newSectionEl.classList.add("hidden");
   newSectionEl.innerHTML = "";
@@ -645,6 +728,117 @@ function renderSearchResults() {
   }
 
   for (const app of matches) listEl.appendChild(buildItem(app));
+}
+
+// ---------- SOUND MIXER (Sound tab) ----------
+// Two independent instruments - one synth, one drum machine - loaded side
+// by side in iframes. Each is a fully self-contained page with its own Web
+// Audio context, so two playing together just mix naturally on output
+// (same principle the earlier Jam Session page used, before this replaced
+// it as the Sound tab's default view). Swiping, or tapping the edge zones,
+// on a column's header cycles to the next/previous instrument of that
+// type; the instrument itself keeps the rest of the column for actual
+// play interaction, so swiping to change never fights with playing it.
+const MIXER_CHOICE_KEY = "deeley_sound_mixer_choice";
+let mixerSynths = [];
+let mixerDrums = [];
+let mixerSynthIndex = 0;
+let mixerDrumIndex = 0;
+let mixerBuilt = false;
+
+function mixerSaveChoice() {
+  try {
+    sessionStorage.setItem(MIXER_CHOICE_KEY, JSON.stringify({ synth: mixerSynthIndex, drum: mixerDrumIndex }));
+  } catch (e) {}
+}
+function mixerRestoreChoice() {
+  try {
+    return JSON.parse(sessionStorage.getItem(MIXER_CHOICE_KEY) || "null");
+  } catch (e) {
+    return null;
+  }
+}
+
+// Built once per page load - switching away from and back to the Sound tab
+// just re-shows the same iframes rather than reloading them, so anything
+// already playing (a looping drum pattern, say) keeps going in the
+// background rather than getting cut off.
+function renderSoundMixer() {
+  if (mixerBuilt) return;
+  mixerBuilt = true;
+
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const music = apps.filter((a) => a.category === "Music Tools");
+  mixerSynths = music.filter((a) => a.musicGroup === "synth").sort(byName);
+  mixerDrums = music.filter((a) => a.musicGroup === "drum").sort(byName);
+
+  const saved = mixerRestoreChoice();
+  if (saved && Number.isInteger(saved.synth) && saved.synth < mixerSynths.length) mixerSynthIndex = saved.synth;
+  if (saved && Number.isInteger(saved.drum) && saved.drum < mixerDrums.length) mixerDrumIndex = saved.drum;
+
+  setupMixerColumn(
+    document.getElementById("mixerSynthCol"),
+    mixerSynths,
+    () => mixerSynthIndex,
+    (i) => { mixerSynthIndex = i; mixerSaveChoice(); }
+  );
+  setupMixerColumn(
+    document.getElementById("mixerDrumCol"),
+    mixerDrums,
+    () => mixerDrumIndex,
+    (i) => { mixerDrumIndex = i; mixerSaveChoice(); }
+  );
+}
+
+function setupMixerColumn(col, list, getIndex, setIndex) {
+  const nameEl = col.querySelector(".mixer-name");
+  const frame = col.querySelector(".mixer-frame");
+  const header = col.querySelector(".mixer-header");
+
+  function show(index) {
+    if (list.length === 0) {
+      nameEl.textContent = "Nothing here yet";
+      frame.removeAttribute("src");
+      return;
+    }
+    const app = list[index];
+    nameEl.classList.add("swapping");
+    setTimeout(() => {
+      nameEl.textContent = app.name;
+      nameEl.classList.remove("swapping");
+    }, 120);
+    frame.src = "./" + app.path;
+    frame.addEventListener("load", function onLoad() {
+      frame.removeEventListener("load", onLoad);
+      try {
+        const back = frame.contentDocument.getElementById("beep-back");
+        if (back) back.style.display = "none";
+      } catch (e) {}
+    });
+  }
+
+  function step(dir) {
+    if (list.length === 0) return;
+    const next = (getIndex() + dir + list.length) % list.length;
+    setIndex(next);
+    show(next);
+  }
+
+  col.querySelector(".mixer-tap-prev").addEventListener("click", () => step(-1));
+  col.querySelector(".mixer-tap-next").addEventListener("click", () => step(1));
+
+  let dragStartX = null;
+  header.addEventListener("pointerdown", (e) => { dragStartX = e.clientX; });
+  header.addEventListener("pointerup", (e) => {
+    if (dragStartX === null) return;
+    const dx = e.clientX - dragStartX;
+    dragStartX = null;
+    if (Math.abs(dx) < 32) return;
+    step(dx < 0 ? 1 : -1);
+  });
+  header.addEventListener("pointercancel", () => { dragStartX = null; });
+
+  show(getIndex());
 }
 
 const A2HS_DISMISSED_KEY = "deeley_a2hs_dismissed";
@@ -743,11 +937,16 @@ function buildTabs() {
 
 function renderActiveTab() {
   const isHome = activeTab === "Home";
+  const isSound = activeTab === "Sound";
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
-  document.getElementById("newSection").classList.toggle("hidden", isHome);
-  document.getElementById("appList").classList.toggle("hidden", isHome);
-  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Music");
+  document.getElementById("newSection").classList.toggle("hidden", isHome || isSound);
+  document.getElementById("appList").classList.toggle("hidden", isHome || isSound);
+  document.getElementById("soundMixer").classList.toggle("hidden", !isSound);
   if (isHome) return;
+  if (isSound) {
+    renderSoundMixer();
+    return;
+  }
   renderNewSection();
   renderList();
 }
@@ -778,7 +977,6 @@ function renderList() {
   // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
   // unlabeled trailing group so nothing silently disappears if a new app misses the field.
   const TAB_SUBGROUPS = {
-    Music: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
     Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
   };
 

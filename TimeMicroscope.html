@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>time microscope</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg: #000;
+    --fg: #fff;
+    --dim: rgba(255,255,255,0.35);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  }
+  #stage{
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #ratioDisplay{
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 28px);
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: var(--dim);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #ratioDisplay.visible{ opacity: 1; }
+
+  #control{
+    position: relative;
+    width: min(58vw, 58vh, 300px);
+    height: min(58vw, 58vh, 300px);
+    border-radius: 50%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #ring{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  #ringTrack{
+    fill: none;
+    stroke: rgba(255,255,255,0.12);
+    stroke-width: 2;
+  }
+  #ringProgress{
+    fill: none;
+    stroke: var(--fg);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  #core{
+    width: 78%;
+    height: 78%;
+    border-radius: 50%;
+    background: var(--fg);
+    will-change: transform, opacity;
+  }
+  #hint{
+    position: absolute;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 34px);
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: var(--dim);
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<div id="stage">
+  <div id="ratioDisplay">1.0×</div>
+  <button id="control" aria-label="record two seconds">
+    <svg id="ring" viewBox="0 0 100 100">
+      <circle id="ringTrack" cx="50" cy="50" r="47"></circle>
+      <circle id="ringProgress" cx="50" cy="50" r="47" stroke-dasharray="295.3" stroke-dashoffset="295.3"></circle>
+    </svg>
+    <div id="core"></div>
+  </button>
+  <div id="hint">tap to record two seconds</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  var STATE = { IDLE: "idle", RECORDING: "recording", STRETCHING: "stretching", STOPPING: "stopping" };
+  var state = STATE.IDLE;
+
+  var audioCtx = null;
+  var mic = { stream: null, ctxNode: null, processor: null };
+  var recordedChunks = [];
+  var recordedSampleCount = 0;
+  var RECORD_SECONDS = 2.0;
+
+  var doubledBuffer = null;   // source buffer concatenated with itself, for safe wrap reads
+  var sourceDuration = 0;
+
+  var masterGain = null;
+  var limiter = null;
+
+  var schedulerTimer = null;
+  var t0 = 0;              // audioCtx time when stretching began
+  var nextGrainTime = 0;
+  var readPos = 0;
+  var SCHEDULE_AHEAD = 0.15;
+  var TICK_MS = 25;
+
+  var visualRAF = null;
+  var pulsePhaseStart = 0;
+
+  var el = {
+    stage: document.getElementById("stage"),
+    control: document.getElementById("control"),
+    core: document.getElementById("core"),
+    ring: document.getElementById("ring"),
+    ringProgress: document.getElementById("ringProgress"),
+    ratioDisplay: document.getElementById("ratioDisplay"),
+    hint: document.getElementById("hint")
+  };
+
+  var RING_CIRC = 295.3;
+
+  // ---------- helpers ----------
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function computeRatio(t){
+    // t: seconds elapsed since stretching began. Smooth, unbounded, monotonic.
+    if (t <= 0) return 1.0;
+    return 1 + Math.pow(t / 8, 2.2);
+  }
+
+  function computeGrainDur(ratio){
+    var base = 0.06 * (1 + Math.log10(ratio + 1) * 0.3);
+    return clamp(base, 0.04, 0.14);
+  }
+
+  function computeOverlap(ratio){
+    return clamp(0.55 + Math.log10(ratio + 1) * 0.1, 0.55, 0.85);
+  }
+
+  function computePulsePeriod(ratio){
+    return 0.8 * Math.pow(ratio, 0.5);
+  }
+
+  function formatRatio(ratio){
+    if (ratio < 10) return ratio.toFixed(1) + "×";
+    return Math.round(ratio).toLocaleString() + "×";
+  }
+
+  function ensureAudioContext(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended"){
+      audioCtx.resume();
+    }
+  }
+
+  // ---------- recording ----------
+  function startRecording(){
+    ensureAudioContext();
+    state = STATE.RECORDING;
+    el.hint.style.opacity = "0";
+
+    navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    }}).then(function(stream){
+      mic.stream = stream;
+      mic.ctxNode = audioCtx.createMediaStreamSource(stream);
+      var bufferSize = 4096;
+      mic.processor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+      recordedChunks = [];
+      recordedSampleCount = 0;
+      var targetSamples = Math.round(audioCtx.sampleRate * RECORD_SECONDS);
+
+      mic.processor.onaudioprocess = function(e){
+        if (state !== STATE.RECORDING) return;
+        var input = e.inputBuffer.getChannelData(0);
+        var remaining = targetSamples - recordedSampleCount;
+        if (remaining <= 0) return;
+        var take = Math.min(remaining, input.length);
+        var chunk = new Float32Array(take);
+        chunk.set(input.subarray(0, take));
+        recordedChunks.push(chunk);
+        recordedSampleCount += take;
+        if (recordedSampleCount >= targetSamples){
+          finishRecording(targetSamples);
+        }
+      };
+
+      mic.ctxNode.connect(mic.processor);
+      // ScriptProcessor must connect to a destination to run in all browsers.
+      var silentSink = audioCtx.createGain();
+      silentSink.gain.value = 0;
+      mic.processor.connect(silentSink);
+      silentSink.connect(audioCtx.destination);
+      mic._silentSink = silentSink;
+
+      animateRecordingRing();
+    }).catch(function(err){
+      state = STATE.IDLE;
+      el.hint.textContent = "microphone access needed";
+      el.hint.style.opacity = "1";
+      console.error(err);
+    });
+  }
+
+  function animateRecordingRing(){
+    var start = performance.now();
+    var duration = RECORD_SECONDS * 1000;
+    function frame(now){
+      if (state !== STATE.RECORDING) return;
+      var progress = clamp((now - start) / duration, 0, 1);
+      el.ringProgress.setAttribute("stroke-dashoffset", (RING_CIRC * (1 - progress)).toFixed(2));
+      if (progress < 1){
+        requestAnimationFrame(frame);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finishRecording(targetSamples){
+    if (mic.ctxNode) mic.ctxNode.disconnect();
+    if (mic.processor) mic.processor.disconnect();
+    if (mic._silentSink) mic._silentSink.disconnect();
+    if (mic.stream) mic.stream.getTracks().forEach(function(tr){ tr.stop(); });
+    mic = {};
+
+    var combined = new Float32Array(targetSamples);
+    var offset = 0;
+    for (var i = 0; i < recordedChunks.length; i++){
+      var c = recordedChunks[i];
+      var len = Math.min(c.length, targetSamples - offset);
+      combined.set(c.subarray(0, len), offset);
+      offset += len;
+      if (offset >= targetSamples) break;
+    }
+    recordedChunks = null;
+
+    normalizeInPlace(combined);
+    buildDoubledBuffer(combined);
+    beginStretching();
+  }
+
+  function normalizeInPlace(samples){
+    var peak = 0;
+    for (var i = 0; i < samples.length; i++){
+      var a = Math.abs(samples[i]);
+      if (a > peak) peak = a;
+    }
+    if (peak < 1e-6) return;
+    var target = 0.9;
+    var gain = clamp(target / peak, 1, 15);
+    for (var j = 0; j < samples.length; j++){
+      samples[j] *= gain;
+    }
+  }
+
+  function buildDoubledBuffer(samples){
+    sourceDuration = samples.length / audioCtx.sampleRate;
+    var buf = audioCtx.createBuffer(1, samples.length * 2, audioCtx.sampleRate);
+    var ch = buf.getChannelData(0);
+    ch.set(samples, 0);
+    ch.set(samples, samples.length);
+    doubledBuffer = buf;
+  }
+
+  // ---------- stretching / granular engine ----------
+  function beginStretching(){
+    state = STATE.STRETCHING;
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+
+    masterGain.connect(limiter);
+    limiter.connect(audioCtx.destination);
+    masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.15);
+
+    t0 = audioCtx.currentTime;
+    nextGrainTime = t0;
+    readPos = 0;
+
+    schedulerTimer = setInterval(schedulerTick, TICK_MS);
+    schedulerTick();
+
+    el.control.setAttribute("aria-label", "stop");
+    el.ratioDisplay.classList.add("visible");
+    startVisuals();
+  }
+
+  function schedulerTick(){
+    if (state !== STATE.STRETCHING) return;
+    var now = audioCtx.currentTime;
+    while (nextGrainTime < now + SCHEDULE_AHEAD){
+      var t = nextGrainTime - t0;
+      var ratio = computeRatio(t);
+      var grainDur = computeGrainDur(ratio);
+      var overlap = computeOverlap(ratio);
+      var hop = grainDur * (1 - overlap);
+
+      scheduleGrain(nextGrainTime, readPos, ratio, grainDur);
+
+      readPos = (readPos + hop / ratio) % sourceDuration;
+      if (readPos < 0) readPos += sourceDuration;
+      nextGrainTime += hop;
+    }
+  }
+
+  function scheduleGrain(startTime, basePos, ratio, grainDur){
+    var jitterAmt = Math.min(0.02, 0.002 * Math.log10(ratio + 1) * 10);
+    var jitter = (Math.random() - 0.5) * 2 * jitterAmt;
+    var pos = basePos + jitter;
+    if (pos < 0) pos += sourceDuration;
+    if (pos >= sourceDuration) pos -= sourceDuration;
+
+    var extreme = clamp((ratio - 20) / 500, 0, 1);
+    var rate = 1 + (Math.random() - 0.5) * 0.01 * extreme;
+
+    var src = audioCtx.createBufferSource();
+    src.buffer = doubledBuffer;
+    src.playbackRate.value = rate;
+
+    var g = audioCtx.createGain();
+    src.connect(g);
+    g.connect(masterGain);
+
+    var attack = grainDur * 0.5;
+    g.gain.setValueAtTime(0.0001, startTime);
+    g.gain.linearRampToValueAtTime(1, startTime + attack);
+    g.gain.linearRampToValueAtTime(0.0001, startTime + grainDur);
+
+    var readLen = grainDur * rate;
+    try {
+      src.start(startTime, pos, readLen);
+      src.stop(startTime + grainDur + 0.03);
+    } catch (e){ /* ignore edge scheduling errors */ }
+
+    src.onended = function(){
+      try { src.disconnect(); g.disconnect(); } catch(e){}
+    };
+  }
+
+  // ---------- visuals during stretching ----------
+  function startVisuals(){
+    pulsePhaseStart = performance.now();
+    function frame(now){
+      if (state !== STATE.STRETCHING) return;
+      var t = audioCtx.currentTime - t0;
+      var ratio = computeRatio(t);
+      var period = computePulsePeriod(ratio);
+      var elapsed = (now - pulsePhaseStart) / 1000;
+      var phase = (elapsed % period) / period;
+      var s = Math.sin(phase * Math.PI * 2);
+      var scale = 1 + s * 0.12;
+      var opacity = 0.75 + (s * 0.5 + 0.5) * 0.25;
+      el.core.style.transform = "scale(" + scale.toFixed(4) + ")";
+      el.core.style.opacity = opacity.toFixed(3);
+      el.ratioDisplay.textContent = formatRatio(ratio);
+      visualRAF = requestAnimationFrame(frame);
+    }
+    visualRAF = requestAnimationFrame(frame);
+  }
+
+  function stopVisuals(){
+    if (visualRAF) cancelAnimationFrame(visualRAF);
+    visualRAF = null;
+    el.core.style.transform = "scale(1)";
+    el.core.style.opacity = "1";
+  }
+
+  // ---------- stopping ----------
+  function stopStretching(){
+    state = STATE.STOPPING;
+    clearInterval(schedulerTimer);
+    schedulerTimer = null;
+
+    var now = audioCtx.currentTime;
+    var fadeTime = 0.25;
+    if (masterGain){
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+      masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
+    }
+
+    setTimeout(function(){
+      if (masterGain){ try { masterGain.disconnect(); } catch(e){} }
+      if (limiter){ try { limiter.disconnect(); } catch(e){} }
+      masterGain = null;
+      limiter = null;
+      doubledBuffer = null;
+      resetToIdle();
+    }, fadeTime * 1000 + 60);
+  }
+
+  function resetToIdle(){
+    state = STATE.IDLE;
+    stopVisuals();
+    el.ringProgress.setAttribute("stroke-dashoffset", RING_CIRC.toFixed(2));
+    el.ratioDisplay.classList.remove("visible");
+    el.ratioDisplay.textContent = "1.0×";
+    el.control.setAttribute("aria-label", "record two seconds");
+    el.hint.textContent = "tap to record two seconds";
+    el.hint.style.opacity = "1";
+  }
+
+  // ---------- interaction ----------
+  el.control.addEventListener("click", function(){
+    if (state === STATE.IDLE){
+      startRecording();
+    } else if (state === STATE.STRETCHING){
+      stopStretching();
+    }
+    // taps during RECORDING / STOPPING are ignored
+  });
+
+  // Prevent iOS gesture interference
+  document.addEventListener("gesturestart", function(e){ e.preventDefault(); });
+  document.addEventListener("touchmove", function(e){ e.preventDefault(); }, { passive: false });
+})();
+</script>
+</body>
+</html>
