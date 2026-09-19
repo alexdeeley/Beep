@@ -1446,5 +1446,15 @@
     "gameGroup": "arcade",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/ricochet-8bit-sequence13.jpg"
+  },
+  {
+    "id": "purrgrid",
+    "name": "PurrGrid",
+    "description": "A Queens-style logic puzzle: one cat per color, one per row and column, and cats can't touch.",
+    "category": "Games",
+    "gameGroup": "arcade",
+    "path": "PurrGrid.html",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/purrgrid.jpg"
   }
 ]
