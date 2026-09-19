@@ -53,7 +53,10 @@ button, input, select {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 8px 12px;
+  /* Left padding clears the fixed #beep-back circle (34px wide, offset by
+     max(8px, safe-area-inset-left)) plus a gap, so the back button always
+     sits in open space instead of overlapping the first transport button. */
+  padding: 8px 12px 8px calc(max(8px, env(safe-area-inset-left, 0px)) + 46px);
   background: #0c0c0e;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: sticky;
