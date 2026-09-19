@@ -1425,5 +1425,26 @@
     "path": "Oscillon.html",
     "added": "2026-09-18T00:00:00+00:00",
     "thumbnail": "thumbnails/oscillon.jpg"
+  },
+  {
+    "id": "checkerboard-chain",
+    "name": "Checkerboard Chain",
+    "description": "Tap to send an organic black ripple chaining across a white grid, then watch it settle back.",
+    "category": "Art",
+    "path": "CheckerboardChain.html",
+    "added": "2026-09-18T00:00:00+00:00",
+    "thumbnail": "thumbnails/checkerboard-chain.jpg"
+  },
+  {
+    "id": "ricochet-8bit-sequence13",
+    "name": "Sequence 13",
+    "description": "The latest Ricochet 8-Bit expansion — giant balls, homing shots, and balls that won't stay stuck forever.",
+    "category": "Games",
+    "path": "Sequence13.html",
+    "featured": true,
+    "featuredOrder": 4,
+    "gameGroup": "arcade",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/ricochet-8bit-sequence13.jpg"
   }
 ]
