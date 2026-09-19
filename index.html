@@ -527,7 +527,7 @@
         <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
         <p class="blurb">Depending on the kind of piece I&rsquo;m making, I begin in different places. For more traditional song-based work, I often start in GarageBand and export through DistroKid.</p>
         <p class="blurb">I also use Suno AI as part of my process. As with app development, I use AI tools to help translate rough ideas into structured prompts, which can lead to results that are unpredictable, strange, or unexpectedly useful.</p>
-        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Music section of Deeley.org.</p>
+        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Sound section of Deeley.org.</p>
 
         <p class="blurb" style="margin-top: 28px;">Thank you for spending time here.</p>
         <p class="blurb">I hope the work on this site offers a clearer sense of how I make art, how I use technology, and how disability informs the way I see, choose, and build.</p>
@@ -565,8 +565,8 @@
 </main>
 
 <script>
-const TABS = ["Home", "Games", "Art", "Music"];
-const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
+const TABS = ["Home", "Games", "Art", "Sound"];
+const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Sound" };
 
 let apps = [];
 let activeTab = "Home";
@@ -746,7 +746,7 @@ function renderActiveTab() {
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
   document.getElementById("appList").classList.toggle("hidden", isHome);
-  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Music");
+  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Sound");
   if (isHome) return;
   renderNewSection();
   renderList();
@@ -778,7 +778,7 @@ function renderList() {
   // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
   // unlabeled trailing group so nothing silently disappears if a new app misses the field.
   const TAB_SUBGROUPS = {
-    Music: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
+    Sound: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
     Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
   };
 
