@@ -116,8 +116,11 @@ button, input, select {
 }
 .im-add-center {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  /* Nudged down/right from dead-center so it clears the system menu bar
+     that installed ("Add to Home Screen") web apps get on iPadOS when
+     running in desktop mode. */
+  top: calc(50% + 10px);
+  left: calc(50% + 5px);
   transform: translate(-50%, -50%);
   width: 56px;
   height: 56px;
