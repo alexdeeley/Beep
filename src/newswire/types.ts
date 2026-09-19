@@ -264,3 +264,36 @@ export interface VerifiedBiggestStory {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw candidate surfaced by discoverFestivalPosters, before independent verification - a major
+ * music festival that has JUST announced its lineup/poster (industry-wide, LLM-judged "major" -
+ * internationally/nationally recognized festivals only, not local shows). eventYear is the festival's
+ * own edition year (e.g. 2027 for "Coachella 2027"), used as part of the dedup key alongside
+ * festivalName so next year's poster for the same festival isn't treated as a duplicate.
+ */
+export interface FestivalPosterCandidate {
+  festivalName: string;
+  eventYear: number | null;
+  headline: string;
+  eventTimeIso: string | null;
+  eventTimeConfidence: "exact" | "approximate" | "unknown";
+  sources: ReportedSource[];
+}
+
+/**
+ * Output of verifyFestivalPosters: a festival-poster candidate independently re-confirmed with the
+ * 2-source rule. `blurb` is verification's own short caption (never discovery's wording), and
+ * `primarySourceUrl` is verification's own most-authoritative source for the announcement (an official
+ * festival page preferred) - festivalPosters/extractPosterImage.ts fetches THIS specific URL's og:image
+ * to get the real poster image, never an LLM-reported image URL (which could be hallucinated).
+ */
+export interface VerifiedFestivalPoster {
+  festivalName: string;
+  eventYear: number | null;
+  headline: string;
+  blurb: string | null;
+  primarySourceUrl: string | null;
+  facts: VerifiedFact[];
+  meetsSourceBar: boolean;
+}

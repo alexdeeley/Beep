@@ -36,6 +36,7 @@ import { hasHistoryPostForDate, recordHistoryPost, getLastHistoryPost } from "..
 import { hasShowsPostForDate, recordShowsPost, getLastShowsRun } from "../../src/newswire/db/showsRepo.js";
 import { hasMusicNewsPostForDate, recordMusicNewsPost } from "../../src/newswire/db/musicNewsRepo.js";
 import { hasBiggestStoriesPostForDate, recordBiggestStoriesPost } from "../../src/newswire/db/biggestStoriesRepo.js";
+import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } from "../../src/newswire/db/festivalPostersRepo.js";
 import { hasSeenPlaylistTrack, getSeenPlaylistTrackCount, recordSeenPlaylistTrack } from "../../src/newswire/db/spotifyPlaylistRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
@@ -86,6 +87,7 @@ describe("newswire SQLite DB layer", () => {
       "shows_runs",
       "music_news_posts",
       "biggest_stories_posts",
+      "festival_poster_posts",
       "spotify_playlist_tracks_seen",
     ]) {
       expect(tables).toContain(t);
@@ -564,6 +566,23 @@ describe("newswire SQLite DB layer", () => {
       expect(hasBiggestStoriesPostForDate(db, "2026-09-09")).toBe(false);
 
       expect(() => recordBiggestStoriesPost(db, { postDate: "2026-09-08", postedInRunId: run.id, itemCount: 1 })).toThrow();
+    });
+  });
+
+  describe("festival_poster_posts", () => {
+    it("has not posted a festival until recordFestivalPosterPost is called", () => {
+      expect(hasPostedFestivalPoster(db, buildFestivalKey("Coachella", 2027))).toBe(false);
+    });
+
+    it("round-trips a recorded festival poster post and enforces once-per-key via UNIQUE", () => {
+      const run = startHourlyRun(db, false);
+      const key = buildFestivalKey("Coachella", 2027);
+      const recorded = recordFestivalPosterPost(db, { festivalKey: key, festivalName: "Coachella", postedInRunId: run.id });
+      expect(recorded.festival_key).toBe(key);
+      expect(hasPostedFestivalPoster(db, key)).toBe(true);
+      expect(hasPostedFestivalPoster(db, buildFestivalKey("Coachella", 2028))).toBe(false);
+
+      expect(() => recordFestivalPosterPost(db, { festivalKey: key, festivalName: "Coachella", postedInRunId: run.id })).toThrow();
     });
   });
 

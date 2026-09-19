@@ -141,3 +141,79 @@ export async function postThreadMessage(
 
   throw new Error(`postThreadMessage: all ${maxPublishAttempts} attempts failed: ${lastError}`);
 }
+
+/**
+ * Posts a standalone image post (uploadBlob then createRecord with an
+ * app.bsky.embed.images embed) - the only other place this pipeline
+ * uploads image bytes is bluesky/publish.ts, which is tightly coupled to
+ * the daily art pipeline's own caption/tag/image-only conventions
+ * (empty visible text, alt-only caption, discovery tags). This is a
+ * simpler standalone variant for the newswire pipeline: real visible
+ * text (a post here should say what it is, not rely on alt text alone),
+ * no reply chain, no tags. Used by festivalPosters/postFestivalPosters.ts
+ * to post an already-fetched, already-verified poster image.
+ */
+export async function postImageMessage(
+  config: AppConfig,
+  logger: RunLogger,
+  session: BlueskySession,
+  opts: { text: string; altText: string; imageBytes: Buffer; mimeType: string }
+): Promise<PostRef> {
+  if (opts.text.length === 0) {
+    throw new Error("postImageMessage: refusing to post empty text");
+  }
+
+  const { maxPublishAttempts } = config.bluesky;
+  let lastError: string | null = null;
+
+  // Node's Buffer/Uint8Array is generically typed over ArrayBufferLike, which isn't structurally
+  // assignable to DOM lib's BodyInit (typed over the narrower plain ArrayBuffer) - a known TS/Node
+  // typed-array generics mismatch. Copying into a fresh plain ArrayBuffer sidesteps it cleanly.
+  const bodyBuffer = new ArrayBuffer(opts.imageBytes.byteLength);
+  new Uint8Array(bodyBuffer).set(opts.imageBytes);
+
+  for (let attempt = 1; attempt <= maxPublishAttempts; attempt++) {
+    try {
+      const uploaded = await xrpcFetch<{ blob: { $type: "blob"; ref: { $link: string }; mimeType: string; size: number } }>(
+        config.bluesky.service,
+        "com.atproto.repo.uploadBlob",
+        {
+          method: "POST",
+          headers: { "Content-Type": opts.mimeType, Authorization: `Bearer ${session.accessJwt}` },
+          body: bodyBuffer,
+        }
+      );
+      logger.info("bluesky-thread", `Uploaded image blob (${uploaded.blob.size} bytes)`);
+
+      const record = await xrpcFetch<CreateRecordResponse>(config.bluesky.service, "com.atproto.repo.createRecord", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessJwt}`,
+        },
+        body: JSON.stringify({
+          repo: session.did,
+          collection: "app.bsky.feed.post",
+          record: {
+            $type: "app.bsky.feed.post",
+            text: opts.text,
+            createdAt: nowIso(),
+            embed: {
+              $type: "app.bsky.embed.images",
+              images: [{ image: uploaded.blob, alt: opts.altText }],
+            },
+          },
+        }),
+      });
+      return { uri: record.uri, cid: record.cid };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      logger.warn("bluesky-thread", `Image post attempt ${attempt}/${maxPublishAttempts} failed: ${lastError}`);
+      if (attempt < maxPublishAttempts) {
+        await sleep(2000 * 2 ** (attempt - 1));
+      }
+    }
+  }
+
+  throw new Error(`postImageMessage: all ${maxPublishAttempts} attempts failed: ${lastError}`);
+}

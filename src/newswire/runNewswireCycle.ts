@@ -30,6 +30,7 @@ import { postBirthdays } from "./birthdays/postBirthdays.js";
 import { postWeeklyShows } from "./shows/postWeeklyShows.js";
 import { postMusicNewsRecap } from "./musicNews/postMusicNewsRecap.js";
 import { postBiggestStoriesRecap } from "./biggestStories/postBiggestStoriesRecap.js";
+import { postFestivalPosters } from "./festivalPosters/postFestivalPosters.js";
 import { postPlaylistAdditions } from "./spotify/postPlaylistAdditions.js";
 import { resolveEligiblePostingWindow } from "./quietHours/postingWindow.js";
 import type { NewsRunContext } from "./runContext.js";
@@ -232,22 +233,24 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
     for (const item of verified) persistVerifiedItem(ctx, item);
     markArtistsChecked(db, batch.map((a) => a.id));
 
-    // All seven are independent of the per-item flow below, run their own internal eligibility checks
+    // All eight are independent of the per-item flow below, run their own internal eligibility checks
     // (roundup: Friday + past the configured hour; history: once a day; birthdays: once a year per
     // artist; shows: Tuesday + past the configured hour; music news recap: once a day; biggest stories
-    // recap: once a day, industry-wide, separate from music news recap; playlist-watch: every cycle,
-    // no-op unless newSinglesPlaylistIds is configured), and are no-ops most cycles. Placed before every
-    // early-return path so they always get a chance to run. Each returns how many physical posts it
-    // actually published, since any of them can be the only thing that posts this cycle - that count
-    // must feed into the final publishedPostCount/publishStatus below, or a cycle that published only
-    // e.g. a birthday post would be misreported as "skipped" (see the mechanicalPublishedCount fix in
-    // silentResult's history for why this matters).
+    // recap: once a day, industry-wide, separate from music news recap; festival posters: every cycle,
+    // no daily cap, each distinct festival edition posts once whenever found; playlist-watch: every
+    // cycle, no-op unless newSinglesPlaylistIds is configured), and are no-ops most cycles. Placed
+    // before every early-return path so they always get a chance to run. Each returns how many physical
+    // posts it actually published, since any of them can be the only thing that posts this cycle - that
+    // count must feed into the final publishedPostCount/publishStatus below, or a cycle that published
+    // only e.g. a birthday post would be misreported as "skipped" (see the mechanicalPublishedCount fix
+    // in silentResult's history for why this matters).
     const roundupPublishedCount = await postWeeklyRoundup(ctx);
     const historyPublishedCount = await postMusicHistory(ctx);
     const birthdayPublishedCount = await postBirthdays(ctx);
     const showsPublishedCount = await postWeeklyShows(ctx);
     const musicNewsPublishedCount = await postMusicNewsRecap(ctx);
     const biggestStoriesPublishedCount = await postBiggestStoriesRecap(ctx);
+    const festivalPostersPublishedCount = await postFestivalPosters(ctx);
     const playlistAdditionsPublishedCount = await postPlaylistAdditions(ctx);
 
     // Priority artists (editorial-focus.json's priorityArtists) get VIP treatment: their album/EP/compilation
@@ -268,6 +271,7 @@ export async function runNewswireCycle(config: AppConfig, options: NewswireCycle
       showsPublishedCount +
       musicNewsPublishedCount +
       biggestStoriesPublishedCount +
+      festivalPostersPublishedCount +
       playlistAdditionsPublishedCount +
       singlesPublishedCount;
 

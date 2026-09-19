@@ -380,4 +380,22 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // Festival-poster watch: posts a major music festival's own official lineup poster image
+    // (mechanically extracted from its announcement page's og:image, never an LLM-reported URL) whenever
+    // one is discovered - not a once-a-day digest like the other recaps above, each distinct festival
+    // edition posts its own standalone image post as soon as it's found. festival_key (normalized name +
+    // edition year, see db/festivalPostersRepo.ts) is the idempotency guard, so the same festival's same
+    // year never posts twice but next year's edition isn't blocked by this year's row.
+    id: "0011_festival_posters",
+    sql: `
+      CREATE TABLE IF NOT EXISTS festival_poster_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        festival_key TEXT NOT NULL UNIQUE,
+        festival_name TEXT NOT NULL,
+        posted_in_run_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `,
+  },
 ];

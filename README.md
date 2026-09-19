@@ -527,7 +527,7 @@ like the Friday roundup, every cycle also checks for a `MUSIC NEWS`
 recap - a rare, narrow, high-bar digest of genuinely major real-world
 news (arrest, death, breakup, major lawsuit/scandal) for a watchlist
 artist - and, if configured, every cycle also checks a user-maintained
-Spotify playlist for newly-added tracks (§18.7-§18.14).
+Spotify playlist for newly-added tracks (§18.7-§18.15).
 
 **Nothing is ever posted on a single unverified source.** Discovery finds
 candidates via one web-search sweep across the batch; a completely
@@ -1219,3 +1219,70 @@ only by `lookupTrack.ts` (attaching a link to non-playlist-watch
 singles) - playlist-watch doesn't touch it at all. Leaving
 `SPOTIFY_NEW_SINGLES_PLAYLIST_IDS` unset or empty (see `.env.example`)
 makes this feature a complete no-op rather than an error.
+
+### 18.15 Festival posters: `festivalPosters/postFestivalPosters.ts`
+
+Every cycle, searches industry-wide for major music festivals that have
+just announced their lineup/poster, and posts the festival's own
+official poster **image** - not a text summary, the real graphic:
+
+```
+FESTIVAL LINEUP: Coachella 2027
+
+Coachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C.
+```
+
+**"Major" is an LLM judgment call, not a fixed watchlist** -
+`discovery/festivalPostersPrompts.ts` sets a deliberately high bar
+(internationally/nationally recognized festivals only - Coachella,
+Glastonbury, Bonnaroo, Lollapalooza, Primavera Sound, and similar scale,
+given as calibration examples, not an exhaustive list) and explicitly
+tells the model most days should find zero. Unlike the two once-a-day
+recaps above, this is **not** a daily digest - there's no daily cap or
+"already posted today" gate. Each distinct festival edition
+(`db/festivalPostersRepo.ts`'s `festival_key`: normalized name + edition
+year) posts its own standalone image post as soon as it's found, and
+next year's edition of the same festival isn't blocked by this year's
+row.
+
+**The poster image is never sourced from anything the model reports
+directly.** `verification/verifyFestivalPosters.ts` only confirms the
+announcement is real (the same 2-independent-source rule as everywhere
+else) and picks the single most authoritative source URL, strongly
+preferring the festival's own official site over a secondary news
+article. `festivalPosters/extractPosterImage.ts` then does a plain HTTP
+fetch of that *exact* URL and mechanically parses its
+`og:image`/`twitter:image` meta tag via regex - deliberately not
+LLM-based, for the same reason `spotify/getPlaylistTracks.ts` never
+trusts a model-reported URL: an LLM can hallucinate a URL that doesn't
+exist or doesn't actually point at the poster. Only a URL a real,
+already-verified page genuinely links to is ever fetched and posted.
+Confirmed live against real pages (Wikipedia, a major music outlet) -
+including a real bug this caught: `og:image` content is often
+HTML-entity-escaped (`&amp;` instead of `&`) even inside the URL itself,
+which `decodeHtmlEntities` in that file corrects before the URL is
+constructed, since a literal `&amp;` happens to be harmless on some
+sites' cosmetic tracking params but would silently break or mis-fetch on
+any site where the query string actually matters (a signed URL, a CDN
+size/variant selector).
+
+If no image can be mechanically extracted - no meta tag, wrong
+content-type (only `image/jpeg`/`image/png` are accepted), too large for
+Bluesky's 2,000,000-byte blob limit, or a network failure - that item is
+simply skipped and left unrecorded, so a later cycle can retry rather
+than posting nothing or posting something guessed.
+
+**Publishes via a new standalone image-post primitive**,
+`bluesky/threadPublish.ts`'s `postImageMessage` - the *only* other place
+this pipeline uploads image bytes is `bluesky/publish.ts`, which is
+tightly coupled to the daily art pipeline's own image-only convention
+(empty visible text, caption only in alt text). This one posts real
+visible text (a caption, same as everywhere else in the newswire) plus
+matching alt text, no reply chain, no discovery tags.
+
+**Worth being explicit about**: this is the one feature in the whole
+pipeline that republishes a third party's own copyrighted promotional
+artwork on this account, rather than reporting on verified facts in the
+wire's own words. That was a deliberate, informed choice by the account
+owner, not a default - every other mechanical/writer post in this
+pipeline only ever states facts, never reposts someone else's media.
