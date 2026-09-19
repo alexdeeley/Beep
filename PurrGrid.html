@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PurrGrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FBF3E7;
+    --bg-2: #F5E9D8;
+    --surface: #FFFDFA;
+    --surface-2: #FFF7EC;
+    --ink: #3E2E2A;
+    --ink-soft: #8A7468;
+    --accent: #B85C6B;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #F1D3D8;
+    --sage: #7DA184;
+    --line: #E8DCC8;
+    --shadow: rgba(120, 90, 60, 0.16);
+    --heart: #D65B5B;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #241C22;
+      --bg-2: #2C2129;
+      --surface: #2F252B;
+      --surface-2: #362A31;
+      --ink: #F3E9E4;
+      --ink-soft: #B9A79D;
+      --accent: #E28B98;
+      --accent-ink: #241C22;
+      --accent-soft: #4A2F38;
+      --sage: #93B999;
+      --line: #453640;
+      --shadow: rgba(0, 0, 0, 0.4);
+      --heart: #E8737B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #241C22;
+    --bg-2: #2C2129;
+    --surface: #2F252B;
+    --surface-2: #362A31;
+    --ink: #F3E9E4;
+    --ink-soft: #B9A79D;
+    --accent: #E28B98;
+    --accent-ink: #241C22;
+    --accent-soft: #4A2F38;
+    --sage: #93B999;
+    --line: #453640;
+    --shadow: rgba(0, 0, 0, 0.4);
+    --heart: #E8737B;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    overscroll-behavior: none;
+  }
+  body {
+    background: radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg) 60%);
+    color: var(--ink);
+    font-family: 'Nunito', sans-serif;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow-x: hidden;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  h1, h2, h3, .display { font-family: 'Baloo 2', sans-serif; }
+  button { font-family: inherit; }
+
+  #app { min-height: 100%; display: flex; flex-direction: column; }
+  .screen { display: none; flex: 1; flex-direction: column; min-height: 100%; }
+  .screen.active { display: flex; }
+
+  /* ---------- HOME ---------- */
+  #screen-home { align-items: center; justify-content: center; padding: 24px; text-align: center; gap: 6px; }
+  .home-cat {
+    width: 132px; height: 132px; margin-bottom: 6px;
+    filter: drop-shadow(0 10px 18px var(--shadow));
+    animation: bob 3.4s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100%{ transform: translateY(0) rotate(-2deg);} 50%{ transform: translateY(-8px) rotate(2deg);} }
+  .game-title {
+    font-size: clamp(2.4rem, 10vw, 3.4rem);
+    font-weight: 800;
+    color: var(--accent);
+    margin: 0;
+    letter-spacing: 0.5px;
+  }
+  .game-sub { color: var(--ink-soft); margin: 0 0 18px; font-weight: 600; font-size: 0.95rem; }
+  .home-buttons { display: flex; flex-direction: column; gap: 12px; width: min(320px, 84vw); }
+  .btn {
+    border: none; border-radius: 18px; padding: 16px 20px;
+    font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 1.05rem;
+    cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.08);
+  }
+  .btn:active { transform: translateY(3px) scale(0.98); box-shadow: 0 2px 0 rgba(0,0,0,0.08); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-secondary { background: var(--surface); color: var(--ink); border: 2px solid var(--line); box-shadow: 0 6px 0 var(--line); }
+  .btn-secondary:active { box-shadow: 0 2px 0 var(--line); }
+  .btn-ghost { background: transparent; color: var(--ink-soft); box-shadow: none; font-weight: 600; padding: 10px; }
+  .home-footer { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; gap: 18px; }
+  .icon-btn {
+    background: var(--surface); border: none; width: 46px; height: 46px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 0 var(--line);
+  }
+  .icon-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--line); }
+
+  /* ---------- TOP BAR (levels/game/settings) ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top));
+    position: sticky; top: 0; background: var(--bg); z-index: 5;
+  }
+  .topbar .center-title { font-weight: 700; font-size: 1.15rem; }
+  .topbar .side { width: 42px; display:flex; }
+  .back-btn, .gear-btn {
+    background: var(--surface); border: none; width: 42px; height: 42px; border-radius: 12px;
+    font-size: 1.15rem; cursor: pointer; box-shadow: 0 3px 0 var(--line);
+  }
+  .back-btn:active, .gear-btn:active { transform: translateY(2px); box-shadow: none; }
+
+  /* ---------- LEVEL MAP ---------- */
+  #levelListWrap { flex: 1; overflow-y: auto; padding: 8px 20px 40px; }
+  .level-track { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .level-node-row { display: flex; gap: 26px; }
+  .level-node {
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--surface); border: 3px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.1rem; color: var(--ink-soft);
+    position: relative; cursor: pointer; flex-shrink: 0;
+  }
+  .level-node.done { background: var(--sage); color: #fff; border-color: var(--sage); }
+  .level-node.current { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+  .level-node.locked { opacity: 0.45; cursor: default; }
+  @keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 var(--accent-soft);} 50%{ box-shadow: 0 0 0 10px transparent;} }
+  .size-label { color: var(--ink-soft); font-weight: 700; font-size: 0.8rem; margin: 14px 0 2px; }
+
+  /* ---------- GAME SCREEN ---------- */
+  #screen-game { align-items: center; }
+  .pill-row { display: flex; gap: 10px; margin: 4px 0 12px; }
+  .pill {
+    background: var(--surface); border-radius: 999px; padding: 7px 16px;
+    font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 3px 0 var(--line);
+  }
+  .hearts span { display: inline-block; transition: transform 0.2s; }
+  .hearts span.lost { animation: heartLost 0.4s ease forwards; }
+  @keyframes heartLost { 0%{transform:scale(1);opacity:1;} 50%{transform:scale(1.4);} 100%{transform:scale(0);opacity:0;} }
+
+  .rule-cards { display: flex; gap: 8px; padding: 0 16px; margin-bottom: 14px; width: 100%; max-width: 480px; }
+  .rule-card {
+    flex: 1; background: var(--surface-2); border-radius: 12px; padding: 8px 6px;
+    text-align: center; font-size: 0.68rem; font-weight: 700; color: var(--ink-soft); line-height: 1.25;
+  }
+
+  #boardWrap { display: flex; align-items: center; justify-content: center; padding: 4px 14px; width: 100%; }
+  #board {
+    display: grid; position: relative; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 10px 24px var(--shadow);
+  }
+  .cell {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid rgba(255,255,255,0.35);
+  }
+  .cell-fill { position: absolute; inset: 0; }
+  .mark-x {
+    position: relative; z-index: 2; font-size: 62%; font-weight: 900;
+    color: var(--x-color, rgba(70,45,40,0.55));
+    transform: rotate(0deg) scale(0.9);
+    animation: xIn 0.18s ease;
+  }
+  @keyframes xIn { from { transform: scale(0.4) rotate(-8deg); opacity:0;} to { transform: scale(0.9) rotate(0); opacity:1; } }
+  .cat-face { position: relative; z-index: 2; width: 76%; height: 76%; }
+  .cat-face.pop { animation: catPop 0.32s cubic-bezier(.34,1.6,.64,1); }
+  @keyframes catPop { 0%{ transform: scale(0.7); } 60%{ transform: scale(1.12);} 100%{ transform: scale(1);} }
+  .cat-face.wrong { animation: shake 0.35s; }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-6px);} 40%{transform:translateX(6px);} 60%{transform:translateX(-4px);} 80%{transform:translateX(4px);} }
+  .cell.hint-glow { animation: glow 1s ease-in-out infinite; }
+  @keyframes glow { 0%,100%{ box-shadow: inset 0 0 0 3px transparent; } 50%{ box-shadow: inset 0 0 0 3px rgba(255,255,255,0.9); } }
+  .cell-particle {
+    position: absolute; z-index: 3; font-size: 0.9rem; pointer-events: none;
+    animation: floatUp 0.7s ease-out forwards;
+  }
+  @keyframes floatUp { 0%{ transform: translateY(0) scale(0.6); opacity: 1;} 100%{ transform: translateY(-38px) scale(1.1); opacity: 0;} }
+
+  .board-shake { animation: boardShake 0.4s; }
+  @keyframes boardShake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
+
+  .hint-btn {
+    margin-top: 14px; background: #F4D68A; border: none; border-radius: 999px;
+    padding: 10px 22px; font-weight: 800; font-family: 'Baloo 2'; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 0 #D8B662; color: #5A4419; cursor: pointer;
+  }
+  .hint-btn:active { transform: translateY(2px); box-shadow: none; }
+
+  .tutorial-bubble {
+    background: var(--ink); color: var(--bg); border-radius: 16px; padding: 12px 18px;
+    max-width: 320px; text-align: center; font-weight: 700; font-size: 0.92rem;
+    margin-bottom: 10px; position: relative;
+  }
+  .tutorial-bubble button {
+    display: block; margin: 8px auto 0; background: var(--accent); color: var(--accent-ink);
+    border: none; border-radius: 999px; padding: 6px 16px; font-weight: 800; cursor: pointer;
+  }
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(30,20,20,0.45); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    background: var(--surface); border-radius: 22px; padding: 28px 24px; max-width: 320px; width: 100%;
+    text-align: center; transform: translateY(14px) scale(0.96); transition: transform 0.25s ease;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  }
+  .modal-overlay.show .modal-card { transform: translateY(0) scale(1); }
+  .modal-card h2 { margin: 4px 0 6px; color: var(--accent); font-size: 1.6rem; }
+  .modal-card p { color: var(--ink-soft); font-weight: 600; margin: 0 0 16px; font-size: 0.9rem; }
+  .modal-stats { display: flex; justify-content: space-around; margin-bottom: 16px; }
+  .modal-stats div { font-weight: 800; font-size: 1.05rem; }
+  .modal-stats span { display:block; font-size: 0.68rem; color: var(--ink-soft); font-weight: 700; }
+  .modal-card .btn { width: 100%; margin-bottom: 10px; }
+
+  /* ---------- SETTINGS ---------- */
+  #settingsList { padding: 6px 20px; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y:auto; }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between; background: var(--surface);
+    padding: 14px 16px; border-radius: 14px; font-weight: 700;
+  }
+  .switch { width: 46px; height: 26px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background 0.2s; flex-shrink:0; }
+  .switch.on { background: var(--sage); }
+  .switch::after { content:""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius:50%; background:#fff; transition: transform 0.2s; }
+  .switch.on::after { transform: translateX(20px); }
+  .danger-btn { color: var(--heart); background: var(--surface); border: none; padding: 14px; border-radius: 14px; font-weight: 800; margin-top: 10px; cursor: pointer; }
+
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+
+  // PurrGrid has its own in-app back button in this same top-left corner
+  // on every screen except Home (Levels/Game/Settings each have one), so
+  // only show this one on Home to avoid the two controls overlapping.
+  // Deferred to DOMContentLoaded since this snippet runs before #app (and
+  // #screen-home within it) exists in the document.
+  document.addEventListener('DOMContentLoaded', function(){
+    var homeScreen = document.getElementById('screen-home');
+    if (!homeScreen) return;
+    function sync(){ b.style.display = homeScreen.classList.contains('active') ? '' : 'none'; }
+    sync();
+    new MutationObserver(sync).observe(homeScreen, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
+</script>
+
+<div id="app">
+
+  <!-- HOME -->
+  <section id="screen-home" class="screen active">
+    <svg class="home-cat" viewBox="0 0 100 100"><g id="homeCatSvg"></g></svg>
+    <h1 class="game-title">PurrGrid</h1>
+    <p class="game-sub">One cat per color. One cat per row & column. No touching.</p>
+    <div class="home-buttons">
+      <button class="btn btn-primary" id="btnPlay">▶ Play</button>
+      <button class="btn btn-secondary" id="btnDaily">🗓 Daily Puzzle</button>
+      <button class="btn btn-secondary" id="btnLevels">🗺 Levels</button>
+    </div>
+    <div class="home-footer">
+      <button class="icon-btn" id="btnSettingsHome" title="Settings">⚙️</button>
+    </div>
+  </section>
+
+  <!-- LEVEL MAP -->
+  <section id="screen-levels" class="screen">
+    <div class="topbar">
+      <div class="side"><button class="back-btn" data-back="home">←</button></div>
+      <div class="center-title">Levels</div>
+      <div class="side"></div>
+    </div>
+    <div id="levelListWrap"><div class="level-track" id="levelTrack"></div></div>
+  </section>
+
+  <!-- GAME -->
+  <section id="screen-game" class="screen">
+    <div class="topbar">
+      <div class="side"><button class="back-btn" data-back="levels">←</button></div>
+      <div class="center-title" id="gameLevelTitle">Level 1</div>
+      <div class="side" style="justify-content:flex-end;"><button class="gear-btn" id="btnSettingsGame">⚙️</button></div>
+    </div>
+    <div class="pill-row">
+      <div class="pill" id="catCounterPill">🐱 0/4</div>
+      <div class="pill hearts" id="heartsPill">❤️❤️❤️</div>
+    </div>
+    <div class="rule-cards">
+      <div class="rule-card">1 cat<br>per color</div>
+      <div class="rule-card">1 per row<br>&amp; column</div>
+      <div class="rule-card">Cats can't<br>touch</div>
+    </div>
+    <div id="tutorialWrap"></div>
+    <div id="boardWrap"><div id="board"></div></div>
+    <button class="hint-btn" id="btnHint">💡 Hint</button>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="screen-settings" class="screen">
+    <div class="topbar">
+      <div class="side"><button class="back-btn" id="settingsBack">←</button></div>
+      <div class="center-title">Settings</div>
+      <div class="side"></div>
+    </div>
+    <div id="settingsList"></div>
+  </section>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card" id="modalCard"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= RNG ============================= */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s){ let h=1779033703; for(let i=0;i<s.length;i++){ h=Math.imul(h^s.charCodeAt(i),3432918353); h=(h<<13)|(h>>>19);} return (h^ (h>>>16))>>>0; }
+function shuffled(arr, rng){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function randInt(rng, n){ return Math.floor(rng()*n); }
+
+/* ============================= PUZZLE GENERATION ============================= */
+function generateCatPositions(n, rng){
+  const cols = [];
+  function backtrack(row){
+    if(row === n) return true;
+    const candidates = shuffled([...Array(n).keys()], rng);
+    for(const c of candidates){
+      if(cols.includes(c)) continue;
+      if(row > 0 && Math.abs(c - cols[row-1]) < 2) continue;
+      cols.push(c);
+      if(backtrack(row+1)) return true;
+      cols.pop();
+    }
+    return false;
+  }
+  return backtrack(0) ? cols.slice() : null;
+}
+
+function growRegions(n, catCols, rng){
+  const region = Array.from({length:n}, () => Array(n).fill(-1));
+  const frontier = [];
+  function pushNeighbors(r,c,id){
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dr,dc] of dirs){
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0 && nr<n && nc>=0 && nc<n && region[nr][nc]===-1){
+        frontier.push({r:nr,c:nc,id});
+      }
+    }
+  }
+  for(let i=0;i<n;i++){ region[i][catCols[i]] = i; pushNeighbors(i, catCols[i], i); }
+  let remaining = n*n - n;
+  let guard = n*n*20;
+  while(remaining > 0 && guard-- > 0){
+    if(frontier.length === 0){
+      // orphan safety net: assign any unassigned cell to nearest assigned neighbor's region
+      let assignedOne = false;
+      for(let r=0;r<n && !assignedOne;r++) for(let c=0;c<n && !assignedOne;c++){
+        if(region[r][c] !== -1) continue;
+        const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+        for(const [dr,dc] of dirs){
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0 && nr<n && nc>=0 && nc<n && region[nr][nc]!==-1){
+            region[r][c] = region[nr][nc]; remaining--; pushNeighbors(r,c,region[r][c]); assignedOne=true; break;
+          }
+        }
+      }
+      if(!assignedOne) break;
+      continue;
+    }
+    const idx = randInt(rng, frontier.length);
+    const item = frontier.splice(idx,1)[0];
+    if(region[item.r][item.c] !== -1) continue;
+    region[item.r][item.c] = item.id;
+    remaining--;
+    pushNeighbors(item.r, item.c, item.id);
+  }
+  return region;
+}
+
+// Real constraint solver: counts solutions up to `limit`.
+function countSolutions(n, regionGrid, blocked, presetCols, limit){
+  let count = 0;
+  const usedCols = new Set();
+  const usedRegions = new Set();
+  for(let r=0;r<n;r++){
+    if(presetCols[r] !== -1){ usedCols.add(presetCols[r]); usedRegions.add(regionGrid[r][presetCols[r]]); }
+  }
+  function backtrack(row, prevCol){
+    if(count >= limit) return;
+    if(row === n){ count++; return; }
+    const preset = presetCols[row];
+    if(preset !== -1){
+      if(prevCol !== -1 && Math.abs(preset - prevCol) < 2) return;
+      backtrack(row+1, preset);
+      return;
+    }
+    for(let c=0;c<n;c++){
+      if(blocked[row][c]) continue;
+      if(usedCols.has(c)) continue;
+      if(prevCol !== -1 && Math.abs(c - prevCol) < 2) continue;
+      const reg = regionGrid[row][c];
+      if(usedRegions.has(reg)) continue;
+      usedCols.add(c); usedRegions.add(reg);
+      backtrack(row+1, c);
+      usedCols.delete(c); usedRegions.delete(reg);
+      if(count >= limit) return;
+    }
+  }
+  backtrack(0, -1);
+  return count;
+}
+
+const PALETTE = ['#E8C15C','#E3A8B3','#B7A8D6','#8FC1D9','#9CC2A0','#DD9B72','#E8A08C','#8FD6C9','#F0BFA0','#C9B7E0'];
+
+function colorRegions(n, regionGrid, rng){
+  const adj = Array.from({length:n}, () => new Set());
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    const id = regionGrid[r][c];
+    if(c+1<n && regionGrid[r][c+1]!==id){ adj[id].add(regionGrid[r][c+1]); adj[regionGrid[r][c+1]].add(id); }
+    if(r+1<n && regionGrid[r+1][c]!==id){ adj[id].add(regionGrid[r+1][c]); adj[regionGrid[r+1][c]].add(id); }
+  }
+  const palette = shuffled(PALETTE, rng);
+  const colorOf = new Array(n).fill(-1);
+  const order = shuffled([...Array(n).keys()], rng);
+  for(const id of order){
+    const usedByNeighbors = new Set([...adj[id]].map(nb => colorOf[nb]).filter(x => x !== -1));
+    let chosen = palette.find((_, i) => !usedByNeighbors.has(i));
+    let chosenIdx = palette.findIndex((_, i) => !usedByNeighbors.has(i));
+    if(chosenIdx === -1) chosenIdx = randInt(rng, palette.length);
+    colorOf[id] = chosenIdx;
+  }
+  return colorOf.map(i => palette[i]);
+}
+
+function generatePuzzle(n, rng, maxAttempts){
+  maxAttempts = maxAttempts || 60;
+  let best = null;
+  for(let attempt=0; attempt<maxAttempts; attempt++){
+    const catCols = generateCatPositions(n, rng);
+    if(!catCols) continue;
+    for(let regionTry=0; regionTry<6; regionTry++){
+      const regionGrid = growRegions(n, catCols, rng);
+      const blocked = Array.from({length:n}, () => Array(n).fill(false));
+      const preset = new Array(n).fill(-1);
+      const count = countSolutions(n, regionGrid, blocked, preset, 2);
+      if(count === 1){
+        const colors = colorRegions(n, regionGrid, rng);
+        return { n, regionGrid, solutionCols: catCols.slice(), colors };
+      }
+      best = { n, regionGrid, solutionCols: catCols.slice(), colors: colorRegions(n, regionGrid, rng) };
+    }
+  }
+  return best;
+}
+
+/* ============================= SAVE / STATE ============================= */
+const SAVE_KEY = 'purrgrid_save_v1';
+const CAT_VARIANTS = ['tabbyGray','tabbyOrange','tuxedo','white','brown','black','calico'];
+function defaultSave(){
+  return {
+    unlockedLevel: 1,
+    completedLevels: {},
+    settings: { sound: true, haptics: true, autoX: true, tutorialDone: false },
+    daily: { streak: 0, longest: 0, lastSolvedDate: null },
+    activeCat: 'tabbyGray',
+    unlockedCats: ['tabbyGray']
+  };
+}
+let save = loadSave();
+function loadSave(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return defaultSave();
+    const parsed = JSON.parse(raw);
+    return Object.assign(defaultSave(), parsed, {
+      settings: Object.assign(defaultSave().settings, parsed.settings || {}),
+      daily: Object.assign(defaultSave().daily, parsed.daily || {})
+    });
+  } catch(e){ return defaultSave(); }
+}
+function persistSave(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch(e){} }
+
+function boardSizeForLevel(level){
+  if(level <= 5) return 4;
+  if(level <= 15) return 5;
+  if(level <= 35) return 6;
+  if(level <= 65) return 7;
+  if(level <= 100) return 8;
+  if(level <= 140) return 9;
+  return 10;
+}
+
+/* ============================= SOUND ============================= */
+let audioCtx = null;
+function ensureAudio(){ if(!audioCtx){ try { audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} } }
+function playTone(freq, dur, type, vol){
+  if(!save.settings.sound) return;
+  ensureAudio();
+  if(!audioCtx) return;
+  try {
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol || 0.15, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  } catch(e){}
+}
+const SFX = {
+  tap: () => playTone(520, 0.06, 'square', 0.06),
+  x: () => playTone(300, 0.08, 'triangle', 0.08),
+  correct: () => { playTone(660, 0.09, 'sine', 0.14); setTimeout(()=>playTone(880,0.12,'sine',0.12), 70); },
+  wrong: () => playTone(140, 0.25, 'sawtooth', 0.12),
+  win: () => { [523,659,784,1047].forEach((f,i)=> setTimeout(()=>playTone(f,0.18,'sine',0.13), i*90)); },
+  heartLoss: () => playTone(200, 0.2, 'square', 0.1)
+};
+function haptic(ms){ if(save.settings.haptics && navigator.vibrate) navigator.vibrate(ms); }
+
+/* ============================= CAT FACE RENDERING ============================= */
+const CAT_COLORS = {
+  tabbyGray:  { fur:'#B9AFAA', dark:'#8F847E', accent:'#F3E9E4' },
+  tabbyOrange:{ fur:'#E3A469', dark:'#C77E43', accent:'#FFF3E2' },
+  tuxedo:     { fur:'#3A3A3E', dark:'#222225', accent:'#FFFFFF' },
+  white:      { fur:'#F7F4EE', dark:'#DCD5C8', accent:'#3E2E2A' },
+  brown:      { fur:'#8B5E3C', dark:'#6B4527', accent:'#F3E4D2' },
+  black:      { fur:'#2B2426', dark:'#171314', accent:'#F3E9E4' },
+  calico:     { fur:'#EFE0C8', dark:'#D98B6A', accent:'#3A3A3E' }
+};
+function catFaceSVG(variant, opts){
+  opts = opts || {};
+  const col = CAT_COLORS[variant] || CAT_COLORS.tabbyGray;
+  const patch = variant === 'calico' ? `<ellipse cx="68" cy="34" rx="14" ry="12" fill="${col.dark}"/><ellipse cx="30" cy="58" rx="10" ry="8" fill="#3A3A3E"/>` : '';
+  const tux = variant === 'tuxedo' ? `<path d="M50 55 Q40 78 50 92 Q60 78 50 55Z" fill="#fff"/>` : '';
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 30 L32 8 L42 34 Z" fill="${col.fur}"/>
+    <path d="M80 30 L68 8 L58 34 Z" fill="${col.fur}"/>
+    <path d="M23 31 L31 15 L38 33 Z" fill="${col.dark}"/>
+    <path d="M77 31 L69 15 L62 33 Z" fill="${col.dark}"/>
+    <circle cx="50" cy="56" r="38" fill="${col.fur}"/>
+    ${patch}${tux}
+    <circle cx="34" cy="52" r="11" fill="#fff"/>
+    <circle cx="66" cy="52" r="11" fill="#fff"/>
+    <circle cx="35" cy="53" r="6" fill="#2B221F"/>
+    <circle cx="67" cy="53" r="6" fill="#2B221F"/>
+    <circle cx="33" cy="50" r="2" fill="#fff"/>
+    <circle cx="65" cy="50" r="2" fill="#fff"/>
+    <path d="M50 62 L45 68 L55 68 Z" fill="#D9838A"/>
+    <path d="M50 68 Q50 73 44 74" stroke="${col.dark}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M50 68 Q50 73 56 74" stroke="${col.dark}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <g stroke="${col.dark}" stroke-width="1.6" opacity="0.7" stroke-linecap="round">
+      <line x1="6" y1="50" x2="26" y2="52"/><line x1="6" y1="58" x2="26" y2="58"/>
+      <line x1="94" y1="50" x2="74" y2="52"/><line x1="94" y1="58" x2="74" y2="58"/>
+    </g>
+  </svg>`;
+}
+document.getElementById('homeCatSvg').outerHTML = catFaceSVG('tabbyOrange');
+
+/* ============================= GAME STATE ============================= */
+let G = null; // active puzzle+ui state
+let currentScreen = 'home';
+let tapTimers = new Map();
+const TAP_DELAY = 230;
+
+function newGameFromPuzzle(puzzle, level, isDaily){
+  const n = puzzle.n;
+  const cellState = Array.from({length:n}, () => Array(n).fill('empty'));
+  G = {
+    level, isDaily: !!isDaily,
+    n, regionGrid: puzzle.regionGrid, solutionCols: puzzle.solutionCols, colors: puzzle.colors,
+    cellState, hearts: 3, catsCorrect: 0, mistakes: 0, hintsUsed: 0,
+    startTime: Date.now(), hintStage: 0, hintRow: -1, locked: false,
+    tutorial: (level === 1 && !isDaily && !save.settings.tutorialDone) ? 0 : null
+  };
+  if(G.tutorial === 0){
+    // pre-place first cat as a fixed teaching example
+    const r0 = 0, c0 = puzzle.solutionCols[0];
+    cellState[r0][c0] = 'fixedCat';
+    G.catsCorrect = 1;
+  }
+  applyAutoElim();
+}
+
+function applyAutoElim(){
+  const n = G.n;
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    if(G.cellState[r][c] === 'autoX') G.cellState[r][c] = 'empty';
+  }
+  if(!save.settings.autoX) return;
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    const st = G.cellState[r][c];
+    if(st === 'cat' || st === 'fixedCat'){
+      markPeersX(r,c);
+    }
+  }
+}
+function markPeersX(r,c){
+  const n = G.n;
+  const reg = G.regionGrid[r][c];
+  for(let cc=0;cc<n;cc++) if(cc!==c) tryAutoX(r,cc);
+  for(let rr=0;rr<n;rr++) if(rr!==r) tryAutoX(rr,c);
+  for(let rr=0;rr<n;rr++) for(let cc=0;cc<n;cc++) if(G.regionGrid[rr][cc]===reg && !(rr===r&&cc===c)) tryAutoX(rr,cc);
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+    if(dr===0&&dc===0) continue;
+    const nr=r+dr, nc=c+dc;
+    if(nr>=0&&nr<n&&nc>=0&&nc<n) tryAutoX(nr,nc);
+  }
+}
+function tryAutoX(r,c){
+  if(G.cellState[r][c] === 'empty') G.cellState[r][c] = 'autoX';
+}
+
+/* ============================= RENDER: BOARD ============================= */
+function luminance(hex){
+  const c = hex.replace('#','');
+  const r = parseInt(c.substr(0,2),16), g=parseInt(c.substr(2,2),16), b=parseInt(c.substr(4,2),16);
+  return (0.299*r + 0.587*g + 0.114*b)/255;
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  const n = G.n;
+  board.innerHTML = '';
+  const wrap = document.getElementById('boardWrap');
+  const maxSize = Math.min(wrap.clientWidth - 4, window.innerHeight * 0.5, 480);
+  board.style.width = maxSize + 'px';
+  board.style.height = maxSize + 'px';
+  board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  board.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.r = r; cell.dataset.c = c;
+    const color = G.colors[G.regionGrid[r][c]];
+    const fill = document.createElement('div');
+    fill.className = 'cell-fill';
+    fill.style.background = color;
+    cell.appendChild(fill);
+    cell.style.setProperty('--x-color', luminance(color) > 0.6 ? 'rgba(70,45,40,0.55)' : 'rgba(255,255,255,0.85)');
+    renderCellContent(cell, r, c);
+    cell.addEventListener('click', () => onCellTap(r,c));
+    board.appendChild(cell);
+  }
+}
+
+function renderCellContent(cell, r, c, animate){
+  const old = cell.querySelector('.mark-x, .cat-face');
+  if(old) old.remove();
+  const st = G.cellState[r][c];
+  if(st === 'userX' || st === 'autoX'){
+    const x = document.createElement('div');
+    x.className = 'mark-x';
+    x.textContent = '✕';
+    cell.appendChild(x);
+  } else if(st === 'cat' || st === 'fixedCat'){
+    const face = document.createElement('div');
+    face.className = 'cat-face' + (animate === 'pop' ? ' pop' : animate === 'wrong' ? ' wrong' : '');
+    face.innerHTML = catFaceSVG(save.activeCat);
+    cell.appendChild(face);
+  }
+}
+
+function refreshBoardCells(){
+  const board = document.getElementById('board');
+  for(const cell of board.children){
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    renderCellContent(cell, r, c);
+    cell.classList.remove('hint-glow');
+  }
+}
+
+function spawnParticle(cell, emoji){
+  const p = document.createElement('div');
+  p.className = 'cell-particle';
+  p.textContent = emoji;
+  p.style.left = '50%'; p.style.top = '30%';
+  cell.appendChild(p);
+  setTimeout(() => p.remove(), 720);
+}
+
+/* ============================= INPUT ============================= */
+function onCellTap(r,c){
+  if(G.locked) return;
+  const key = r+'_'+c;
+  if(tapTimers.has(key)){
+    clearTimeout(tapTimers.get(key));
+    tapTimers.delete(key);
+    doDoubleTap(r,c);
+  } else {
+    const t = setTimeout(() => { tapTimers.delete(key); doSingleTap(r,c); }, TAP_DELAY);
+    tapTimers.set(key, t);
+  }
+}
+
+function doSingleTap(r,c){
+  const st = G.cellState[r][c];
+  if(st === 'cat' || st === 'fixedCat') return;
+  if(st === 'empty'){ G.cellState[r][c] = 'userX'; SFX.x(); }
+  else if(st === 'userX'){ G.cellState[r][c] = 'empty'; }
+  else if(st === 'autoX'){ G.cellState[r][c] = 'empty'; }
+  const board = document.getElementById('board');
+  const cell = board.children[r*G.n + c];
+  renderCellContent(cell, r, c);
+  advanceTutorial('x');
+}
+
+function doDoubleTap(r,c){
+  const st = G.cellState[r][c];
+  const board = document.getElementById('board');
+  const cell = board.children[r*G.n + c];
+  if(st === 'cat'){
+    G.cellState[r][c] = 'empty';
+    G.catsCorrect--;
+    applyAutoElim();
+    refreshBoardCells();
+    updateHUD();
+    return;
+  }
+  if(st === 'fixedCat') return;
+  // attempt placement
+  if(c === G.solutionCols[r]){
+    G.cellState[r][c] = 'cat';
+    G.catsCorrect++;
+    renderCellContent(cell, r, c, 'pop');
+    spawnParticle(cell, '🐾');
+    SFX.correct(); haptic(15);
+    applyAutoElim();
+    refreshBoardCells();
+    updateHUD();
+    advanceTutorial('cat');
+    if(G.catsCorrect >= G.n){ setTimeout(winLevel, 380); }
+  } else {
+    G.cellState[r][c] = 'cat';
+    renderCellContent(cell, r, c, 'wrong');
+    SFX.wrong(); haptic([30,30,30]);
+    document.getElementById('board').classList.add('board-shake');
+    setTimeout(() => document.getElementById('board').classList.remove('board-shake'), 400);
+    G.hearts--; G.mistakes++;
+    updateHUD(true);
+    setTimeout(() => {
+      G.cellState[r][c] = 'empty';
+      refreshBoardCells();
+      if(G.hearts <= 0) showTryAgain();
+    }, 420);
+  }
+}
+
+/* ============================= HUD ============================= */
+function updateHUD(heartLost){
+  document.getElementById('catCounterPill').textContent = `🐱 ${G.catsCorrect}/${G.n}`;
+  const heartsEl = document.getElementById('heartsPill');
+  let html = '';
+  for(let i=0;i<3;i++){
+    html += `<span class="${heartLost && i===G.hearts ? 'lost':''}">${i < G.hearts ? '❤️' : '🤍'}</span>`;
+  }
+  heartsEl.innerHTML = html;
+}
+
+/* ============================= TUTORIAL ============================= */
+const TUT_STEPS = [
+  "Start from the cat! Its row, column and neighbors are already marked with ✕.",
+  "Tap once to mark a spot that can't have a cat.",
+  "Double-tap to place a cat there!",
+  "Only one cat fits in each row & column.",
+  "Each color region gets exactly one cat — and cats can never touch, not even corners."
+];
+function renderTutorial(){
+  const wrap = document.getElementById('tutorialWrap');
+  wrap.innerHTML = '';
+  if(G.tutorial === null) return;
+  const bubble = document.createElement('div');
+  bubble.className = 'tutorial-bubble';
+  bubble.innerHTML = `<div>${TUT_STEPS[G.tutorial]}</div>` + (G.tutorial >= 1 ? `<button id="tutNext">Got it</button>` : '');
+  wrap.appendChild(bubble);
+  const btn = document.getElementById('tutNext');
+  if(btn) btn.onclick = () => { G.tutorial++; if(G.tutorial >= TUT_STEPS.length){ G.tutorial = null; save.settings.tutorialDone = true; persistSave(); } renderTutorial(); };
+}
+function advanceTutorial(kind){
+  if(G.tutorial === null) return;
+  if(G.tutorial === 0 && kind === 'x'){ /* still on step 0 intro, ignore */ }
+  if(G.tutorial === 1 && kind === 'x'){ G.tutorial = 2; renderTutorial(); }
+  else if(G.tutorial === 2 && kind === 'cat'){ G.tutorial = 3; renderTutorial(); }
+}
+
+/* ============================= HINTS ============================= */
+function findHintRow(){
+  for(let r=0;r<G.n;r++){
+    const st = G.cellState[r][G.solutionCols[r]];
+    if(st !== 'cat' && st !== 'fixedCat') return r;
+  }
+  return -1;
+}
+function useHint(){
+  if(G.locked) return;
+  if(G.hintStage === 0){
+    G.hintRow = findHintRow();
+    if(G.hintRow === -1) return;
+    G.hintStage = 1;
+    const board = document.getElementById('board');
+    const reg = G.regionGrid[G.hintRow][G.solutionCols[G.hintRow]];
+    for(let r=0;r<G.n;r++) for(let c=0;c<G.n;c++){
+      if(r === G.hintRow || c === G.solutionCols[G.hintRow] || G.regionGrid[r][c] === reg){
+        board.children[r*G.n+c].classList.add('hint-glow');
+      }
+    }
+    toast("This region only has one safe spot left.");
+  } else if(G.hintStage === 1){
+    const r = G.hintRow, c = G.solutionCols[G.hintRow];
+    G.cellState[r][c] = 'cat';
+    G.catsCorrect++;
+    G.hintsUsed++;
+    applyAutoElim();
+    refreshBoardCells();
+    const board = document.getElementById('board');
+    renderCellContent(board.children[r*G.n+c], r, c, 'pop');
+    updateHUD();
+    G.hintStage = 0; G.hintRow = -1;
+    if(G.catsCorrect >= G.n){ setTimeout(winLevel, 380); }
+  }
+}
+let toastTimer = null;
+function toast(msg){
+  let el = document.getElementById('toastEl');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toastEl';
+    el.style.cssText = 'position:fixed;left:50%;bottom:max(90px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;font-size:0.85rem;z-index:60;opacity:0;transition:opacity .2s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.opacity = '0', 1800);
+}
+
+/* ============================= WIN / LOSE ============================= */
+function winLevel(){
+  G.locked = true;
+  SFX.win(); haptic([10,40,10,40]);
+  if(!G.isDaily){
+    save.completedLevels[G.level] = true;
+    if(G.level + 1 > save.unlockedLevel) save.unlockedLevel = G.level + 1;
+    const unlockEvery = 5;
+    const catsEarned = Math.floor(save.unlockedLevel / unlockEvery);
+    if(catsEarned < CAT_VARIANTS.length){
+      const nextCat = CAT_VARIANTS[catsEarned];
+      if(!save.unlockedCats.includes(nextCat)) save.unlockedCats.push(nextCat);
+    }
+  } else {
+    const today = new Date().toISOString().slice(0,10);
+    const y = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    if(save.daily.lastSolvedDate === today){ /* already counted */ }
+    else if(save.daily.lastSolvedDate === y){ save.daily.streak++; }
+    else { save.daily.streak = 1; }
+    save.daily.longest = Math.max(save.daily.longest, save.daily.streak);
+    save.daily.lastSolvedDate = today;
+  }
+  persistSave();
+  const elapsed = Math.round((Date.now() - G.startTime)/1000);
+  const mm = String(Math.floor(elapsed/60)).padStart(1,'0');
+  const ss = String(elapsed%60).padStart(2,'0');
+  showModal(`
+    <div style="font-size:2.4rem;">🐾✨🐾</div>
+    <h2>Purrfect!</h2>
+    <p>Level complete</p>
+    <div class="modal-stats">
+      <div>${mm}:${ss}<span>TIME</span></div>
+      <div>${G.mistakes}<span>MISTAKES</span></div>
+      <div>${G.hintsUsed}<span>HINTS</span></div>
+    </div>
+    <button class="btn btn-primary" id="modalNext">${G.isDaily ? 'Nice!' : 'Next Level'}</button>
+    <button class="btn btn-ghost" id="modalLevels">Level Map</button>
+  `);
+  document.getElementById('modalNext').onclick = () => {
+    hideModal();
+    if(G.isDaily) goHome();
+    else startLevel(G.level + 1);
+  };
+  document.getElementById('modalLevels').onclick = () => { hideModal(); goLevels(); };
+}
+
+function showTryAgain(){
+  G.locked = true;
+  SFX.heartLoss();
+  showModal(`
+    <div style="font-size:2.2rem;">😿</div>
+    <h2>Try Again</h2>
+    <p>Those three cats didn't quite fit — take another look!</p>
+    <button class="btn btn-primary" id="modalRetry">Retry Level</button>
+    <button class="btn btn-secondary" id="modalHintBtn">Get a Hint</button>
+    <button class="btn btn-ghost" id="modalToLevels">Return to Levels</button>
+  `);
+  document.getElementById('modalRetry').onclick = () => { hideModal(); startLevel(G.level, G.isDaily); };
+  document.getElementById('modalHintBtn').onclick = () => { hideModal(); startLevel(G.level, G.isDaily); setTimeout(useHint, 300); };
+  document.getElementById('modalToLevels').onclick = () => { hideModal(); goLevels(); };
+}
+
+/* ============================= MODAL ============================= */
+function showModal(html){
+  document.getElementById('modalCard').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function hideModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
+
+/* ============================= LEVEL FLOW ============================= */
+function startLevel(level, isDaily){
+  level = Math.max(1, level);
+  const n = isDaily ? 6 : boardSizeForLevel(level);
+  let rng;
+  if(isDaily){
+    const dateStr = new Date().toISOString().slice(0,10);
+    rng = mulberry32(hashStr('purrgrid-daily-' + dateStr));
+  } else {
+    rng = mulberry32(hashStr('purrgrid-level-' + level) ^ 0x9e3779b9);
+  }
+  const puzzle = generatePuzzle(n, rng, 60);
+  newGameFromPuzzle(puzzle, level, isDaily);
+  document.getElementById('gameLevelTitle').textContent = isDaily ? 'Daily Puzzle' : ('Level ' + level);
+  showScreen('game');
+  renderTutorial();
+  renderBoard();
+  updateHUD();
+}
+
+/* ============================= SCREENS ============================= */
+function showScreen(name){
+  currentScreen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+function goHome(){ showScreen('home'); }
+function goLevels(){ renderLevelMap(); showScreen('levels'); }
+
+function renderLevelMap(){
+  const track = document.getElementById('levelTrack');
+  track.innerHTML = '';
+  const maxLevel = Math.max(60, save.unlockedLevel + 12);
+  let lastSize = null;
+  let rowBuffer = [];
+  function flushRow(){
+    if(rowBuffer.length){
+      const row = document.createElement('div');
+      row.className = 'level-node-row';
+      rowBuffer.forEach(n => row.appendChild(n));
+      track.appendChild(row);
+      rowBuffer = [];
+    }
+  }
+  for(let lvl=1; lvl<=maxLevel; lvl++){
+    const size = boardSizeForLevel(lvl);
+    if(size !== lastSize){
+      flushRow();
+      const label = document.createElement('div');
+      label.className = 'size-label';
+      label.textContent = `${size}×${size} boards`;
+      track.appendChild(label);
+      lastSize = size;
+    }
+    const node = document.createElement('div');
+    const done = !!save.completedLevels[lvl];
+    const isCurrent = lvl === save.unlockedLevel && !done;
+    const locked = lvl > save.unlockedLevel;
+    node.className = 'level-node ' + (done ? 'done' : isCurrent ? 'current' : locked ? 'locked' : '');
+    node.textContent = done ? '✓' : lvl;
+    if(!locked) node.onclick = () => startLevel(lvl);
+    rowBuffer.push(node);
+    if(rowBuffer.length === 4){ flushRow(); }
+  }
+  flushRow();
+}
+
+/* ============================= SETTINGS ============================= */
+function renderSettings(){
+  const list = document.getElementById('settingsList');
+  const rows = [
+    ['sound', '🔊 Sound'],
+    ['haptics', '📳 Haptics'],
+    ['autoX', '✨ Automatic X Marks']
+  ];
+  list.innerHTML = '';
+  rows.forEach(([key, label]) => {
+    const row = document.createElement('div');
+    row.className = 'setting-row';
+    row.innerHTML = `<span>${label}</span><div class="switch ${save.settings[key] ? 'on':''}" data-key="${key}"></div>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.switch').forEach(sw => {
+    sw.onclick = () => {
+      const key = sw.dataset.key;
+      save.settings[key] = !save.settings[key];
+      sw.classList.toggle('on', save.settings[key]);
+      persistSave();
+    };
+  });
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'danger-btn';
+  resetBtn.textContent = 'Reset Progress';
+  resetBtn.onclick = () => {
+    showModal(`
+      <h2>Reset Progress?</h2>
+      <p>This clears all levels, streaks and unlocked cats. This can't be undone.</p>
+      <button class="btn btn-primary" id="confirmReset" style="background:var(--heart);">Reset Everything</button>
+      <button class="btn btn-ghost" id="cancelReset">Cancel</button>
+    `);
+    document.getElementById('confirmReset').onclick = () => { save = defaultSave(); persistSave(); hideModal(); renderSettings(); };
+    document.getElementById('cancelReset').onclick = hideModal;
+  };
+  list.appendChild(resetBtn);
+}
+
+/* ============================= WIRING ============================= */
+document.getElementById('btnPlay').onclick = () => startLevel(save.unlockedLevel);
+document.getElementById('btnDaily').onclick = () => startLevel(0, true);
+document.getElementById('btnLevels').onclick = goLevels;
+document.getElementById('btnSettingsHome').onclick = () => { renderSettings(); showScreen('settings'); };
+document.getElementById('btnSettingsGame').onclick = () => { renderSettings(); showScreen('settings'); };
+document.getElementById('settingsBack').onclick = () => showScreen(save.unlockedLevel ? 'home' : 'home');
+document.getElementById('btnHint').onclick = useHint;
+document.querySelectorAll('[data-back]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.back;
+    if(target === 'home') goHome();
+    else if(target === 'levels') goLevels();
+  });
+});
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'modalOverlay'){ /* don't allow dismiss-by-backdrop during forced modals */ }
+});
+window.addEventListener('resize', () => { if(currentScreen === 'game' && G) renderBoard(), refreshBoardCells(); });
+
+})();
+</script>
+</body>
+</html>
