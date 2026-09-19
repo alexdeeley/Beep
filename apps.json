@@ -1465,5 +1465,14 @@
     "path": "TimeMicroscope.html",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/time-microscope.jpg"
+  },
+  {
+    "id": "instruments",
+    "name": "Instruments",
+    "description": "A synthesized drum machine and acid bass synth you can play solo or combine in a shared workspace.",
+    "category": "Music Tools",
+    "path": "Instruments.html",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/instruments.jpg"
   }
 ]
