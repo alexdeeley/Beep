@@ -71,7 +71,6 @@ export function createPolyrhythmLoops({ layers, trigger, defaultPatterns, cellLa
       row.appendChild(label);
       const cellsWrap = document.createElement("div");
       cellsWrap.className = "im-poly-cells";
-      cellsWrap.style.gridTemplateColumns = `repeat(${l.length}, 1fr)`;
       for (let i = 0; i < l.length; i++) {
         const cell = document.createElement("button");
         cell.className = "im-step im-poly-cell";

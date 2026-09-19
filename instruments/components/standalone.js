@@ -23,7 +23,7 @@ export function mountStandalone(instrumentId, rootEl) {
   rootEl.classList.add("im-workspace-root");
 
   const stage = document.createElement("div");
-  stage.className = "im-stage";
+  stage.className = "im-stage im-stage-standalone";
 
   const startOverlay = document.createElement("div");
   startOverlay.className = "im-start-overlay";
@@ -39,8 +39,6 @@ export function mountStandalone(instrumentId, rootEl) {
   if (isStarted()) startOverlay.style.display = "none";
 
   const transportBar = createTransportBar({
-    showAdd: false,
-    showLayouts: false,
     onPlayStateChange: (playing) => (playing ? panel.start() : panel.stop()),
   });
 
@@ -55,14 +53,6 @@ export function mountStandalone(instrumentId, rootEl) {
     savedState = JSON.parse(localStorage.getItem(storageKey) || "null");
   } catch (e) {}
 
-  function computeGeometry() {
-    const rect = stage.getBoundingClientRect();
-    const width = Math.max(manifest.minimumWidth, Math.min(rect.width - 32, Math.max(manifest.defaultWidth, 340)));
-    const height = Math.max(manifest.minimumHeight, rect.height - 32);
-    return { x: 16, y: 16, width, height };
-  }
-
-  const initialGeometry = computeGeometry();
   const panel = createPanel({
     instanceId: "standalone",
     instrumentId,
@@ -70,17 +60,11 @@ export function mountStandalone(instrumentId, rootEl) {
     instance,
     ctx,
     masterBus: getMasterBus(),
-    x: initialGeometry.x,
-    y: initialGeometry.y,
-    width: savedState?.width ?? initialGeometry.width,
-    height: savedState?.height ?? initialGeometry.height,
     volume: savedState?.volume,
     muted: savedState?.muted,
     effects: savedState?.effects,
-    onFocus: () => {},
     onRemove: () => {},
     onSoloChange: () => {},
-    onGeometryChange: persist,
   });
   stage.appendChild(panel.el);
 
@@ -93,11 +77,6 @@ export function mountStandalone(instrumentId, rootEl) {
   }
   window.addEventListener("beforeunload", persist);
   setInterval(persist, 5000);
-
-  window.addEventListener("resize", () => {
-    const g = computeGeometry();
-    panel.setGeometry({ x: g.x, y: g.y });
-  });
 
   document.addEventListener("keydown", (e) => {
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.isContentEditable)) return;

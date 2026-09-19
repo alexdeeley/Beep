@@ -1,19 +1,17 @@
-// A single instrument's window inside the workspace: header (drag handle,
-// name, mute/solo/remove), the instrument's own mounted UI, and a
-// collapsible per-instrument effects strip. Dragging only ever happens via
-// the header/handle - the instrument body is untouched so pointer events
-// inside it always mean "play the instrument", never "move the window".
+// A single instrument's cell inside a workspace quadrant: header (name,
+// mute/solo/fx/remove), the instrument's own mounted UI, and a
+// collapsible per-instrument effects strip. The panel fills whatever
+// quadrant it's placed in - it has no position or size of its own, so
+// there's nothing to drag or resize; the only thing pointer events inside
+// the body ever mean is "play the instrument".
 //
 // Audio routing for this panel: instance output -> gainNode (volume/mute/
 // solo) -> masterBus. The panel owns gainNode; the workspace/mixer decides
-// solo policy across panels and calls applyGain() to tell this panel
+// solo policy across panels and calls setForcedSilent() to tell this panel
 // whether it should be silent regardless of its own mute state.
 
-const MIN_PANEL_WIDTH = 220;
-const MIN_PANEL_HEIGHT = 220;
-
 export function createPanel(opts) {
-  const { instanceId, instrumentId, manifest, instance, ctx, masterBus, onFocus, onRemove } = opts;
+  const { instanceId, instrumentId, manifest, instance, ctx, masterBus, onRemove } = opts;
 
   const gainNode = ctx.createGain();
   let mountError = null;
@@ -24,10 +22,6 @@ export function createPanel(opts) {
   }
   gainNode.connect(masterBus);
 
-  let x = opts.x ?? 20;
-  let y = opts.y ?? 20;
-  let width = Math.max(manifest.minimumWidth || MIN_PANEL_WIDTH, opts.width ?? manifest.defaultWidth ?? 360);
-  let height = Math.max(manifest.minimumHeight || MIN_PANEL_HEIGHT, opts.height ?? manifest.defaultHeight ?? 400);
   let volume = opts.volume ?? 0.8;
   let muted = !!opts.muted;
   let solo = !!opts.solo;
@@ -160,21 +154,10 @@ export function createPanel(opts) {
     buildEffectRow("reverb", "Reverb");
   }
 
-  const resizeHandle = document.createElement("div");
-  resizeHandle.className = "im-panel-resize";
-  el.appendChild(resizeHandle);
-
   function safeSetEffect(kind, amt) {
     try {
       instance.setEffectAmount(kind, amt);
     } catch (e) {}
-  }
-
-  function applyPosition() {
-    el.style.left = x + "px";
-    el.style.top = y + "px";
-    el.style.width = width + "px";
-    el.style.height = height + "px";
   }
 
   function applyGain(effectiveSilence) {
@@ -184,63 +167,6 @@ export function createPanel(opts) {
     gainNode.gain.setTargetAtTime(target, ctx.currentTime, 0.01);
   }
 
-  // Dragging: header only. Resizing: the corner handle only. Both use
-  // Pointer Events + pointer capture so a single finger/mouse can drag
-  // fluidly and multiple panels can be manipulated by different pointers
-  // at once without interfering with each other.
-  let drag = null;
-  header.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".im-panel-btn")) return;
-    onFocus?.(instanceId);
-    header.setPointerCapture(e.pointerId);
-    drag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, origX: x, origY: y };
-    e.preventDefault();
-  });
-  header.addEventListener("pointermove", (e) => {
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    x = drag.origX + (e.clientX - drag.startX);
-    y = drag.origY + (e.clientY - drag.startY);
-    applyPosition();
-  });
-  function endDrag(e) {
-    if (drag && e.pointerId === drag.pointerId) {
-      try { header.releasePointerCapture(e.pointerId); } catch (err) {}
-      drag = null;
-      opts.onGeometryChange?.();
-    }
-  }
-  header.addEventListener("pointerup", endDrag);
-  header.addEventListener("pointercancel", endDrag);
-
-  let resize = null;
-  resizeHandle.addEventListener("pointerdown", (e) => {
-    onFocus?.(instanceId);
-    resizeHandle.setPointerCapture(e.pointerId);
-    resize = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, origW: width, origH: height };
-    e.preventDefault();
-    e.stopPropagation();
-  });
-  resizeHandle.addEventListener("pointermove", (e) => {
-    if (!resize || e.pointerId !== resize.pointerId) return;
-    const minW = manifest.minimumWidth || MIN_PANEL_WIDTH;
-    const minH = manifest.minimumHeight || MIN_PANEL_HEIGHT;
-    width = Math.max(minW, resize.origW + (e.clientX - resize.startX));
-    height = Math.max(minH, resize.origH + (e.clientY - resize.startY));
-    applyPosition();
-  });
-  function endResize(e) {
-    if (resize && e.pointerId === resize.pointerId) {
-      try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
-      resize = null;
-      opts.onGeometryChange?.();
-    }
-  }
-  resizeHandle.addEventListener("pointerup", endResize);
-  resizeHandle.addEventListener("pointercancel", endResize);
-
-  el.addEventListener("pointerdown", () => onFocus?.(instanceId));
-
-  applyPosition();
   applyGain(false);
   muteBtn.classList.toggle("im-panel-btn-active", muted);
   soloBtn.classList.toggle("im-panel-btn-active", solo);
@@ -265,19 +191,6 @@ export function createPanel(opts) {
     instrumentId,
     isSolo: () => solo,
     setForcedSilent: (silent) => applyGain(silent),
-    setZIndex(z) {
-      el.style.zIndex = String(z);
-    },
-    getGeometry() {
-      return { x, y, width, height };
-    },
-    setGeometry(next) {
-      if (next.x !== undefined) x = next.x;
-      if (next.y !== undefined) y = next.y;
-      if (next.width !== undefined) width = Math.max(manifest.minimumWidth || MIN_PANEL_WIDTH, next.width);
-      if (next.height !== undefined) height = Math.max(manifest.minimumHeight || MIN_PANEL_HEIGHT, next.height);
-      applyPosition();
-    },
     restoreInstrumentState(state) {
       if (mountError || !state) return;
       try {
@@ -300,7 +213,7 @@ export function createPanel(opts) {
       try {
         instrumentState = mountError ? null : instance.serialize();
       } catch (e) {}
-      return { instanceId, instrumentId, x, y, width, height, volume, muted, solo, effects: { ...effectsState }, instrumentState };
+      return { instanceId, instrumentId, volume, muted, solo, effects: { ...effectsState }, instrumentState };
     },
     dispose() {
       try {
