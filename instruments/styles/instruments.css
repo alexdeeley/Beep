@@ -269,10 +269,10 @@ button, input, select {
 .im-step-on { background: #4d7cff; border-color: #4d7cff; }
 .im-step-current { outline: 2px solid #fff; outline-offset: 1px; }
 
-/* ---------- Acid 303 ---------- */
-.im-acid303 { display: flex; flex-direction: column; gap: 8px; }
-.im-steps-303 { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
-.im-step-303 {
+/* ---------- Acid 303 & every other monophonic step-sequenced synth ---------- */
+.im-acid303, .im-mono-synth { display: flex; flex-direction: column; gap: 8px; }
+.im-steps-303, .im-steps-mono { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+.im-step-303, .im-step-mono {
   aspect-ratio: 1;
   min-height: 26px;
   background: #17171c;
@@ -281,10 +281,10 @@ button, input, select {
   color: rgba(242, 242, 245, 0.6);
   font-size: 0.6rem;
 }
-.im-step-303.im-step-on { background: #ff9f43; border-color: #ff9f43; color: #000; }
-.im-step-303.im-step-accent { box-shadow: inset 0 0 0 2px #fff; }
-.im-step-303.im-step-slide::after { content: "\2933"; }
-.im-step-303.im-step-selected { outline: 2px solid #4d7cff; outline-offset: 1px; }
+.im-step-303.im-step-on, .im-step-mono.im-step-on { background: #ff9f43; border-color: #ff9f43; color: #000; }
+.im-step-303.im-step-accent, .im-step-mono.im-step-accent { box-shadow: inset 0 0 0 2px #fff; }
+.im-step-303.im-step-slide::after, .im-step-mono.im-step-slide::after { content: "\2933"; }
+.im-step-303.im-step-selected, .im-step-mono.im-step-selected { outline: 2px solid #4d7cff; outline-offset: 1px; }
 .im-step-editor {
   background: #101013;
   border-radius: 8px;
@@ -293,3 +293,40 @@ button, input, select {
   flex-direction: column;
   gap: 4px;
 }
+
+/* ---------- Generic parameter slider row (custom-UI instruments) ---------- */
+.im-param-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.im-param-label { width: 92px; flex-shrink: 0; font-size: 0.78rem; color: rgba(242, 242, 245, 0.7); }
+.im-param-row input[type="range"] { flex: 1; }
+.im-param-value { width: 40px; text-align: right; font-size: 0.72rem; color: rgba(242, 242, 245, 0.55); }
+
+/* ---------- Note-pad row (played instruments: Orbit, Bloom, Scatter, Magnet-adjacent) ---------- */
+.im-notepad-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.im-notepad-btn {
+  flex: 1;
+  min-width: 40px;
+  padding: 14px 0;
+  background: #17171c;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f2f2f5;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  touch-action: manipulation;
+}
+.im-notepad-btn.im-btn-on { background: #4d7cff; border-color: #4d7cff; }
+
+/* ---------- Custom-UI played/generative instruments ---------- */
+.im-orbit, .im-scatter, .im-bloom, .im-rain, .im-polyrhythm { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- Polyrhythm loops (Motor, Phase Garden) ---------- */
+.im-poly-row { align-items: center; }
+.im-poly-cells { display: grid; gap: 3px; flex: 1; }
+.im-poly-cell {
+  aspect-ratio: 1;
+  min-height: 22px;
+  background: #17171c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+.im-poly-cell.im-step-on { background: #3ddc84; border-color: #3ddc84; }
+.im-poly-cell.im-poly-partial { background: #1f6b45; border-color: #3ddc84; }

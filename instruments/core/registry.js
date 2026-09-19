@@ -6,8 +6,30 @@
 // specifically.
 import * as drumMachine from "../modules/drum-machine/index.js";
 import * as acid303 from "../modules/acid303/index.js";
+import * as elastic from "../modules/elastic/index.js";
+import * as shard from "../modules/shard/index.js";
+import * as orbit from "../modules/orbit/index.js";
+import * as wire from "../modules/wire/index.js";
+import * as melt from "../modules/melt/index.js";
+import * as choirZero from "../modules/choir-zero/index.js";
+import * as magnet from "../modules/magnet/index.js";
+import * as fold from "../modules/fold/index.js";
+import * as rain from "../modules/rain/index.js";
+import * as motor from "../modules/motor/index.js";
+import * as hollow from "../modules/hollow/index.js";
+import * as scatter from "../modules/scatter/index.js";
+import * as depth from "../modules/depth/index.js";
+import * as phaseGarden from "../modules/phase-garden/index.js";
+import * as staticNoise from "../modules/static/index.js";
+import * as mirror from "../modules/mirror/index.js";
+import * as bloom from "../modules/bloom/index.js";
+import * as crater from "../modules/crater/index.js";
 
-const REGISTRY = [drumMachine, acid303];
+const REGISTRY = [
+  drumMachine, acid303,
+  elastic, shard, orbit, wire, melt, choirZero, magnet, fold, rain,
+  motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
+];
 
 // Required manifest fields every module must export (documented, not
 // enforced at runtime - a missing field just shows up blank in the UI
