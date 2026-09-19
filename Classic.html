@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Classic Collection — Deeley.org</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #f2f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  .header {
+    padding: 20px 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .title { font-size: 1.4rem; font-weight: 700; }
+  .sub { color: rgba(242, 242, 245, 0.7); font-size: 0.9rem; max-width: 640px; }
+  .count { color: rgba(242, 242, 245, 0.5); font-size: 0.8rem; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #141418;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 12px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .card:active { transform: scale(0.98); }
+  .card-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #0c0c0e;
+  }
+  .card-name { font-weight: 600; font-size: 0.9rem; }
+  .card-desc { font-size: 0.78rem; color: rgba(242, 242, 245, 0.7); }
+  .empty { padding: 40px 16px; text-align: center; color: rgba(242, 242, 245, 0.5); }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<div class="header">
+  <div class="title">Classic Collection</div>
+  <div class="sub">The original one-off synth and drum toys, kept around and still playable, just not part of the main Instruments set anymore.</div>
+  <div class="count" id="count"></div>
+</div>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">Nothing archived yet.</div>
+
+<script>
+(async function () {
+  const grid = document.getElementById('grid');
+  const countEl = document.getElementById('count');
+  const emptyEl = document.getElementById('empty');
+  let apps = [];
+  try {
+    const res = await fetch('apps.json');
+    apps = await res.json();
+  } catch (e) {
+    emptyEl.textContent = 'Could not load the archive.';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  const classics = apps.filter((a) => a.archived === true).sort((a, b) => a.name.localeCompare(b.name));
+  countEl.textContent = classics.length + (classics.length === 1 ? ' app' : ' apps');
+
+  if (classics.length === 0) {
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  for (const app of classics) {
+    const card = document.createElement('a');
+    card.className = 'card';
+    card.href = app.path;
+
+    if (app.thumbnail) {
+      const img = document.createElement('img');
+      img.className = 'card-thumb';
+      img.src = app.thumbnail;
+      img.loading = 'lazy';
+      img.alt = '';
+      card.appendChild(img);
+    }
+
+    const name = document.createElement('div');
+    name.className = 'card-name';
+    name.textContent = app.name;
+    card.appendChild(name);
+
+    const desc = document.createElement('div');
+    desc.className = 'card-desc';
+    desc.textContent = app.description || '';
+    card.appendChild(desc);
+
+    grid.appendChild(card);
+  }
+})();
+</script>
+</body>
+</html>
