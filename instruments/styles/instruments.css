@@ -360,7 +360,7 @@ button, input, select {
 .im-notepad-btn.im-btn-on { background: #4d7cff; border-color: #4d7cff; }
 
 /* ---------- Custom-UI played/generative instruments ---------- */
-.im-orbit, .im-scatter, .im-bloom, .im-rain, .im-polyrhythm { display: flex; flex-direction: column; gap: 10px; }
+.im-orbit, .im-scatter, .im-bloom, .im-rain, .im-polyrhythm, .im-noisewall { display: flex; flex-direction: column; gap: 10px; }
 
 /* ---------- Polyrhythm loops (Motor, Phase Garden) ---------- */
 .im-poly-row { align-items: center; }
@@ -377,3 +377,48 @@ button, input, select {
 }
 .im-poly-cell.im-step-on { background: #3ddc84; border-color: #3ddc84; }
 .im-poly-cell.im-poly-partial { background: #1f6b45; border-color: #3ddc84; }
+
+/* ---------- Piano ---------- */
+.im-piano { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.im-piano-sustain.im-btn-on { background: #4d7cff; border-color: #4d7cff; color: #fff; }
+.im-piano-keys {
+  position: relative;
+  flex: 1;
+  min-height: 90px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  display: flex;
+  align-items: flex-start;
+  background: #050506;
+  border-radius: 8px;
+  padding-bottom: 6px;
+}
+.im-piano-key { touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+.im-piano-key-white {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 100%;
+  background: #f2f2f5;
+  border: 1px solid #000;
+  border-radius: 0 0 5px 5px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+  z-index: 1;
+}
+.im-piano-key-white.im-piano-key-active { background: #b9c9ff; }
+.im-piano-key-label { font-size: 0.55rem; color: #6b6b78; pointer-events: none; }
+.im-piano-key-black {
+  position: absolute;
+  top: 0;
+  width: 22px;
+  height: 60%;
+  background: #0c0c0e;
+  border: 1px solid #000;
+  border-radius: 0 0 4px 4px;
+  z-index: 2;
+}
+.im-piano-key-black.im-piano-key-active { background: #4d7cff; }

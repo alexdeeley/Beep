@@ -9,7 +9,6 @@ import * as acid303 from "../modules/acid303/index.js";
 import * as elastic from "../modules/elastic/index.js";
 import * as shard from "../modules/shard/index.js";
 import * as orbit from "../modules/orbit/index.js";
-import * as wire from "../modules/wire/index.js";
 import * as melt from "../modules/melt/index.js";
 import * as choirZero from "../modules/choir-zero/index.js";
 import * as magnet from "../modules/magnet/index.js";
@@ -24,11 +23,19 @@ import * as staticNoise from "../modules/static/index.js";
 import * as mirror from "../modules/mirror/index.js";
 import * as bloom from "../modules/bloom/index.js";
 import * as crater from "../modules/crater/index.js";
+import * as piano from "../modules/piano/index.js";
+import * as kit909 from "../modules/kit-909/index.js";
+import * as kit808 from "../modules/kit-808/index.js";
+import * as kit707 from "../modules/kit-707/index.js";
+import * as acidChoke from "../modules/acid-choke/index.js";
+import * as percOdd from "../modules/perc-odd/index.js";
+import * as noiseWall from "../modules/noise-wall/index.js";
 
 const REGISTRY = [
   drumMachine, acid303,
-  elastic, shard, orbit, wire, melt, choirZero, magnet, fold, rain,
+  elastic, shard, orbit, melt, choirZero, magnet, fold, rain,
   motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
+  piano, kit909, kit808, kit707, acidChoke, percOdd, noiseWall,
 ];
 
 // Required manifest fields every module must export (documented, not
