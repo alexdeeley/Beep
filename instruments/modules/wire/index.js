@@ -22,6 +22,25 @@ export const manifest = {
   minimumHeight: 300,
 };
 
+// A self-oscillating delay/filter loop like this is only stable if the
+// loop's gain is < 1 at *every* frequency, not just on average - a
+// resonant filter's peak (Q > ~0.707) can push the gain at that one
+// frequency above 1 even though `feedback` itself is comfortably under 1,
+// and the loop then grows without bound instead of decaying. Q=0.5 keeps
+// the lowpass response peak-free, and the soft-clip stage is a hard
+// safety net: it's transparent at normal levels but caps anything that
+// still tries to run away, which is standard practice for any feedback
+// waveguide/Karplus-Strong loop.
+function makeSoftClipCurve() {
+  const n = 1024;
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.tanh(x * 1.3);
+  }
+  return curve;
+}
+
 // Karplus-Strong: a persistent delay line + damping filter + feedback loop
 // tuned to the note's period, excited by a short noise burst per pluck.
 // The loop is never torn down between notes (that's what lets a held
@@ -33,6 +52,9 @@ function createWireEngine(ctx, dest) {
   const damping = ctx.createBiquadFilter();
   damping.type = "lowpass";
   damping.frequency.value = 3200;
+  damping.Q.value = 0.5;
+  const safety = ctx.createWaveShaper();
+  safety.curve = makeSoftClipCurve();
   const feedback = ctx.createGain();
   feedback.gain.value = 0.986;
   const body = ctx.createBiquadFilter();
@@ -43,7 +65,8 @@ function createWireEngine(ctx, dest) {
   output.gain.value = 0.9;
 
   delay.connect(damping);
-  damping.connect(feedback);
+  damping.connect(safety);
+  safety.connect(feedback);
   feedback.connect(delay);
   damping.connect(body);
   body.connect(output);
@@ -76,6 +99,7 @@ function createWireEngine(ctx, dest) {
     try {
       delay.disconnect();
       damping.disconnect();
+      safety.disconnect();
       feedback.disconnect();
       body.disconnect();
       output.disconnect();
