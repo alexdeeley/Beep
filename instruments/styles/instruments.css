@@ -360,7 +360,7 @@ button, input, select {
 .im-notepad-btn.im-btn-on { background: #4d7cff; border-color: #4d7cff; }
 
 /* ---------- Custom-UI played/generative instruments ---------- */
-.im-orbit, .im-scatter, .im-bloom, .im-rain, .im-polyrhythm, .im-noisewall { display: flex; flex-direction: column; gap: 10px; }
+.im-orbit, .im-scatter, .im-bloom, .im-rain, .im-polyrhythm, .im-noisewall, .im-formula, .im-playground { display: flex; flex-direction: column; gap: 10px; }
 
 /* ---------- Polyrhythm loops (Motor, Phase Garden) ---------- */
 .im-poly-row { align-items: center; }

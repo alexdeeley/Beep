@@ -30,12 +30,15 @@ import * as kit707 from "../modules/kit-707/index.js";
 import * as acidChoke from "../modules/acid-choke/index.js";
 import * as percOdd from "../modules/perc-odd/index.js";
 import * as noiseWall from "../modules/noise-wall/index.js";
+import * as formula from "../modules/formula/index.js";
+import * as playground from "../modules/playground/index.js";
 
 const REGISTRY = [
   drumMachine, acid303,
   elastic, shard, orbit, melt, choirZero, magnet, fold, rain,
   motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
   piano, kit909, kit808, kit707, acidChoke, percOdd, noiseWall,
+  formula, playground,
 ];
 
 // Required manifest fields every module must export (documented, not
