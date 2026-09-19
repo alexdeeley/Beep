@@ -2379,11 +2379,6 @@ class Game {
     this.drawPixelText(ctx, "SEQUENCE 13", 0, 0, 34, PALETTE.paleYellow, "center");
     ctx.restore();
 
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.8;
-    this.drawPixelText(ctx, "A N E S - S T Y L E   G A M E", cx, cy + 40, 11, PALETTE.gray, "center");
-    ctx.restore();
-
     if (t > 0.7) {
       const pulse = 0.5 + Math.abs(Math.sin(performance.now() / 400)) * 0.5;
       ctx.save();
