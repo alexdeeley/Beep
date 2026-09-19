@@ -74,17 +74,21 @@ export function createPanel(opts) {
   });
   header.appendChild(soloBtn);
 
-  const fxBtn = document.createElement("button");
-  fxBtn.className = "im-panel-btn im-panel-fx";
-  fxBtn.type = "button";
-  fxBtn.textContent = "FX";
-  fxBtn.title = "Effects";
-  fxBtn.addEventListener("click", () => {
-    effectsOpen = !effectsOpen;
-    fxBtn.classList.toggle("im-panel-btn-active", effectsOpen);
-    effectsPanel.style.display = effectsOpen ? "flex" : "none";
-  });
-  header.appendChild(fxBtn);
+  const hasEffects = manifest.supportsEffects !== false;
+  let fxBtn = null;
+  if (hasEffects) {
+    fxBtn = document.createElement("button");
+    fxBtn.className = "im-panel-btn im-panel-fx";
+    fxBtn.type = "button";
+    fxBtn.textContent = "FX";
+    fxBtn.title = "Effects";
+    fxBtn.addEventListener("click", () => {
+      effectsOpen = !effectsOpen;
+      fxBtn.classList.toggle("im-panel-btn-active", effectsOpen);
+      effectsPanel.style.display = effectsOpen ? "flex" : "none";
+    });
+    header.appendChild(fxBtn);
+  }
 
   const removeBtn = document.createElement("button");
   removeBtn.className = "im-panel-btn im-panel-remove";
@@ -124,34 +128,37 @@ export function createPanel(opts) {
   errorBox.innerHTML = '<strong>This instrument failed to load.</strong><br>Try removing and re-adding it.';
   el.appendChild(errorBox);
 
-  const effectsPanel = document.createElement("div");
-  effectsPanel.className = "im-panel-effects";
-  effectsPanel.style.display = "none";
-  el.appendChild(effectsPanel);
+  let effectsPanel = null;
+  if (hasEffects) {
+    effectsPanel = document.createElement("div");
+    effectsPanel.className = "im-panel-effects";
+    effectsPanel.style.display = "none";
+    el.appendChild(effectsPanel);
 
-  function buildEffectRow(kind, label) {
-    const row = document.createElement("div");
-    row.className = "im-fx-row";
-    const rowLabel = document.createElement("span");
-    rowLabel.className = "im-fx-label";
-    rowLabel.textContent = label;
-    const slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = "0";
-    slider.max = "100";
-    slider.value = String(Math.round((effectsState[kind] || 0) * 100));
-    slider.addEventListener("input", () => {
-      const amt = Number(slider.value) / 100;
-      effectsState[kind] = amt;
-      safeSetEffect(kind, amt);
-    });
-    row.appendChild(rowLabel);
-    row.appendChild(slider);
-    effectsPanel.appendChild(row);
+    const buildEffectRow = (kind, label) => {
+      const row = document.createElement("div");
+      row.className = "im-fx-row";
+      const rowLabel = document.createElement("span");
+      rowLabel.className = "im-fx-label";
+      rowLabel.textContent = label;
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "100";
+      slider.value = String(Math.round((effectsState[kind] || 0) * 100));
+      slider.addEventListener("input", () => {
+        const amt = Number(slider.value) / 100;
+        effectsState[kind] = amt;
+        safeSetEffect(kind, amt);
+      });
+      row.appendChild(rowLabel);
+      row.appendChild(slider);
+      effectsPanel.appendChild(row);
+    };
+    buildEffectRow("distortion", "Drive");
+    buildEffectRow("delay", "Delay");
+    buildEffectRow("reverb", "Reverb");
   }
-  buildEffectRow("distortion", "Drive");
-  buildEffectRow("delay", "Delay");
-  buildEffectRow("reverb", "Reverb");
 
   const resizeHandle = document.createElement("div");
   resizeHandle.className = "im-panel-resize";

@@ -5,14 +5,14 @@ export const manifest = {
   id: "acid-303",
   name: "Acid 303",
   shortName: "303",
-  description: "A monophonic acid bass synth with a resonant filter, genuine pitch slide, and a 16-step pattern editor.",
+  description: "A no-frills acid bass line sequencer: sixteen steps, real accent, real slide, nothing else.",
   category: "Bass",
   tags: ["bass", "synth", "acid", "303", "sequencer", "monophonic"],
   version: "1.0.0",
   icon: "\u{1F70A}",
   supportsSequencer: true,
-  supportsLivePlay: true,
-  supportsEffects: true,
+  supportsLivePlay: false,
+  supportsEffects: false,
   supportsTempo: true,
   polyphony: 1,
   defaultWidth: 380,
@@ -131,30 +131,6 @@ function createAcidEngine(ctx, dest) {
   return { trigger, setParam, getParams: () => ({ ...params }), setAllParams: (p) => { params = { ...params, ...p }; osc.type = params.waveform; filter.Q.value = params.resonance; }, dispose };
 }
 
-// ---------- musical randomizer ----------
-function randomizePattern() {
-  const steps = Array.from({ length: STEPS }, () => ({ active: false, note: 0, octave: 0, accent: false, slide: false }));
-  const scale = [0, 3, 5, 7, 10]; // minor pentatonic-ish, acid-friendly
-  let i = 0;
-  while (i < STEPS) {
-    if (Math.random() < 0.35) {
-      i++; // rest
-      continue;
-    }
-    const runLen = 1 + Math.floor(Math.random() * 2);
-    for (let k = 0; k < runLen && i < STEPS; k++, i++) {
-      steps[i] = {
-        active: true,
-        note: scale[Math.floor(Math.random() * scale.length)],
-        octave: Math.random() < 0.15 ? 1 : 0,
-        accent: Math.random() < 0.25,
-        slide: k < runLen - 1 && Math.random() < 0.4,
-      };
-    }
-  }
-  return steps;
-}
-
 // ---------- instrument instance ----------
 export function create(ctx) {
   const output = createEffectsChain(ctx);
@@ -167,7 +143,6 @@ export function create(ctx) {
   let lastPaintedStep = -1;
   let pendingGlideIn = false;
   let selectedStep = 0;
-  let liveOctave = 0;
 
   function onTransportStep({ step, time }) {
     const s = pattern[step];
@@ -205,39 +180,6 @@ export function create(ctx) {
     container.innerHTML = "";
     container.classList.add("im-acid303");
 
-    // live play strip
-    const liveRow = document.createElement("div");
-    liveRow.className = "im-live-row";
-    NOTE_NAMES.forEach((name, note) => {
-      const key = document.createElement("button");
-      key.className = "im-key" + (name.includes("#") ? " im-key-sharp" : "");
-      key.textContent = name;
-      key.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        engine.trigger(ctx.currentTime, { note, octave: liveOctave, accent: false, glideIn: false });
-      });
-      liveRow.appendChild(key);
-    });
-    container.appendChild(liveRow);
-
-    const octaveRow = document.createElement("div");
-    octaveRow.className = "im-controls-row";
-    const octDown = document.createElement("button");
-    octDown.className = "im-btn";
-    octDown.textContent = "Oct -";
-    octDown.addEventListener("click", () => { liveOctave = Math.max(-2, liveOctave - 1); octLabel.textContent = "Octave " + (liveOctave >= 0 ? "+" + liveOctave : liveOctave); });
-    const octLabel = document.createElement("span");
-    octLabel.className = "im-label";
-    octLabel.textContent = "Octave " + (liveOctave >= 0 ? "+" + liveOctave : liveOctave);
-    const octUp = document.createElement("button");
-    octUp.className = "im-btn";
-    octUp.textContent = "Oct +";
-    octUp.addEventListener("click", () => { liveOctave = Math.min(2, liveOctave + 1); octLabel.textContent = "Octave " + (liveOctave >= 0 ? "+" + liveOctave : liveOctave); });
-    octaveRow.appendChild(octDown);
-    octaveRow.appendChild(octLabel);
-    octaveRow.appendChild(octUp);
-    container.appendChild(octaveRow);
-
     // step sequencer
     const stepsWrap = document.createElement("div");
     stepsWrap.className = "im-steps im-steps-303";
@@ -261,14 +203,6 @@ export function create(ctx) {
 
     const controls = document.createElement("div");
     controls.className = "im-controls-row";
-    const randomBtn = document.createElement("button");
-    randomBtn.className = "im-btn";
-    randomBtn.textContent = "Randomize";
-    randomBtn.addEventListener("click", () => {
-      pattern = randomizePattern();
-      refreshStepsUI();
-      renderEditor();
-    });
     const clearBtn = document.createElement("button");
     clearBtn.className = "im-btn";
     clearBtn.textContent = "Clear";
@@ -278,7 +212,6 @@ export function create(ctx) {
       renderEditor();
     });
     controls.appendChild(clearBtn);
-    controls.appendChild(randomBtn);
     container.appendChild(controls);
 
     renderEditor();

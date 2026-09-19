@@ -271,18 +271,6 @@ button, input, select {
 
 /* ---------- Acid 303 ---------- */
 .im-acid303 { display: flex; flex-direction: column; gap: 8px; }
-.im-live-row { display: flex; gap: 2px; }
-.im-key {
-  flex: 1;
-  padding: 12px 0;
-  background: #17171c;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #f2f2f5;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  touch-action: manipulation;
-}
-.im-key-sharp { background: #101013; color: rgba(242, 242, 245, 0.6); }
 .im-steps-303 { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
 .im-step-303 {
   aspect-ratio: 1;

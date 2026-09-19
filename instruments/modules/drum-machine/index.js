@@ -5,14 +5,14 @@ export const manifest = {
   id: "drum-machine",
   name: "Drum Machine",
   shortName: "Drums",
-  description: "Four synthesized voices - kick, snare, closed hat, open hat - with a 16-step sequencer and live pads.",
+  description: "A no-frills 808-style sequencer: four synthesized voices, sixteen steps, nothing else.",
   category: "Drums",
   tags: ["drums", "sequencer", "rhythm", "808", "synthesized"],
   version: "1.0.0",
   icon: "\u{1F941}",
   supportsSequencer: true,
   supportsLivePlay: true,
-  supportsEffects: true,
+  supportsEffects: false,
   supportsTempo: true,
   polyphony: 4,
   defaultWidth: 380,
@@ -179,30 +179,6 @@ function createVoiceEngine(ctx, dest) {
   };
 }
 
-// ---------- musical randomizer ----------
-function randomizePattern() {
-  const p = defaultPattern();
-  // Keep the kick/snare backbone recognizable, vary hats and occasional
-  // extra hits - biased toward plausible rhythms, not coin-flip noise.
-  p.kick = new Array(STEPS).fill(false);
-  [0, 8].forEach((i) => (p.kick[i] = true));
-  if (Math.random() < 0.6) p.kick[6] = true;
-  if (Math.random() < 0.5) p.kick[10] = true;
-  p.snare = new Array(STEPS).fill(false);
-  p.snare[4] = true;
-  p.snare[12] = true;
-  if (Math.random() < 0.3) p.snare[14] = true;
-  p.closedHat = new Array(STEPS).fill(false);
-  for (let i = 0; i < STEPS; i++) {
-    if (i % 2 === 0) p.closedHat[i] = true;
-    else if (Math.random() < 0.35) p.closedHat[i] = true;
-  }
-  p.openHat = new Array(STEPS).fill(false);
-  if (Math.random() < 0.7) p.openHat[14] = true;
-  else p.openHat[6] = true;
-  return p;
-}
-
 // ---------- instrument instance ----------
 export function create(ctx) {
   const output = createEffectsChain(ctx);
@@ -305,15 +281,7 @@ export function create(ctx) {
       pattern = { kick: new Array(STEPS).fill(false), snare: new Array(STEPS).fill(false), closedHat: new Array(STEPS).fill(false), openHat: new Array(STEPS).fill(false) };
       refreshGridUI();
     });
-    const randomBtn = document.createElement("button");
-    randomBtn.className = "im-btn";
-    randomBtn.textContent = "Randomize";
-    randomBtn.addEventListener("click", () => {
-      pattern = randomizePattern();
-      refreshGridUI();
-    });
     controls.appendChild(clearBtn);
-    controls.appendChild(randomBtn);
     container.appendChild(controls);
   }
 
