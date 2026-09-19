@@ -1,21 +1,19 @@
 import { getContext, getMasterBus, ensureStarted, isStarted } from "../core/audio-engine.js";
 import { createInstance, getManifest } from "../core/registry.js";
-import { setBpm, getBpm } from "../core/transport.js";
+import { getBpm, setBpm } from "../core/transport.js";
 import { createPanel } from "./instrument-panel.js";
 import { createLibraryView } from "./library.js";
 import { createTransportBar } from "./transport.js";
-import { computeLayoutPositions, clampGeometryToViewport } from "./layout-manager.js";
 import { saveWorkspace, loadWorkspace } from "../core/persistence.js";
 
 export const MAX_INSTANCES = 4;
 
-// Wires the transport bar, the stage of draggable/resizable instrument
-// panels, and the add-instrument library together into the shared
-// workspace. All instrument state, panel geometry, layout mode and BPM
-// round-trip through core/persistence.js so a reload restores exactly
-// what was there - this is the one place that decides how those pieces
-// fit, everything else (panel, library, transport, layout math) stays
-// ignorant of the others.
+// A fixed field of four quadrants, each outlined with a dashed border.
+// There's nothing to drag or resize - an instrument just fills whichever
+// quadrant it's placed in. The one way in is the circular "+" at the
+// center: tap it, pick an instrument from the library, then tap one of
+// the highlighted empty quadrants to drop it there. All instrument state,
+// which quadrant it's in, and BPM round-trip through core/persistence.js.
 export function createWorkspace(rootEl) {
   const ctx = getContext();
   const masterBus = getMasterBus();
@@ -26,6 +24,28 @@ export function createWorkspace(rootEl) {
   const stage = document.createElement("div");
   stage.className = "im-stage";
 
+  const grid = document.createElement("div");
+  grid.className = "im-quadrant-grid";
+  const quadrantEls = [];
+  for (let i = 0; i < MAX_INSTANCES; i++) {
+    const q = document.createElement("div");
+    q.className = "im-quadrant";
+    q.dataset.quadrant = String(i);
+    q.addEventListener("click", () => onQuadrantClick(i));
+    grid.appendChild(q);
+    quadrantEls.push(q);
+  }
+
+  const addCenterBtn = document.createElement("button");
+  addCenterBtn.type = "button";
+  addCenterBtn.className = "im-add-center";
+  addCenterBtn.setAttribute("aria-label", "Add an instrument");
+  addCenterBtn.textContent = "+";
+  addCenterBtn.addEventListener("click", onAddCenterClick);
+  grid.appendChild(addCenterBtn);
+
+  stage.appendChild(grid);
+
   const libraryOverlay = document.createElement("div");
   libraryOverlay.className = "im-library-overlay";
   libraryOverlay.style.display = "none";
@@ -34,7 +54,7 @@ export function createWorkspace(rootEl) {
   const libraryHeader = document.createElement("div");
   libraryHeader.className = "im-library-modal-header";
   const libraryTitle = document.createElement("span");
-  libraryTitle.textContent = "Add an instrument";
+  libraryTitle.textContent = "Pick an instrument";
   const libraryClose = document.createElement("button");
   libraryClose.type = "button";
   libraryClose.className = "im-btn";
@@ -43,7 +63,7 @@ export function createWorkspace(rootEl) {
   libraryHeader.appendChild(libraryTitle);
   libraryHeader.appendChild(libraryClose);
   libraryPanel.appendChild(libraryHeader);
-  const libraryView = createLibraryView({ onPick: (manifest) => { addInstrument(manifest.id); closeLibrary(); }, actionLabel: "Add" });
+  const libraryView = createLibraryView({ onPick: (manifest) => { closeLibrary(); beginPlacement(manifest.id); }, actionLabel: "Pick" });
   libraryPanel.appendChild(libraryView.el);
   libraryOverlay.appendChild(libraryPanel);
   libraryOverlay.addEventListener("click", (e) => {
@@ -51,10 +71,6 @@ export function createWorkspace(rootEl) {
   });
 
   function openLibrary() {
-    if (panels.size >= MAX_INSTANCES) {
-      alert("The workspace already has 4 instruments - the most it can run at once. Remove one first.");
-      return;
-    }
     libraryView.refresh();
     libraryOverlay.style.display = "flex";
   }
@@ -75,22 +91,17 @@ export function createWorkspace(rootEl) {
   });
   if (isStarted()) startOverlay.style.display = "none";
 
-  const panels = new Map();
-  let layout = "freeform";
-  let zCounter = 1;
+  const panels = new Map(); // quadrant index -> panel
   let isPlaying = false;
   let seq = 1;
   let persistTimer = null;
+  let pendingInstrumentId = null;
 
   const saved = loadWorkspace();
   if (saved?.bpm) setBpm(saved.bpm);
-  if (saved?.layout) layout = saved.layout;
 
   const transportBar = createTransportBar({
-    onAdd: openLibrary,
-    onLayoutChange: (next) => { layout = next; applyLayoutPositions(); schedulePersist(); },
     onPlayStateChange: (playing) => { isPlaying = playing; for (const p of panels.values()) (playing ? p.start() : p.stop()); },
-    initialLayout: layout,
   });
 
   rootEl.appendChild(transportBar.el);
@@ -98,29 +109,50 @@ export function createWorkspace(rootEl) {
   rootEl.appendChild(libraryOverlay);
   rootEl.appendChild(startOverlay);
 
-  function viewportSize() {
-    const rect = stage.getBoundingClientRect();
-    return { width: rect.width || 800, height: rect.height || 500 };
+  function emptyQuadrants() {
+    const empty = [];
+    for (let i = 0; i < MAX_INSTANCES; i++) if (!panels.has(i)) empty.push(i);
+    return empty;
   }
 
-  function bringToFront(instanceId) {
-    const panel = panels.get(instanceId);
-    if (!panel) return;
-    zCounter += 1;
-    panel.setZIndex(zCounter);
+  function onAddCenterClick() {
+    if (pendingInstrumentId) {
+      cancelPlacement();
+      return;
+    }
+    if (emptyQuadrants().length === 0) {
+      alert("The workspace already has 4 instruments - the most it can run at once. Remove one first.");
+      return;
+    }
+    openLibrary();
+  }
+
+  function beginPlacement(instrumentId) {
+    pendingInstrumentId = instrumentId;
+    addCenterBtn.textContent = "×";
+    addCenterBtn.classList.add("im-add-center-cancel");
+    addCenterBtn.setAttribute("aria-label", "Cancel placing instrument");
+    for (const i of emptyQuadrants()) quadrantEls[i].classList.add("im-quadrant-placeable");
+  }
+
+  function cancelPlacement() {
+    pendingInstrumentId = null;
+    addCenterBtn.textContent = "+";
+    addCenterBtn.classList.remove("im-add-center-cancel");
+    addCenterBtn.setAttribute("aria-label", "Add an instrument");
+    quadrantEls.forEach((q) => q.classList.remove("im-quadrant-placeable"));
+  }
+
+  function onQuadrantClick(index) {
+    if (!pendingInstrumentId || panels.has(index)) return;
+    const instrumentId = pendingInstrumentId;
+    cancelPlacement();
+    addInstrument(instrumentId, undefined, index);
   }
 
   function updateSoloState() {
     const anySolo = [...panels.values()].some((p) => p.isSolo());
     for (const p of panels.values()) p.setForcedSilent(anySolo && !p.isSolo());
-  }
-
-  function applyLayoutPositions() {
-    transportBar.setLayout(layout);
-    if (layout === "freeform" || panels.size === 0) return;
-    const ids = [...panels.keys()];
-    const positions = computeLayoutPositions(layout, ids.length, viewportSize());
-    ids.forEach((id, i) => panels.get(id).setGeometry(positions[i]));
   }
 
   function schedulePersist() {
@@ -130,20 +162,24 @@ export function createWorkspace(rootEl) {
 
   function persist() {
     saveWorkspace({
-      layout,
       bpm: getBpm(),
-      instances: [...panels.values()].map((p) => p.serialize()),
+      instances: [...panels.entries()].map(([quadrant, p]) => ({ quadrant, ...p.serialize() })),
     });
   }
 
-  function addInstrument(instrumentId, savedState) {
+  function addInstrument(instrumentId, savedState, requestedQuadrant) {
     if (panels.size >= MAX_INSTANCES) return null;
     const manifest = getManifest(instrumentId);
     if (!manifest) return null;
 
+    let quadrant = requestedQuadrant ?? savedState?.quadrant;
+    if (quadrant === undefined || quadrant === null || panels.has(quadrant)) {
+      quadrant = emptyQuadrants()[0];
+    }
+    if (quadrant === undefined) return null;
+
     const instance = createInstance(instrumentId, ctx);
     const instanceId = savedState?.instanceId || `${instrumentId}-${Date.now().toString(36)}-${seq++}`;
-    const cascade = panels.size % MAX_INSTANCES;
 
     const panel = createPanel({
       instanceId,
@@ -152,65 +188,46 @@ export function createWorkspace(rootEl) {
       instance,
       ctx,
       masterBus,
-      x: savedState?.x ?? 24 + cascade * 32,
-      y: savedState?.y ?? 24 + cascade * 32,
-      width: savedState?.width ?? manifest.defaultWidth,
-      height: savedState?.height ?? manifest.defaultHeight,
       volume: savedState?.volume,
       muted: savedState?.muted,
       solo: savedState?.solo,
       effects: savedState?.effects,
-      onFocus: bringToFront,
-      onRemove: removeInstrument,
+      onRemove: () => removeInstrument(quadrant),
       onSoloChange: () => { updateSoloState(); schedulePersist(); },
-      onGeometryChange: schedulePersist,
     });
 
     if (savedState?.instrumentState) panel.restoreInstrumentState(savedState.instrumentState);
 
-    panels.set(instanceId, panel);
-    stage.appendChild(panel.el);
-    bringToFront(instanceId);
+    panels.set(quadrant, panel);
+    quadrantEls[quadrant].appendChild(panel.el);
+    quadrantEls[quadrant].classList.add("im-quadrant-filled");
     if (isPlaying) panel.start();
     updateSoloState();
-    if (layout !== "freeform") applyLayoutPositions();
     schedulePersist();
     return panel;
   }
 
-  function removeInstrument(instanceId) {
-    const panel = panels.get(instanceId);
+  function removeInstrument(quadrant) {
+    const panel = panels.get(quadrant);
     if (!panel) return;
     panel.dispose();
-    panels.delete(instanceId);
+    panels.delete(quadrant);
+    quadrantEls[quadrant].classList.remove("im-quadrant-filled");
     updateSoloState();
-    if (layout !== "freeform") applyLayoutPositions();
     schedulePersist();
   }
 
   for (const inst of (saved?.instances || []).slice(0, MAX_INSTANCES)) {
     addInstrument(inst.instrumentId, inst);
   }
-  applyLayoutPositions();
-
-  window.addEventListener("resize", () => {
-    if (layout !== "freeform") {
-      applyLayoutPositions();
-      return;
-    }
-    const vp = viewportSize();
-    for (const panel of panels.values()) {
-      const manifest = getManifest(panel.instrumentId);
-      const clamped = clampGeometryToViewport(panel.getGeometry(), vp, manifest?.minimumWidth || 220, manifest?.minimumHeight || 220);
-      panel.setGeometry(clamped);
-    }
-  });
 
   document.addEventListener("keydown", (e) => {
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.isContentEditable)) return;
     if (e.code === "Space") {
       e.preventDefault();
       transportBar.el.querySelector(".im-transport-play")?.click();
+    } else if (e.code === "Escape" && pendingInstrumentId) {
+      cancelPlacement();
     }
   });
 

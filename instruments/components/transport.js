@@ -1,27 +1,15 @@
 import { ensureStarted } from "../core/audio-engine.js";
 import { start as transportStart, stop as transportStop, isRunning, getBpm, setBpm, tapTempo, getCurrentStep } from "../core/transport.js";
-import { LAYOUTS } from "./layout-manager.js";
 
-const LAYOUT_LABELS = { split: "Split", grid: "Grid", performance: "Performance", freeform: "Freeform" };
-
-// The compact header bar: Library/Add, Play/Stop, BPM, Tap Tempo, layout
-// picker, and a step-position readout. Deliberately small - the
-// instruments themselves are the visual stars of the workspace, not this
-// chrome. The step readout polls the transport via requestAnimationFrame
-// rather than being driven by the audio clock itself, keeping render
-// timing separate from audio timing as the shared clock requires.
-export function createTransportBar({ onAdd, onLayoutChange, onPlayStateChange, initialLayout = "freeform", showAdd = true, showLayouts = true }) {
+// The compact header bar: Play/Stop, BPM, Tap Tempo, and a step-position
+// readout (Add lives as the workspace's own central button, not here).
+// Deliberately small - the instruments themselves are the visual stars,
+// not this chrome. The step readout polls the transport via
+// requestAnimationFrame rather than being driven by the audio clock
+// itself, keeping render timing separate from audio timing.
+export function createTransportBar({ onPlayStateChange }) {
   const el = document.createElement("div");
   el.className = "im-transport-bar";
-
-  if (showAdd) {
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "im-btn im-transport-add";
-    addBtn.textContent = "+ Add";
-    addBtn.addEventListener("click", () => onAdd?.());
-    el.appendChild(addBtn);
-  }
 
   const playBtn = document.createElement("button");
   playBtn.type = "button";
@@ -68,27 +56,6 @@ export function createTransportBar({ onAdd, onLayoutChange, onPlayStateChange, i
   });
   el.appendChild(tapBtn);
 
-  let currentLayout = initialLayout;
-  const layoutButtons = {};
-  if (showLayouts) {
-    const layoutWrap = document.createElement("div");
-    layoutWrap.className = "im-transport-layouts";
-    for (const layout of LAYOUTS) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "im-btn im-transport-layout-btn" + (layout === currentLayout ? " im-btn-on" : "");
-      btn.textContent = LAYOUT_LABELS[layout];
-      btn.addEventListener("click", () => {
-        currentLayout = layout;
-        for (const [key, b] of Object.entries(layoutButtons)) b.classList.toggle("im-btn-on", key === layout);
-        onLayoutChange?.(layout);
-      });
-      layoutButtons[layout] = btn;
-      layoutWrap.appendChild(btn);
-    }
-    el.appendChild(layoutWrap);
-  }
-
   const stepReadout = document.createElement("span");
   stepReadout.className = "im-transport-step";
   el.appendChild(stepReadout);
@@ -114,10 +81,6 @@ export function createTransportBar({ onAdd, onLayoutChange, onPlayStateChange, i
 
   return {
     el,
-    setLayout(layout) {
-      currentLayout = layout;
-      for (const [key, b] of Object.entries(layoutButtons)) b.classList.toggle("im-btn-on", key === layout);
-    },
     dispose() {
       if (rafId) cancelAnimationFrame(rafId);
     },

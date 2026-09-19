@@ -70,31 +70,84 @@ button, input, select {
   padding: 5px 6px;
   text-align: center;
 }
-.im-transport-layouts { display: flex; gap: 4px; }
 .im-transport-step { margin-left: auto; font-size: 0.78rem; color: rgba(242, 242, 245, 0.55); min-width: 80px; text-align: right; }
 
-/* ---------- Stage & panels ---------- */
+/* ---------- Stage & the fixed quadrant field ---------- */
 .im-workspace-root { display: flex; flex-direction: column; height: 100%; }
 .im-stage {
   position: relative;
   flex: 1;
   overflow: auto;
   background: #050506;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
-.im-panel {
-  position: absolute;
+.im-quadrant-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  height: 100%;
+  min-height: 480px;
+  padding: 6px;
+  gap: 6px;
+}
+.im-quadrant {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  background: #0c0c0e;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 2px dashed rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  min-width: 220px;
-  min-height: 220px;
+  min-width: 0;
+  min-height: 0;
+}
+.im-quadrant-filled { border-style: solid; border-color: transparent; }
+.im-quadrant-placeable {
+  cursor: pointer;
+  border-color: #4d7cff;
+  background: rgba(77, 124, 255, 0.08);
+  animation: im-quadrant-pulse 1.4s ease-in-out infinite;
+}
+@keyframes im-quadrant-pulse {
+  0%, 100% { border-color: rgba(77, 124, 255, 0.35); }
+  50% { border-color: rgba(77, 124, 255, 0.95); }
+}
+.im-add-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #17171c;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #f2f2f5;
+  font-size: 1.8rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.im-add-center:active { transform: translate(-50%, -50%) scale(0.94); }
+.im-add-center-cancel { background: #2a1414; border-color: #ff8a8a; color: #ff8a8a; }
+
+.im-stage-standalone { display: flex; justify-content: center; padding: 16px; }
+.im-stage-standalone .im-panel { width: min(100%, 480px); flex-shrink: 0; }
+
+.im-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #0c0c0e;
+  min-width: 0;
+  min-height: 0;
 }
 .im-panel-header {
   display: flex;
@@ -102,12 +155,9 @@ button, input, select {
   gap: 4px;
   padding: 8px 10px;
   background: #141418;
-  cursor: grab;
-  touch-action: none;
   user-select: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.im-panel-header:active { cursor: grabbing; }
 .im-panel-title { font-weight: 600; font-size: 0.9rem; }
 .im-panel-spacer { flex: 1; }
 .im-panel-btn {
@@ -142,26 +192,6 @@ button, input, select {
 .im-fx-row { display: flex; align-items: center; gap: 8px; }
 .im-fx-label { width: 56px; font-size: 0.78rem; color: rgba(242, 242, 245, 0.7); }
 .im-fx-row input[type="range"] { flex: 1; }
-.im-panel-resize {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 22px;
-  height: 22px;
-  cursor: nwse-resize;
-  touch-action: none;
-}
-.im-panel-resize::after {
-  content: "";
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid rgba(255, 255, 255, 0.3);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-}
-
 /* ---------- Library ---------- */
 .im-library { padding: 12px; }
 .im-library-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -243,6 +273,8 @@ button, input, select {
 .im-pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .im-pad {
   aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
   border-radius: 10px;
   background: #17171c;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -255,14 +287,16 @@ button, input, select {
 .im-grid { display: flex; flex-direction: column; gap: 4px; }
 .im-row { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 6px; }
 .im-row-label { font-size: 0.72rem; color: rgba(242, 242, 245, 0.6); }
-.im-steps { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+.im-steps { display: flex; gap: 3px; width: 100%; min-width: 0; }
 .im-step {
+  flex: 1 1 0;
   aspect-ratio: 1;
   background: #17171c;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 4px;
+  padding: 0;
   min-width: 0;
-  min-height: 22px;
+  min-height: 0;
   touch-action: manipulation;
 }
 .im-step-beat { border-color: rgba(255, 255, 255, 0.35); }
@@ -271,15 +305,19 @@ button, input, select {
 
 /* ---------- Acid 303 & every other monophonic step-sequenced synth ---------- */
 .im-acid303, .im-mono-synth { display: flex; flex-direction: column; gap: 8px; }
-.im-steps-303, .im-steps-mono { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+.im-steps-303, .im-steps-mono { display: flex; gap: 3px; width: 100%; min-width: 0; }
 .im-step-303, .im-step-mono {
+  flex: 1 1 0;
   aspect-ratio: 1;
-  min-height: 26px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
   background: #17171c;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 4px;
   color: rgba(242, 242, 245, 0.6);
   font-size: 0.6rem;
+  overflow: hidden;
 }
 .im-step-303.im-step-on, .im-step-mono.im-step-on { background: #ff9f43; border-color: #ff9f43; color: #000; }
 .im-step-303.im-step-accent, .im-step-mono.im-step-accent { box-shadow: inset 0 0 0 2px #fff; }
@@ -320,10 +358,13 @@ button, input, select {
 
 /* ---------- Polyrhythm loops (Motor, Phase Garden) ---------- */
 .im-poly-row { align-items: center; }
-.im-poly-cells { display: grid; gap: 3px; flex: 1; }
+.im-poly-cells { display: flex; gap: 3px; flex: 1; width: 100%; min-width: 0; }
 .im-poly-cell {
+  flex: 1 1 0;
   aspect-ratio: 1;
-  min-height: 22px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
   background: #17171c;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 4px;
