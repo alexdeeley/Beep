@@ -20,12 +20,15 @@ name: Newswire
 # overlap-prevention nicety: it's what keeps concurrent runs of this
 # workflow from racing each other's read-modify-write of the shared
 # R2-hosted story database.
+# PAUSED 2026-09-20 at the account owner's request ("technical issues") - schedule commented out below,
+# not deleted, so resuming is just uncommenting these 4 lines. workflow_dispatch stays active so a run
+# can still be triggered manually while paused. A "temporarily paused" notice was posted to Bluesky.
 on:
-  schedule:
-    - cron: "0 15 * * *" # ~8:00am America/Los_Angeles during PDT
-    - cron: "0 16 * * *" # ~8:00am America/Los_Angeles during PST
-    - cron: "0 3 * * *" # ~8:00pm America/Los_Angeles during PDT
-    - cron: "0 4 * * *" # ~8:00pm America/Los_Angeles during PST
+  # schedule:
+  #   - cron: "0 15 * * *" # ~8:00am America/Los_Angeles during PDT
+  #   - cron: "0 16 * * *" # ~8:00am America/Los_Angeles during PST
+  #   - cron: "0 3 * * *" # ~8:00pm America/Los_Angeles during PDT
+  #   - cron: "0 4 * * *" # ~8:00pm America/Los_Angeles during PST
   workflow_dispatch:
     inputs:
       dry_run:
