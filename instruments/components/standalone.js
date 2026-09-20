@@ -62,6 +62,7 @@ export function mountStandalone(instrumentId, rootEl) {
     masterBus: getMasterBus(),
     volume: savedState?.volume,
     muted: savedState?.muted,
+    pan: savedState?.pan,
     effects: savedState?.effects,
     onRemove: () => {},
     onSoloChange: () => {},

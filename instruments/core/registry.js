@@ -33,13 +33,15 @@ import * as percOdd from "../modules/perc-odd/index.js";
 import * as noiseWall from "../modules/noise-wall/index.js";
 import * as formula from "../modules/formula/index.js";
 import * as playground from "../modules/playground/index.js";
+import * as boom808 from "../modules/boom-808/index.js";
+import * as deepSynth from "../modules/deep-synth/index.js";
 
 const REGISTRY = [
   drumMachine, acid303,
   elastic, shard, orbit, melt, choirZero, magnet, fold, rain,
   motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
   piano, kit909, kit808, kit707, acidChoke, percOdd, noiseWall,
-  formula, playground, accordion,
+  formula, playground, accordion, boom808, deepSynth,
 ];
 
 // Required manifest fields every module must export (documented, not
