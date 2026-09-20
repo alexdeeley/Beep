@@ -225,17 +225,6 @@
     transition: color 0.15s;
   }
   a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
-  #musicSpecial { margin-bottom: 4px; }
-  a.special-link {
-    border: 1px solid #3a2a1a;
-    background: #14100a;
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 4px;
-  }
-  a.special-link:last-child { border-bottom: 1px solid #3a2a1a; }
-  a.special-link:hover, a.special-link:active { border-color: #6b4a1a; padding-left: 16px; }
-  a.special-link .arrow { color: #c9a877; font-size: 1.6rem; }
   .site-footer {
     margin-top: 36px;
     padding-top: 16px;
@@ -527,7 +516,7 @@
         <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
         <p class="blurb">Depending on the kind of piece I&rsquo;m making, I begin in different places. For more traditional song-based work, I often start in GarageBand and export through DistroKid.</p>
         <p class="blurb">I also use Suno AI as part of my process. As with app development, I use AI tools to help translate rough ideas into structured prompts, which can lead to results that are unpredictable, strange, or unexpectedly useful.</p>
-        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools. You can find those under the Music section of Deeley.org.</p>
+        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools.</p>
 
         <p class="blurb" style="margin-top: 28px;">Thank you for spending time here.</p>
         <p class="blurb">I hope the work on this site offers a clearer sense of how I make art, how I use technology, and how disability informs the way I see, choose, and build.</p>
@@ -551,22 +540,13 @@
 
         <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
   </div>
-  <div id="musicSpecial" class="hidden">
-    <a class="link-item special-link" href="JamSession.html">
-      <div>
-        <h2>&#127925; Jam Session</h2>
-        <p>Play a drum machine and a synth together, side by side</p>
-      </div>
-      <span class="arrow">&#8250;</span>
-    </a>
-  </div>
   <div id="newSection"></div>
   <div id="appList"></div>
 </main>
 
 <script>
-const TABS = ["Home", "Games", "Art", "Music"];
-const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art", "Music Tools": "Music" };
+const TABS = ["Home", "Games", "Art", "Sound"];
+const TAB_FOR_CATEGORY = { Games: "Games", Art: "Art" };
 
 let apps = [];
 let activeTab = "Home";
@@ -622,7 +602,6 @@ function render() {
 
 function renderSearchResults() {
   document.getElementById("homeContent").classList.add("hidden");
-  document.getElementById("musicSpecial").classList.add("hidden");
   const newSectionEl = document.getElementById("newSection");
   newSectionEl.classList.add("hidden");
   newSectionEl.innerHTML = "";
@@ -683,7 +662,9 @@ function initAddToHomeScreen() {
 function restoreLastTab() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(LAST_STATE_KEY) || "null");
-    if (saved && TABS.includes(saved.tab)) activeTab = saved.tab;
+    // "Sound" is a link out (see buildTabs), never an activeTab value - so a
+    // stale saved "Sound" tab should just fall back to whatever came before it.
+    if (saved && saved.tab !== "Sound" && TABS.includes(saved.tab)) activeTab = saved.tab;
   } catch (e) {}
 }
 
@@ -731,6 +712,13 @@ function buildTabs() {
     btn.textContent = tab;
     btn.dataset.tab = tab;
     btn.addEventListener("click", () => {
+      // Sound isn't an in-page section - it's a link out to the standalone
+      // Instruments app (its own audio engine/workspace/pages), so this is
+      // a real navigation rather than an activeTab switch + render().
+      if (tab === "Sound") {
+        window.location.href = "Instruments.html";
+        return;
+      }
       activeTab = tab;
       searchQuery = "";
       document.getElementById("appSearch").value = "";
@@ -746,7 +734,6 @@ function renderActiveTab() {
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
   document.getElementById("appList").classList.toggle("hidden", isHome);
-  document.getElementById("musicSpecial").classList.toggle("hidden", activeTab !== "Music");
   if (isHome) return;
   renderNewSection();
   renderList();
@@ -778,7 +765,6 @@ function renderList() {
   // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
   // unlabeled trailing group so nothing silently disappears if a new app misses the field.
   const TAB_SUBGROUPS = {
-    Music: { field: "musicGroup", groups: [["synth", "Synths"], ["drum", "Drum Machines"]] },
     Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
   };
 

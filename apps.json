@@ -4,30 +4,33 @@
     "name": "Bit Crusher",
     "description": "A real-time bitcrusher built as an AudioWorklet.",
     "category": "Music Tools",
-    "path": "BitCrusherWorkletDemo.html",
+    "path": "classic/BitCrusherWorkletDemo.html",
     "musicGroup": "synth",
     "added": "2026-09-01T03:02:21+00:00",
-    "thumbnail": "thumbnails/bitcrusher-worklet-demo.jpg"
+    "thumbnail": "thumbnails/bitcrusher-worklet-demo.jpg",
+    "archived": true
   },
   {
     "id": "hnw9",
     "name": "Nine Pads",
     "description": "A nine-pad noise wall instrument you sculpt by dragging.",
     "category": "Music Tools",
-    "path": "HNW9.html",
+    "path": "classic/HNW9.html",
     "musicGroup": "synth",
     "added": "2026-09-01T03:11:53+00:00",
-    "thumbnail": "thumbnails/hnw9.jpg"
+    "thumbnail": "thumbnails/hnw9.jpg",
+    "archived": true
   },
   {
     "id": "factorial-melody-generator",
     "name": "Factorial Melody",
     "description": "Turns factorials into an evolving melody.",
     "category": "Music Tools",
-    "path": "FactorialMelodyGenerator.html",
+    "path": "classic/FactorialMelodyGenerator.html",
     "musicGroup": "synth",
     "added": "2026-09-01T03:24:42+00:00",
-    "thumbnail": "thumbnails/factorial-melody-generator.jpg"
+    "thumbnail": "thumbnails/factorial-melody-generator.jpg",
+    "archived": true
   },
   {
     "id": "sound-of-functions",
@@ -170,7 +173,7 @@
   {
     "id": "neon-blade-xenowave",
     "name": "Neon Blade",
-    "description": "A neon cyberpunk side-scrolling brawler \u2014 slash through enemies to a boss fight.",
+    "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
     "category": "Games",
     "path": "NeonBladeXenowave.html",
     "gameGroup": "arcade",
@@ -190,7 +193,7 @@
   {
     "id": "chunky-shape-shooter",
     "name": "Chunky Shooter",
-    "description": "A chunky, pixel-art twin-stick style shooter \u2014 blast waves of shapes for score.",
+    "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
     "category": "Games",
     "path": "ChunkyShapeShooter.html",
     "gameGroup": "arcade",
@@ -200,12 +203,13 @@
   {
     "id": "merzbow-machine",
     "name": "Merzbow Machine",
-    "description": "A harsh noise wall synthesizer \u2014 six modules, three step sequencers, and chaos/glitch controls.",
+    "description": "A harsh noise wall synthesizer — six modules, three step sequencers, and chaos/glitch controls.",
     "category": "Music Tools",
-    "path": "MerzbowMachine.html",
+    "path": "classic/MerzbowMachine.html",
     "musicGroup": "synth",
     "added": "2026-09-04T18:11:49+00:00",
-    "thumbnail": "thumbnails/merzbow-machine.jpg"
+    "thumbnail": "thumbnails/merzbow-machine.jpg",
+    "archived": true
   },
   {
     "id": "artsy-v3",
@@ -230,15 +234,16 @@
     "name": "Chord Morph",
     "description": "Tap to morph between randomized maj7 and min7 chords, played as pure sine tones.",
     "category": "Music Tools",
-    "path": "ChordMorpher.html",
+    "path": "classic/ChordMorpher.html",
     "musicGroup": "synth",
     "added": "2026-09-04T18:24:33+00:00",
-    "thumbnail": "thumbnails/chord-morpher.jpg"
+    "thumbnail": "thumbnails/chord-morpher.jpg",
+    "archived": true
   },
   {
     "id": "snake-circle-enemy",
     "name": "Circle Snake",
-    "description": "Classic snake with a twist \u2014 a slow-regenerating circle enemy that dies if it crashes into you.",
+    "description": "Classic snake with a twist — a slow-regenerating circle enemy that dies if it crashes into you.",
     "category": "Games",
     "path": "SnakeCircleEnemy.html",
     "gameGroup": "arcade",
@@ -287,10 +292,11 @@
     "name": "Echo Warp",
     "description": "Warps your mic input through a delay and reverb.",
     "category": "Music Tools",
-    "path": "EchoWarp.html",
+    "path": "classic/EchoWarp.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-echo-warp.jpg"
+    "thumbnail": "thumbnails/neo-echo-warp.jpg",
+    "archived": true
   },
   {
     "id": "neo-shapewave-color-swipe",
@@ -336,10 +342,11 @@
     "name": "Op Toy",
     "description": "An audio-reactive op-art pattern generator.",
     "category": "Music Tools",
-    "path": "OpArtToy.html",
+    "path": "classic/OpArtToy.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-op-art-toy.jpg"
+    "thumbnail": "thumbnails/neo-op-art-toy.jpg",
+    "archived": true
   },
   {
     "id": "neo-spiral-seed-art",
@@ -374,20 +381,22 @@
     "name": "Aether Composer",
     "description": "A generative classical-ambient music composer.",
     "category": "Music Tools",
-    "path": "AetherClassicalAmbientComposer.html",
+    "path": "classic/AetherClassicalAmbientComposer.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-aether-classical-ambient-composer.jpg"
+    "thumbnail": "thumbnails/neo-aether-classical-ambient-composer.jpg",
+    "archived": true
   },
   {
     "id": "neo-fuzz303-lofi-beat-machine",
     "name": "Lofi Beats",
     "description": "A fuzzed-out lo-fi beat machine.",
     "category": "Music Tools",
-    "path": "Fuzz303LofiBeatMachine.html",
+    "path": "classic/Fuzz303LofiBeatMachine.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-fuzz303-lofi-beat-machine.jpg"
+    "thumbnail": "thumbnails/neo-fuzz303-lofi-beat-machine.jpg",
+    "archived": true
   },
   {
     "id": "neo-high-contrast-kaleidoscope",
@@ -422,10 +431,11 @@
     "name": "Tick Clock",
     "description": "A visual metronome and tempo clock.",
     "category": "Music Tools",
-    "path": "TickClock.html",
+    "path": "classic/TickClock.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-tick-clock.jpg"
+    "thumbnail": "thumbnails/neo-tick-clock.jpg",
+    "archived": true
   },
   {
     "id": "neo-wave-grid",
@@ -450,10 +460,11 @@
     "name": "Ambient Drift",
     "description": "A generative ambient pad that drifts forever.",
     "category": "Music Tools",
-    "path": "AmbientGenerator011.html",
+    "path": "classic/AmbientGenerator011.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-ambient-generator011.jpg"
+    "thumbnail": "thumbnails/neo-ambient-generator011.jpg",
+    "archived": true
   },
   {
     "id": "neo-star-map-high-contrast",
@@ -611,30 +622,33 @@
     "name": "Noise Sequencer",
     "description": "A nine-pad noise wall with a built-in step sequencer.",
     "category": "Music Tools",
-    "path": "HarshNoiseWall9SquaresSequencerFix.html",
+    "path": "classic/HarshNoiseWall9SquaresSequencerFix.html",
     "musicGroup": "drum",
     "added": "2026-09-01T03:11:53+00:00",
-    "thumbnail": "thumbnails/neo-harsh-noise-wall9-squares-sequencer-fix.jpg"
+    "thumbnail": "thumbnails/neo-harsh-noise-wall9-squares-sequencer-fix.jpg",
+    "archived": true
   },
   {
     "id": "neo-808-glitch-drum-machine",
     "name": "808 Glitch",
     "description": "An 808-style drum machine with glitch effects.",
     "category": "Music Tools",
-    "path": "808GlitchDrumMachine.html",
+    "path": "classic/808GlitchDrumMachine.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-808-glitch-drum-machine.jpg"
+    "thumbnail": "thumbnails/neo-808-glitch-drum-machine.jpg",
+    "archived": true
   },
   {
     "id": "neo-harsh-noise-wall-play-then-seq-then-pads",
     "name": "Noise Pads",
     "description": "A noise wall you play, sequence, then perform on pads.",
     "category": "Music Tools",
-    "path": "HarshNoiseWallPlayThenSeqThenPads.html",
+    "path": "classic/HarshNoiseWallPlayThenSeqThenPads.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-harsh-noise-wall-play-then-seq-then-pads.jpg"
+    "thumbnail": "thumbnails/neo-harsh-noise-wall-play-then-seq-then-pads.jpg",
+    "archived": true
   },
   {
     "id": "neo-swirl-studio",
@@ -647,7 +661,7 @@
   },
   {
     "id": "neo-maisies-unicorn-maze-fixed",
-    "name": "\ud83e\udd84 Maisie's Unicorn Maze!",
+    "name": "🦄 Maisie's Unicorn Maze!",
     "description": "Guide a unicorn through a sparkly maze.",
     "category": "Games",
     "path": "MaisiesUnicornMazeFixed.html",
@@ -669,50 +683,55 @@
     "name": "Blast Beats",
     "description": "An 8-step drum machine with a speed dial.",
     "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeed.html",
+    "path": "classic/DrumMachine8stepBlastSpeed.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed.jpg"
+    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed.jpg",
+    "archived": true
   },
   {
     "id": "neo-mini909-bass-sequencer",
     "name": "909 Bass",
     "description": "A 909-style drum machine with a bassline sequencer.",
     "category": "Music Tools",
-    "path": "Mini909BassSequencer.html",
+    "path": "classic/Mini909BassSequencer.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-mini909-bass-sequencer.jpg"
+    "thumbnail": "thumbnails/neo-mini909-bass-sequencer.jpg",
+    "archived": true
   },
   {
     "id": "neo-drum-machine8step-blast-speed-pitch",
     "name": "Pitch Beats",
     "description": "An 8-step drum machine with speed and pitch control.",
     "category": "Music Tools",
-    "path": "DrumMachine8stepBlastSpeedPitch.html",
+    "path": "classic/DrumMachine8stepBlastSpeedPitch.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed-pitch.jpg"
+    "thumbnail": "thumbnails/neo-drum-machine8step-blast-speed-pitch.jpg",
+    "archived": true
   },
   {
     "id": "neo-mini909-bass-notext",
     "name": "Mini 909",
     "description": "A compact 909-style drum machine.",
     "category": "Music Tools",
-    "path": "Mini909BassNotext.html",
+    "path": "classic/Mini909BassNotext.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-mini909-bass-notext.jpg"
+    "thumbnail": "thumbnails/neo-mini909-bass-notext.jpg",
+    "archived": true
   },
   {
     "id": "neo-spin-textless-fixed",
     "name": "Audio Spin",
     "description": "A spinning tone toy with no text, just sound.",
     "category": "Music Tools",
-    "path": "SpinTextlessFixed.html",
+    "path": "classic/SpinTextlessFixed.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-spin-textless-fixed.jpg"
+    "thumbnail": "thumbnails/neo-spin-textless-fixed.jpg",
+    "archived": true
   },
   {
     "id": "neo-one-hand-moto-ios",
@@ -767,10 +786,11 @@
     "name": "Vaporwave Synth",
     "description": "A generative vaporwave music maker.",
     "category": "Music Tools",
-    "path": "VaporwaveGenerator.html",
+    "path": "classic/VaporwaveGenerator.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-vaporwave-generator.jpg"
+    "thumbnail": "thumbnails/neo-vaporwave-generator.jpg",
+    "archived": true
   },
   {
     "id": "neo-light-tap-bulbs",
@@ -838,20 +858,22 @@
     "name": "Echo Chamber",
     "description": "Turns your mic input into a live echo chamber.",
     "category": "Music Tools",
-    "path": "Echo.html",
+    "path": "classic/Echo.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-echo.jpg"
+    "thumbnail": "thumbnails/neo-echo.jpg",
+    "archived": true
   },
   {
     "id": "neo-oscillate",
     "name": "Pure Oscillator",
     "description": "A simple, live audio oscillator.",
     "category": "Music Tools",
-    "path": "Oscillate.html",
+    "path": "classic/Oscillate.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-oscillate.jpg"
+    "thumbnail": "thumbnails/neo-oscillate.jpg",
+    "archived": true
   },
   {
     "id": "neo-peggle-noir-minimal",
@@ -984,10 +1006,11 @@
     "name": "Voice Morph",
     "description": "Morphs your recorded voice into new sounds.",
     "category": "Music Tools",
-    "path": "Voxmorph.html",
+    "path": "classic/Voxmorph.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-voxmorph.jpg"
+    "thumbnail": "thumbnails/neo-voxmorph.jpg",
+    "archived": true
   },
   {
     "id": "neo-spiral",
@@ -1012,100 +1035,110 @@
     "name": "303 Sampler",
     "description": "A 303-style acid bassline synth with a sampler.",
     "category": "Music Tools",
-    "path": "303MazieSampler.html",
+    "path": "classic/303MazieSampler.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-303-mazie-sampler.jpg"
+    "thumbnail": "thumbnails/neo-303-mazie-sampler.jpg",
+    "archived": true
   },
   {
     "id": "neo-composer",
     "name": "Music Composer",
     "description": "A simple generative music composer.",
     "category": "Music Tools",
-    "path": "Composer.html",
+    "path": "classic/Composer.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-composer.jpg"
+    "thumbnail": "thumbnails/neo-composer.jpg",
+    "archived": true
   },
   {
     "id": "neo-hz-lab03-real-planet-orbits",
     "name": "Planet Orbits",
     "description": "Frequencies mapped to real planetary orbits.",
     "category": "Music Tools",
-    "path": "HzLab03RealPlanetOrbits.html",
+    "path": "classic/HzLab03RealPlanetOrbits.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-hz-lab03-real-planet-orbits.jpg"
+    "thumbnail": "thumbnails/neo-hz-lab03-real-planet-orbits.jpg",
+    "archived": true
   },
   {
     "id": "neo-dm1-minimal",
     "name": "DM1 Drums",
     "description": "A minimal classic-style drum machine.",
     "category": "Music Tools",
-    "path": "Dm1Minimal.html",
+    "path": "classic/Dm1Minimal.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-dm1-minimal.jpg"
+    "thumbnail": "thumbnails/neo-dm1-minimal.jpg",
+    "archived": true
   },
   {
     "id": "neo-hz-lab",
     "name": "Hz Lab",
     "description": "Experiment with raw frequencies and tones.",
     "category": "Music Tools",
-    "path": "HzLab.html",
+    "path": "classic/HzLab.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-hz-lab.jpg"
+    "thumbnail": "thumbnails/neo-hz-lab.jpg",
+    "archived": true
   },
   {
     "id": "neo-cr70-poly-funk2",
     "name": "Funk Machine",
     "description": "A polyrhythmic funk drum machine, remixed.",
     "category": "Music Tools",
-    "path": "Cr70PolyFunk2.html",
+    "path": "classic/Cr70PolyFunk2.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-cr70-poly-funk2.jpg"
+    "thumbnail": "thumbnails/neo-cr70-poly-funk2.jpg",
+    "archived": true
   },
   {
     "id": "neo-euclidean-math-synth",
     "name": "Math Synth",
     "description": "A synth driven by Euclidean rhythm math.",
     "category": "Music Tools",
-    "path": "EuclideanMathSynth.html",
+    "path": "classic/EuclideanMathSynth.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-euclidean-math-synth.jpg"
+    "thumbnail": "thumbnails/neo-euclidean-math-synth.jpg",
+    "archived": true
   },
   {
     "id": "neo-cr70-poly-funk",
     "name": "Poly Funk",
     "description": "A polyrhythmic funk drum machine.",
     "category": "Music Tools",
-    "path": "Cr70PolyFunk.html",
+    "path": "classic/Cr70PolyFunk.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-cr70-poly-funk.jpg"
+    "thumbnail": "thumbnails/neo-cr70-poly-funk.jpg",
+    "archived": true
   },
   {
     "id": "neo-panda-drum",
     "name": "Panda Drum",
     "description": "A playful panda-themed drum machine.",
     "category": "Music Tools",
-    "path": "PandaDrum.html",
+    "path": "classic/PandaDrum.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-panda-drum.jpg"
+    "thumbnail": "thumbnails/neo-panda-drum.jpg",
+    "archived": true
   },
   {
     "id": "neo-cr70-jungle-generator",
     "name": "Jungle Beats",
     "description": "A jungle/breakbeat rhythm generator.",
     "category": "Music Tools",
-    "path": "Cr70JungleGenerator.html",
+    "path": "classic/Cr70JungleGenerator.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-cr70-jungle-generator.jpg"
+    "thumbnail": "thumbnails/neo-cr70-jungle-generator.jpg",
+    "archived": true
   },
   {
     "id": "neo-aurora-dance-permission",
@@ -1166,10 +1199,11 @@
     "name": "Acid Glitch",
     "description": "A glitchy acid-synth workstation.",
     "category": "Music Tools",
-    "path": "GlitchAcidWorkstation.html",
+    "path": "classic/GlitchAcidWorkstation.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-glitch-acid-workstation.jpg"
+    "thumbnail": "thumbnails/neo-glitch-acid-workstation.jpg",
+    "archived": true
   },
   {
     "id": "neo-unicorn-air-hockey",
@@ -1214,30 +1248,33 @@
     "name": "Harsh Noise",
     "description": "A no-frills harsh noise generator.",
     "category": "Music Tools",
-    "path": "HarshNoiseNoText.html",
+    "path": "classic/HarshNoiseNoText.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-harsh-noise-no-text.jpg"
+    "thumbnail": "thumbnails/neo-harsh-noise-no-text.jpg",
+    "archived": true
   },
   {
     "id": "neo-noise-wall",
     "name": "Noise Wall",
     "description": "A wall of tunable generative noise.",
     "category": "Music Tools",
-    "path": "NoiseWall.html",
+    "path": "classic/NoiseWall.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-noise-wall.jpg"
+    "thumbnail": "thumbnails/neo-noise-wall.jpg",
+    "archived": true
   },
   {
     "id": "neo-ems-synthi100",
     "name": "Synthi 100",
     "description": "A tribute to the classic EMS Synthi 100 modular synth.",
     "category": "Music Tools",
-    "path": "EmsSynthi100.html",
+    "path": "classic/EmsSynthi100.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-ems-synthi100.jpg"
+    "thumbnail": "thumbnails/neo-ems-synthi100.jpg",
+    "archived": true
   },
   {
     "id": "neo-white-hole",
@@ -1293,30 +1330,33 @@
     "name": "Motion Synth",
     "description": "A synth played by moving black-and-white squares.",
     "category": "Music Tools",
-    "path": "MotionSynthBlackwhiteSquares.html",
+    "path": "classic/MotionSynthBlackwhiteSquares.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-motion-synth-blackwhite-squares.jpg"
+    "thumbnail": "thumbnails/neo-motion-synth-blackwhite-squares.jpg",
+    "archived": true
   },
   {
     "id": "neo-poly-fuzz-drum-machine-clav-tempo-drift",
     "name": "Poly Drums",
     "description": "A fuzzy drum machine with drifting tempo.",
     "category": "Music Tools",
-    "path": "PolyFuzzDrumMachineClavTempoDrift.html",
+    "path": "classic/PolyFuzzDrumMachineClavTempoDrift.html",
     "musicGroup": "drum",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-poly-fuzz-drum-machine-clav-tempo-drift.jpg"
+    "thumbnail": "thumbnails/neo-poly-fuzz-drum-machine-clav-tempo-drift.jpg",
+    "archived": true
   },
   {
     "id": "neo-oscillate-persistent",
     "name": "Persistent Oscillator",
     "description": "An oscillator that keeps playing between visits.",
     "category": "Music Tools",
-    "path": "OscillatePersistent.html",
+    "path": "classic/OscillatePersistent.html",
     "musicGroup": "synth",
     "added": "2026-09-04T20:29:05+00:00",
-    "thumbnail": "thumbnails/neo-oscillate-persistent.jpg"
+    "thumbnail": "thumbnails/neo-oscillate-persistent.jpg",
+    "archived": true
   },
   {
     "id": "neo-lines-slow-long-trails",
@@ -1341,10 +1381,11 @@
     "name": "Sound Studio",
     "description": "A digital sound studio for building tones.",
     "category": "Music Tools",
-    "path": "DSS12.html",
+    "path": "classic/DSS12.html",
     "musicGroup": "synth",
     "added": "2026-09-01T03:02:21+00:00",
-    "thumbnail": "thumbnails/neo-d-s-s12.jpg"
+    "thumbnail": "thumbnails/neo-d-s-s12.jpg",
+    "archived": true
   },
   {
     "id": "moviemoji",
@@ -1361,12 +1402,13 @@
   {
     "id": "yakbox-3000",
     "name": "Voice Mutator",
-    "description": "A voice-mutator toy \u2014 record your voice and warp it with speed, pitch, and FX presets like Robot, Monster, and Chipmunk.",
+    "description": "A voice-mutator toy — record your voice and warp it with speed, pitch, and FX presets like Robot, Monster, and Chipmunk.",
     "category": "Music Tools",
-    "path": "YakBox3000.html",
+    "path": "classic/YakBox3000.html",
     "musicGroup": "synth",
     "added": "2026-09-06T22:05:28+00:00",
-    "thumbnail": "thumbnails/yakbox-3000.jpg"
+    "thumbnail": "thumbnails/yakbox-3000.jpg",
+    "archived": true
   },
   {
     "id": "trex-tag",
@@ -1446,5 +1488,33 @@
     "gameGroup": "arcade",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/ricochet-8bit-sequence13.jpg"
+  },
+  {
+    "id": "purrgrid",
+    "name": "PurrGrid",
+    "description": "A Queens-style logic puzzle: one cat per color, one per row and column, and cats can't touch.",
+    "category": "Games",
+    "gameGroup": "arcade",
+    "path": "PurrGrid.html",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/purrgrid.jpg"
+  },
+  {
+    "id": "time-microscope",
+    "name": "Time Microscope",
+    "description": "Record two seconds from your mic, then watch it stretch into an evolving granular drone.",
+    "category": "Music Tools",
+    "path": "TimeMicroscope.html",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/time-microscope.jpg"
+  },
+  {
+    "id": "instruments",
+    "name": "Instruments",
+    "description": "A synthesized drum machine and acid bass synth you can play solo or combine in a shared workspace.",
+    "category": "Music Tools",
+    "path": "Instruments.html",
+    "added": "2026-09-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/instruments.jpg"
   }
 ]
