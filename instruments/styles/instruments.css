@@ -178,8 +178,8 @@ button, input, select {
   touch-action: manipulation;
 }
 .im-panel-remove { border-color: rgba(255, 90, 90, 0.4); color: #ff8a8a; }
-.im-panel-volume-row { padding: 4px 10px; background: #101013; }
-.im-panel-volume { width: 100%; touch-action: pan-x; }
+.im-panel-volume-row { display: flex; gap: 8px; padding: 4px 10px; background: #101013; }
+.im-panel-volume, .im-panel-pan { flex: 1; min-width: 0; touch-action: pan-x; }
 .im-panel-body {
   flex: 1;
   overflow: auto;

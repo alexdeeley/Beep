@@ -11,7 +11,7 @@
 // whether it should be silent regardless of its own mute state.
 
 export function createPanel(opts) {
-  const { instanceId, instrumentId, manifest, instance, ctx, masterBus, onRemove } = opts;
+  const { instanceId, instrumentId, manifest, instance, ctx, masterBus, onRemove, onChange } = opts;
 
   const gainNode = ctx.createGain();
   let mountError = null;
@@ -20,7 +20,10 @@ export function createPanel(opts) {
   } catch (e) {
     mountError = e;
   }
-  gainNode.connect(masterBus);
+  const panNode = ctx.createStereoPanner();
+  panNode.pan.value = opts.pan ?? 0;
+  gainNode.connect(panNode);
+  panNode.connect(masterBus);
 
   let volume = opts.volume ?? 0.8;
   let muted = !!opts.muted;
@@ -53,6 +56,7 @@ export function createPanel(opts) {
     muted = !muted;
     muteBtn.classList.toggle("im-panel-btn-active", muted);
     applyGain();
+    onChange?.();
   });
   header.appendChild(muteBtn);
 
@@ -105,11 +109,27 @@ export function createPanel(opts) {
   volumeSlider.max = "100";
   volumeSlider.value = String(Math.round(volume * 100));
   volumeSlider.className = "im-panel-volume";
+  volumeSlider.title = "Volume";
   volumeSlider.addEventListener("input", () => {
     volume = Number(volumeSlider.value) / 100;
     applyGain();
+    onChange?.();
   });
   volumeRow.appendChild(volumeSlider);
+
+  const panSlider = document.createElement("input");
+  panSlider.type = "range";
+  panSlider.min = "-100";
+  panSlider.max = "100";
+  panSlider.value = String(Math.round(panNode.pan.value * 100));
+  panSlider.className = "im-panel-pan";
+  panSlider.title = "Pan";
+  panSlider.addEventListener("input", () => {
+    panNode.pan.setTargetAtTime(Number(panSlider.value) / 100, ctx.currentTime, 0.01);
+    onChange?.();
+  });
+  volumeRow.appendChild(panSlider);
+
   el.appendChild(volumeRow);
 
   const body = document.createElement("div");
@@ -144,6 +164,7 @@ export function createPanel(opts) {
         const amt = Number(slider.value) / 100;
         effectsState[kind] = amt;
         safeSetEffect(kind, amt);
+        onChange?.();
       });
       row.appendChild(rowLabel);
       row.appendChild(slider);
@@ -213,7 +234,7 @@ export function createPanel(opts) {
       try {
         instrumentState = mountError ? null : instance.serialize();
       } catch (e) {}
-      return { instanceId, instrumentId, volume, muted, solo, effects: { ...effectsState }, instrumentState };
+      return { instanceId, instrumentId, volume, muted, solo, pan: panNode.pan.value, effects: { ...effectsState }, instrumentState };
     },
     dispose() {
       try {
@@ -227,6 +248,7 @@ export function createPanel(opts) {
       } catch (e) {}
       try {
         gainNode.disconnect();
+        panNode.disconnect();
       } catch (e) {}
       el.remove();
     },

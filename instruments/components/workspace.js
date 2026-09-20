@@ -191,9 +191,11 @@ export function createWorkspace(rootEl) {
       volume: savedState?.volume,
       muted: savedState?.muted,
       solo: savedState?.solo,
+      pan: savedState?.pan,
       effects: savedState?.effects,
       onRemove: () => removeInstrument(quadrant),
       onSoloChange: () => { updateSoloState(); schedulePersist(); },
+      onChange: () => schedulePersist(),
     });
 
     if (savedState?.instrumentState) panel.restoreInstrumentState(savedState.instrumentState);
