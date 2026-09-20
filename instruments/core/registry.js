@@ -24,6 +24,7 @@ import * as mirror from "../modules/mirror/index.js";
 import * as bloom from "../modules/bloom/index.js";
 import * as crater from "../modules/crater/index.js";
 import * as piano from "../modules/piano/index.js";
+import * as accordion from "../modules/accordion/index.js";
 import * as kit909 from "../modules/kit-909/index.js";
 import * as kit808 from "../modules/kit-808/index.js";
 import * as kit707 from "../modules/kit-707/index.js";
@@ -38,7 +39,7 @@ const REGISTRY = [
   elastic, shard, orbit, melt, choirZero, magnet, fold, rain,
   motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
   piano, kit909, kit808, kit707, acidChoke, percOdd, noiseWall,
-  formula, playground,
+  formula, playground, accordion,
 ];
 
 // Required manifest fields every module must export (documented, not

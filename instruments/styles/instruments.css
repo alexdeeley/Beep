@@ -378,8 +378,8 @@ button, input, select {
 .im-poly-cell.im-step-on { background: #3ddc84; border-color: #3ddc84; }
 .im-poly-cell.im-poly-partial { background: #1f6b45; border-color: #3ddc84; }
 
-/* ---------- Piano ---------- */
-.im-piano { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+/* ---------- Piano / Accordion (share the same keyboard classes) ---------- */
+.im-piano, .im-accordion { display: flex; flex-direction: column; gap: 8px; height: 100%; }
 .im-piano-sustain.im-btn-on { background: #4d7cff; border-color: #4d7cff; color: #fff; }
 .im-piano-keys {
   position: relative;
