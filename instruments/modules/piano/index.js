@@ -1,5 +1,6 @@
 import { createEffectsChain } from "../../core/effects.js";
 import { makeNoiseBuffer } from "../../core/dsp-utils.js";
+import { createKeyboardUI } from "../../core/keyboard-ui.js";
 
 export const manifest = {
   id: "piano",
@@ -21,11 +22,7 @@ export const manifest = {
   minimumHeight: 260,
 };
 
-const WHITE_KEY_WIDTH = 36;
-const BLACK_KEY_WIDTH = 22;
 const OCTAVES = 2; // C3..B4, visible range; Octave +/- shifts this window
-const SEMITONE_IS_BLACK = [false, true, false, true, false, false, true, false, true, false, true, false];
-const NOTE_LETTERS = ["C", "", "D", "", "E", "F", "", "G", "", "A", "", "B"];
 const MAX_VOICES = 16;
 
 function semitoneToFreq(semitoneFromC3) {
@@ -167,31 +164,13 @@ function createPianoEngine(ctx, dest) {
   return { noteOn, noteOff, releaseSustainedVoices, dispose };
 }
 
-function buildKeyboardModel(octaves) {
-  const keys = [];
-  let whiteIndex = 0;
-  for (let o = 0; o < octaves; o++) {
-    for (let s = 0; s < 12; s++) {
-      const semitone = o * 12 + s;
-      const isBlack = SEMITONE_IS_BLACK[s];
-      if (isBlack) {
-        keys.push({ semitone, isBlack: true, left: whiteIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2 });
-      } else {
-        keys.push({ semitone, isBlack: false, whiteIndex, label: NOTE_LETTERS[s] === "C" ? "C" + (o + 3) : "" });
-        whiteIndex++;
-      }
-    }
-  }
-  return { keys, whiteCount: whiteIndex };
-}
-
 export function create(ctx) {
   const output = createEffectsChain(ctx);
   const engine = createPianoEngine(ctx, output.input);
   let container = null;
   let sustain = false;
   let octaveShift = 0;
-  const pointerVoices = new Map(); // pointerId -> { voiceId, keyEl }
+  let keyboard = null;
 
   function buildUI() {
     container.innerHTML = "";
@@ -232,61 +211,16 @@ export function create(ctx) {
 
     container.appendChild(controls);
 
-    const keysWrap = document.createElement("div");
-    keysWrap.className = "im-piano-keys";
-    const { keys, whiteCount } = buildKeyboardModel(OCTAVES);
-    keysWrap.style.width = whiteCount * WHITE_KEY_WIDTH + "px";
-
-    for (const key of keys) {
-      const el = document.createElement("div");
-      el.dataset.semitone = String(key.semitone);
-      if (key.isBlack) {
-        el.className = "im-piano-key im-piano-key-black";
-        el.style.left = key.left + "px";
-      } else {
-        el.className = "im-piano-key im-piano-key-white";
-        if (key.label) {
-          const label = document.createElement("span");
-          label.className = "im-piano-key-label";
-          label.textContent = key.label;
-          el.appendChild(label);
-        }
-      }
-      attachKeyPointerHandlers(el, key.semitone);
-      keysWrap.appendChild(el);
-    }
-    container.appendChild(keysWrap);
+    keyboard = createKeyboardUI({
+      octaves: OCTAVES,
+      onNoteOn: (semitone) => engine.noteOn(semitone + octaveShift * 12),
+      onNoteOff: (voiceId) => engine.noteOff(voiceId, sustain),
+    });
+    container.appendChild(keyboard.el);
   }
 
   function octaveLabel() {
     return "Octave " + (octaveShift >= 0 ? "+" + octaveShift : octaveShift);
-  }
-
-  function attachKeyPointerHandlers(el, semitone) {
-    el.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch (err) {}
-      el.classList.add("im-piano-key-active");
-      const voiceId = engine.noteOn(semitone + octaveShift * 12);
-      pointerVoices.set(e.pointerId, { voiceId, el });
-    });
-    const release = (e) => {
-      const entry = pointerVoices.get(e.pointerId);
-      if (!entry) return;
-      entry.el.classList.remove("im-piano-key-active");
-      engine.noteOff(entry.voiceId, sustain);
-      pointerVoices.delete(e.pointerId);
-    };
-    el.addEventListener("pointerup", release);
-    el.addEventListener("pointercancel", release);
-    el.addEventListener("pointerleave", (e) => {
-      // Leaving the key while still pressed (a real sliding-finger risk on
-      // a compact on-screen keyboard) should still release that note -
-      // pointer capture keeps the up/cancel events routed here regardless.
-      if (pointerVoices.has(e.pointerId) && e.buttons === 0) release(e);
-    });
   }
 
   return {
@@ -298,7 +232,8 @@ export function create(ctx) {
     unmount() {
       if (container) container.innerHTML = "";
       container = null;
-      pointerVoices.clear();
+      keyboard?.dispose();
+      keyboard = null;
     },
     start() {},
     stop() {
