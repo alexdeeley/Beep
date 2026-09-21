@@ -37,13 +37,14 @@ import * as boom808 from "../modules/boom-808/index.js";
 import * as deepSynth from "../modules/deep-synth/index.js";
 import * as pureTone from "../modules/pure-tone/index.js";
 import * as pulseBass from "../modules/pulse-bass/index.js";
+import * as realKit from "../modules/real-kit/index.js";
 
 const REGISTRY = [
   drumMachine, acid303,
   elastic, shard, orbit, melt, choirZero, magnet, fold, rain,
   motor, hollow, scatter, depth, phaseGarden, staticNoise, mirror, bloom, crater,
   piano, kit909, kit808, kit707, acidChoke, percOdd, noiseWall,
-  formula, playground, accordion, boom808, deepSynth, pureTone, pulseBass,
+  formula, playground, accordion, boom808, deepSynth, pureTone, pulseBass, realKit,
 ];
 
 // Required manifest fields every module must export (documented, not
