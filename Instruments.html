@@ -14,6 +14,7 @@
   }
   .im-landing-title { font-size: 1.4rem; font-weight: 700; }
   .im-landing-sub { color: rgba(242, 242, 245, 0.7); font-size: 0.9rem; max-width: 640px; }
+  .im-landing-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
   .im-landing-cta {
     display: inline-block;
     align-self: flex-start;
@@ -22,6 +23,7 @@
     border: none;
     text-decoration: none;
   }
+  .im-landing-cta-alt { background: #ff3b6b; }
   .im-landing-footer {
     padding: 24px 16px 40px;
     text-align: center;
@@ -75,7 +77,10 @@
 <div class="im-landing-header">
   <div class="im-landing-title">Instruments</div>
   <div class="im-landing-sub">A small, expandable collection of browser-based instruments. Play one on its own, or open the workspace to combine up to four at once.</div>
-  <a class="im-btn im-landing-cta" href="InstrumentsWorkspace.html">Open Workspace &rarr;</a>
+  <div class="im-landing-ctas">
+    <a class="im-btn im-landing-cta" href="InstrumentsWorkspace.html">Open Workspace &rarr;</a>
+    <a class="im-btn im-landing-cta im-landing-cta-alt" href="DrumLooper.html">Drum Looper &rarr;</a>
+  </div>
 </div>
 <div id="root"></div>
 
