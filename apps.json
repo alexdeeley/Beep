@@ -1541,7 +1541,7 @@
     "description": "A two-player drawing-and-guessing game for a grown-up and a small person, one phone or tablet each.",
     "category": "Games",
     "gameGroup": "maisie",
-    "path": "https://draw-together.draw-together.workers.dev",
+    "path": "https://draw.deeley.org",
     "added": "2026-09-24T00:00:00+00:00",
     "thumbnail": "thumbnails/draw-together.jpg"
   }
