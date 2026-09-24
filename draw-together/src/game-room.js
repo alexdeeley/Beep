@@ -7,7 +7,7 @@
 // while sockets stay open, so everything important is persisted to storage
 // and restored in the constructor.
 
-import { WORDS, pickWord, checkGuess } from './words.js';
+import { WORDS, pickWord, checkGuess, wordShape } from './words.js';
 import {
   COORD_MAX, TOOLS, PALETTE, TIMER_OPTIONS, ROUND_OPTIONS, DIFFICULTIES, CATEGORIES,
   MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_SWAPS, ASPECT_MIN, ASPECT_MAX,
@@ -250,8 +250,10 @@ export class GameRoom {
         seat: q.seat, name: q.name, score: q.score, connected: connected.has(q.id),
       })),
       settings: r.settings,
-      // The secret word only ever goes to the drawer.
+      // The secret word only ever goes to the drawer. Guessers get just
+      // its shape (letter count and word breaks) once drawing starts.
       word: showWord ? { w: WORDS[r.wordIndex].w, e: WORDS[r.wordIndex].e } : null,
+      wordShape: !isDrawer && r.phase === 'drawing' ? wordShape(WORDS[r.wordIndex].w) : null,
       swapsLeft: isDrawer ? r.swapsLeft : 0,
       aspect: r.aspect,
       timer: { ...r.timer, duration: r.settings.timer * 1000 },

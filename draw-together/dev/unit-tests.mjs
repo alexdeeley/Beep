@@ -115,6 +115,12 @@ A.send({ type: 'ready', aspect: 0.7 }); await sleep(60);
 ok(M.st.phase === 'drawing' && Math.abs(M.st.aspect - 0.7) < 1e-9, 'drawing started with aspect');
 ok(M.st.timer.running && M.st.timer.endsAt > Date.now(), 'timer running');
 
+// word-length hint: shape only, never the letters
+ok(A.st.wordShape === null, 'drawer gets no word shape (already has the word)');
+ok(Array.isArray(M.st.wordShape) && M.st.wordShape.length === word2.length, 'guesser sees the right number of blanks');
+ok(M.st.wordShape.every((ch, i) => ch === null ? /[a-zA-Z]/.test(word2[i]) : ch === word2[i] && !/[a-zA-Z]/.test(ch)), 'blanks cover letters, punctuation/spaces shown as-is');
+ok(M.raw.every((r) => !r.toLowerCase().includes(word2.toLowerCase())), 'word shape never spells out the secret word');
+
 M.send({ type: 'strokeStart', id: 'hack0001', tool: 'pen', color: '#000000', size: 12, pts: [1, 1] }); await sleep(40);
 ok(A.of('strokeStart').length === 0, 'guesser strokes rejected');
 

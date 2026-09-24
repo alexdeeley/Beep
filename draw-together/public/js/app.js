@@ -420,6 +420,19 @@ function renderGame(prev, phaseChanged) {
     main.innerHTML = '';
   }
 
+  const hint = $('word-hint');
+  if (!drawer && st.phase === 'drawing' && st.wordShape) {
+    hint.hidden = false;
+    hint.innerHTML = st.wordShape.map((ch) => {
+      if (ch === null) return '<span class="blank"></span>';
+      if (ch === ' ') return '<span class="gap"></span>';
+      return `<span class="punct">${esc(ch)}</span>`;
+    }).join('');
+  } else {
+    hint.hidden = true;
+    hint.innerHTML = '';
+  }
+
   // Board shape: the drawer's screen decides it when they press Ready.
   if (st.phase === 'choosing' && drawer) {
     requestAnimationFrame(() => S.board.setAspect(hostAspect()));

@@ -343,6 +343,32 @@ h1, h2, h3, p { margin: 0; }
 .swatch[aria-checked="true"]::after { content: '✓'; }
 .tray.erasing .colors { opacity: .35; }
 
+/* ── Word hint (letter blanks for guessers) ───── */
+
+.word-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  padding: 2px 12px 6px;
+}
+.word-hint .blank {
+  width: 22px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink);
+  flex: none;
+}
+.word-hint .punct {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--ink);
+}
+.word-hint .gap { width: 14px; flex: none; }
+
 /* ── Guess bar ─────────────────────────────────── */
 
 .guessbar {

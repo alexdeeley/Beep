@@ -309,6 +309,17 @@ export function pickWord(settings, used, rand = Math.random) {
   return { index: Math.floor(rand() * WORDS.length), reset: true };
 }
 
+// ── Length hint for guessers ─────────────────────────────────
+
+// The word blanked out but with its shape intact, for guessers who
+// can't see the word itself: letters become null (render as a blank),
+// everything else (spaces, hyphens, apostrophes) stays literal so word
+// boundaries and punctuation are visible without giving any letter away.
+// "T-Rex" -> [null, '-', null, null, null]
+export function wordShape(w) {
+  return [...w].map((ch) => (/[a-zA-Z]/.test(ch) ? null : ch));
+}
+
 // ── Guess matching ───────────────────────────────────────────
 
 const STOP = new Set(['a', 'an', 'the', 'in', 'on', 'with', 'wearing', 'eating', 'holding',
