@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORDS, checkGuess, pickWord } from '../src/words.js';
-import { CATEGORIES } from '../public/js/shared.js';
+import { CATEGORIES, MAX_PLAYERS } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8799;
@@ -74,10 +74,24 @@ await M.open(); await sleep(120);
 ok(A.st.players.length === 2 && M.st.players.length === 2, 'both joined');
 ok(!JSON.stringify(A.st).includes('maisie-0001'), 'player tokens are private');
 
-// a third player is refused
-const X = new Client(code, 'extra-0001', 'Extra');
-await X.open(); await sleep(100);
-ok(X.msgs.some((m) => m.type === 'error' && m.code === 'full'), 'third player refused');
+// room capacity: up to MAX_PLAYERS join, the next one is refused - tested
+// in its own throwaway room so it doesn't disturb the two-player game
+// flow tests below (which assume `code` has exactly Alex and Maisie).
+{
+  const { code: bigCode } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const crowd = [];
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    const c = new Client(bigCode, `crowd-${String(i).padStart(4, '0')}`, `Player ${i}`);
+    await c.open(); await sleep(30);
+    crowd.push(c);
+  }
+  ok(crowd.at(-1).st?.players.length === MAX_PLAYERS, `room fills to ${MAX_PLAYERS} players`);
+  const overflow = new Client(bigCode, 'overflow-001', 'Overflow');
+  await overflow.open(); await sleep(100);
+  ok(overflow.msgs.some((m) => m.type === 'error' && m.code === 'full'), `player ${MAX_PLAYERS + 1} refused`);
+  overflow.close();
+  for (const c of crowd) c.close();
+}
 
 // non-host can't change settings or start
 M.send({ type: 'settings', settings: { timer: 30 } }); M.send({ type: 'start' }); await sleep(80);
@@ -180,7 +194,7 @@ const Dr = A.st.drawerSeat === A.st.you ? A : M2;
 Dr.send({ type: 'ready', aspect: 1 }); await sleep(40);
 ok(A.st.timer.running, 'timer on');
 
-A.close(); M2.close(); X.close();
+A.close(); M2.close();
 
 // timer expiry in a separate short room
 {

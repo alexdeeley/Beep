@@ -1,6 +1,6 @@
 # DRAW TOGETHER
 
-A two-player drawing-and-guessing game for a grown-up and a small person, one phone or tablet each. One player draws a secret word, the other watches it appear live and guesses. Built on Cloudflare Workers + one Durable Object per room, with a plain-JavaScript frontend (no framework, no build step).
+A drawing-and-guessing game for a grown-up and a small person, one phone or tablet each - and a room can now hold up to 16 players. One player draws a secret word, everyone else watches it appear live and guesses; the round ends for everyone the moment someone gets it right. Built on Cloudflare Workers + one Durable Object per room, with a plain-JavaScript frontend (no framework, no build step).
 
 ## Deploy to Cloudflare
 
@@ -86,7 +86,7 @@ Client → server (JSON):
 |---|---|---|
 | `hello` | `playerId` (secret token), `name` | anyone joining or reconnecting |
 | `settings` | `settings: {timer, rounds, difficulty, categories}` | host, in lobby |
-| `start` | | host, in lobby, 2 players |
+| `start` | | host, in lobby, 2+ players |
 | `swap` | | drawer, while choosing (2 per round) |
 | `ready` | `aspect` | drawer, while choosing |
 | `strokeStart` | `id, tool, size, color, pts` | drawer |
@@ -103,12 +103,12 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 
 ## Game rules
 
-10 rounds by default (6 or 16 selectable), drawer alternates. Timer 30 / 60 / 90 s or none. A correct guess scores 3 points, plus 2 if more than 40 s remain or 1 if more than 20 s remain. Guess matching ignores case, accents, punctuation, spacing and plurals, accepts listed alternatives ("kitty" for CAT), forgives one typo in words of 5+ letters and two in 9+, and says "So close!" for near misses.
+10 rounds by default (6 or 16 selectable), the drawer role rotates through every seat in join order. Timer 30 / 60 / 90 s or none. A correct guess scores 3 points, plus 2 if more than 40 s remain or 1 if more than 20 s remain. Guess matching ignores case, accents, punctuation, spacing and plurals, accepts listed alternatives ("kitty" for CAT), forgives one typo in words of 5+ letters and two in 9+, and says "So close!" for near misses.
 
 ## QA checklist (on real devices)
 
 1. Create on one device, join by code on another; bad code shows a friendly message.
-2. A third device trying to join sees "This game is full".
+2. Rooms hold up to 16 players; a 17th device trying to join sees "That game is already full."
 3. Strokes appear on the other device while still being drawn, not only on lift.
 4. Every tool × size looks the same on both devices (crayon texture, dots and rainbow included).
 5. Eraser works and syncs live; eraser has two sizes.

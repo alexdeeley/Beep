@@ -59,7 +59,29 @@ export const CATEGORIES = [
   { id: 'silly',      label: 'Silly',      emoji: '🤪' },
 ];
 
-export const MAX_PLAYERS = 2;          // architecture supports more; UI is tuned for two
+export const MAX_PLAYERS = 16;
+
+// One distinct color per seat, in join order. Bright and high-saturation to
+// match the sticker-book palette; the first two match --p1/--p2 in
+// styles.css exactly, since those are also used for the lobby/host buttons.
+export const PLAYER_COLORS = [
+  '#3d7bff', // blue
+  '#ff5fb0', // pink
+  '#ff8a00', // orange
+  '#1fb84a', // green
+  '#8a3ffc', // purple
+  '#ffd400', // yellow
+  '#16c6e8', // cyan
+  '#e8202a', // red
+  '#8b5a2b', // brown
+  '#ff3d7f', // rose
+  '#2bd9a3', // teal
+  '#ff9ed8', // light pink
+  '#6b8cff', // periwinkle
+  '#c4e000', // lime
+  '#ff6b6b', // coral
+  '#9b59ff', // violet
+];
 export const MAX_POINTS_PER_MSG = 400; // x,y pairs → 800 ints
 export const MAX_NAME = 14;
 export const WORD_SWAPS = 2;           // "another word" presses per round
