@@ -1,0 +1,16 @@
+{
+  "name": "draw-together",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Real-time two-player drawing and guessing game on Cloudflare Workers + Durable Objects",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:local": "node dev/local-server.mjs",
+    "deploy": "wrangler deploy",
+    "test": "node dev/unit-tests.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

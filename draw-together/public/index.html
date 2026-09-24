@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ffd84d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Draw Together">
+<title>Draw Together</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖍️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- Icon sprites -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pen" viewBox="0 0 48 48"><path d="M10 38l3-9L32 10l6 6-19 19z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M10 38l3-9 6 6z" fill="#000"/><path d="M28 14l6 6" stroke="#000" stroke-width="3.2"/></symbol>
+    <symbol id="i-marker" viewBox="0 0 48 48"><rect x="17" y="6" width="14" height="24" rx="4" fill="#fff" stroke="#000" stroke-width="3.2"/><path d="M18 30h12l-2 7h-8z" fill="currentColor" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M21 37h6l-1 5h-4z" fill="currentColor" stroke="#000" stroke-width="3"/></symbol>
+    <symbol id="i-crayon" viewBox="0 0 48 48"><path d="M16 42V16l8-10 8 10v26z" fill="currentColor" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M16 24h16M16 34h16" stroke="#000" stroke-width="3"/><path d="M19 20h10M19 28h10" stroke="#fff" stroke-width="2" opacity=".7"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 48 48"><g fill="currentColor" stroke="#000" stroke-width="2.4"><circle cx="9" cy="34" r="4.5"/><circle cx="18" cy="24" r="4.5"/><circle cx="29" cy="18" r="4.5"/><circle cx="40" cy="16" r="4.5"/></g></symbol>
+    <symbol id="i-rainbow" viewBox="0 0 48 48"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M6 38a18 18 0 0 1 36 0" stroke="#e8202a"/><path d="M12 38a12 12 0 0 1 24 0" stroke="#ffd400"/><path d="M18 38a6 6 0 0 1 12 0" stroke="#1f5bff"/></g></symbol>
+    <symbol id="i-eraser" viewBox="0 0 48 48"><path d="M6 32l16-16 14 14-10 10H14z" fill="#ff9fcb" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M22 16l8-8 14 14-8 8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M24 42h18" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 48 48"><path d="M14 20h18a9 9 0 0 1 0 18H20" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round"/><path d="M20 10L10 20l10 10" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 48 48"><path d="M12 15h24l-2 26H14z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M8 15h32M19 15v-5h10v5M20 22v13M28 22v13" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M32 17c3 4 3 10 0 14M37 12c6 7 6 17 0 24" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 19l10 10M43 19L33 29" stroke="#000" stroke-width="3.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 48 48"><path d="M13 13l22 22M35 13L13 35" stroke="#000" stroke-width="5" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- HOME -->
+  <section id="scr-home" class="screen home" aria-labelledby="logo">
+    <h1 id="logo" class="logo" aria-label="Draw Together"></h1>
+    <p class="tag">Draw on your screen. Watch it appear on theirs.</p>
+    <label class="name-field">
+      <span>Your name</span>
+      <input id="in-name" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" placeholder="Type your name">
+    </label>
+    <div class="home-actions">
+      <button id="btn-create" class="btn big blue">Create game</button>
+      <button id="btn-join" class="btn big pink">Join game</button>
+    </div>
+    <button id="btn-rejoin" class="btn small ghost" hidden></button>
+    <p id="home-err" class="err" role="alert"></p>
+  </section>
+
+  <!-- JOIN -->
+  <section id="scr-join" class="screen join" hidden>
+    <button class="btn icon back" data-go="home" aria-label="Back"><svg><use href="#i-close"/></svg></button>
+    <h2 class="title">Type the game code</h2>
+    <input id="in-code" class="code-input" type="text" inputmode="text" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" aria-label="Game code" placeholder="CAT7">
+    <label class="name-field" id="join-name-wrap">
+      <span>Your name</span>
+      <input id="in-name2" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Type your name">
+    </label>
+    <button id="btn-join-go" class="btn big pink">Join</button>
+    <p id="join-err" class="err" role="alert"></p>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="scr-lobby" class="screen lobby" hidden>
+    <button class="btn icon back" id="btn-lobby-leave" aria-label="Leave game"><svg><use href="#i-close"/></svg></button>
+    <div class="codebox">
+      <span class="codebox-label">Game code</span>
+      <span id="lobby-code" class="codebox-code" aria-live="polite"></span>
+    </div>
+    <p id="lobby-status" class="lobby-status" aria-live="polite"></p>
+    <ol id="lobby-players" class="players"></ol>
+
+    <div id="settings" class="settings">
+      <fieldset>
+        <legend>Words</legend>
+        <div class="chips" id="set-cats"></div>
+      </fieldset>
+      <fieldset>
+        <legend>How tricky?</legend>
+        <div class="chips seg" id="set-diff"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Time to draw</legend>
+        <div class="chips seg" id="set-timer"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Rounds</legend>
+        <div class="chips seg" id="set-rounds"></div>
+      </fieldset>
+    </div>
+    <button id="btn-start" class="btn big green" hidden>Start game</button>
+  </section>
+
+  <!-- GAME -->
+  <section id="scr-game" class="screen game" hidden>
+    <header class="hud">
+      <div class="hud-round" id="hud-round"></div>
+      <div class="hud-main" id="hud-main" aria-live="polite"></div>
+      <div class="hud-timer" id="hud-timer" role="timer" aria-live="off"></div>
+      <div class="hud-btns">
+        <button class="btn icon mini" id="btn-mute" aria-label="Mute sounds"><svg><use href="#i-sound"/></svg></button>
+        <button class="btn icon mini" id="btn-quit" aria-label="Leave game"><svg><use href="#i-close"/></svg></button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="board-host" id="board-host"></div>
+      <div class="feed" id="feed" aria-live="polite"></div>
+    </main>
+
+    <!-- drawer tools -->
+    <div class="tray" id="tray" role="toolbar" aria-label="Drawing tools">
+      <div class="tools" id="tools"></div>
+      <div class="row2">
+        <div class="sizes" id="sizes" role="radiogroup" aria-label="Brush size"></div>
+        <div class="acts">
+          <button class="btn tool act" id="btn-undo" aria-label="Undo"><svg><use href="#i-undo"/></svg><span>Undo</span></button>
+          <button class="btn tool act" id="btn-clear" aria-label="Clear drawing"><svg><use href="#i-trash"/></svg><span>Clear</span></button>
+        </div>
+      </div>
+      <div class="colors" id="colors" role="radiogroup" aria-label="Colors"></div>
+    </div>
+
+    <!-- guesser input -->
+    <form class="guessbar" id="guessbar" autocomplete="off" onsubmit="return false">
+      <label for="in-guess" class="sr-only">What is it?</label>
+      <input id="in-guess" type="text" maxlength="40" placeholder="Your guess" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="send">
+      <button id="btn-guess" class="btn green" type="submit">Guess</button>
+      <button id="btn-giveup" class="btn small ghost" type="button">Show answer</button>
+    </form>
+  </section>
+
+  <!-- GAME OVER -->
+  <section id="scr-over" class="screen over" hidden>
+    <h2 class="title big-title">Game over</h2>
+    <p class="over-cheer" id="over-cheer"></p>
+    <div class="scores" id="over-scores"></div>
+    <div class="over-actions">
+      <button id="btn-again" class="btn big green">Play again</button>
+      <button id="btn-newgame" class="btn big blue">New game</button>
+    </div>
+  </section>
+</div>
+
+<!-- Word reveal for the drawer / waiting card for the guesser -->
+<div class="overlay" id="ov-choose" hidden>
+  <div class="card">
+    <div id="choose-body"></div>
+  </div>
+</div>
+
+<!-- End of round -->
+<div class="overlay" id="ov-reveal" hidden>
+  <div class="card reveal">
+    <div class="reveal-head" id="reveal-head"></div>
+    <div class="replay-wrap">
+      <div class="replay-host" id="replay-host"></div>
+      <button class="btn small ghost" id="btn-replay">Watch it again</button>
+    </div>
+    <div class="scores small" id="reveal-scores"></div>
+    <button id="btn-next" class="btn big green">Next round</button>
+  </div>
+</div>
+
+<!-- Confirmations -->
+<div class="overlay" id="ov-confirm" hidden>
+  <div class="card confirm" role="alertdialog" aria-labelledby="confirm-q">
+    <h2 id="confirm-q"></h2>
+    <div class="confirm-actions">
+      <button class="btn big red" id="btn-yes">Yes</button>
+      <button class="btn big" id="btn-no">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- Connection lost -->
+<div class="overlay conn" id="ov-conn" hidden>
+  <div class="card">
+    <div class="spinner" aria-hidden="true">✏️</div>
+    <h2>Connection lost</h2>
+    <p>Trying to find your drawing buddy…</p>
+    <button class="btn small ghost" id="btn-conn-home">Go home</button>
+  </div>
+</div>
+
+<div class="banner" id="banner" role="status" hidden></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
