@@ -14,8 +14,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
 
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
 
-  // To serve the game at draw.deeley.org, uncomment (and add a comma above):
-  // "routes": [{ "pattern": "draw.deeley.org", "custom_domain": true }]
+  "routes": [{ "pattern": "draw.deeley.org", "custom_domain": true }]
 }
