@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Vortex Field</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#000; --paper:#fff; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; overscroll-behavior:none; }
+  body { font-family:"Unbounded", "Arial Black", system-ui, sans-serif; color:var(--paper); -webkit-user-select:none; user-select:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+  #hint {
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:#000; color:#fff; border:3px solid #fff; padding:22px 26px;
+    font-size:17px; line-height:1.7; max-width:min(88vw,460px); pointer-events:none;
+    transition:opacity 1.2s ease;
+  }
+  #hint.gone { opacity:0; }
+  #hint b { font-weight:700; }
+
+  #panel {
+    position:fixed; left:0; right:0; bottom:0;
+    background:#000; border-top:3px solid #fff;
+    padding:18px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+    padding-left:calc(20px + env(safe-area-inset-left, 0px));
+    padding-right:calc(20px + env(safe-area-inset-right, 0px));
+    transform:translateY(0); transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .45s;
+    touch-action:manipulation;
+  }
+  #panel.hidden { transform:translateY(105%); opacity:0; pointer-events:none; }
+
+  .sliders { display:grid; grid-template-columns:1fr; gap:6px 28px; }
+  @media (min-width:720px) { .sliders { grid-template-columns:1fr 1fr 1fr; } }
+  .row { display:grid; grid-template-columns:96px 1fr; align-items:center; gap:14px; min-height:46px; }
+  .row label { font-size:17px; font-weight:700; }
+
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:46px; background:transparent; touch-action:pan-y; }
+  input[type=range]::-webkit-slider-runnable-track { height:6px; background:#fff; }
+  input[type=range]::-moz-range-track { height:6px; background:#fff; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:34px; height:34px; border-radius:50%; background:#fff; border:6px solid #000; box-shadow:0 0 0 3px #fff; margin-top:-14px; }
+  input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#fff; border:6px solid #000; box-shadow:0 0 0 3px #fff; }
+  input[type=range]:focus-visible { outline:3px dashed #fff; outline-offset:4px; }
+
+  .shapes { display:flex; gap:8px; overflow-x:auto; padding:14px 0 4px; scrollbar-width:none; }
+  .shapes::-webkit-scrollbar { display:none; }
+  button {
+    font:inherit; font-size:16px; font-weight:700; flex:0 0 auto;
+    background:#000; color:#fff; border:3px solid #fff; padding:11px 16px; border-radius:999px; cursor:pointer;
+  }
+  button.on { background:#fff; color:#000; }
+  button:focus-visible { outline:3px dashed #fff; outline-offset:3px; }
+  .sep { flex:0 0 3px; background:#fff; margin:4px 6px; }
+
+  #err { position:fixed; inset:0; display:none; place-items:center; text-align:center; padding:30px; font-size:20px; line-height:1.6; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+
+<div id="hint">
+  <b>Drag</b> to pull a vortex<br>
+  <b>Pinch</b> to change scale<br>
+  <b>Hold</b> to reverse the spin<br>
+  <b>Flick</b> to send a wave<br>
+  <b>Tap</b> for controls
+</div>
+
+<div id="panel" class="hidden">
+  <div class="sliders" id="sliders"></div>
+  <div class="shapes" id="shapes"></div>
+</div>
+
+<div id="err">This needs WebGL2.<br>Try a recent Safari, Chrome or Firefox.</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------------- WebGL setup ---------------- */
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias:false, alpha:false, powerPreference:'high-performance', preserveDrawingBuffer:false });
+if (!gl) { document.getElementById('err').style.display = 'grid'; document.getElementById('hint').remove(); return; }
+
+const VS = `#version 300 es
+in vec2 pos; void main(){ gl_Position = vec4(pos,0.,1.); }`;
+
+const FS = `#version 300 es
+precision highp float;
+uniform vec2  uRes;
+uniform float uT, uScale, uSwirl, uLines, uFlow, uChaos, uInv;
+uniform vec3  uV[5];      // xy = vortex position, z = well strength (index 0 = main centre)
+uniform vec4  uW[6];      // xy = wave origin, z = age, w = amplitude
+uniform float uN, uTw, uRing, uFR, uP, uPA, uRib;
+uniform vec4  uWt;        // weights: spiral, tunnel, flower, ribbons
+uniform vec2  uWt2;       // weights: checker, moire
+out vec4 o;
+
+vec2 rot(vec2 v, float a){ float c=cos(a), s=sin(a); return vec2(c*v.x - s*v.y, s*v.x + c*v.y); }
+
+// sin(k*a + rest) that stays seamless across the atan branch cut for non-integer k
+float sk(float k, float a, float rest){
+  float k0 = floor(k);
+  return mix(sin(k0*a + rest), sin((k0+1.)*a + rest), fract(k));
+}
+
+void main(){
+  vec2 p = (gl_FragCoord.xy*2. - uRes) / min(uRes.x, uRes.y);
+  p *= uScale;
+
+  // travelling waves from flicks
+  for (int i=0; i<6; i++){
+    vec4 w = uW[i];
+    if (w.w <= 0.) continue;
+    vec2 d = p - w.xy; float r = length(d) + 1e-4;
+    float front = w.z * 1.5;
+    float q = (r - front)*2.6;
+    float env = exp(-q*q) * exp(-w.z*.55) * w.w;
+    p += d/r * env * .2 * sin((r - front)*16.);
+  }
+
+  // slow organic domain warp
+  p += uChaos*.07*vec2(sin(p.y*2.3 + uT*.7), sin(p.x*2.1 - uT*.6));
+
+  // outer gravity wells twist space around themselves
+  for (int i=1; i<5; i++){
+    vec3 v = uV[i];
+    vec2 d = p - v.xy;
+    float th = v.z * 1.6 / (1. + dot(d,d)*.7);
+    p = v.xy + rot(d, th);
+  }
+
+  // main vortex in polar form
+  vec2 c = uV[0].xy;
+  vec2 d = p - c;
+  float r = length(d) + 1e-4;
+  float a = atan(d.y, d.x);
+  float lr = log(r);
+  a += uFlow*(.22*sin(r*7. - uT*1.3) + .09*sin(a*3. + uT*.5));
+  a += uChaos*.12*sin(lr*5. + a*2. - uT*.8);
+
+  float L = uLines;
+  float sA = sk(uN*L, a, uTw*uSwirl*L*lr - uT*2.);
+  float sB = sin(uRing*L*lr + uT*2.2 + uSwirl*.4*sin(a*2.));
+  float petal = sk(uP, a, uT*.3);
+  float sC = sin(uFR*L*r*.6 + uPA*3.*petal - uT*2.);
+  float sD = sin(uRib*L*(p.y + .35*uFlow*sin(p.x*1.7 + uT*.4)) - uT*1.5);
+
+  vec2 c2 = c + .13*vec2(cos(uT*.23), sin(uT*.31));
+  vec2 d2 = p - c2;
+  float a2 = atan(d2.y, d2.x) + uFlow*.22*sin(length(d2)*7. - uT*1.3);
+  float sM = sk(uN*L, a2, uTw*uSwirl*L*log(length(d2)+1e-4) - uT*2.);
+
+  float v = uWt.x*sA + uWt.y*sB + uWt.z*sC + uWt.w*sD + uWt2.x*sA*sB + uWt2.y*sA*sM;
+
+  float e = fwidth(v)*.8 + .015;
+  float bw = smoothstep(-e, e, v);
+  bw = mix(bw, 1. - bw, uInv);
+  o = vec4(vec3(bw), 1.);
+}`;
+
+function shader(type, src){
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+const posLoc = gl.getAttribLocation(prog, 'pos');
+gl.enableVertexAttribArray(posLoc);
+gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+['uRes','uT','uScale','uSwirl','uLines','uFlow','uChaos','uInv','uV','uW','uN','uTw','uRing','uFR','uP','uPA','uRib','uWt','uWt2']
+  .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+/* ---------------- Shapes (presets) ---------------- */
+const BASE = { N:12, tw:0, ring:10, fr:28, P:6, pa:0, rib:10, wA:0, wB:0, wC:0, wD:0, wX:0, wM:0, well:1, flow:1 };
+const SHAPES = [
+  ['Spiral',  { N:12, tw:14, wA:1, well:1.0 }],
+  ['Flower',  { N:16, fr:30, P:8, pa:1.4, wC:1, well:.6, flow:.6 }],
+  ['Tunnel',  { N:18, ring:9, wA:.45, wB:1, well:.7, flow:.8 }],
+  ['Checker', { N:16, tw:5, ring:9, wX:1, well:1.0 }],
+  ['Cross',   { N:24, tw:4, wA:1, well:2.6, flow:.5 }],
+  ['Moiré',   { N:44, tw:20, wM:1, well:.6, flow:.4 }],
+  ['Ribbons', { rib:9, wD:1, well:1.8, flow:1 }],
+].map(([name, p]) => [name, Object.assign({}, BASE, p)]);
+
+let shapeIdx = 0;
+let cur  = Object.assign({}, SHAPES[0][1]);
+let from = Object.assign({}, cur), to = cur;
+let morphT = 1, MORPH = 7;
+let drift = true, driftClock = 0, DRIFT_EVERY = 22;
+let invert = 0;
+
+function goShape(i){
+  shapeIdx = (i + SHAPES.length) % SHAPES.length;
+  from = Object.assign({}, cur);
+  to = SHAPES[shapeIdx][1];
+  morphT = 0; driftClock = 0;
+  refreshButtons();
+}
+
+/* ---------------- Controls ---------------- */
+const CONTROLS = [
+  ['swirl', 'Swirl', 0, 2,   1.0],
+  ['lines', 'Lines', .4, 2.5, 1.0],
+  ['flow',  'Flow',  0, 2.5, .8],
+  ['speed', 'Speed', 0, 2,   matchMedia('(prefers-reduced-motion: reduce)').matches ? .2 : .6],
+  ['scale', 'Scale', .4, 3,  1.2],
+  ['chaos', 'Chaos', 0, 2,   .6],
+];
+const val = {}, smooth = {};
+const slidersEl = document.getElementById('sliders');
+CONTROLS.forEach(([key, label, min, max, def]) => {
+  val[key] = smooth[key] = def;
+  const row = document.createElement('div'); row.className = 'row';
+  const id = 's-' + key;
+  row.innerHTML = `<label for="${id}">${label}</label><input id="${id}" type="range" min="${min}" max="${max}" step="0.001" value="${def}">`;
+  row.querySelector('input').addEventListener('input', e => { val[key] = parseFloat(e.target.value); poke(); });
+  slidersEl.appendChild(row);
+});
+
+const shapesEl = document.getElementById('shapes');
+const shapeBtns = SHAPES.map(([name], i) => {
+  const b = document.createElement('button'); b.textContent = name;
+  b.onclick = () => { goShape(i); poke(); };
+  shapesEl.appendChild(b); return b;
+});
+const sep = document.createElement('div'); sep.className = 'sep'; shapesEl.appendChild(sep);
+const driftBtn = mkBtn('Drift', () => { drift = !drift; driftClock = 0; refreshButtons(); });
+const invBtn   = mkBtn('Invert', () => { invert = invert ? 0 : 1; refreshButtons(); });
+const fsBtn    = mkBtn('Full screen', toggleFullscreen);
+function mkBtn(t, fn){ const b = document.createElement('button'); b.textContent = t; b.onclick = () => { fn(); poke(); }; shapesEl.appendChild(b); return b; }
+function refreshButtons(){
+  shapeBtns.forEach((b,i) => b.classList.toggle('on', i === shapeIdx));
+  driftBtn.classList.toggle('on', drift);
+  invBtn.classList.toggle('on', !!invert);
+}
+refreshButtons();
+
+function toggleFullscreen(){
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+/* panel show / auto-hide */
+const panel = document.getElementById('panel');
+let hideTimer = null;
+function showPanel(){ panel.classList.remove('hidden'); poke(); }
+function hidePanel(){ panel.classList.add('hidden'); clearTimeout(hideTimer); }
+function poke(){ clearTimeout(hideTimer); hideTimer = setTimeout(hidePanel, 5000); }
+panel.addEventListener('pointerdown', poke);
+panel.addEventListener('pointermove', poke);
+
+const hint = document.getElementById('hint');
+setTimeout(() => hint.classList.add('gone'), 4500);
+setTimeout(() => hint.remove(), 6000);
+
+/* ---------------- Vortices ---------------- */
+const HOMES = [[0,0], [-2.0, 1.4], [2.0, 1.4], [2.0,-1.4], [-2.0,-1.4]];
+const vort = HOMES.map((h, i) => ({
+  hx:h[0], hy:h[1], ox:0, oy:0, x:h[0], y:h[1], z:0,
+  sign: i === 0 ? 0 : (i % 2 ? 1 : -1),
+  w1: .11 + i*.037, w2: .07 + i*.029, ph: i*1.7,
+  grabbed:false, tx:0, ty:0,
+}));
+
+/* ---------------- Waves ---------------- */
+const waves = []; // {x,y,t0,amp}
+function addWave(x, y, amp){
+  waves.push({ x, y, t0: clock, amp });
+  if (waves.length > 6) waves.shift();
+}
+
+/* ---------------- Input ---------------- */
+let zoom = 1, zoomTarget = 1;
+let reversing = false, dir = 1;
+const ptrs = new Map();
+let pinch = null;
+
+function toWorld(cx, cy){
+  const W = innerWidth, H = innerHeight, m = Math.min(W, H);
+  const s = smooth.scale * zoom;
+  return [((cx*2 - W)/m)*s, ((H - cy*2)/m)*s];
+}
+function nearestVortex(wx, wy){
+  let best = 0, bd = 1e9;
+  vort.forEach((v, i) => { const d = Math.hypot(v.x - wx, v.y - wy); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  const now = performance.now();
+  const p = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, t0:now, lt:now, vx:0, vy:0, moved:false, grab:-1, hold:null, lastWave:0 };
+  ptrs.set(e.pointerId, p);
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    pinch = { d0: Math.hypot(a.x-b.x, a.y-b.y), z0: zoomTarget };
+    ptrs.forEach(q => { clearTimeout(q.hold); releaseGrab(q); q.moved = true; });
+    reversing = false;
+  } else if (ptrs.size === 1) {
+    p.hold = setTimeout(() => { if (!p.moved) reversing = true; }, 380);
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const now = performance.now(), dt = Math.max(1, now - p.lt);
+  const nvx = (e.clientX - p.x)/dt, nvy = (e.clientY - p.y)/dt;
+  p.vx = p.vx*.6 + nvx*.4; p.vy = p.vy*.6 + nvy*.4;
+  p.x = e.clientX; p.y = e.clientY; p.lt = now;
+
+  if (pinch && ptrs.size >= 2) {
+    const [a, b] = [...ptrs.values()];
+    const d = Math.hypot(a.x-b.x, a.y-b.y);
+    zoomTarget = Math.min(6, Math.max(.2, pinch.z0 * pinch.d0 / Math.max(10, d)));
+    return;
+  }
+  if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > 10) {
+    p.moved = true; clearTimeout(p.hold);
+    if (!reversing) {
+      const [wx, wy] = toWorld(p.x0, p.y0);
+      p.grab = nearestVortex(wx, wy);
+      vort[p.grab].grabbed = true;
+    }
+  }
+  if (p.grab >= 0) {
+    const [wx, wy] = toWorld(p.x, p.y);
+    const v = vort[p.grab]; v.tx = wx; v.ty = wy;
+  }
+  const speed = Math.hypot(p.vx, p.vy);
+  if (speed > 1.6 && now - p.lastWave > 140) {
+    p.lastWave = now;
+    const [wx, wy] = toWorld(p.x, p.y);
+    addWave(wx, wy, Math.min(2.2, speed * .55));
+  }
+});
+
+function releaseGrab(p){ if (p.grab >= 0) { vort[p.grab].grabbed = false; p.grab = -1; } }
+
+function endPtr(e){
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  clearTimeout(p.hold);
+  const dur = performance.now() - p.t0;
+  if (!p.moved && !reversing && dur < 260 && ptrs.size === 1 && !pinch) {
+    panel.classList.contains('hidden') ? showPanel() : hidePanel();
+  }
+  releaseGrab(p);
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (ptrs.size === 0) reversing = false;
+}
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomTarget = Math.min(6, Math.max(.2, zoomTarget * Math.exp(e.deltaY * .0015))); }, { passive:false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); panel.classList.contains('hidden') ? showPanel() : hidePanel(); }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= SHAPES.length) goShape(n - 1);
+  if (e.key === 'r') reversing = true;
+  if (e.key === 'f') toggleFullscreen();
+});
+addEventListener('keyup', e => { if (e.key === 'r') reversing = false; });
+
+/* ---------------- Resolution (adaptive) ---------------- */
+const MAXQ = Math.min(devicePixelRatio || 1, 2);
+let quality = MAXQ, frameAcc = 0, frameN = 0;
+function resize(){
+  const w = Math.round(innerWidth * quality), h = Math.round(innerHeight * quality);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------------- Loop ---------------- */
+const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+const vArr = new Float32Array(15), wArr = new Float32Array(24);
+let clock = 0, T = 0, last = performance.now();
+
+function frame(now){
+  const rawDt = (now - last) / 1000; last = now;
+  const dt = Math.min(.05, rawDt);
+  clock += dt;
+
+  // adaptive quality
+  frameAcc += rawDt; frameN++;
+  if (frameN >= 45) {
+    const avg = frameAcc / frameN; frameAcc = 0; frameN = 0;
+    if (avg > .021 && quality > .5) { quality = Math.max(.5, quality * .85); resize(); }
+    else if (avg < .0145 && quality < MAXQ) { quality = Math.min(MAXQ, quality * 1.08); resize(); }
+  }
+
+  // smooth controls
+  const k = 1 - Math.exp(-dt * 6);
+  for (const key in val) smooth[key] += (val[key] - smooth[key]) * k;
+  zoom += (zoomTarget - zoom) * (1 - Math.exp(-dt * 8));
+
+  // time direction (hold to reverse)
+  dir += ((reversing ? -1 : 1) - dir) * (1 - Math.exp(-dt * 3));
+  T += dt * smooth.speed * dir;
+
+  // shape morph + drift
+  if (drift) { driftClock += dt; if (driftClock > DRIFT_EVERY && morphT >= 1) goShape(shapeIdx + 1); }
+  if (morphT < 1) {
+    morphT = Math.min(1, morphT + dt / MORPH);
+    const e = ease(morphT);
+    for (const key in cur) cur[key] = from[key] + (to[key] - from[key]) * e;
+  }
+
+  // vortices: wander, pulse, respond to drags
+  vort.forEach((v, i) => {
+    const amp = i === 0 ? .08 : .3;
+    const homeX = v.hx + amp * Math.cos(clock * v.w1 + v.ph);
+    const homeY = v.hy + amp * Math.sin(clock * v.w2 * 1.3 + v.ph);
+    if (v.grabbed) {
+      const kk = 1 - Math.exp(-dt * 10);
+      v.ox += ((v.tx - homeX) - v.ox) * kk;
+      v.oy += ((v.ty - homeY) - v.oy) * kk;
+    } else {
+      const decay = Math.exp(-dt * .35);
+      v.ox *= decay; v.oy *= decay;
+    }
+    v.x = homeX + v.ox; v.y = homeY + v.oy;
+    const pulse = 1 + .45 * Math.sin(clock * (.19 + i*.053) + v.ph * 2.3);
+    v.z = v.sign * pulse * cur.well * (.25 + smooth.chaos * .75) * smooth.swirl * .9;
+    vArr[i*3] = v.x; vArr[i*3+1] = v.y; vArr[i*3+2] = v.z;
+  });
+
+  // waves
+  for (let i = waves.length - 1; i >= 0; i--) if (clock - waves[i].t0 > 5) waves.splice(i, 1);
+  wArr.fill(0);
+  waves.forEach((w, i) => { wArr[i*4] = w.x; wArr[i*4+1] = w.y; wArr[i*4+2] = clock - w.t0; wArr[i*4+3] = w.amp; });
+
+  gl.uniform2f(U.uRes, canvas.width, canvas.height);
+  gl.uniform1f(U.uT, T);
+  gl.uniform1f(U.uScale, smooth.scale * zoom);
+  gl.uniform1f(U.uSwirl, smooth.swirl);
+  gl.uniform1f(U.uLines, smooth.lines);
+  gl.uniform1f(U.uFlow, smooth.flow * cur.flow);
+  gl.uniform1f(U.uChaos, smooth.chaos);
+  gl.uniform1f(U.uInv, invert);
+  gl.uniform3fv(U.uV, vArr);
+  gl.uniform4fv(U.uW, wArr);
+  gl.uniform1f(U.uN, cur.N);
+  gl.uniform1f(U.uTw, cur.tw);
+  gl.uniform1f(U.uRing, cur.ring);
+  gl.uniform1f(U.uFR, cur.fr);
+  gl.uniform1f(U.uP, cur.P);
+  gl.uniform1f(U.uPA, cur.pa);
+  gl.uniform1f(U.uRib, cur.rib);
+  gl.uniform4f(U.uWt, cur.wA, cur.wB, cur.wC, cur.wD);
+  gl.uniform2f(U.uWt2, cur.wX, cur.wM);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

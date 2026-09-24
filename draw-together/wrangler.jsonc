@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "draw-together",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+
+  // index.html, styles.css and /js/* are served straight from ./public.
+  // Anything that isn't a file (i.e. /api/...) goes to the Worker.
+  "assets": { "directory": "./public" },
+
+  // One Durable Object per game room.
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "GameRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+
+  "observability": { "enabled": true }
+
+  // To serve the game at draw.deeley.org, uncomment (and add a comma above):
+  // "routes": [{ "pattern": "draw.deeley.org", "custom_domain": true }]
+}

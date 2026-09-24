@@ -1516,5 +1516,23 @@
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/instruments.jpg"
+  },
+  {
+    "id": "swirl-eye",
+    "name": "Swirl Eye",
+    "description": "A bold black-and-white hypnotic swirl you can drag to twist and pinch to tighten.",
+    "category": "Art",
+    "path": "SwirlEye.html",
+    "added": "2026-09-23T00:00:00+00:00",
+    "thumbnail": "thumbnails/neo-swirl-eye.jpg"
+  },
+  {
+    "id": "vortex-field",
+    "name": "Vortex Field",
+    "description": "A field of draggable black-and-white vortices with seven pattern shapes - spiral, flower, tunnel, checker, cross, moiré, ribbons.",
+    "category": "Art",
+    "path": "VortexField.html",
+    "added": "2026-09-24T00:00:00+00:00",
+    "thumbnail": "thumbnails/vortex-field.jpg"
   }
 ]

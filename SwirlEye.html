@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Swirl Eye</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<style>
+  *{margin:0;padding:0;overflow:hidden;touch-action:none;}
+  body{background:#000;width:100vw;height:100vh;position:fixed;}
+  canvas{display:block;width:100%;height:100%;}
+  #hint {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(128,128,128,0.55);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 2s;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(128,128,128,0.35);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.4);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  mix-blend-mode: difference;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+<div id="hint">drag to twist &middot; pinch to tighten</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const hint = document.getElementById('hint');
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: false, premultipliedAlpha: false });
+  if (!gl) { document.body.innerHTML = ''; throw new Error('WebGL not supported'); }
+
+  const derivExt = gl.getExtension('OES_standard_derivatives');
+
+  function createShader(type, source) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(sh));
+      gl.deleteShader(sh);
+      return null;
+    }
+    return sh;
+  }
+  function createProgram(vsSrc, fsSrc) {
+    const vs = createShader(gl.VERTEX_SHADER, vsSrc);
+    const fs = createShader(gl.FRAGMENT_SHADER, fsSrc);
+    if (!vs || !fs) return null;
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(p));
+      gl.deleteProgram(p);
+      return null;
+    }
+    return p;
+  }
+
+  const quadBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+  const VS = `
+    attribute vec2 a_position;
+    varying vec2 v_uv;
+    void main(){
+      v_uv = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  // A pure black-and-white op-art swirl, not the soft colorful feedback
+  // trail style used elsewhere on this site. Three things give it the
+  // "hand-warped" look rather than a perfect mathematical spiral: a
+  // curl-noise domain warp on the coordinates before the stripe field is
+  // evaluated, two slow-drifting secondary eddies blended in alongside
+  // the primary (draggable) center, and a small dark "eye" dead-zone at
+  // each swirl's convergence point (a real hypnotic-spiral design trick
+  // that also happens to sidestep the infinite stripe-frequency aliasing
+  // a spiral has at r=0).
+  const FS = `
+    precision highp float;
+    ${derivExt ? '#extension GL_OES_standard_derivatives : enable' : ''}
+    varying vec2 v_uv;
+    uniform float u_time;
+    uniform vec2  u_resolution;
+    uniform vec2  u_center;
+    uniform float u_stripeFreq;
+    uniform float u_twist;
+    uniform float u_kickAmount;
+    uniform vec2  u_kickPos;
+    uniform float u_hasDeriv;
+
+    #define TAU 6.28318530718
+
+    float hash(vec2 p){
+      p = fract(p * vec2(443.897, 441.423));
+      p += dot(p, p + 23.45);
+      return fract(p.x * p.y);
+    }
+    float noise(vec2 p){
+      vec2 i = floor(p), f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = hash(i), b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+    float fbm(vec2 p){
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.15; a *= 0.5; }
+      return v;
+    }
+    vec2 curl(vec2 p){
+      float e = 0.06;
+      float n1 = fbm(p + vec2(0.0, e)), n2 = fbm(p - vec2(0.0, e));
+      float n3 = fbm(p + vec2(e, 0.0)), n4 = fbm(p - vec2(e, 0.0));
+      return vec2(n1 - n2, n4 - n3) / (2.0 * e);
+    }
+
+    float swirlPhase(vec2 p, vec2 center, float freq, float twist, float t, float spin){
+      vec2 d = p - center;
+      float r = length(d);
+      float a = atan(d.y, d.x);
+      return a * freq + r * twist - t * spin;
+    }
+
+    void main(){
+      vec2 p = (v_uv - 0.5) * 2.0;
+      p.x *= u_resolution.x / u_resolution.y;
+
+      vec2 w = curl(p * 1.05 + u_time * 0.015);
+      vec2 pw = p + w * 0.11;
+
+      vec2 eddyA = vec2(sin(u_time * 0.05) * 0.85 - 0.55, cos(u_time * 0.04) * 0.65 + 0.5);
+      vec2 eddyB = vec2(cos(u_time * 0.045) * 0.8 + 0.6, sin(u_time * 0.055) * 0.7 + 0.45);
+
+      float ph  = swirlPhase(pw, u_center, u_stripeFreq, u_twist, u_time, 0.32);
+      float phA = swirlPhase(pw, eddyA, u_stripeFreq * 0.6, u_twist * 0.8, u_time, -0.21);
+      float phB = swirlPhase(pw, eddyB, u_stripeFreq * 0.5, u_twist * 0.7, u_time, 0.17);
+
+      float dA = length(pw - eddyA);
+      float dB = length(pw - eddyB);
+      float dC = length(pw - u_center);
+      float wA = exp(-dA * 1.1) * 0.5;
+      float wB = exp(-dB * 1.1) * 0.45;
+      float wC = 1.0;
+
+      float dK = length(pw - u_kickPos);
+      float kick = u_kickAmount * exp(-dK * 2.0) * 5.0;
+
+      float phase = (ph * wC + phA * wA + phB * wB) / (wC + wA + wB) + kick;
+      float stripe = sin(phase);
+
+      float edge;
+      if (u_hasDeriv > 0.5) {
+        edge = fwidth(phase) * 1.0 + 0.015;
+      } else {
+        edge = 0.12;
+      }
+      float bw = smoothstep(-edge, edge, stripe);
+
+      float core = smoothstep(0.0, 0.055, dC);
+      bw = mix(0.04, bw, core);
+
+      gl_FragColor = vec4(vec3(bw), 1.0);
+    }
+  `;
+
+  const prog = createProgram(VS, FS);
+  if (!prog) throw new Error('Shader compile/link failed');
+
+  const loc = {
+    aPos: gl.getAttribLocation(prog, 'a_position'),
+    uTime: gl.getUniformLocation(prog, 'u_time'),
+    uRes: gl.getUniformLocation(prog, 'u_resolution'),
+    uCenter: gl.getUniformLocation(prog, 'u_center'),
+    uStripeFreq: gl.getUniformLocation(prog, 'u_stripeFreq'),
+    uTwist: gl.getUniformLocation(prog, 'u_twist'),
+    uKickAmount: gl.getUniformLocation(prog, 'u_kickAmount'),
+    uKickPos: gl.getUniformLocation(prog, 'u_kickPos'),
+    uHasDeriv: gl.getUniformLocation(prog, 'u_hasDeriv'),
+  };
+
+  let qualityScale = 1.0;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth, h = window.innerHeight;
+    canvas.width = Math.max(2, Math.floor(w * dpr * qualityScale));
+    canvas.height = Math.max(2, Math.floor(h * dpr * qualityScale));
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  // State: a draggable primary swirl center, pinch-to-adjust stripe
+  // count/twist, and a transient "kick" left behind at the touch point
+  // that decays away - echoing this site's other "swipe to distort"
+  // pieces rather than introducing a fourth interaction language.
+  let center = { x: 0, y: 0 };
+  let stripeFreq = 16.0;
+  let twist = 3.0;
+  let kickAmount = 0;
+  let kickPos = { x: 0, y: 0 };
+  let hintVisible = true;
+
+  let dragging = false;
+  let lastPos = null;
+  let lastPinchDist = 0;
+
+  function toWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const aspect = rect.width / rect.height;
+    return {
+      x: ((clientX - rect.left) / rect.width - 0.5) * 2 * aspect,
+      y: -((clientY - rect.top) / rect.height - 0.5) * 2,
+    };
+  }
+  function hideHint() {
+    if (hintVisible) { hint.style.opacity = '0'; hintVisible = false; }
+  }
+
+  function handleStart(e) {
+    e.preventDefault();
+    hideHint();
+    if (e.touches && e.touches.length === 2) {
+      const [a, b] = e.touches;
+      lastPinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      dragging = false;
+      return;
+    }
+    const t = e.touches ? e.touches[0] : e;
+    const p = toWorld(t.clientX, t.clientY);
+    dragging = true;
+    lastPos = p;
+    kickPos = p;
+    kickAmount = Math.min(1.0, kickAmount + 0.4);
+  }
+  function handleMove(e) {
+    e.preventDefault();
+    if (e.touches && e.touches.length === 2) {
+      const [a, b] = e.touches;
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if (lastPinchDist > 0) {
+        const ratio = dist / lastPinchDist;
+        stripeFreq = Math.max(6, Math.min(40, stripeFreq * ratio));
+      }
+      lastPinchDist = dist;
+      return;
+    }
+    if (!dragging) return;
+    const t = e.touches ? e.touches[0] : e;
+    const p = toWorld(t.clientX, t.clientY);
+    const dx = p.x - lastPos.x, dy = p.y - lastPos.y;
+    const speed = Math.hypot(dx, dy);
+    center.x += dx * 0.6;
+    center.y += dy * 0.6;
+    center.x = Math.max(-1.6, Math.min(1.6, center.x));
+    center.y = Math.max(-1.6, Math.min(1.6, center.y));
+    twist = Math.max(0.5, Math.min(8, twist + (speed - 0.01) * 2));
+    kickPos = p;
+    kickAmount = Math.min(1.4, kickAmount + speed * 3);
+    lastPos = p;
+  }
+  function handleEnd(e) {
+    dragging = false;
+    lastPos = null;
+    lastPinchDist = 0;
+  }
+  function handleWheel(e) {
+    e.preventDefault();
+    hideHint();
+    stripeFreq = Math.max(6, Math.min(40, stripeFreq * Math.exp(-e.deltaY * 0.001)));
+  }
+
+  canvas.addEventListener('touchstart', handleStart, { passive: false });
+  canvas.addEventListener('touchmove', handleMove, { passive: false });
+  canvas.addEventListener('touchend', handleEnd, { passive: false });
+  canvas.addEventListener('touchcancel', handleEnd, { passive: false });
+  canvas.addEventListener('mousedown', handleStart);
+  canvas.addEventListener('mousemove', handleMove);
+  canvas.addEventListener('mouseup', handleEnd);
+  canvas.addEventListener('wheel', handleWheel, { passive: false });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  let time = 0;
+  let lastT = performance.now();
+  let twistRelaxTarget = 3.0;
+
+  function loop() {
+    const now = performance.now();
+    const dt = Math.min((now - lastT) / 1000, 0.1);
+    lastT = now;
+    time += dt;
+
+    kickAmount *= Math.exp(-dt * 2.2);
+    twist += (twistRelaxTarget - twist) * dt * 0.6;
+
+    gl.useProgram(prog);
+    gl.uniform1f(loc.uTime, time);
+    gl.uniform2f(loc.uRes, canvas.width, canvas.height);
+    gl.uniform2f(loc.uCenter, center.x, center.y);
+    gl.uniform1f(loc.uStripeFreq, stripeFreq);
+    gl.uniform1f(loc.uTwist, twist);
+    gl.uniform1f(loc.uKickAmount, kickAmount);
+    gl.uniform2f(loc.uKickPos, kickPos.x, kickPos.y);
+    gl.uniform1f(loc.uHasDeriv, derivExt ? 1.0 : 0.0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.enableVertexAttribArray(loc.aPos);
+    gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
