@@ -1544,5 +1544,25 @@
     "path": "https://draw.deeley.org",
     "added": "2026-09-24T00:00:00+00:00",
     "thumbnail": "thumbnails/draw-together.jpg"
+  },
+  {
+    "id": "shape-cascade",
+    "name": "Shape Cascade",
+    "description": "Swap match-3 shapes for chain-reaction combos, sweeps and satisfying flashes.",
+    "category": "Games",
+    "gameGroup": "arcade",
+    "path": "ShapeCascade.html",
+    "added": "2026-09-25T00:00:00+00:00",
+    "thumbnail": "thumbnails/shape-cascade.jpg"
+  },
+  {
+    "id": "word-chain",
+    "name": "Word Chain",
+    "description": "Trace adjacent letters to spell words against the clock, in timed, zen or challenge mode.",
+    "category": "Games",
+    "gameGroup": "arcade",
+    "path": "WordChain.html",
+    "added": "2026-09-25T00:00:00+00:00",
+    "thumbnail": "thumbnails/word-chain.jpg"
   }
 ]
