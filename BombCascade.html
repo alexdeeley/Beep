@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Bomb Cascade</title>
+<style>
+  :root{ --white:#f5f5f5; --red:#ff0a2c; --dim:#888; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#000; overflow:hidden;
+    overscroll-behavior:none; touch-action:none;
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    user-select:none; -webkit-user-select:none;
+  }
+  canvas{ position:fixed; inset:0; display:block; touch-action:none; }
+
+  #warnBanner{
+    position:fixed; z-index:60; left:50%; top:max(14px, env(safe-area-inset-top));
+    transform:translateX(-50%); max-width:min(86vw,380px);
+    background:rgba(8,8,8,0.94); border:1px solid #2a2a2a; border-left:3px solid var(--red);
+    border-radius:6px; padding:10px 14px; color:var(--dim); font-size:11.5px; line-height:1.5;
+    opacity:0; pointer-events:none; transition:opacity 0.4s ease;
+  }
+  #warnBanner.show{ opacity:1; }
+  #warnBanner b{ color:var(--white); font-weight:600; }
+
+  #overScreen{
+    position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.86);
+    display:none; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  #overScreen.show{ display:flex; }
+  .hidden{ display:none !important; }
+
+  #scoreCard{
+    width:min(84vw,340px); background:#070707; border:1px solid #262626; border-top:3px solid var(--red);
+    border-radius:14px; padding:30px 26px 26px; display:flex; flex-direction:column; align-items:center; gap:6px;
+    box-shadow:0 0 40px rgba(0,0,0,0.6);
+  }
+  #overTitle{ color:#777; font-size:11px; letter-spacing:0.24em; font-weight:600; text-align:center; }
+  #overScoreVal{ color:var(--red); font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1; margin-top:2px; }
+  #overSub{ color:#888; font-size:12px; letter-spacing:0.06em; text-align:center; margin-bottom:14px; }
+  #statRow{ display:flex; gap:28px; padding:14px 0 20px; border-top:1px solid #1c1c1c; width:100%; justify-content:center; }
+  .statCol{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .statCol .sLabel{ color:#555; font-size:9px; letter-spacing:0.18em; }
+  .statCol .sVal{ color:var(--white); font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+  #overBtn{
+    width:100%; padding:15px; border-radius:8px; border:2px solid var(--white); background:transparent;
+    color:var(--white); font-size:13px; letter-spacing:0.2em; font-weight:700;
+    animation:pulseBtn 2.2s ease-in-out infinite;
+  }
+  @keyframes pulseBtn{
+    0%,100%{ box-shadow:0 0 0 0 rgba(245,245,245,0.0); border-color:var(--white); }
+    50%{ box-shadow:0 0 20px 2px rgba(255,10,44,0.35); border-color:var(--red); }
+  }
+
+  #hud{
+    position:fixed; z-index:20; top:0; left:0; right:0;
+    padding:max(14px, env(safe-area-inset-top)) 16px 8px 16px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none;
+  }
+  .hudBlock{ display:flex; flex-direction:column; align-items:center; }
+  .hudLabel{ color:#555; font-size:9.5px; letter-spacing:0.18em; margin-bottom:2px; }
+  .hudValue{ color:var(--white); font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .hudSub{ color:#666; font-size:10px; margin-top:1px; font-variant-numeric:tabular-nums; }
+  #hudTime.low .hudValue{ color:var(--red); }
+  #progressWrap{
+    position:fixed; z-index:20; left:16px; right:16px; top:78px;
+    height:5px; background:#191919; border-radius:3px; overflow:hidden;
+  }
+  #progressBar{ height:100%; width:100%; background:var(--red); transition:width 0.12s linear; }
+
+  #panelToggle{
+    position:fixed; z-index:40; top:max(10px, env(safe-area-inset-top)); right:10px;
+    width:34px; height:34px; background:transparent; border:none; opacity:0.28;
+  }
+  #panelToggle::before{ content:''; display:block; width:8px; height:8px; margin:13px auto; border-radius:50%; background:var(--white); }
+  #panel{
+    position:fixed; z-index:45; inset:auto 0 0 0; max-height:60vh; overflow-y:auto;
+    background:rgba(6,6,6,0.97); border-top:1px solid #222;
+    transform:translateY(100%); transition:transform 0.28s ease;
+    padding:18px 20px calc(28px + env(safe-area-inset-bottom));
+  }
+  #panel.open{ transform:translateY(0); }
+  #panel h2{ color:var(--white); font-size:13px; letter-spacing:0.2em; font-weight:600; margin:0 0 16px 0; }
+  .toggleRow{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid #1c1c1c; }
+  .toggleRow span{ color:#ccc; font-size:12px; letter-spacing:0.05em; }
+  .switch{ width:44px; height:26px; border-radius:14px; background:#333; position:relative; flex:none; border:none; }
+  .switch.on{ background:var(--red); }
+  .switch::after{ content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#eee; transition:left 0.15s ease; }
+  .switch.on::after{ left:21px; }
+  #panelRestartBtn{ width:100%; margin-top:14px; padding:14px; background:transparent; border:1px solid #444; color:#ccc; font-size:12px; letter-spacing:0.15em; border-radius:4px; }
+  #hintBtn{
+    position:fixed; z-index:30; left:50%; transform:translateX(-50%);
+    bottom:max(18px, env(safe-area-inset-bottom));
+    padding:11px 26px; border-radius:20px;
+    background:rgba(20,20,20,0.85); border:1px solid #444; color:var(--white);
+    font-size:12px; letter-spacing:0.18em; font-weight:600;
+  }
+  #hintBtn:active{ border-color:var(--red); }
+  #closePanelBtn{ width:100%; margin-top:8px; padding:14px; background:var(--white); border:none; color:#000; font-size:12px; letter-spacing:0.15em; font-weight:700; border-radius:4px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="hudBlock"><div class="hudLabel">SCORE</div><div class="hudValue" id="hudScore">0</div></div>
+  <div class="hudBlock" id="hudTime"><div class="hudLabel">TIME</div><div class="hudValue" id="hudTimeVal">45</div></div>
+  <div class="hudBlock"><div class="hudLabel">BEST</div><div class="hudValue" id="hudBest">0</div></div>
+</div>
+<div id="progressWrap"><div id="progressBar"></div></div>
+
+<button id="panelToggle" aria-label="settings"></button>
+<button id="hintBtn">HINT</button>
+<div id="panel">
+  <h2>CONTROLS</h2>
+  <div class="toggleRow"><span>STROBE REDUCTION</span><button class="switch" id="strobeSwitch"></button></div>
+  <button id="panelRestartBtn">RESTART RUN</button>
+  <button id="closePanelBtn">CLOSE</button>
+</div>
+
+<div id="warnBanner">
+  <b>Flashing-light warning.</b> Lining up three bombs sets off a full-board flash. Use strobe reduction (dot, top right) if you're sensitive to that.
+</div>
+
+<div id="overScreen">
+  <div id="scoreCard">
+    <div id="overTitle">TIME'S UP</div>
+    <div id="overScoreVal">0</div>
+    <div id="overSub">score</div>
+    <div id="statRow">
+      <div class="statCol"><div class="sLabel">BEST</div><div class="sVal" id="statBest">0</div></div>
+      <div class="statCol"><div class="sLabel">MAX COMBO</div><div class="sVal" id="statCombo">×1</div></div>
+    </div>
+    <button id="overBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha:false });
+let W=0,H=0,DPR=1,CX=0,CY=0;
+
+const COLS=6, ROWS=6;
+const HUD_H = 118;
+let cellSize=0, offX=0, offY=0;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2.5);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W*DPR);
+  canvas.height = Math.floor(H*DPR);
+  canvas.style.width = W+'px';
+  canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  CX = W/2; CY = H/2;
+  computeBoardMetrics();
+  repositionAll();
+}
+window.addEventListener('resize', resize);
+
+const TAU = Math.PI*2;
+function rand(a,b){ return a + Math.random()*(b-a); }
+function randInt(a,b){ return Math.floor(rand(a,b+1)); }
+function choice(arr){ return arr[randInt(0,arr.length-1)]; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+const RED = '#ff0a2c';
+const WHITE = '#f5f5f5';
+
+// ---------- ENDLESS MODE ----------
+const SHAPE_TYPES = ['circle','square','triangle'];
+const TIME_START = 45;
+const DRAIN_BASE = 1.0;
+
+let score = 0, best = 0;
+let timeLeft = TIME_START;
+let runStartT = 0;
+let speedFactor = 1;
+let maxComboThisRun = 1;
+
+function loadBest(){
+  try{ const v = localStorage.getItem('bombCascadeBest'); best = v?parseInt(v,10):0; }catch(e){ best=0; }
+}
+function saveBest(){
+  try{ localStorage.setItem('bombCascadeBest', String(best)); }catch(e){}
+}
+function currentTypes(){
+  return SHAPE_TYPES;
+}
+function updateSpeedFactor(){
+  const elapsedSec = (performance.now()-runStartT)/1000;
+  speedFactor = 1 + Math.sqrt(Math.max(0,elapsedSec))/4;
+}
+
+// ---------- AUDIO ----------
+let audioCtx = null, masterGain = null;
+// Each chain reaction ("turn") gets progressively lower and heavier the
+// longer it runs - every sound effect triggered during it drops another
+// 10% in pitch from the last, floored so it never fades into an inaudible
+// sub-bass rumble. Reset once per swap, right before the cascade starts.
+let turnSoundCount = 0;
+function nextPitchMul(){
+  const m = Math.max(Math.pow(0.9, turnSoundCount), 0.2);
+  turnSoundCount++;
+  return m;
+}
+function initAudio(){
+  if(audioCtx){ if(audioCtx.state==='suspended') audioCtx.resume(); return; }
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.5;
+  masterGain.connect(audioCtx.destination);
+}
+function noiseBuffer(duration){
+  const sr = audioCtx.sampleRate;
+  const buf = audioCtx.createBuffer(1, Math.max(1,Math.floor(sr*duration)), sr);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+  return buf;
+}
+function playSizzle(strength, mul=1){
+  if(!audioCtx) return;
+  const dur = 0.16 + strength*0.1;
+  const t0 = audioCtx.currentTime;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer(dur);
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime((1700+strength*1100)*mul, t0);
+  bp.frequency.exponentialRampToValueAtTime(450*mul, t0+dur);
+  bp.Q.value = 5.5;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.3*strength+0.14, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  src.connect(bp); bp.connect(g); g.connect(masterGain);
+  src.start(t0); src.stop(t0+dur+0.02);
+}
+function playMatchTone(mul=1){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const freq = 220*mul;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, t0);
+  osc.frequency.exponentialRampToValueAtTime(freq*1.5, t0+0.12);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.22, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+0.26);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.28);
+}
+// Combo ding: each successive chain step jumps up exactly one octave, wrapping after 6 octaves -
+// layered against the turn-wide pitch-down drift from nextPitchMul(), so deep chains still climb
+// step to step while the whole sequence gets progressively heavier underneath.
+function playComboDing(comboMult, mul=1){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const level = (comboMult-2) % 6;
+  const freq = 261.63 * Math.pow(2, level) * mul;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  const osc2 = audioCtx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(freq*2, t0);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.32, t0+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+0.42);
+  const g2 = audioCtx.createGain();
+  g2.gain.setValueAtTime(0.11, t0);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t0+0.26);
+  osc.connect(g); g.connect(masterGain);
+  osc2.connect(g2); g2.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.45);
+  osc2.start(t0); osc2.stop(t0+0.28);
+}
+// Played when a 4-in-a-row plants a bomb piece on the board.
+function playBombCreate(mul=1){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(160*mul, t0);
+  osc.frequency.exponentialRampToValueAtTime(640*mul, t0+0.35);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.26, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.4);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.42);
+}
+// Played on a 5-in-a-row shape wipe.
+function playChainBoom(mul=1){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(170*mul, t0);
+  osc.frequency.exponentialRampToValueAtTime(38*mul, t0+0.38);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.5, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.42);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.44);
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer(0.5);
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(2400*mul, t0);
+  bp.frequency.exponentialRampToValueAtTime(220*mul, t0+0.5);
+  bp.Q.value = 4;
+  const g2 = audioCtx.createGain();
+  g2.gain.setValueAtTime(0.32, t0);
+  g2.gain.exponentialRampToValueAtTime(0.001, t0+0.5);
+  src.connect(bp); bp.connect(g2); g2.connect(masterGain);
+  src.start(t0); src.stop(t0+0.52);
+}
+// The big one: three bombs lined up, whole board wiped and reborn.
+function playMegaClear(mul=1){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(220*mul, t0);
+  osc.frequency.exponentialRampToValueAtTime(28*mul, t0+0.9);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.6, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.95);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+1.0);
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer(0.9);
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(3000*mul, t0);
+  bp.frequency.exponentialRampToValueAtTime(180*mul, t0+0.9);
+  bp.Q.value = 3.5;
+  const g2 = audioCtx.createGain();
+  g2.gain.setValueAtTime(0.4, t0);
+  g2.gain.exponentialRampToValueAtTime(0.001, t0+0.9);
+  src.connect(bp); bp.connect(g2); g2.connect(masterGain);
+  src.start(t0); src.stop(t0+0.92);
+}
+function playSwapFail(){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(140, t0);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.13, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.12);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.14);
+}
+function playGameOver(){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(400, t0);
+  osc.frequency.exponentialRampToValueAtTime(60, t0+0.9);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.22, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.9);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t0); osc.stop(t0+0.95);
+}
+
+let strobeReduction = false;
+const strobeSwitch = document.getElementById('strobeSwitch');
+strobeSwitch.addEventListener('click', ()=>{
+  strobeReduction = !strobeReduction;
+  strobeSwitch.classList.toggle('on', strobeReduction);
+});
+const panel = document.getElementById('panel');
+document.getElementById('panelToggle').addEventListener('click', ()=> panel.classList.add('open'));
+document.getElementById('closePanelBtn').addEventListener('click', ()=> panel.classList.remove('open'));
+
+// ---------- BOARD METRICS ----------
+function computeBoardMetrics(){
+  const availH = H - HUD_H;
+  cellSize = Math.floor(Math.min(W, availH)/COLS * 0.94);
+  const boardPx = cellSize*COLS;
+  offX = (W-boardPx)/2;
+  offY = HUD_H + (availH-boardPx)/2;
+}
+function cellCenter(row,col){ return { x: offX+col*cellSize+cellSize/2, y: offY+row*cellSize+cellSize/2 }; }
+function repositionAll(){
+  if(!grid) return;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const p = grid[r][c];
+    if(p){ const pos = cellCenter(r,c); p.px=pos.x; p.py=pos.y; p.targetX=pos.x; p.targetY=pos.y; }
+  }
+}
+
+// ---------- GAME STATE ----------
+let grid = null;
+let fxPieces = [];
+let selected = null;
+let busy = false;
+let locked = false;
+let hintCells = null, hintUntil = 0;
+let pieceIdCounter = 0;
+
+function newPieceType(){ return choice(currentTypes()); }
+
+function makePiece(row,col,type){
+  const pos = cellCenter(row,col);
+  return {
+    id: pieceIdCounter++,
+    type: type || newPieceType(),
+    row, col,
+    px: pos.x, py: pos.y,
+    targetX: pos.x, targetY: pos.y,
+    scaleAnim: 1,
+    flashUntil: 0
+  };
+}
+
+function findMatchesForGrid(){
+  const matchedSet = new Set();
+  const runs = [];
+  for(let r=0;r<ROWS;r++){
+    let c=0;
+    while(c<COLS){
+      const p = grid[r][c];
+      if(!p){ c++; continue; }
+      let j=c+1;
+      while(j<COLS && grid[r][j] && grid[r][j].type===p.type) j++;
+      if(j-c>=3) runs.push({r1:r,c1:c,r2:r,c2:j-1,len:j-c,orient:'h'});
+      c=j;
+    }
+  }
+  for(let c=0;c<COLS;c++){
+    let r=0;
+    while(r<ROWS){
+      const p = grid[r][c];
+      if(!p){ r++; continue; }
+      let j=r+1;
+      while(j<ROWS && grid[j][c] && grid[j][c].type===p.type) j++;
+      if(j-r>=3) runs.push({r1:r,c1:c,r2:j-1,c2:c,len:j-r,orient:'v'});
+      r=j;
+    }
+  }
+  runs.forEach(run=>{
+    if(run.orient==='h') for(let c=run.c1;c<=run.c2;c++) matchedSet.add(run.r1+','+c);
+    else for(let r=run.r1;r<=run.r2;r++) matchedSet.add(r+','+run.c1);
+  });
+  return { runs, matchedSet };
+}
+
+function hasValidMove(){ return findHintMove() !== null; }
+function findHintMove(){
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      if(c<COLS-1){
+        swapData(r,c,r,c+1);
+        const m = findMatchesForGrid().matchedSet.size>0;
+        swapData(r,c,r,c+1);
+        if(m) return { a:{row:r,col:c}, b:{row:r,col:c+1} };
+      }
+      if(r<ROWS-1){
+        swapData(r,c,r+1,c);
+        const m = findMatchesForGrid().matchedSet.size>0;
+        swapData(r,c,r+1,c);
+        if(m) return { a:{row:r,col:c}, b:{row:r+1,col:c} };
+      }
+    }
+  }
+  return null;
+}
+function reshuffleBoard(){
+  let guard=0;
+  do {
+    const flat = [];
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) flat.push(grid[r][c].type);
+    for(let i=flat.length-1;i>0;i--){ const j=randInt(0,i); const tmp=flat[i]; flat[i]=flat[j]; flat[j]=tmp; }
+    let idx=0;
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){ grid[r][c].type = flat[idx++]; }
+    guard++;
+  } while((findMatchesForGrid().matchedSet.size>0 || !hasValidMove()) && guard<500);
+}
+function swapData(r1,c1,r2,c2){
+  const a = grid[r1][c1], b = grid[r2][c2];
+  grid[r1][c1] = b; grid[r2][c2] = a;
+  if(b){ b.row=r1; b.col=c1; }
+  if(a){ a.row=r2; a.col=c2; }
+}
+function animateToTargets(){
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const p = grid[r][c];
+    if(p){ const pos = cellCenter(p.row,p.col); p.targetX=pos.x; p.targetY=pos.y; }
+  }
+}
+
+function buildBoard(){
+  grid = [];
+  for(let r=0;r<ROWS;r++){
+    grid.push([]);
+    for(let c=0;c<COLS;c++) grid[r].push(makePiece(r,c));
+  }
+  let guard=0;
+  while(true){
+    const {matchedSet} = findMatchesForGrid();
+    if(matchedSet.size===0) break;
+    matchedSet.forEach(key=>{ const [r,c]=key.split(',').map(Number); grid[r][c]=makePiece(r,c); });
+    guard++; if(guard>200) break;
+  }
+  guard=0;
+  while(!hasValidMove() && guard<200){
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c] = makePiece(r,c);
+    while(findMatchesForGrid().matchedSet.size>0){
+      const {matchedSet} = findMatchesForGrid();
+      matchedSet.forEach(key=>{ const [r,c]=key.split(',').map(Number); grid[r][c]=makePiece(r,c); });
+    }
+    guard++;
+  }
+}
+
+function applyGravity(){
+  for(let c=0;c<COLS;c++){
+    let writeRow = ROWS-1;
+    for(let r=ROWS-1;r>=0;r--){
+      if(grid[r][c]){
+        const p = grid[r][c];
+        if(writeRow!==r){ grid[writeRow][c]=p; grid[r][c]=null; p.row=writeRow; const pos=cellCenter(writeRow,c); p.targetX=pos.x; p.targetY=pos.y; }
+        writeRow--;
+      }
+    }
+    let spawnIdx=0;
+    for(let r=writeRow;r>=0;r--){
+      const p = makePiece(r,c);
+      const pos = cellCenter(r,c);
+      p.px = pos.x; p.py = offY - cellSize*(spawnIdx+1);
+      p.targetX = pos.x; p.targetY = pos.y;
+      grid[r][c] = p;
+      spawnIdx++;
+    }
+  }
+}
+
+function spawnFx(px,py,color){
+  fxPieces.push({ type:'square', px,py, color, life:0, maxLife:260 });
+}
+function spawnSizzle(px,py,strength){
+  fxPieces.push({ type:'sizzle', px,py, strength, life:0, maxLife:200+strength*70 });
+}
+function spawnSweep(orientation, fixedRowOrCol){
+  if(orientation==='h'){
+    const y = offY + fixedRowOrCol*cellSize + cellSize/2;
+    fxPieces.push({ type:'sweepH', y, life:0, maxLife:420 });
+  } else {
+    const x = offX + fixedRowOrCol*cellSize + cellSize/2;
+    fxPieces.push({ type:'sweepV', x, life:0, maxLife:420 });
+  }
+}
+function spawnComboText(comboMult){
+  fxPieces.push({ type:'comboText', text:'COMBO ×'+comboMult, mult:comboMult, life:0, maxLife:520 });
+}
+function spawnShimmer(comboMult){
+  fxPieces.push({ type:'shimmer', intensity: clamp(comboMult,1,5), life:0, maxLife:380 });
+}
+
+let invertFrame=false, whiteoutFrames=0, redFrameAlpha=0;
+// Deeper chain steps hit harder - the red flash gets brighter (not just on/off)
+// as comboMult climbs, so a long chain visibly builds instead of plateauing
+// after the first big match.
+function fullFlash(kind, comboMult=1){
+  if(kind==='invert') invertFrame = true;
+  else if(kind==='white') whiteoutFrames = strobeReduction?1:2;
+  else if(kind==='red') redFrameAlpha = clamp(0.6 + comboMult*0.06, 0.6, 0.96);
+}
+
+function updateHud(){
+  document.getElementById('hudScore').textContent = score;
+  document.getElementById('hudBest').textContent = best;
+  document.getElementById('hudTimeVal').textContent = timeLeft.toFixed(1);
+  document.getElementById('hudTime').classList.toggle('low', timeLeft<=10);
+  document.getElementById('progressBar').style.width = clamp(timeLeft/TIME_START,0,1)*100+'%';
+}
+
+// Small pop when a 4-in-a-row plants a bomb piece on the board.
+function spawnBombPop(px,py){
+  fxPieces.push({ type:'bombPop', px,py, life:0, maxLife:340 });
+}
+// Bright radial burst for a 5-in-a-row shape wipe.
+function spawnBigLight(px,py){
+  fxPieces.push({ type:'bigLight', px,py, life:0, maxLife:520 });
+}
+// The big one - concentric shockwave rings for the three-bombs full-board clear.
+function spawnMegaShock(px,py){
+  fxPieces.push({ type:'megaShock', px,py, life:0, maxLife:760 });
+}
+
+function resolveCascade(comboMult){
+  const {runs, matchedSet} = findMatchesForGrid();
+  if(matchedSet.size===0){
+    busy = false;
+    if(!hasValidMove()){
+      reshuffleBoard();
+      repositionAll();
+      fullFlash('invert');
+    }
+    return;
+  }
+
+  // THREE BOMBS LINED UP: forget everything else that matched this step -
+  // the whole board goes.
+  const bombRun = runs.find(run=>{
+    const p = grid[run.r1][run.c1];
+    return p && p.type==='bomb';
+  });
+  if(bombRun){
+    megaClear(comboMult);
+    return;
+  }
+
+  const toClear = new Set(matchedSet);
+  const anchors = new Map();
+  const wipeTypes = new Set();
+
+  // FOUR: the middle piece of the run becomes a bomb instead of clearing -
+  // the other three clear normally. FIVE OR MORE: a big light effect wipes
+  // every piece of that shape from the whole board.
+  const sortedRuns = runs.slice().sort((a,b)=>b.len-a.len);
+  sortedRuns.forEach(run=>{
+    if(run.len===4){
+      const midIdx = Math.floor((run.len-1)/2);
+      let ar, ac;
+      if(run.orient==='h'){ ar=run.r1; ac=run.c1+midIdx; } else { ar=run.r1+midIdx; ac=run.c1; }
+      const key = ar+','+ac;
+      if(!anchors.has(key)) anchors.set(key, {r:ar,c:ac});
+    } else if(run.len>=5){
+      const p = grid[run.r1][run.c1];
+      if(p) wipeTypes.add(p.type);
+    }
+  });
+  anchors.forEach((v,key)=> toClear.delete(key));
+
+  wipeTypes.forEach(type=>{
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const p = grid[r][c];
+      if(p && p.type===type) toClear.add(r+','+c);
+    }
+  });
+
+  const clearedCount = toClear.size;
+  score += clearedCount * 10 * comboMult;
+  timeLeft = Math.min(TIME_START*1.4, timeLeft + clearedCount*0.35 + (comboMult-1)*0.6);
+  if(score>best){ best = score; saveBest(); }
+  updateHud();
+
+  if(comboMult>maxComboThisRun) maxComboThisRun = comboMult;
+
+  // Ceiling raised from the original 4 so a long chain keeps sounding and
+  // looking busier step after step instead of maxing out early.
+  const sizzleStrength = clamp(comboMult + clearedCount/6, 1, 8);
+  playSizzle(sizzleStrength, nextPitchMul());
+  if(comboMult===1){ playMatchTone(nextPitchMul()); }
+  else { playComboDing(comboMult, nextPitchMul()); spawnComboText(comboMult); spawnShimmer(comboMult); }
+  if(wipeTypes.size>0) playChainBoom(nextPitchMul());
+  if(anchors.size>0) playBombCreate(nextPitchMul());
+
+  if(wipeTypes.size>0){
+    runs.filter(run=>run.len>=5).forEach(run=>{
+      const midIdx = Math.floor((run.len-1)/2);
+      const pos = run.orient==='h'
+        ? cellCenter(run.r1, run.c1+midIdx)
+        : cellCenter(run.r1+midIdx, run.c1);
+      spawnBigLight(pos.x, pos.y);
+      spawnSweep('h', run.r1);
+      spawnSweep('v', run.c1);
+    });
+  }
+
+  toClear.forEach(key=>{
+    const [r,c] = key.split(',').map(Number);
+    const p = grid[r][c];
+    if(p){ spawnFx(p.px, p.py, Math.random()<0.5?RED:WHITE); spawnSizzle(p.px, p.py, sizzleStrength); }
+    grid[r][c] = null;
+  });
+
+  // The anchor piece survives the clear above (its cell was excluded from
+  // toClear) - just re-skin it as a bomb in place.
+  anchors.forEach(v=>{
+    const p = grid[v.r][v.c];
+    if(p){
+      p.type = 'bomb';
+      p.flashUntil = performance.now()+260;
+      const pos = cellCenter(v.r, v.c);
+      spawnBombPop(pos.x, pos.y);
+    }
+  });
+
+  if(wipeTypes.size>0){ fullFlash('red', comboMult); }
+  else if(anchors.size>0){ fullFlash('invert', comboMult); }
+  else if(comboMult>=2){ fullFlash('invert'); }
+
+  applyGravity();
+  const stepDelay = clamp(260/speedFactor, 70, 260);
+  setTimeout(()=>{ resolveCascade(comboMult+1); }, stepDelay);
+}
+
+// THREE BOMBS LINED UP: clear every cell on the board, then let a whole
+// fresh board drop in from above like gravity, instead of a hard cut.
+function megaClear(comboMult){
+  const clearedCount = ROWS*COLS;
+  score += clearedCount * 20 * comboMult;
+  timeLeft = Math.min(TIME_START*1.4, timeLeft + 6);
+  if(score>best){ best = score; saveBest(); }
+  updateHud();
+  if(comboMult>maxComboThisRun) maxComboThisRun = comboMult;
+
+  playMegaClear(nextPitchMul());
+  spawnMegaShock(CX, CY);
+
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const p = grid[r][c];
+    if(p){ spawnFx(p.px, p.py, Math.random()<0.5?RED:WHITE); spawnSizzle(p.px, p.py, 8); }
+    grid[r][c] = null;
+  }
+
+  fullFlash('white');
+  fullFlash('red', 8);
+
+  for(let c=0;c<COLS;c++){
+    for(let r=ROWS-1;r>=0;r--){
+      const p = makePiece(r,c);
+      const pos = cellCenter(r,c);
+      p.px = pos.x; p.py = offY - cellSize*(ROWS-r);
+      p.targetX = pos.x; p.targetY = pos.y;
+      grid[r][c] = p;
+    }
+  }
+  // Guard against the fresh board starting with its own match or no valid move.
+  let guard=0;
+  while((findMatchesForGrid().matchedSet.size>0 || !hasValidMove()) && guard<300){
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) grid[r][c].type = newPieceType();
+    guard++;
+  }
+
+  const stepDelay = clamp(320/speedFactor, 120, 320);
+  setTimeout(()=>{ resolveCascade(comboMult+1); }, stepDelay);
+}
+
+function endRun(){
+  locked = true;
+  playGameOver();
+  document.getElementById('overTitle').textContent = "RUN COMPLETE";
+  document.getElementById('overScoreVal').textContent = score;
+  document.getElementById('overSub').textContent = score>=best ? 'new best!' : 'time ran out';
+  document.getElementById('statBest').textContent = best;
+  document.getElementById('statCombo').textContent = '\u00d7'+maxComboThisRun;
+  document.getElementById('overBtn').textContent = 'PLAY AGAIN';
+  document.getElementById('overScreen').classList.add('show');
+}
+function startRun(){
+  score = 0; timeLeft = TIME_START; speedFactor = 1; maxComboThisRun = 1;
+  selected = null; fxPieces = []; locked = false; hintCells = null;
+  running = true;
+  runStartT = performance.now();
+  document.getElementById('overScreen').classList.remove('show');
+  updateHud();
+  buildBoard();
+}
+document.getElementById('overBtn').addEventListener('click', ()=>{ initAudio(); startRun(); });
+document.getElementById('panelRestartBtn').addEventListener('click', ()=>{ initAudio(); panel.classList.remove('open'); startRun(); });
+
+document.getElementById('hintBtn').addEventListener('click', ()=>{
+  if(busy || locked) return;
+  let move = findHintMove();
+  if(!move){
+    reshuffleBoard();
+    repositionAll();
+    fullFlash('invert');
+    move = findHintMove();
+  }
+  if(move){ hintCells = move; hintUntil = performance.now() + 1700; }
+});
+
+// ---------- SHAPE DRAWING ----------
+function polyPoints(cx,cy,r,sides,rot){
+  const pts=[];
+  for(let i=0;i<sides;i++){ const a = rot + i*TAU/sides; pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]); }
+  return pts;
+}
+function strokePolyPts(pts){
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath(); ctx.stroke();
+}
+function drawShape(type, cx, cy, size){
+  if(type==='circle'){
+    ctx.beginPath(); ctx.arc(cx,cy,size,0,TAU); ctx.stroke();
+  } else if(type==='square'){
+    ctx.strokeRect(cx-size, cy-size, size*2, size*2);
+  } else if(type==='triangle'){
+    strokePolyPts(polyPoints(cx,cy,size*1.15,3,-Math.PI/2));
+  } else if(type==='diamond'){
+    strokePolyPts(polyPoints(cx,cy,size*1.15,4,0));
+  } else if(type==='star'){
+    const pts=[];
+    for(let i=0;i<10;i++){
+      const a = -Math.PI/2 + i*TAU/10;
+      const r = (i%2===0) ? size*1.25 : size*0.5;
+      pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
+    }
+    strokePolyPts(pts);
+  } else if(type==='cross'){
+    const w = size*0.55;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy-size); ctx.lineTo(cx, cy+size);
+    ctx.moveTo(cx-size, cy); ctx.lineTo(cx+size, cy);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  } else if(type==='hexagon'){
+    strokePolyPts(polyPoints(cx,cy,size*1.05,6,0));
+  } else if(type==='ring'){
+    ctx.beginPath(); ctx.arc(cx,cy,size,0,TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,size*0.52,0,TAU); ctx.stroke();
+  }
+}
+
+// ---------- RENDER ----------
+function drawGridLines(){
+  ctx.strokeStyle = '#141414'; ctx.lineWidth = 1; ctx.beginPath();
+  for(let i=0;i<=COLS;i++){
+    const gx = offX + i*cellSize;
+    ctx.moveTo(gx, offY); ctx.lineTo(gx, offY+cellSize*ROWS);
+  }
+  for(let i=0;i<=ROWS;i++){
+    const gy = offY + i*cellSize;
+    ctx.moveTo(offX, gy); ctx.lineTo(offX+cellSize*COLS, gy);
+  }
+  ctx.stroke();
+}
+// A bomb piece is deliberately nothing like the outlined shapes - solid
+// filled red with a white outline, fuse and spark - so it reads instantly
+// as something different and dangerous sitting on the board.
+function drawBombIcon(cx, cy, size, lw){
+  ctx.beginPath(); ctx.arc(cx, cy, size*0.92, 0, TAU);
+  ctx.fillStyle = RED; ctx.fill();
+  ctx.strokeStyle = WHITE; ctx.lineWidth = clamp(lw, 1.5, 4); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + size*0.5, cy - size*0.68);
+  ctx.lineTo(cx + size*0.88, cy - size*1.15);
+  ctx.strokeStyle = WHITE; ctx.lineWidth = clamp(lw*0.8, 1.4, 3); ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.arc(cx+size*0.92, cy-size*1.22, size*0.17, 0, TAU);
+  ctx.fillStyle = WHITE; ctx.fill();
+}
+function drawPiece(p, t){
+  const size = cellSize*0.3*p.scaleAnim;
+  const lw = clamp(cellSize*0.055, 1.8, cellSize*0.08);
+
+  if(p.type==='bomb'){
+    drawBombIcon(p.px, p.py, size, lw);
+    if(t < p.flashUntil){
+      ctx.strokeStyle = WHITE; ctx.lineWidth = 2; ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.arc(p.px, p.py, size*1.5, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  } else {
+    ctx.strokeStyle = WHITE;
+    ctx.fillStyle = WHITE;
+    ctx.lineWidth = lw;
+    ctx.lineJoin = 'round';
+    drawShape(p.type, p.px, p.py, size);
+  }
+
+  if(selected && selected.row===p.row && selected.col===p.col){
+    ctx.strokeStyle = WHITE; ctx.lineWidth = 2;
+    ctx.strokeRect(p.px-cellSize*0.46, p.py-cellSize*0.46, cellSize*0.92, cellSize*0.92);
+  }
+}
+
+let lastTime = performance.now();
+let running = false;
+function frame(t){
+  const dt = Math.min(64, t-lastTime); lastTime = t;
+
+  if(running && !locked){
+    updateSpeedFactor();
+    timeLeft -= (dt/1000) * DRAIN_BASE * speedFactor;
+    if(timeLeft<=0){ timeLeft=0; updateHud(); endRun(); }
+    else updateHud();
+  }
+
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+  drawGridLines();
+
+  const lerpFactor = clamp(0.22*speedFactor, 0.22, 0.5);
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const p = grid[r][c];
+    if(!p) continue;
+    p.px = lerp(p.px, p.targetX, lerpFactor);
+    p.py = lerp(p.py, p.targetY, lerpFactor);
+    p.scaleAnim = lerp(p.scaleAnim, 1, 0.2);
+    drawPiece(p, t);
+  }
+
+  for(let i=fxPieces.length-1;i>=0;i--){
+    const f = fxPieces[i];
+    f.life += dt;
+    if(f.life > f.maxLife){ fxPieces.splice(i,1); continue; }
+    const lt = f.life/f.maxLife;
+    if(f.type==='sizzle'){
+      const n = 5+Math.floor((f.strength||1)*3);
+      for(let k=0;k<n;k++){
+        const ang = rand(0,TAU);
+        const len = cellSize*rand(0.15,0.42)*(1-lt*0.3);
+        const sx = f.px+Math.cos(ang)*cellSize*0.06;
+        const sy = f.py+Math.sin(ang)*cellSize*0.06;
+        ctx.strokeStyle = Math.random()<0.5 ? RED : WHITE;
+        ctx.lineWidth = rand(1,2.4);
+        ctx.globalAlpha = (1-lt)*rand(0.5,1);
+        ctx.beginPath();
+        ctx.moveTo(sx,sy);
+        ctx.lineTo(sx+Math.cos(ang)*len, sy+Math.sin(ang)*len);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    } else if(f.type==='sweepH' || f.type==='sweepV'){
+      const grow = Math.min(1, lt*2.4);
+      const fade = 1-Math.max(0,(lt-0.4)/0.6);
+      ctx.globalAlpha = clamp(fade,0,1)*0.6;
+      ctx.fillStyle = RED;
+      if(f.type==='sweepH'){
+        const w = cellSize*COLS*grow;
+        ctx.fillRect(CX-w/2, f.y-cellSize*0.42, w, cellSize*0.84);
+      } else {
+        const h = cellSize*ROWS*grow;
+        ctx.fillRect(f.x-cellSize*0.42, CY-h/2, cellSize*0.84, h);
+      }
+      ctx.globalAlpha = 1;
+    } else if(f.type==='bombPop'){
+      const radius = cellSize*(0.3 + lt*0.9);
+      ctx.save();
+      ctx.globalAlpha = (1-lt)*0.85;
+      ctx.strokeStyle = RED;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(f.px,f.py,radius,0,TAU); ctx.stroke();
+      ctx.restore();
+    } else if(f.type==='bigLight'){
+      const radius = cellSize*(0.4 + lt*3.2);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const grad = ctx.createRadialGradient(f.px,f.py,0, f.px,f.py,radius);
+      grad.addColorStop(0, 'rgba(255,255,255,'+((1-lt)*0.9)+')');
+      grad.addColorStop(0.5, 'rgba(255,255,255,'+((1-lt)*0.3)+')');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(f.px,f.py,radius,0,TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    } else if(f.type==='megaShock'){
+      const maxR = Math.max(cellSize*COLS, cellSize*ROWS) * 0.9;
+      ctx.save();
+      for(let ring=0; ring<3; ring++){
+        const ringLt = clamp(lt - ring*0.12, 0, 1);
+        if(ringLt<=0) continue;
+        const radius = maxR * ringLt;
+        ctx.globalAlpha = (1-ringLt)*0.9;
+        ctx.strokeStyle = ring%2===0 ? RED : WHITE;
+        ctx.lineWidth = 3 + (1-ringLt)*8;
+        ctx.beginPath(); ctx.arc(f.px,f.py,radius,0,TAU); ctx.stroke();
+      }
+      ctx.restore();
+    } else if(f.type==='shimmer'){
+      const bx = offX, by = offY, bw = cellSize*COLS, bh = cellSize*ROWS;
+      const bandX = bx - bw*0.35 + bw*1.7*lt;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.clip();
+      ctx.globalCompositeOperation = 'lighter';
+      const peak = clamp(0.12 + (f.intensity||1)*0.06, 0.12, 0.4)*(1-lt*0.3);
+      const grad = ctx.createLinearGradient(bandX-cellSize*1.1, 0, bandX+cellSize*1.1, 0);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.5, 'rgba(255,255,255,'+peak+')');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.translate(CX,CY); ctx.rotate(-0.32); ctx.translate(-CX,-CY);
+      ctx.fillRect(bx-bw*0.6, by-bh*0.6, bw*2.2, bh*2.2);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    } else if(f.type==='comboText'){
+      const rise = lt*30;
+      const sizeMul = 1 + clamp((f.mult||1)-1, 0, 8)*0.09;
+      ctx.globalAlpha = 1-lt;
+      ctx.fillStyle = RED;
+      ctx.font = '700 '+Math.floor(cellSize*0.42*sizeMul)+'px -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(f.text, CX, offY-24-rise);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalAlpha = 1-lt;
+      ctx.fillStyle = f.color;
+      const s = cellSize*0.5*(1-lt*0.6);
+      ctx.fillRect(f.px-s/2, f.py-s/2, s, s);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  if(hintCells && t < hintUntil){
+    const pulse = Math.sin(t*0.012)*0.5+0.5;
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 2.5 + pulse*1.5;
+    ctx.globalAlpha = 0.55 + pulse*0.45;
+    [hintCells.a, hintCells.b].forEach(cell=>{
+      const pos = cellCenter(cell.row, cell.col);
+      ctx.strokeRect(pos.x-cellSize*0.46, pos.y-cellSize*0.46, cellSize*0.92, cellSize*0.92);
+    });
+    ctx.globalAlpha = 1;
+  } else if(hintCells){
+    hintCells = null;
+  }
+
+  if(invertFrame){
+    ctx.globalCompositeOperation = 'difference';
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'source-over';
+    invertFrame = false;
+  }
+  if(whiteoutFrames>0){ ctx.fillStyle = WHITE; ctx.fillRect(0,0,W,H); whiteoutFrames--; }
+  if(redFrameAlpha>0){
+    if(!strobeReduction || Math.random()>0.5){ ctx.fillStyle = RED; ctx.globalAlpha=redFrameAlpha; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+    redFrameAlpha = 0;
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ---------- INPUT ----------
+let dragStart = null;
+function cellFromPoint(px,py){
+  const col = Math.floor((px-offX)/cellSize);
+  const row = Math.floor((py-offY)/cellSize);
+  if(row<0||row>=ROWS||col<0||col>=COLS) return null;
+  return {row,col};
+}
+function attemptSwap(r1,c1,r2,c2){
+  if(busy || locked) return;
+  const dr = Math.abs(r1-r2), dc = Math.abs(c1-c2);
+  if(dr+dc !== 1) return;
+  hintCells = null;
+  busy = true;
+  swapData(r1,c1,r2,c2);
+  animateToTargets();
+  const {matchedSet} = findMatchesForGrid();
+  if(matchedSet.size>0){
+    turnSoundCount = 0;
+    setTimeout(()=>{ resolveCascade(1); }, 190);
+  } else {
+    playSwapFail();
+    setTimeout(()=>{
+      swapData(r1,c1,r2,c2);
+      animateToTargets();
+      busy = false;
+    }, 190);
+  }
+}
+canvas.addEventListener('pointerdown', e=>{
+  if(busy || locked) return;
+  canvas.setPointerCapture(e.pointerId);
+  dragStart = { x:e.clientX, y:e.clientY, cell: cellFromPoint(e.clientX,e.clientY) };
+});
+canvas.addEventListener('pointerup', e=>{
+  if(!dragStart || busy || locked) return;
+  const dx = e.clientX-dragStart.x, dy = e.clientY-dragStart.y;
+  const dist = Math.hypot(dx,dy);
+  const startCell = dragStart.cell;
+  dragStart = null;
+  if(!startCell) return;
+
+  if(dist >= cellSize*0.28){
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    let target;
+    if(adx>ady) target = { row:startCell.row, col: startCell.col + (dx>0?1:-1) };
+    else target = { row: startCell.row + (dy>0?1:-1), col: startCell.col };
+    if(target.row>=0&&target.row<ROWS&&target.col>=0&&target.col<COLS){
+      selected = null;
+      attemptSwap(startCell.row, startCell.col, target.row, target.col);
+    }
+  } else {
+    if(selected && selected.row===startCell.row && selected.col===startCell.col){
+      selected = null;
+    } else if(selected){
+      const dr = Math.abs(selected.row-startCell.row), dc = Math.abs(selected.col-startCell.col);
+      if(dr+dc===1){
+        const s = selected; selected = null;
+        attemptSwap(s.row, s.col, startCell.row, startCell.col);
+      } else {
+        selected = startCell;
+      }
+    } else {
+      selected = startCell;
+    }
+  }
+});
+canvas.addEventListener('pointercancel', ()=>{ dragStart=null; });
+
+// ---------- START ----------
+let audioInited = false;
+function ensureAudio(){ if(!audioInited){ audioInited = true; initAudio(); } }
+canvas.addEventListener('pointerdown', ensureAudio, { once:true });
+
+loadBest();
+resize();
+buildBoard();
+updateHud();
+runStartT = performance.now();
+running = true;
+lastTime = performance.now();
+requestAnimationFrame(frame);
+
+const warnBanner = document.getElementById('warnBanner');
+requestAnimationFrame(()=> warnBanner.classList.add('show'));
+setTimeout(()=> warnBanner.classList.remove('show'), 4200);
+warnBanner.addEventListener('click', ()=> warnBanner.classList.remove('show'));
+
+})();
+</script>
+</body>
+</html>
