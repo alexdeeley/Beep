@@ -45,8 +45,13 @@ const SOUNDS = {
   nope() { tone(330, 0, 0.18, { type: 'triangle', vol: 0.2, slide: 0.7 }); },
   close() { tone(520, 0, 0.12, { type: 'triangle', vol: 0.2 }); tone(620, 0.1, 0.14, { type: 'triangle', vol: 0.2 }); },
   win() {
-    [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.08, 0.3, { type: 'triangle', vol: 0.28 }));
-    tone(1568, 0.34, 0.5, { type: 'sine', vol: 0.18 });
+    // A little run of bright "dots" climbing a major scale, landing on a
+    // sparkly resolving chord - a small charming fanfare for a correct guess.
+    const dots = [523, 587, 659, 784, 880, 1047];
+    dots.forEach((f, i) => tone(f, i * 0.06, 0.1, { type: 'sine', vol: 0.24 }));
+    const landAt = dots.length * 0.06 + 0.02;
+    [784, 1047, 1319].forEach((f) => tone(f, landAt, 0.5, { type: 'triangle', vol: 0.22 }));
+    tone(1976, landAt + 0.05, 0.6, { type: 'sine', vol: 0.15 });
   },
   timeup() { tone(440, 0, 0.25, { type: 'triangle', slide: 0.6 }); tone(330, 0.2, 0.35, { type: 'triangle', slide: 0.6 }); },
   over() {

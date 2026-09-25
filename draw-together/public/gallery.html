@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffd84d">
+<title>Draw Together — Gallery</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { min-height: 100dvh; overflow-y: auto; }
+  .gwrap {
+    max-width: 1100px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+  }
+  .ghead { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .ghead h1 { font-size: clamp(1.8rem, 7vw, 2.6rem); text-transform: uppercase; margin: 0; }
+  .gcode { font-family: var(--hand); font-size: 1.5rem; letter-spacing: .06em; }
+  .gshare {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+  }
+  .gshare .btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); }
+  .ginvite {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 14px; border: var(--line) solid var(--ink); border-radius: 18px; background: var(--paper);
+    box-shadow: 0 5px 0 var(--ink);
+  }
+  .ginvite img { width: 150px; height: 150px; border-radius: 8px; }
+  .ginvite p { font-size: .85rem; font-weight: 700; margin: 0; max-width: 22ch; text-align: center; }
+  .ggrid {
+    width: 100%; display: grid; gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .gcard {
+    border: var(--line) solid var(--ink); border-radius: 18px; background: var(--paper);
+    box-shadow: 0 5px 0 var(--ink); overflow: hidden; display: flex; flex-direction: column;
+  }
+  .gcard .board-host { position: relative; width: 100%; aspect-ratio: 1.4; background: #fff; border-bottom: var(--line) solid var(--ink); }
+  .gcard .meta { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .gcard .word { font-weight: 800; font-size: 1.15rem; text-transform: uppercase; }
+  .gcard .who { font-size: .85rem; opacity: .75; }
+  .gcard .dl { margin: 0 12px 12px; }
+  .gstate { font-size: 1.2rem; font-weight: 700; text-align: center; max-width: 30ch; }
+  .gback { margin-top: 6px; }
+</style>
+</head>
+<body>
+<!-- beep-back-button style back link -->
+<div class="gwrap">
+  <div class="ghead">
+    <h1>🖼️ The Gallery</h1>
+    <div class="gcode">Game <span id="g-code">…</span></div>
+  </div>
+
+  <div class="gshare">
+    <button id="btn-share" class="btn small blue" type="button">🔗 Share this gallery</button>
+    <a id="btn-home" class="btn small ghost" href="/">✏️ Play Draw Together</a>
+  </div>
+
+  <div class="ginvite" id="invite" hidden>
+    <img id="qr-img" alt="QR code linking to Draw Together" width="150" height="150">
+    <p>Scan to play Draw Together</p>
+  </div>
+
+  <p id="g-state" class="gstate"></p>
+  <div id="g-grid" class="ggrid"></div>
+</div>
+
+<script type="module" src="/js/gallery.js"></script>
+</body>
+</html>

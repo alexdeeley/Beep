@@ -42,7 +42,7 @@ export const PALETTE = [
 
 export const TIMER_OPTIONS = [30, 60, 90, 0];      // 0 = no timer
 export const ROUND_OPTIONS = [6, 10, 16];
-export const DIFFICULTIES = ['easy', 'mixed', 'silly'];
+export const DIFFICULTIES = ['easy', 'mixed', 'silly', 'hard'];
 
 export const CATEGORIES = [
   { id: 'everything', label: 'Everything', emoji: '✨' },
@@ -57,6 +57,11 @@ export const CATEGORIES = [
   { id: 'places',     label: 'Places',     emoji: '🏰' },
   { id: 'things',     label: 'Things',     emoji: '🎒' },
   { id: 'silly',      label: 'Silly',      emoji: '🤪' },
+  // Hard-mode only: these categories' words are all tagged difficulty
+  // 'hard', so they never show up under Easy/Mixed/Silly by accident.
+  { id: 'symbols',      label: 'Symbols',      emoji: '🔣' },
+  { id: 'music',        label: 'Music',        emoji: '🎵' },
+  { id: 'architecture', label: 'Architecture', emoji: '🏛️' },
 ];
 
 export const MAX_PLAYERS = 16;

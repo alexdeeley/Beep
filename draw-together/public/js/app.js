@@ -358,7 +358,7 @@ function renderSettings(isHost) {
     }, !isHost));
   }
   const diff = $('set-diff'); diff.replaceChildren();
-  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly']]) {
+  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly'], ['hard', 'Hard 🔥']]) {
     diff.append(chip(label, s.difficulty === id, () => sendSettings({ difficulty: id }), !isHost));
   }
   const tm = $('set-timer'); tm.replaceChildren();
@@ -423,11 +423,9 @@ function renderGame(prev, phaseChanged) {
   const hint = $('word-hint');
   if (!drawer && st.phase === 'drawing' && st.wordShape) {
     hint.hidden = false;
-    hint.innerHTML = st.wordShape.map((ch) => {
-      if (ch === null) return '<span class="blank"></span>';
-      if (ch === ' ') return '<span class="gap"></span>';
-      return `<span class="punct">${esc(ch)}</span>`;
-    }).join('');
+    const words = st.wordShape.length === 1 ? '1 word' : `${st.wordShape.length} words`;
+    hint.innerHTML = st.wordShape.map((n) => `<span class="wlen">${n}</span>`).join('<span class="gap"></span>');
+    hint.setAttribute('aria-label', `${words}: ${st.wordShape.join(', ')} letters`);
   } else {
     hint.hidden = true;
     hint.innerHTML = '';
@@ -508,7 +506,7 @@ function updateTimer() {
   el.textContent = sec;
   el.className = 'hud-timer' + (sec <= 10 ? ' low' : '');
   el.setAttribute('aria-label', `${sec} seconds left`);
-  if (sec <= 5 && sec >= 1 && S.lastTickSec !== sec) snd.play('tick');
+  if (sec <= 10 && sec >= 1 && S.lastTickSec !== sec) snd.play('tick');
   S.lastTickSec = sec;
 }
 setInterval(updateTimer, 200);
@@ -760,6 +758,9 @@ function renderOver() {
 }
 $('btn-again').addEventListener('click', () => S.net?.send({ type: 'again' }));
 $('btn-newgame').addEventListener('click', () => S.net?.send({ type: 'lobby' }));
+$('btn-gallery').addEventListener('click', () => {
+  window.open(`gallery.html?code=${encodeURIComponent(S.st.code)}`, '_blank', 'noopener');
+});
 
 // ── Header buttons ──────────────────────────────────────────
 

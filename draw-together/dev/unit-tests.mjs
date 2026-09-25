@@ -19,7 +19,7 @@ const names = new Set();
 for (const w of WORDS) {
   ok(!names.has(w.w.toLowerCase()), `duplicate word ${w.w}`); names.add(w.w.toLowerCase());
   ok(w.c.every((c) => cats.has(c)), `bad category on ${w.w}`);
-  ok(['easy', 'medium', 'silly'].includes(w.d), `bad difficulty on ${w.w}`);
+  ok(['easy', 'medium', 'silly', 'hard'].includes(w.d), `bad difficulty on ${w.w}`);
   ok(w.e && w.e.length, `missing emoji on ${w.w}`);
   ok(checkGuess(w.w, w) === 'correct', `exact answer accepted: ${w.w}`);
   ok(checkGuess(w.w.toUpperCase() + '  ', w) === 'correct', `case/space-insensitive: ${w.w}`);
@@ -41,6 +41,18 @@ const used = [];
 for (let i = 0; i < 40; i++) { const { index } = pickWord({ categories: ['silly'], difficulty: 'silly' }, used); ok(!used.includes(index), 'no repeats'); used.push(index); }
 const easy = pickWord({ categories: ['everything'], difficulty: 'easy' }, []);
 ok(WORDS[easy.index].d === 'easy', 'easy pick');
+
+// hard mode: opt-in only, never leaks into the default "mixed" pool
+for (let i = 0; i < 60; i++) {
+  const mixed = pickWord({ categories: ['everything'], difficulty: 'mixed' }, []);
+  ok(WORDS[mixed.index].d !== 'hard', 'mixed pool never surfaces a hard word');
+}
+const hard = pickWord({ categories: ['everything'], difficulty: 'hard' }, []);
+ok(WORDS[hard.index].d === 'hard', 'hard difficulty picks a hard word');
+for (let i = 0; i < 30; i++) {
+  const sym = pickWord({ categories: ['symbols'], difficulty: 'hard' }, []);
+  ok(WORDS[sym.index].c.includes('symbols'), 'symbols category stays in symbols');
+}
 
 // ── Multiplayer protocol ────────────────────────────────────
 const srv = spawn('node', [path.join(ROOT, 'dev/local-server.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'inherit'] });
@@ -93,6 +105,32 @@ ok(!JSON.stringify(A.st).includes('maisie-0001'), 'player tokens are private');
   for (const c of crowd) c.close();
 }
 
+// turn fairness: 3 players choosing "10 rounds" must never end with someone
+// having drawn more than the others - the effective total gets rounded to
+// the nearest multiple of the player count.
+{
+  const { code: triCode } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const T1 = new Client(triCode, 'tri-0001', 'T1');
+  const T2 = new Client(triCode, 'tri-0002', 'T2');
+  const T3 = new Client(triCode, 'tri-0003', 'T3');
+  await T1.open(); await T2.open(); await T3.open(); await sleep(120);
+  T1.send({ type: 'settings', settings: { timer: 0, rounds: 10 } }); await sleep(40);
+  T1.send({ type: 'start' }); await sleep(80);
+  ok(T1.st.rounds % 3 === 0, `10 rounds for 3 players becomes a multiple of 3 (got ${T1.st.rounds})`);
+  const turnsPerSeat = T1.st.rounds / 3;
+  const drawTurns = { 1: 0, 2: 0, 3: 0 };
+  for (let r = 0; r < T1.st.rounds; r++) {
+    const drawer = [T1, T2, T3].find((c) => c.st.you === c.st.drawerSeat);
+    drawTurns[drawer.st.you]++;
+    drawer.send({ type: 'ready', aspect: 1 }); await sleep(30);
+    const guesser = [T1, T2, T3].find((c) => c !== drawer);
+    guesser.send({ type: 'giveup' }); await sleep(30);
+    if (r < T1.st.rounds - 1) { drawer.send({ type: 'next' }); await sleep(40); }
+  }
+  ok(Object.values(drawTurns).every((n) => n === turnsPerSeat), `every seat drew exactly ${turnsPerSeat} times (got ${JSON.stringify(drawTurns)})`);
+  T1.close(); T2.close(); T3.close();
+}
+
 // non-host can't change settings or start
 M.send({ type: 'settings', settings: { timer: 30 } }); M.send({ type: 'start' }); await sleep(80);
 ok(A.st.settings.timer === 60 && A.st.phase === 'lobby', 'guest cannot configure/start');
@@ -117,8 +155,9 @@ ok(M.st.timer.running && M.st.timer.endsAt > Date.now(), 'timer running');
 
 // word-length hint: shape only, never the letters
 ok(A.st.wordShape === null, 'drawer gets no word shape (already has the word)');
-ok(Array.isArray(M.st.wordShape) && M.st.wordShape.length === word2.length, 'guesser sees the right number of blanks');
-ok(M.st.wordShape.every((ch, i) => ch === null ? /[a-zA-Z]/.test(word2[i]) : ch === word2[i] && !/[a-zA-Z]/.test(ch)), 'blanks cover letters, punctuation/spaces shown as-is');
+const word2Tokens = word2.split(' ').filter(Boolean);
+ok(Array.isArray(M.st.wordShape) && M.st.wordShape.length === word2Tokens.length, 'guesser sees one number per word');
+ok(M.st.wordShape.every((n, i) => n === word2Tokens[i].length), 'each number is that word\'s letter count');
 ok(M.raw.every((r) => !r.toLowerCase().includes(word2.toLowerCase())), 'word shape never spells out the secret word');
 
 M.send({ type: 'strokeStart', id: 'hack0001', tool: 'pen', color: '#000000', size: 12, pts: [1, 1] }); await sleep(40);
@@ -191,7 +230,21 @@ for (let r = 3; r <= 7; r++) {
   g.send({ type: 'giveup' }); await sleep(60);
 }
 ok(A.st.phase === 'over' && A.st.drawings === 6, 'game over after 6 rounds');
+
+// gallery: every finished drawing survives the round transitions and game
+// end (see resetActiveOps vs wipeOps), and is fetchable over plain HTTP.
+{
+  const g = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
+  ok(g.exists && g.entries.length === 6, `gallery has all 6 drawings (got ${g.entries?.length})`);
+  ok(g.entries[0].ops.length > 0 && Array.isArray(g.entries[0].ops[0].pts), 'first drawing kept its real strokes');
+  ok(g.entries.every((e) => e.word && e.emoji && e.drawerName && typeof e.aspect === 'number'), 'every entry has word/emoji/drawer/aspect');
+}
+
 A.send({ type: 'again' }); await sleep(80);
+{
+  const g = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
+  ok(g.entries.length === 0, 'gallery resets on play again');
+}
 ok(A.st.phase === 'choosing' && A.st.round === 1 && A.st.players.every((p) => p.score === 0), 'play again keeps players');
 
 // no-timer rounds & timeout via alarm

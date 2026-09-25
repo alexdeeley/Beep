@@ -43,6 +43,7 @@ export class GameRoom {
 
   async load() {
     this.room = (await this.ctx.storage.get('room')) || null;
+    if (this.room && !this.room.gallery) this.room.gallery = []; // rooms from before the gallery existed
     this.ops = [];
     if (this.room && this.room.opKeys.length) {
       const keys = this.room.opKeys.map((n) => 'op:' + n);
@@ -57,9 +58,23 @@ export class GameRoom {
     if (this.room) this.ctx.storage.put('room', this.room);
   }
 
+  // Deletes the current round's stroke ops from storage - only correct for
+  // an abandoned, unfinished round (leaving mid-drawing) that never made it
+  // into the gallery. A round that finished normally is archived into
+  // r.gallery first (see endRound), so the transition into the next round
+  // must NOT delete storage - see resetActiveOps.
   async wipeOps() {
     const keys = (this.room?.opKeys || []).map((n) => 'op:' + n);
     for (let i = 0; i < keys.length; i += 128) await this.ctx.storage.delete(keys.slice(i, i + 128));
+    this.ops = [];
+    this.active = null;
+    if (this.room) this.room.opKeys = [];
+  }
+
+  // Clears the working set for a new round without touching storage, so
+  // already-completed drawings (archived by endRound) stay available for
+  // the gallery.
+  resetActiveOps() {
     this.ops = [];
     this.active = null;
     if (this.room) this.room.opKeys = [];
@@ -94,6 +109,23 @@ export class GameRoom {
       const full = this.room.players.length >= MAX_PLAYERS &&
         this.room.players.every((p) => this.isConnected(p.id));
       return Response.json({ exists: true, full });
+    }
+
+    if (action === 'gallery') {
+      if (!this.room) return Response.json({ exists: false });
+      const entries = [];
+      for (const g of this.room.gallery) {
+        const keys = g.opKeys.map((n) => 'op:' + n);
+        const ops = [];
+        for (let i = 0; i < keys.length; i += 128) {
+          const got = await this.ctx.storage.get(keys.slice(i, i + 128));
+          for (const k of keys.slice(i, i + 128)) { const op = got.get(k); if (op) ops.push(op); }
+        }
+        entries.push({
+          round: g.round, drawerName: g.drawerName, word: g.word, emoji: g.emoji, aspect: g.aspect, ops,
+        });
+      }
+      return Response.json({ exists: true, code: this.room.code, entries });
     }
 
     if (action === 'ws') {
@@ -339,7 +371,7 @@ export class GameRoom {
 
   async startRound() {
     const r = this.room;
-    await this.wipeOps();
+    this.resetActiveOps();
     const seats = r.players.map((p) => p.seat);
     r.drawerSeat = seats[(r.round - 1) % seats.length];
     this.chooseWord();
@@ -388,6 +420,19 @@ export class GameRoom {
       drawerSeat: r.drawerSeat,
       points,
     };
+    // Archive the finished drawing (ops stay in storage - see
+    // resetActiveOps) so it can be viewed/exported from the gallery even
+    // after the next round starts or the game ends.
+    const drawerP = r.players.find((p) => p.seat === r.drawerSeat);
+    r.gallery.push({
+      round: r.round,
+      drawerSeat: r.drawerSeat,
+      drawerName: drawerP?.name || 'Someone',
+      word: entry.w,
+      emoji: entry.e,
+      aspect: r.aspect,
+      opKeys: r.opKeys.slice(),
+    });
     this.save();
     this.broadcastState();
     await this.scheduleAlarm();
@@ -441,6 +486,11 @@ const HANDLERS = {
     for (const p of r.players) p.score = 0;
     r.round = 1;
     r.drawings = 0;
+    r.gallery = [];
+    // Keep every player's turn count equal: round the chosen length to
+    // the nearest whole number of turns each, never zero.
+    const n = r.players.length;
+    r.settings.rounds = Math.max(n, Math.round(r.settings.rounds / n) * n);
     await this.startRound();
   },
 
@@ -555,7 +605,7 @@ const HANDLERS = {
     if (r.phase !== 'reveal') return;
     if (r.round >= r.settings.rounds) {
       r.phase = 'over';
-      await this.wipeOps();
+      this.resetActiveOps();
       this.save();
       this.broadcastState();
       return;
@@ -570,6 +620,9 @@ const HANDLERS = {
     for (const p of r.players) p.score = 0;
     r.round = 1;
     r.drawings = 0;
+    r.gallery = [];
+    const n = r.players.length;
+    r.settings.rounds = Math.max(n, Math.round(r.settings.rounds / n) * n);
     await this.startRound();
   },
 
@@ -620,6 +673,7 @@ function newRoom(code) {
     drawings: 0,
     opSeq: 0,
     opKeys: [],
+    gallery: [],
   };
 }
 
