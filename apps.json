@@ -63,8 +63,7 @@
     "id": "maisie-magic-draw",
     "name": "Magic Draw",
     "description": "A sparkly finger-painting app with glowing trails and stickers.",
-    "category": "Games",
-    "gameGroup": "maisie",
+    "category": "Maisie's Arcade",
     "path": "MaisieMagicDraw.html",
     "added": "2026-09-01T03:20:04+00:00",
     "thumbnail": "thumbnails/maisie-magic-draw.jpg"
@@ -82,9 +81,8 @@
     "id": "maisie-eats-everything",
     "name": "Maisie Eats Everything 2",
     "description": "Grow a rainbow unicorn by eating everything smaller than you.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisieEatsEverything2.html",
-    "gameGroup": "maisie",
     "added": "2026-09-01T02:59:33+00:00",
     "thumbnail": "thumbnails/maisie-eats-everything.jpg"
   },
@@ -92,9 +90,8 @@
     "id": "maisie-eats-everything-original",
     "name": "Maisie Eats Everything",
     "description": "The original unicorn-eating game across ten sparkly levels.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisieEatsEverything.html",
-    "gameGroup": "maisie",
     "added": "2026-09-01T02:59:33+00:00",
     "thumbnail": "thumbnails/maisie-eats-everything-original.jpg"
   },
@@ -104,7 +101,6 @@
     "description": "Drop balls to bounce and ricochet through a peg board.",
     "category": "Games",
     "path": "PeggleMinimalForge.html",
-    "gameGroup": "arcade",
     "added": "2026-09-01T03:02:21+00:00",
     "thumbnail": "thumbnails/peggle-minimal-forge.jpg"
   },
@@ -114,7 +110,6 @@
     "description": "Catch falling stars and dodge squares in this arcade catcher.",
     "category": "Games",
     "path": "StarBucket.html",
-    "gameGroup": "arcade",
     "added": "2026-09-01T03:11:53+00:00",
     "thumbnail": "thumbnails/star-bucket.jpg"
   },
@@ -124,7 +119,6 @@
     "description": "A pixel-art Peggle/Breakout hybrid with power-ups.",
     "category": "Games",
     "path": "Ricochet8Bit.html",
-    "gameGroup": "arcade",
     "added": "2026-09-01T03:20:04+00:00",
     "thumbnail": "thumbnails/ricochet-8bit.jpg"
   },
@@ -136,7 +130,6 @@
     "path": "Sequence11.html",
     "featured": true,
     "featuredOrder": 3,
-    "gameGroup": "arcade",
     "added": "2026-09-01T03:20:04+00:00",
     "thumbnail": "thumbnails/ricochet-8bit-sequence11.jpg"
   },
@@ -144,9 +137,8 @@
     "id": "maisies-kitty-cat-adventure",
     "name": "Maisie's Kitty Cat Adventure",
     "description": "Grow a hungry kitty from Tiny to WORLD size.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisiesKittyCatAdventure.html",
-    "gameGroup": "maisie",
     "added": "2026-09-01T03:24:42+00:00",
     "thumbnail": "thumbnails/maisies-kitty-cat-adventure.jpg"
   },
@@ -154,9 +146,8 @@
     "id": "maisie-emoji-guess",
     "name": "Maisie's Magical Emoji Guess!",
     "description": "A guess-the-emoji quiz with hints and three modes.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisieEmojiGuess.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T01:04:41+00:00",
     "thumbnail": "thumbnails/maisie-emoji-guess.jpg"
   },
@@ -166,7 +157,6 @@
     "description": "Guess the emoji through glitchy scrambled effects.",
     "category": "Games",
     "path": "EmojiScramble.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T01:17:15+00:00",
     "thumbnail": "thumbnails/emoji-scramble.jpg"
   },
@@ -176,7 +166,6 @@
     "description": "A neon cyberpunk side-scrolling brawler — slash through enemies to a boss fight.",
     "category": "Games",
     "path": "NeonBladeXenowave.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T02:25:28+00:00",
     "thumbnail": "thumbnails/neon-blade-xenowave.jpg"
   },
@@ -184,9 +173,8 @@
     "id": "unicorn-cat-bubble-pop",
     "name": "Bubble Pop",
     "description": "Slide a kitty side to side to pop falling bubbles before time runs out.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "UnicornCatBubblePop.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T02:47:12+00:00",
     "thumbnail": "thumbnails/unicorn-cat-bubble-pop.jpg"
   },
@@ -196,7 +184,6 @@
     "description": "A chunky, pixel-art twin-stick style shooter — blast waves of shapes for score.",
     "category": "Games",
     "path": "ChunkyShapeShooter.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T02:47:12+00:00",
     "thumbnail": "thumbnails/chunky-shape-shooter.jpg"
   },
@@ -246,7 +233,6 @@
     "description": "Classic snake with a twist — a slow-regenerating circle enemy that dies if it crashes into you.",
     "category": "Games",
     "path": "SnakeCircleEnemy.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T18:24:33+00:00",
     "thumbnail": "thumbnails/snake-circle-enemy.jpg"
   },
@@ -283,7 +269,6 @@
     "description": "A classic top-down space shooter.",
     "category": "Games",
     "path": "SpaceShooter.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-space-shooter.jpg"
   },
@@ -313,7 +298,6 @@
     "description": "An arcade jungle adventure ruled by spiders.",
     "category": "Games",
     "path": "SpiderKingdomJungleTriangle.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-spider-kingdom-jungle-triangle.jpg"
   },
@@ -323,7 +307,6 @@
     "description": "A falling-block puzzle game with a shaking twist.",
     "category": "Games",
     "path": "BlockdropQuakeV2.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-blockdrop-quake-v2.jpg"
   },
@@ -333,7 +316,6 @@
     "description": "A vertical space shooter, remade.",
     "category": "Games",
     "path": "SpaceShooterV4.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-space-shooter-v4.jpg"
   },
@@ -372,7 +354,6 @@
     "description": "A retro hero saves the universe.",
     "category": "Games",
     "path": "MajormetalSavesTheUniverseDBSplash.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-majormetal-saves-the-universe-d-b-splash.jpg"
   },
@@ -413,7 +394,6 @@
     "description": "A timed spelling-bee word game.",
     "category": "Games",
     "path": "HiveMultiplier.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-hive-multiplier.jpg"
   },
@@ -490,7 +470,6 @@
     "description": "A high-contrast Arkanoid-style brick breaker.",
     "category": "Games",
     "path": "ArkanoidHighContrast.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-arkanoid-high-contrast.jpg"
   },
@@ -500,7 +479,6 @@
     "description": "Bowling with chain-reaction pin combos.",
     "category": "Games",
     "path": "HyperBowlingChain.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-hyper-bowling-chain.jpg"
   },
@@ -510,7 +488,6 @@
     "description": "A Worm.io-style multiplayer-feel snake game.",
     "category": "Games",
     "path": "SnakeWormio.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-snake-wormio.jpg"
   },
@@ -547,7 +524,6 @@
     "description": "Swipe-to-roll arcade bowling.",
     "category": "Games",
     "path": "HyperBowling.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-hyper-bowling.jpg"
   },
@@ -566,7 +542,6 @@
     "description": "Neon bowling with diamond-shaped blockers.",
     "category": "Games",
     "path": "MiamiStrikeDiamonds.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-miami-strike-diamonds.jpg"
   },
@@ -594,7 +569,6 @@
     "description": "A one-handed take on classic Snake.",
     "category": "Games",
     "path": "SnakeOneHandV3.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-snake-one-hand-v3.jpg"
   },
@@ -602,9 +576,8 @@
     "id": "neo-unicorn-rainbow-blast",
     "name": "Rainbow Blast",
     "description": "Blast through rainbows in this unicorn arcade game.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "UnicornRainbowBlast.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-unicorn-rainbow-blast.jpg"
   },
@@ -663,9 +636,8 @@
     "id": "neo-maisies-unicorn-maze-fixed",
     "name": "🦄 Maisie's Unicorn Maze!",
     "description": "Guide a unicorn through a sparkly maze.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisiesUnicornMazeFixed.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-maisies-unicorn-maze-fixed.jpg"
   },
@@ -739,7 +711,6 @@
     "description": "A one-handed motorcycle stunt ride, iOS-fixed.",
     "category": "Games",
     "path": "OneHandMotoIos.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-one-hand-moto-ios.jpg"
   },
@@ -765,9 +736,8 @@
     "id": "neo-rhythm-bubbles-happy-birthday",
     "name": "Birthday Bubbles",
     "description": "Pop bubbles to the beat in this birthday-themed game.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "RhythmBubblesHappyBirthday.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-rhythm-bubbles-happy-birthday.jpg"
   },
@@ -777,7 +747,6 @@
     "description": "A rotating ring you feed against the clock.",
     "category": "Games",
     "path": "RotatingRingFeederTimeAttackCompat.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-rotating-ring-feeder-time-attack-compat.jpg"
   },
@@ -798,7 +767,6 @@
     "description": "Tap glowing bulbs in time before they fade.",
     "category": "Games",
     "path": "LightTapBulbs.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-light-tap-bulbs.jpg"
   },
@@ -808,7 +776,6 @@
     "description": "A glowing slither-style arena battle.",
     "category": "Games",
     "path": "SlitherArena.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-slither-arena.jpg"
   },
@@ -820,7 +787,6 @@
     "path": "Hiveword.html",
     "featured": true,
     "featuredOrder": 1,
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-hiveword.jpg"
   },
@@ -830,7 +796,6 @@
     "description": "A colorful ball-and-paddle breakout game.",
     "category": "Games",
     "path": "PrismBreaker.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-prism-breaker.jpg"
   },
@@ -840,7 +805,6 @@
     "description": "Guess which artist has the bigger stats.",
     "category": "Games",
     "path": "ListeningClubWhosBigger.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-listening-club-whos-bigger.jpg"
   },
@@ -890,7 +854,6 @@
     "description": "Tic-tac-toe that keeps going after three in a row.",
     "category": "Games",
     "path": "InfiniteTicTacToe.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-infinite-tic-tac-toe.jpg"
   },
@@ -900,7 +863,6 @@
     "description": "A fast-paced arcade strike game.",
     "category": "Games",
     "path": "UltraDynamicStrike.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-ultra-dynamic-strike.jpg"
   },
@@ -910,7 +872,6 @@
     "description": "A high-contrast arcade strike game.",
     "category": "Games",
     "path": "UltraContrastStrike.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-ultra-contrast-strike.jpg"
   },
@@ -920,7 +881,6 @@
     "description": "Two-player air hockey with colorful goals.",
     "category": "Games",
     "path": "AirHockey2pColorfulGoals.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-air-hockey2p-colorful-goals.jpg"
   },
@@ -948,7 +908,6 @@
     "description": "A shape-based arcade shooter.",
     "category": "Games",
     "path": "ShapeShooter.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-shape-shooter.jpg"
   },
@@ -956,9 +915,8 @@
     "id": "neo-unicorn-air-hockey-v2",
     "name": "Hockey Rematch",
     "description": "A rematch of unicorn air hockey, refined.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "UnicornAirHockeyV2.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-unicorn-air-hockey-v2.jpg"
   },
@@ -968,7 +926,6 @@
     "description": "Snake with extra pickups and a skull hazard.",
     "category": "Games",
     "path": "SnakeManyPickupsSkullV6.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T18:24:33+00:00",
     "thumbnail": "thumbnails/neo-snake-many-pickups-skull-v6.jpg"
   },
@@ -978,7 +935,6 @@
     "description": "A retro side-scrolling bird game across 3 levels.",
     "category": "Games",
     "path": "SnesBirds.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-snes-birds.jpg"
   },
@@ -988,7 +944,6 @@
     "description": "A gentle, exploratory wandering game.",
     "category": "Games",
     "path": "WanderAdventure.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-wander-adventure.jpg"
   },
@@ -1209,9 +1164,8 @@
     "id": "neo-unicorn-air-hockey",
     "name": "Unicorn Hockey",
     "description": "Two-player air hockey with a unicorn twist.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "UnicornAirHockey.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-unicorn-air-hockey.jpg"
   },
@@ -1237,9 +1191,8 @@
     "id": "neo-maizeys-magic-spell-academy",
     "name": "Maisie's Spell Academy",
     "description": "Cast spells and learn magic at a sparkly academy.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaizeysMagicSpellAcademy.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-maizeys-magic-spell-academy.jpg"
   },
@@ -1282,7 +1235,6 @@
     "description": "An arcade game orbiting a white hole.",
     "category": "Games",
     "path": "WhiteHole.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-white-hole.jpg"
   },
@@ -1301,7 +1253,6 @@
     "description": "Watch a sort algorithm race across glowing lines.",
     "category": "Games",
     "path": "TouchSortLines.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-touch-sort-lines.jpg"
   },
@@ -1309,9 +1260,8 @@
     "id": "neo-unicorn-tetris",
     "name": "Unicorn Blocks",
     "description": "A unicorn-themed falling-blocks puzzle game.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "UnicornTetris.html",
-    "gameGroup": "maisie",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-unicorn-tetris.jpg"
   },
@@ -1321,7 +1271,6 @@
     "description": "Draw walls to guide a falling ball to safety.",
     "category": "Games",
     "path": "VertiFallDrawWalls.html",
-    "gameGroup": "arcade",
     "added": "2026-09-04T20:29:05+00:00",
     "thumbnail": "thumbnails/neo-verti-fall-draw-walls.jpg"
   },
@@ -1395,7 +1344,6 @@
     "path": "Moviemoji.html",
     "featured": true,
     "featuredOrder": 2,
-    "gameGroup": "arcade",
     "added": "2026-09-06T06:49:45+00:00",
     "thumbnail": "thumbnails/moviemoji.jpg"
   },
@@ -1414,8 +1362,7 @@
     "id": "trex-tag",
     "name": "T. rex Tag",
     "description": "Dodge a chasing T. rex, hide in glow zones, and hatch eggs to win.",
-    "category": "Games",
-    "gameGroup": "maisie",
+    "category": "Maisie's Arcade",
     "path": "TrexTag.html",
     "added": "2026-09-09T00:37:38+00:00",
     "thumbnail": "thumbnails/trex-tag.jpg"
@@ -1424,8 +1371,7 @@
     "id": "maisies-magic-voice-machine",
     "name": "Maisie's Magic Voice Machine",
     "description": "Warp your voice into a unicorn, T-Rex, robot, and more, with long spiraling echoes.",
-    "category": "Games",
-    "gameGroup": "maisie",
+    "category": "Maisie's Arcade",
     "path": "MaisiesMagicVoiceMachine.html",
     "added": "2026-09-08T18:19:24-07:00",
     "thumbnail": "thumbnails/maisies-magic-voice-machine.jpg"
@@ -1434,9 +1380,8 @@
     "id": "maisie-eats-everything-3",
     "name": "Maisie Eats Everything 3",
     "description": "Grow a unicorn across ten cosmic chapters, from a cozy bedroom to the whole universe.",
-    "category": "Games",
+    "category": "Maisie's Arcade",
     "path": "MaisieEatsEverything3.html",
-    "gameGroup": "maisie",
     "added": "2026-09-10T04:52:51+00:00",
     "thumbnail": "thumbnails/maisie-eats-everything-3.jpg"
   },
@@ -1454,7 +1399,6 @@
     "name": "Shape Match",
     "description": "A neon match-3 against the clock, with chain combos and screen-flashing power moves.",
     "category": "Games",
-    "gameGroup": "arcade",
     "path": "ShapesMatch3.html",
     "added": "2026-09-18T00:00:00+00:00",
     "thumbnail": "thumbnails/shape-match.jpg"
@@ -1485,7 +1429,6 @@
     "path": "Sequence13.html",
     "featured": true,
     "featuredOrder": 4,
-    "gameGroup": "arcade",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/ricochet-8bit-sequence13.jpg"
   },
@@ -1494,7 +1437,6 @@
     "name": "PurrGrid",
     "description": "A Queens-style logic puzzle: one cat per color, one per row and column, and cats can't touch.",
     "category": "Games",
-    "gameGroup": "arcade",
     "path": "PurrGrid.html",
     "added": "2026-09-19T00:00:00+00:00",
     "thumbnail": "thumbnails/purrgrid.jpg"
@@ -1539,8 +1481,7 @@
     "id": "draw-together",
     "name": "Draw Together",
     "description": "A two-player drawing-and-guessing game for a grown-up and a small person, one phone or tablet each.",
-    "category": "Games",
-    "gameGroup": "maisie",
+    "category": "Maisie's Arcade",
     "path": "https://draw.deeley.org",
     "added": "2026-09-24T00:00:00+00:00",
     "thumbnail": "thumbnails/draw-together.jpg"
@@ -1550,7 +1491,6 @@
     "name": "Shape Cascade",
     "description": "Swap match-3 shapes for chain-reaction combos, sweeps and satisfying flashes.",
     "category": "Games",
-    "gameGroup": "arcade",
     "path": "ShapeCascade.html",
     "added": "2026-09-25T00:00:00+00:00",
     "thumbnail": "thumbnails/shape-cascade.jpg"
@@ -1560,7 +1500,6 @@
     "name": "Word Chain",
     "description": "Trace adjacent letters to spell words against the clock, in timed, zen or challenge mode.",
     "category": "Games",
-    "gameGroup": "arcade",
     "path": "WordChain.html",
     "added": "2026-09-25T00:00:00+00:00",
     "thumbnail": "thumbnails/word-chain.jpg"
