@@ -587,6 +587,45 @@ function updateHud(){
   document.getElementById('progressBar').style.width = clamp(timeLeft/TIME_START,0,1)*100+'%';
 }
 
+function findBombPatterns(){
+  const bombs = [];
+  const seen = new Set();
+  const dirs = [
+    {h:[[-1,0],[0,0],[1,0]], v:[[0,-2],[0,-1],[0,0]]},
+    {h:[[-1,0],[0,0],[1,0]], v:[[0,0],[0,1],[0,2]]},
+    {v:[[0,-1],[0,0],[0,1]], h:[[-2,0],[-1,0],[0,0]]},
+    {v:[[0,-1],[0,0],[0,1]], h:[[0,0],[1,0],[2,0]]}
+  ];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const center = grid[r][c];
+    if(!center) continue;
+    dirs.forEach(pattern=>{
+      const cells=[];
+      const coords=[...pattern.h,...pattern.v];
+      let ok=true;
+      coords.forEach(([dc,dr])=>{
+        const rr=r+dr, cc=c+dc;
+        if(rr<0||rr>=ROWS||cc<0||cc>=COLS){ ok=false; return; }
+        const p=grid[rr][cc];
+        if(!p || p.type!==center.type){ ok=false; return; }
+        cells.push(rr+','+cc);
+      });
+      if(!ok) return;
+      const unique=[...new Set(cells)];
+      if(unique.length!==5) return;
+      const signature=unique.slice().sort().join('|');
+      if(seen.has(signature)) return;
+      seen.add(signature);
+      bombs.push({r,c,type:center.type,cells:unique});
+    });
+  }
+  return bombs;
+}
+
+function spawnBomb(px,py){
+  fxPieces.push({ type:'bomb', px,py, life:0, maxLife:520 });
+}
+
 function resolveCascade(comboMult){
   const {runs, matchedSet} = findMatchesForGrid();
   if(matchedSet.size===0){
@@ -599,29 +638,29 @@ function resolveCascade(comboMult){
     return;
   }
 
-  const anchors = new Map();
-  const bigRuns = [];
-  const sortedRuns = runs.slice().sort((a,b)=>b.len-a.len);
-  sortedRuns.forEach(run=>{
-    if(run.len===4){
-      const midIdx = Math.floor((run.len-1)/2);
-      let ar, ac;
-      if(run.orient==='h'){ ar=run.r1; ac=run.c1+midIdx; } else { ar=run.r1+midIdx; ac=run.c1; }
-      const key = ar+','+ac;
-      if(!anchors.has(key)) anchors.set(key, {special: run.orient==='h'?'line-h':'line-v', r:ar, c:ac});
-    } else if(run.len>=5){
-      bigRuns.push(run);
+  const bombs = findBombPatterns();
+  const bombCells = new Set();
+  bombs.forEach(b=>b.cells.forEach(k=>bombCells.add(k)));
+
+  const toClear = new Set(matchedSet);
+  const firingRuns = [];
+  const wipeTypes = new Set();
+
+  // FIVE OR MORE: clear every piece of that shape from the entire board.
+  runs.forEach(run=>{
+    if(run.len>=5){
+      const p = grid[run.r1][run.c1];
+      if(p) wipeTypes.add(p.type);
+    } else if(run.len===4){
+      firingRuns.push(run);
+      if(run.orient==='h'){
+        for(let c=0;c<COLS;c++) toClear.add(run.r1+','+c);
+      } else {
+        for(let r=0;r<ROWS;r++) toClear.add(r+','+run.c1);
+      }
     }
   });
 
-  const toClear = new Set(matchedSet);
-  anchors.forEach((v,key)=> toClear.delete(key));
-
-  const wipeTypes = new Set();
-  bigRuns.forEach(run=>{
-    const p = grid[run.r1][run.c1];
-    if(p) wipeTypes.add(p.type);
-  });
   wipeTypes.forEach(type=>{
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const p = grid[r][c];
@@ -629,21 +668,15 @@ function resolveCascade(comboMult){
     }
   });
 
-  let guard=0, changed=true;
-  while(changed && guard<12){
-    changed = false; guard++;
-    const snapshot = Array.from(toClear);
-    snapshot.forEach(key=>{
-      const [r,c] = key.split(',').map(Number);
-      const p = grid[r][c];
-      if(!p || !p.special) return;
-      if(p.special==='line-h'){
-        for(let cc=0;cc<COLS;cc++){ const k=r+','+cc; if(!toClear.has(k) && !anchors.has(k)){ toClear.add(k); changed=true; } }
-      } else if(p.special==='line-v'){
-        for(let rr=0;rr<ROWS;rr++){ const k=rr+','+c; if(!toClear.has(k) && !anchors.has(k)){ toClear.add(k); changed=true; } }
+  // T-shaped 5 connection: three vertical joined to three horizontal.
+  // It detonates immediately and clears the complete 3x3 area centered on the junction.
+  bombs.forEach(b=>{
+    for(let rr=b.r-1;rr<=b.r+1;rr++){
+      for(let cc=b.c-1;cc<=b.c+1;cc++){
+        if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS) toClear.add(rr+','+cc);
       }
-    });
-  }
+    }
+  });
 
   const clearedCount = toClear.size;
   score += clearedCount * 10 * comboMult;
@@ -657,7 +690,23 @@ function resolveCascade(comboMult){
   playSizzle(sizzleStrength);
   if(comboMult===1){ playMatchTone(); }
   else { playComboDing(comboMult); spawnComboText(comboMult); spawnShimmer(comboMult); }
-  if(bigRuns.length>0) playChainBoom();
+  if(wipeTypes.size>0 || bombs.length>0) playChainBoom();
+  if(firingRuns.length>0) playSpecialCreate();
+
+  // Visual language: four = firing sweep, bomb = pulsing blast, five = cross-board wipe.
+  firingRuns.forEach(run=>{
+    spawnSweep(run.orient, run.orient==='h' ? run.r1 : run.c1);
+  });
+  bombs.forEach(b=>{
+    const pos=cellCenter(b.r,b.c);
+    spawnBomb(pos.x,pos.y);
+  });
+  if(wipeTypes.size>0){
+    runs.filter(run=>run.len>=5).forEach(run=>{
+      spawnSweep('h', run.r1);
+      spawnSweep('v', run.c1);
+    });
+  }
 
   toClear.forEach(key=>{
     const [r,c] = key.split(',').map(Number);
@@ -665,21 +714,10 @@ function resolveCascade(comboMult){
     if(p){ spawnFx(p.px, p.py, Math.random()<0.5?RED:WHITE); spawnSizzle(p.px, p.py, sizzleStrength); }
     grid[r][c] = null;
   });
-  bigRuns.forEach(run=>{
-    spawnSweep('h', run.r1);
-    spawnSweep('v', run.c1);
-  });
-  anchors.forEach(v=>{
-    const p = grid[v.r][v.c];
-    if(p){
-      p.special = v.special;
-      p.flashUntil = performance.now()+220;
-      playSpecialCreate();
-    }
-  });
 
-  if(bigRuns.length>0){ fullFlash('red'); }
-  else if(clearedCount>=10 || anchors.size>0){ fullFlash(comboMult>=3 ? 'red' : 'invert'); }
+  if(bombs.length>0){ fullFlash('red'); }
+  else if(wipeTypes.size>0){ fullFlash('red'); }
+  else if(firingRuns.length>0 || clearedCount>=10){ fullFlash(comboMult>=3 ? 'red' : 'invert'); }
   else if(comboMult>=2){ fullFlash('invert'); }
 
   applyGravity();
@@ -858,6 +896,18 @@ function frame(t){
         ctx.fillRect(f.x-cellSize*0.42, CY-h/2, cellSize*0.84, h);
       }
       ctx.globalAlpha = 1;
+    } else if(f.type==='bomb'){
+      const pulse = Math.sin(lt*Math.PI);
+      ctx.save();
+      ctx.globalAlpha = (1-lt)*0.95;
+      ctx.strokeStyle = RED;
+      ctx.lineWidth = 2 + pulse*4;
+      const radius = cellSize*(0.25 + lt*1.25);
+      ctx.beginPath(); ctx.arc(f.px,f.py,radius,0,TAU); ctx.stroke();
+      ctx.strokeStyle = WHITE;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(f.px,f.py,radius*0.62,0,TAU); ctx.stroke();
+      ctx.restore();
     } else if(f.type==='shimmer'){
       const bx = offX, by = offY, bw = cellSize*COLS, bh = cellSize*ROWS;
       const bandX = bx - bw*0.35 + bw*1.7*lt;
