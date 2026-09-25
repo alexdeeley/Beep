@@ -1503,5 +1503,14 @@
     "path": "WordChain.html",
     "added": "2026-09-25T00:00:00+00:00",
     "thumbnail": "thumbnails/word-chain.jpg"
+  },
+  {
+    "id": "bomb-cascade",
+    "name": "Bomb Cascade",
+    "description": "Shape Cascade's sequel: four in a row plants a bomb, line up three bombs to wipe the board, and five in a row unleashes a blinding light that clears every piece of that shape.",
+    "category": "Games",
+    "path": "BombCascade.html",
+    "added": "2026-09-25T21:51:19+00:00",
+    "thumbnail": "thumbnails/bomb-cascade.jpg"
   }
 ]
