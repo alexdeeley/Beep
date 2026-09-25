@@ -175,6 +175,59 @@
     transition: color 0.15s;
   }
   a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
+
+  /* Games tab: big image-forward cards instead of the compact row list -
+     easier to see at a glance, and a much bigger tap target. Scoped to
+     #newSection/#appList only while the Games tab is active. */
+  .games-view a.app-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 0 16px;
+    margin-bottom: 18px;
+    border: 2px solid #2a2a30;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #101014;
+  }
+  .games-view a.app-item:last-child { margin-bottom: 0; }
+  .games-view a.app-item:hover, .games-view a.app-item:active {
+    padding-left: 0;
+    border-color: #4a4a54;
+  }
+  .games-view a.app-item .app-thumb {
+    order: -1;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 2px solid #2a2a30;
+  }
+  .games-view a.app-item .app-text { padding: 14px 18px 0; }
+  .games-view a.app-item h2 {
+    font-size: clamp(1.7rem, 7vw, 2.3rem);
+    text-transform: none;
+  }
+  .games-view a.app-item p {
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    font-weight: 600;
+    color: #9a9aa4;
+    line-height: 1.45;
+  }
+  .games-view a.app-item:hover p, .games-view a.app-item:active p { color: #b8b8c2; }
+  /* Maisie's Arcade gets an extra-bold accent so it reads instantly as
+     the "made for accessible, easy play" section. */
+  .games-view a.app-item.maisie-item {
+    border-color: #ffd84d;
+    border-width: 3px;
+  }
+  .games-view a.app-item.maisie-item:hover,
+  .games-view a.app-item.maisie-item:active { border-color: #ffe98a; }
+  .games-view a.app-item.maisie-item .app-thumb { border-bottom-color: #ffd84d; }
+
   .empty {
     color: #46464f;
     font-size: 0.85rem;
@@ -680,6 +733,9 @@ function renderSearchResults() {
 
   const listEl = document.getElementById("appList");
   listEl.classList.remove("hidden");
+  // Search spans every category, so results always use the compact list
+  // regardless of which tab's big-card style was active before searching.
+  listEl.classList.remove("games-view");
   listEl.innerHTML = "";
 
   const q = searchQuery.trim().toLowerCase();
@@ -761,7 +817,8 @@ function saveLastState() {
 function renderNewSection() {
   const el = document.getElementById("newSection");
   el.innerHTML = "";
-  if (newestApps.length === 0) return;
+  const tabNewest = newestApps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab);
+  if (tabNewest.length === 0) return;
 
   const bar = document.createElement("div");
   bar.className = "section-bar";
@@ -771,7 +828,7 @@ function renderNewSection() {
   bar.appendChild(heading);
   el.appendChild(bar);
 
-  for (const app of newestApps) {
+  for (const app of tabNewest) {
     el.appendChild(buildItem(app));
   }
 }
@@ -803,10 +860,13 @@ function buildTabs() {
 
 function renderActiveTab() {
   const isHome = activeTab === "Home";
+  const isGames = activeTab === "Games";
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
+  document.getElementById("newSection").classList.toggle("games-view", isGames);
   document.getElementById("appList").classList.toggle("hidden", isHome);
-  document.getElementById("drawBanner").classList.toggle("hidden", activeTab !== "Games");
+  document.getElementById("appList").classList.toggle("games-view", isGames);
+  document.getElementById("drawBanner").classList.toggle("hidden", !isGames);
   if (isHome) return;
   renderNewSection();
   renderList();
@@ -838,15 +898,19 @@ function renderList() {
   // alphabetized list - keyed off a per-app field, with anything unmatched falling into an
   // unlabeled trailing group so nothing silently disappears if a new app misses the field.
   const TAB_SUBGROUPS = {
-    Games: { field: "gameGroup", groups: [["maisie", "Maisie's Corner"], ["arcade", "Arcade"]] },
+    // "maisie" gets an extra CSS class (see appendSection) so its cards
+    // stand out with a bright accent border - it's the accessible,
+    // easy-to-see section made for Maisie, including the multiplayer
+    // Draw Together game.
+    Games: { field: "gameGroup", groups: [["maisie", "Maisie's Arcade", "maisie-item"], ["arcade", "Arcade"]] },
   };
 
   const subgrouping = TAB_SUBGROUPS[activeTab];
   if (subgrouping) {
     const { field, groups } = subgrouping;
     const matchedKeys = groups.map(([key]) => key);
-    for (const [key, heading] of groups) {
-      appendSection(listEl, heading, rest.filter((app) => app[field] === key), `${activeTab}:${key}`, byName);
+    for (const [key, heading, extraClass] of groups) {
+      appendSection(listEl, heading, rest.filter((app) => app[field] === key), `${activeTab}:${key}`, byName, extraClass);
     }
     appendSection(listEl, null, rest.filter((app) => !matchedKeys.includes(app[field])), `${activeTab}:other`, byName);
   } else {
@@ -854,7 +918,7 @@ function renderList() {
   }
 }
 
-function appendSection(listEl, heading, appsInSection, sectionKey, defaultSort) {
+function appendSection(listEl, heading, appsInSection, sectionKey, defaultSort, extraClass) {
   if (appsInSection.length === 0) return;
 
   const byAge = (a, b) => new Date(a.added) - new Date(b.added);
@@ -880,13 +944,13 @@ function appendSection(listEl, heading, appsInSection, sectionKey, defaultSort) 
   listEl.appendChild(barEl);
 
   for (const app of sorted) {
-    listEl.appendChild(buildItem(app));
+    listEl.appendChild(buildItem(app, extraClass));
   }
 }
 
-function buildItem(app) {
+function buildItem(app, extraClass) {
   const item = document.createElement("a");
-  item.className = "app-item";
+  item.className = "app-item" + (extraClass ? " " + extraClass : "");
   item.href = app.path;
   // Same-window navigation (no target="_blank") so tapping an app stays
   // inside the installed standalone PWA instead of kicking out to a new
