@@ -241,6 +241,16 @@ function updateSpeedFactor(){
 
 // ---------- AUDIO ----------
 let audioCtx = null, masterGain = null;
+// Each chain reaction ("turn") gets progressively lower and heavier the
+// longer it runs - every sound effect triggered during it drops another
+// 10% in pitch from the last, floored so it never fades into an inaudible
+// sub-bass rumble. Reset once per swap, right before the cascade starts.
+let turnSoundCount = 0;
+function nextPitchMul(){
+  const m = Math.max(Math.pow(0.9, turnSoundCount), 0.2);
+  turnSoundCount++;
+  return m;
+}
 function initAudio(){
   if(audioCtx){ if(audioCtx.state==='suspended') audioCtx.resume(); return; }
   audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -255,7 +265,7 @@ function noiseBuffer(duration){
   for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
   return buf;
 }
-function playSizzle(strength){
+function playSizzle(strength, mul=1){
   if(!audioCtx) return;
   const dur = 0.16 + strength*0.1;
   const t0 = audioCtx.currentTime;
@@ -263,8 +273,8 @@ function playSizzle(strength){
   src.buffer = noiseBuffer(dur);
   const bp = audioCtx.createBiquadFilter();
   bp.type = 'bandpass';
-  bp.frequency.setValueAtTime(1700+strength*1100, t0);
-  bp.frequency.exponentialRampToValueAtTime(450, t0+dur);
+  bp.frequency.setValueAtTime((1700+strength*1100)*mul, t0);
+  bp.frequency.exponentialRampToValueAtTime(450*mul, t0+dur);
   bp.Q.value = 5.5;
   const g = audioCtx.createGain();
   g.gain.setValueAtTime(0.3*strength+0.14, t0);
@@ -272,10 +282,10 @@ function playSizzle(strength){
   src.connect(bp); bp.connect(g); g.connect(masterGain);
   src.start(t0); src.stop(t0+dur+0.02);
 }
-function playMatchTone(){
+function playMatchTone(mul=1){
   if(!audioCtx) return;
   const t0 = audioCtx.currentTime;
-  const freq = 220;
+  const freq = 220*mul;
   const osc = audioCtx.createOscillator();
   osc.type = 'triangle';
   osc.frequency.setValueAtTime(freq, t0);
@@ -287,12 +297,14 @@ function playMatchTone(){
   osc.connect(g); g.connect(masterGain);
   osc.start(t0); osc.stop(t0+0.28);
 }
-// Combo ding: each successive chain step jumps up exactly one octave, wrapping after 6 octaves.
-function playComboDing(comboMult){
+// Combo ding: each successive chain step jumps up exactly one octave, wrapping after 6 octaves -
+// layered against the turn-wide pitch-down drift from nextPitchMul(), so deep chains still climb
+// step to step while the whole sequence gets progressively heavier underneath.
+function playComboDing(comboMult, mul=1){
   if(!audioCtx) return;
   const t0 = audioCtx.currentTime;
   const level = (comboMult-2) % 6;
-  const freq = 261.63 * Math.pow(2, level);
+  const freq = 261.63 * Math.pow(2, level) * mul;
   const osc = audioCtx.createOscillator();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(freq, t0);
@@ -311,26 +323,26 @@ function playComboDing(comboMult){
   osc.start(t0); osc.stop(t0+0.45);
   osc2.start(t0); osc2.stop(t0+0.28);
 }
-function playSpecialCreate(){
+function playSpecialCreate(mul=1){
   if(!audioCtx) return;
   const t0 = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   osc.type = 'square';
-  osc.frequency.setValueAtTime(160, t0);
-  osc.frequency.exponentialRampToValueAtTime(640, t0+0.35);
+  osc.frequency.setValueAtTime(160*mul, t0);
+  osc.frequency.exponentialRampToValueAtTime(640*mul, t0+0.35);
   const g = audioCtx.createGain();
   g.gain.setValueAtTime(0.26, t0);
   g.gain.exponentialRampToValueAtTime(0.001, t0+0.4);
   osc.connect(g); g.connect(masterGain);
   osc.start(t0); osc.stop(t0+0.42);
 }
-function playChainBoom(){
+function playChainBoom(mul=1){
   if(!audioCtx) return;
   const t0 = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(170, t0);
-  osc.frequency.exponentialRampToValueAtTime(38, t0+0.38);
+  osc.frequency.setValueAtTime(170*mul, t0);
+  osc.frequency.exponentialRampToValueAtTime(38*mul, t0+0.38);
   const g = audioCtx.createGain();
   g.gain.setValueAtTime(0.5, t0);
   g.gain.exponentialRampToValueAtTime(0.001, t0+0.42);
@@ -341,8 +353,8 @@ function playChainBoom(){
   src.buffer = noiseBuffer(0.5);
   const bp = audioCtx.createBiquadFilter();
   bp.type = 'bandpass';
-  bp.frequency.setValueAtTime(2400, t0);
-  bp.frequency.exponentialRampToValueAtTime(220, t0+0.5);
+  bp.frequency.setValueAtTime(2400*mul, t0);
+  bp.frequency.exponentialRampToValueAtTime(220*mul, t0+0.5);
   bp.Q.value = 4;
   const g2 = audioCtx.createGain();
   g2.gain.setValueAtTime(0.32, t0);
@@ -566,17 +578,20 @@ function spawnSweep(orientation, fixedRowOrCol){
   }
 }
 function spawnComboText(comboMult){
-  fxPieces.push({ type:'comboText', text:'COMBO ×'+comboMult, life:0, maxLife:520 });
+  fxPieces.push({ type:'comboText', text:'COMBO ×'+comboMult, mult:comboMult, life:0, maxLife:520 });
 }
 function spawnShimmer(comboMult){
   fxPieces.push({ type:'shimmer', intensity: clamp(comboMult,1,5), life:0, maxLife:380 });
 }
 
-let invertFrame=false, whiteoutFrames=0, redFrameForce=false;
-function fullFlash(kind){
+let invertFrame=false, whiteoutFrames=0, redFrameAlpha=0;
+// Deeper chain steps hit harder - the red flash gets brighter (not just on/off)
+// as comboMult climbs, so a long chain visibly builds instead of plateauing
+// after the first big match.
+function fullFlash(kind, comboMult=1){
   if(kind==='invert') invertFrame = true;
   else if(kind==='white') whiteoutFrames = strobeReduction?1:2;
-  else if(kind==='red') redFrameForce = true;
+  else if(kind==='red') redFrameAlpha = clamp(0.6 + comboMult*0.06, 0.6, 0.96);
 }
 
 function updateHud(){
@@ -622,8 +637,9 @@ function findBombPatterns(){
   return bombs;
 }
 
-function spawnBomb(px,py){
-  fxPieces.push({ type:'bomb', px,py, life:0, maxLife:520 });
+function spawnBomb(px,py,comboMult=1){
+  const grow = clamp(comboMult,1,8);
+  fxPieces.push({ type:'bomb', px,py, grow, life:0, maxLife:520 + grow*30 });
 }
 
 function resolveCascade(comboMult){
@@ -686,12 +702,14 @@ function resolveCascade(comboMult){
 
   if(comboMult>maxComboThisRun) maxComboThisRun = comboMult;
 
-  const sizzleStrength = clamp(comboMult + clearedCount/6, 1, 4);
-  playSizzle(sizzleStrength);
-  if(comboMult===1){ playMatchTone(); }
-  else { playComboDing(comboMult); spawnComboText(comboMult); spawnShimmer(comboMult); }
-  if(wipeTypes.size>0 || bombs.length>0) playChainBoom();
-  if(firingRuns.length>0) playSpecialCreate();
+  // Ceiling raised from the original 4 so a long chain keeps sounding and
+  // looking busier step after step instead of maxing out early.
+  const sizzleStrength = clamp(comboMult + clearedCount/6, 1, 8);
+  playSizzle(sizzleStrength, nextPitchMul());
+  if(comboMult===1){ playMatchTone(nextPitchMul()); }
+  else { playComboDing(comboMult, nextPitchMul()); spawnComboText(comboMult); spawnShimmer(comboMult); }
+  if(wipeTypes.size>0 || bombs.length>0) playChainBoom(nextPitchMul());
+  if(firingRuns.length>0) playSpecialCreate(nextPitchMul());
 
   // Visual language: four = firing sweep, bomb = pulsing blast, five = cross-board wipe.
   firingRuns.forEach(run=>{
@@ -699,7 +717,7 @@ function resolveCascade(comboMult){
   });
   bombs.forEach(b=>{
     const pos=cellCenter(b.r,b.c);
-    spawnBomb(pos.x,pos.y);
+    spawnBomb(pos.x,pos.y,comboMult);
   });
   if(wipeTypes.size>0){
     runs.filter(run=>run.len>=5).forEach(run=>{
@@ -715,9 +733,9 @@ function resolveCascade(comboMult){
     grid[r][c] = null;
   });
 
-  if(bombs.length>0){ fullFlash('red'); }
-  else if(wipeTypes.size>0){ fullFlash('red'); }
-  else if(firingRuns.length>0 || clearedCount>=10){ fullFlash(comboMult>=3 ? 'red' : 'invert'); }
+  if(bombs.length>0){ fullFlash('red', comboMult); }
+  else if(wipeTypes.size>0){ fullFlash('red', comboMult); }
+  else if(firingRuns.length>0 || clearedCount>=10){ fullFlash(comboMult>=3 ? 'red' : 'invert', comboMult); }
   else if(comboMult>=2){ fullFlash('invert'); }
 
   applyGravity();
@@ -898,11 +916,12 @@ function frame(t){
       ctx.globalAlpha = 1;
     } else if(f.type==='bomb'){
       const pulse = Math.sin(lt*Math.PI);
+      const grow = f.grow || 1;
       ctx.save();
       ctx.globalAlpha = (1-lt)*0.95;
       ctx.strokeStyle = RED;
-      ctx.lineWidth = 2 + pulse*4;
-      const radius = cellSize*(0.25 + lt*1.25);
+      ctx.lineWidth = 2 + pulse*(4 + grow*0.6);
+      const radius = cellSize*(0.25 + lt*(1.25 + grow*0.18));
       ctx.beginPath(); ctx.arc(f.px,f.py,radius,0,TAU); ctx.stroke();
       ctx.strokeStyle = WHITE;
       ctx.lineWidth = 1.5;
@@ -926,9 +945,10 @@ function frame(t){
       ctx.restore();
     } else if(f.type==='comboText'){
       const rise = lt*30;
+      const sizeMul = 1 + clamp((f.mult||1)-1, 0, 8)*0.09;
       ctx.globalAlpha = 1-lt;
       ctx.fillStyle = RED;
-      ctx.font = '700 '+Math.floor(cellSize*0.42)+'px -apple-system, sans-serif';
+      ctx.font = '700 '+Math.floor(cellSize*0.42*sizeMul)+'px -apple-system, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(f.text, CX, offY-24-rise);
       ctx.globalAlpha = 1;
@@ -962,9 +982,9 @@ function frame(t){
     invertFrame = false;
   }
   if(whiteoutFrames>0){ ctx.fillStyle = WHITE; ctx.fillRect(0,0,W,H); whiteoutFrames--; }
-  if(redFrameForce){
-    if(!strobeReduction || Math.random()>0.5){ ctx.fillStyle = RED; ctx.globalAlpha=0.85; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
-    redFrameForce = false;
+  if(redFrameAlpha>0){
+    if(!strobeReduction || Math.random()>0.5){ ctx.fillStyle = RED; ctx.globalAlpha=redFrameAlpha; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+    redFrameAlpha = 0;
   }
 
   requestAnimationFrame(frame);
@@ -988,6 +1008,7 @@ function attemptSwap(r1,c1,r2,c2){
   animateToTargets();
   const {matchedSet} = findMatchesForGrid();
   if(matchedSet.size>0){
+    turnSoundCount = 0;
     setTimeout(()=>{ resolveCascade(1); }, 190);
   } else {
     playSwapFail();
