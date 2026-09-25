@@ -178,8 +178,8 @@
 
   /* Games tab: big image-forward cards instead of the compact row list -
      easier to see at a glance, and a much bigger tap target. Scoped to
-     #newSection/#appList only while the Games tab is active. */
-  .games-view a.app-item {
+     #newSection/#appList while the Games or Art tab is active. */
+  .card-view a.app-item {
     flex-direction: column;
     align-items: stretch;
     gap: 0;
@@ -190,12 +190,12 @@
     overflow: hidden;
     background: #101014;
   }
-  .games-view a.app-item:last-child { margin-bottom: 0; }
-  .games-view a.app-item:hover, .games-view a.app-item:active {
+  .card-view a.app-item:last-child { margin-bottom: 0; }
+  .card-view a.app-item:hover, .card-view a.app-item:active {
     padding-left: 0;
     border-color: #4a4a54;
   }
-  .games-view a.app-item .app-thumb {
+  .card-view a.app-item .app-thumb {
     order: -1;
     width: 100%;
     height: auto;
@@ -204,12 +204,12 @@
     border: 0;
     border-bottom: 2px solid #2a2a30;
   }
-  .games-view a.app-item .app-text { padding: 14px 18px 0; }
-  .games-view a.app-item h2 {
+  .card-view a.app-item .app-text { padding: 14px 18px 0; }
+  .card-view a.app-item h2 {
     font-size: clamp(1.7rem, 7vw, 2.3rem);
     text-transform: none;
   }
-  .games-view a.app-item p {
+  .card-view a.app-item p {
     font-size: 0.85rem;
     letter-spacing: 0.01em;
     text-transform: none;
@@ -217,7 +217,7 @@
     color: #9a9aa4;
     line-height: 1.45;
   }
-  .games-view a.app-item:hover p, .games-view a.app-item:active p { color: #b8b8c2; }
+  .card-view a.app-item:hover p, .card-view a.app-item:active p { color: #b8b8c2; }
   /* Maisie's Arcade gets an extra-bold accent so it reads instantly as
      the "made for accessible, easy play" section. */
   .games-view a.app-item.maisie-item {
@@ -490,6 +490,62 @@
     text-transform: uppercase;
     font-weight: 700;
   }
+  /* Home-page "Latest" widget: a small Games/Art tab switcher showing the
+     3 most recently added items from whichever category is picked, so the
+     front page always points at current work without needing manual edits. */
+  .latest-widget { margin: 16px 0 24px; }
+  .latest-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .latest-tab {
+    appearance: none;
+    background: none;
+    border: 1px solid #2a2a30;
+    color: #6b6b78;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .latest-tab:hover { color: #f2f2f5; border-color: #4a4a54; }
+  .latest-tab.active {
+    color: #000;
+    background: #f2f2f5;
+    border-color: #f2f2f5;
+  }
+  .latest-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .latest-grid a {
+    display: block;
+    text-decoration: none;
+    border: 1px solid #1c1c20;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .latest-grid a:hover, .latest-grid a:active { border-color: #4a4a54; }
+  .latest-grid img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    background: #141418;
+  }
+  .latest-grid span {
+    display: block;
+    padding: 5px 6px;
+    color: #9a9aa4;
+    font-size: 0.6rem;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    line-height: 1.3;
+  }
 </style>
 </head>
 <body>
@@ -587,6 +643,14 @@
         <p class="blurb">This site is an active workspace as much as a portfolio. Some projects are complete, some are still developing, and some may not work as intended. I&rsquo;ve left that visible on purpose. Experimentation, revision, and failure are all part of the process.</p>
         <p class="blurb">Projects are organized by category in the menu above. Most of the apps and interactive pieces here are designed to work on both mobile phones and desktop computers.</p>
 
+        <div class="latest-widget">
+          <div class="latest-tabs">
+            <button type="button" class="latest-tab" id="latestTabGames">Latest games</button>
+            <button type="button" class="latest-tab" id="latestTabArt">Latest art</button>
+          </div>
+          <div class="latest-grid" id="latestGrid"></div>
+        </div>
+
         <div class="essay-heading">My creative process</div>
 
         <div class="step-heading">1. Idea phase</div>
@@ -682,6 +746,7 @@ let sectionSortMode = {};
 
 const NEW_COUNT = 3;
 let newestApps = [];
+let latestCategory = "Games";
 
 const LAST_STATE_KEY = "deeley_last_state";
 
@@ -704,10 +769,19 @@ async function main() {
   render();
   restoreScroll();
   initAddToHomeScreen();
+  renderLatestWidget();
 
   document.getElementById("appSearch").addEventListener("input", (e) => {
     searchQuery = e.target.value;
     render();
+  });
+  document.getElementById("latestTabGames").addEventListener("click", () => {
+    latestCategory = "Games";
+    renderLatestWidget();
+  });
+  document.getElementById("latestTabArt").addEventListener("click", () => {
+    latestCategory = "Art";
+    renderLatestWidget();
   });
 
   window.addEventListener("pagehide", saveLastState);
@@ -735,7 +809,7 @@ function renderSearchResults() {
   listEl.classList.remove("hidden");
   // Search spans every category, so results always use the compact list
   // regardless of which tab's big-card style was active before searching.
-  listEl.classList.remove("games-view");
+  listEl.classList.remove("games-view", "card-view");
   listEl.innerHTML = "";
 
   const q = searchQuery.trim().toLowerCase();
@@ -861,10 +935,13 @@ function buildTabs() {
 function renderActiveTab() {
   const isHome = activeTab === "Home";
   const isGames = activeTab === "Games";
+  const isCardView = isGames || activeTab === "Art";
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
+  document.getElementById("newSection").classList.toggle("card-view", isCardView);
   document.getElementById("newSection").classList.toggle("games-view", isGames);
   document.getElementById("appList").classList.toggle("hidden", isHome);
+  document.getElementById("appList").classList.toggle("card-view", isCardView);
   document.getElementById("appList").classList.toggle("games-view", isGames);
   document.getElementById("drawBanner").classList.toggle("hidden", !isGames);
   if (isHome) return;
@@ -980,6 +1057,42 @@ function buildItem(app, extraClass) {
   }
 
   return item;
+}
+
+// Home-page "Latest" widget - a small Games/Art switcher showing the 3
+// most recently added apps in whichever category is picked, so the front
+// page always points at current work without needing manual edits.
+function buildLatestItem(app) {
+  const a = document.createElement("a");
+  a.href = app.path;
+
+  if (app.thumbnail) {
+    const img = document.createElement("img");
+    img.src = app.thumbnail;
+    img.loading = "lazy";
+    img.alt = "";
+    a.appendChild(img);
+  }
+
+  const span = document.createElement("span");
+  span.textContent = app.name;
+  a.appendChild(span);
+
+  return a;
+}
+
+function renderLatestWidget() {
+  const grid = document.getElementById("latestGrid");
+  grid.innerHTML = "";
+
+  const items = apps
+    .filter((app) => app.category === latestCategory)
+    .sort((a, b) => new Date(b.added) - new Date(a.added))
+    .slice(0, 3);
+  items.forEach((app) => grid.appendChild(buildLatestItem(app)));
+
+  document.getElementById("latestTabGames").classList.toggle("active", latestCategory === "Games");
+  document.getElementById("latestTabArt").classList.toggle("active", latestCategory === "Art");
 }
 
 main();
