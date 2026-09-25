@@ -42,7 +42,7 @@ export const PALETTE = [
 
 export const TIMER_OPTIONS = [30, 60, 90, 0];      // 0 = no timer
 export const ROUND_OPTIONS = [6, 10, 16];
-export const DIFFICULTIES = ['easy', 'mixed', 'silly'];
+export const DIFFICULTIES = ['easy', 'mixed', 'silly', 'hard'];
 
 export const CATEGORIES = [
   { id: 'everything', label: 'Everything', emoji: '✨' },
@@ -57,9 +57,36 @@ export const CATEGORIES = [
   { id: 'places',     label: 'Places',     emoji: '🏰' },
   { id: 'things',     label: 'Things',     emoji: '🎒' },
   { id: 'silly',      label: 'Silly',      emoji: '🤪' },
+  // Hard-mode only: these categories' words are all tagged difficulty
+  // 'hard', so they never show up under Easy/Mixed/Silly by accident.
+  { id: 'symbols',      label: 'Symbols',      emoji: '🔣' },
+  { id: 'music',        label: 'Music',        emoji: '🎵' },
+  { id: 'architecture', label: 'Architecture', emoji: '🏛️' },
 ];
 
-export const MAX_PLAYERS = 2;          // architecture supports more; UI is tuned for two
+export const MAX_PLAYERS = 16;
+
+// One distinct color per seat, in join order. Bright and high-saturation to
+// match the sticker-book palette; the first two match --p1/--p2 in
+// styles.css exactly, since those are also used for the lobby/host buttons.
+export const PLAYER_COLORS = [
+  '#3d7bff', // blue
+  '#ff5fb0', // pink
+  '#ff8a00', // orange
+  '#1fb84a', // green
+  '#8a3ffc', // purple
+  '#ffd400', // yellow
+  '#16c6e8', // cyan
+  '#e8202a', // red
+  '#8b5a2b', // brown
+  '#ff3d7f', // rose
+  '#2bd9a3', // teal
+  '#ff9ed8', // light pink
+  '#6b8cff', // periwinkle
+  '#c4e000', // lime
+  '#ff6b6b', // coral
+  '#9b59ff', // violet
+];
 export const MAX_POINTS_PER_MSG = 400; // x,y pairs → 800 ints
 export const MAX_NAME = 14;
 export const WORD_SWAPS = 2;           // "another word" presses per round

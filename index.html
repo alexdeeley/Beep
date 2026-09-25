@@ -9,6 +9,9 @@
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -177,6 +180,66 @@
     font-size: 0.85rem;
   }
   .hidden { display: none !important; }
+
+  /* A deliberately different, light "sketched" look for the Draw Together
+     banner - the rest of the site is dark and clean, this is meant to
+     look hand-drawn on paper so it stands out as a special pick, not
+     just another item in the list. */
+  .draw-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 4px 0 22px;
+    padding: 18px 20px;
+    background: #fffaf0;
+    border-radius: 18px 22px 20px 16px / 20px 16px 24px 18px;
+    text-decoration: none;
+    position: relative;
+    transform: rotate(-0.6deg);
+    transition: transform 0.15s ease;
+  }
+  .draw-banner::before, .draw-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 2.5px solid #1c1c20;
+    pointer-events: none;
+  }
+  .draw-banner::before { transform: rotate(0.7deg) scale(1.008); opacity: 0.55; }
+  .draw-banner::after { transform: rotate(-0.4deg); }
+  .draw-banner:hover, .draw-banner:active { transform: rotate(-0.6deg) scale(0.98); }
+  .draw-banner .db-emoji {
+    flex: 0 0 auto;
+    font-size: 2.6rem;
+    line-height: 1;
+    transform: rotate(-8deg);
+  }
+  .draw-banner .db-text { min-width: 0; flex: 1 1 auto; }
+  .draw-banner h2 {
+    margin: 0;
+    font-family: "Kalam", "Comic Sans MS", cursive;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    color: #1c1c20;
+    line-height: 1.05;
+  }
+  .draw-banner p {
+    margin: 4px 0 0;
+    font-family: "Kalam", "Comic Sans MS", cursive;
+    font-size: 0.92rem;
+    color: #4a4a52;
+    line-height: 1.35;
+  }
+  .draw-banner .db-cta {
+    display: inline-block;
+    margin-top: 6px;
+    font-family: "Kalam", "Comic Sans MS", cursive;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1c1c20;
+    border-bottom: 2.5px solid #ff5fb0;
+  }
   .blurb {
     color: #9a9aa4;
     font-size: 0.95rem;
@@ -540,6 +603,14 @@
 
         <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
   </div>
+  <a id="drawBanner" class="draw-banner hidden" href="https://draw.deeley.org" target="_blank" rel="noopener noreferrer">
+    <span class="db-emoji" aria-hidden="true">✏️</span>
+    <span class="db-text">
+      <h2>Draw Together</h2>
+      <p>Sketch a secret word live and guess together &mdash; up to 16 players, one link.</p>
+      <span class="db-cta">draw.deeley.org &#8599;</span>
+    </span>
+  </a>
   <div id="newSection"></div>
   <div id="appList"></div>
 </main>
@@ -602,6 +673,7 @@ function render() {
 
 function renderSearchResults() {
   document.getElementById("homeContent").classList.add("hidden");
+  document.getElementById("drawBanner").classList.add("hidden");
   const newSectionEl = document.getElementById("newSection");
   newSectionEl.classList.add("hidden");
   newSectionEl.innerHTML = "";
@@ -734,6 +806,7 @@ function renderActiveTab() {
   document.getElementById("homeContent").classList.toggle("hidden", !isHome);
   document.getElementById("newSection").classList.toggle("hidden", isHome);
   document.getElementById("appList").classList.toggle("hidden", isHome);
+  document.getElementById("drawBanner").classList.toggle("hidden", activeTab !== "Games");
   if (isHome) return;
   renderNewSection();
   renderList();

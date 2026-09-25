@@ -281,6 +281,70 @@ export const WORDS = [
   W('Teddy bear in a rocket', '🧸', 'silly toys space', 'silly'),
   W('Pizza with a face', '🍕', 'silly food', 'silly'),
   W('T-Rex brushing its teeth', '🦖', 'silly dinosaurs', 'silly'),
+
+  // ── Hard mode: Symbols ────────────────────
+  W('Question mark', '❓', 'symbols', 'hard'),
+  W('Exclamation mark', '❗', 'symbols', 'hard'),
+  W('Peace sign', '☮️', 'symbols', 'hard', 'peace symbol'),
+  W('Recycling symbol', '♻️', 'symbols', 'hard', 'recycle symbol|recycling sign'),
+  W('Infinity symbol', '♾️', 'symbols', 'hard', 'infinity sign'),
+  W('Percent sign', '%', 'symbols', 'hard', 'percentage sign'),
+  W('Ampersand', '&', 'symbols', 'hard', 'and sign'),
+  W('Dollar sign', '💲', 'symbols', 'hard'),
+  W('Euro sign', '€', 'symbols', 'hard', 'euro symbol'),
+  W('Skull and crossbones', '☠️', 'symbols', 'hard', 'skull crossbones'),
+  W('Yin and yang', '☯️', 'symbols', 'hard', 'yin yang'),
+  W('Radioactive symbol', '☢️', 'symbols', 'hard', 'radiation symbol'),
+  W('Biohazard symbol', '☣️', 'symbols', 'hard', 'biohazard sign'),
+  W('Checkmark', '✔️', 'symbols', 'hard', 'check mark|tick mark'),
+  W('Hashtag', '#️⃣', 'symbols', 'hard', 'pound sign|number sign'),
+  W('Copyright symbol', '©️', 'symbols', 'hard', 'copyright sign'),
+  W('No entry sign', '⛔', 'symbols', 'hard', 'do not enter sign'),
+  W('Compass rose', '🧭', 'symbols', 'hard'),
+
+  // ── Hard mode: Music ──────────────────────
+  W('Acoustic guitar', '🎸', 'music', 'hard', 'guitar'),
+  W('Electric guitar', '🎸', 'music', 'hard', 'guitar'),
+  W('Grand piano', '🎹', 'music', 'hard', 'piano'),
+  W('Drum kit', '🥁', 'music', 'hard', 'drum set'),
+  W('Violin', '🎻', 'music', 'hard'),
+  W('Trumpet', '🎺', 'music', 'hard'),
+  W('Saxophone', '🎷', 'music', 'hard'),
+  W('Treble clef', '🎼', 'music', 'hard'),
+  W('Musical note', '🎵', 'music', 'hard'),
+  W('Microphone', '🎤', 'music', 'hard'),
+  W('Headphones', '🎧', 'music', 'hard'),
+  W('Harp', '🎶', 'music', 'hard'),
+  W('Flute', '🎶', 'music', 'hard'),
+  W('Cello', '🎻', 'music', 'hard'),
+  W('Xylophone', '🎶', 'music', 'hard'),
+  W('Tambourine', '🎶', 'music', 'hard'),
+  W('Record player', '🎶', 'music', 'hard', 'turntable|gramophone'),
+  W('Bagpipes', '🎶', 'music', 'hard'),
+  W("Conductor's baton", '🎼', 'music', 'hard', 'conductor baton'),
+  W('Music box', '🎶', 'music', 'hard'),
+
+  // ── Hard mode: Architecture ───────────────
+  W('Skyscraper', '🏙️', 'architecture', 'hard'),
+  W('Lighthouse', '🗼', 'architecture', 'hard'),
+  W('Suspension bridge', '🌉', 'architecture', 'hard'),
+  W('Windmill', '🌾', 'architecture', 'hard'),
+  W('Castle turret', '🏰', 'architecture', 'hard', 'castle tower|castle'),
+  W('Dome', '🏛️', 'architecture', 'hard'),
+  W('Spiral staircase', '🌀', 'architecture', 'hard'),
+  W('Pyramid', '🔺', 'architecture', 'hard'),
+  W('Stone archway', '🏛️', 'architecture', 'hard', 'stone arch|arch'),
+  W('Greek column', '🏛️', 'architecture', 'hard', 'stone column|pillar'),
+  W('Cathedral', '⛪', 'architecture', 'hard'),
+  W('Barn', '🏚️', 'architecture', 'hard'),
+  W('Igloo', '🧊', 'architecture', 'hard'),
+  W('Water tower', '🏗️', 'architecture', 'hard', 'tower'),
+  W('Grain silo', '🌽', 'architecture', 'hard', 'silo'),
+  W('Dam', '🌊', 'architecture', 'hard'),
+  W('Aqueduct', '🏛️', 'architecture', 'hard'),
+  W('Pagoda', '🏯', 'architecture', 'hard'),
+  W('Greenhouse', '🌱', 'architecture', 'hard'),
+  W('Drawbridge', '🏰', 'architecture', 'hard'),
 ];
 
 // ── Word picking ─────────────────────────────────────────────
@@ -292,7 +356,10 @@ export function pickWord(settings, used, rand = Math.random) {
   const diffOk = (x) =>
     settings.difficulty === 'easy' ? x.d === 'easy'
     : settings.difficulty === 'silly' ? x.d === 'silly'
-    : true;
+    : settings.difficulty === 'hard' ? x.d === 'hard'
+    // 'mixed' (the default) never surfaces hard-mode words by accident -
+    // that tier is opt-in only.
+    : x.d !== 'hard';
   const usedSet = new Set(used);
   const tries = [
     (x, i) => !usedSet.has(i) && inCats(x) && diffOk(x),
@@ -307,6 +374,18 @@ export function pickWord(settings, used, rand = Math.random) {
   }
   // Every word has been used: start over.
   return { index: Math.floor(rand() * WORDS.length), reset: true };
+}
+
+// ── Length hint for guessers ─────────────────────────────────
+
+// The letter count of each word in the answer, for guessers who can't
+// see the word itself. A row of one-box-per-letter blanks reads fine
+// on a normal screen, but wraps and re-breaks confusingly when the
+// page is pinch-zoomed, so instead each word becomes a single numeral
+// that can't be misread no matter how the line wraps.
+// "Ice cream cone" -> [3, 5, 4]   "T-Rex" -> [5]
+export function wordShape(w) {
+  return w.split(' ').filter(Boolean).map((tok) => tok.length);
 }
 
 // ── Guess matching ───────────────────────────────────────────

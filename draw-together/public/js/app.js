@@ -3,6 +3,7 @@ import { Net } from './net.js';
 import * as snd from './sound.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
+  PLAYER_COLORS,
 } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -152,7 +153,7 @@ $('btn-join-go').addEventListener('click', async () => {
     if (!data.exists) { err.textContent = "We couldn't find that game. Check the code and try again."; return; }
     const last = store.get('dt.last');
     const pid = last && last.code === code ? last.pid : newPid();
-    if (data.full && !(last && last.code === code)) { err.textContent = 'That game already has two players.'; return; }
+    if (data.full && !(last && last.code === code)) { err.textContent = 'That game is already full.'; return; }
     enter(code, pid);
   } catch {
     err.textContent = "We couldn't reach the game. Check your internet and try again.";
@@ -212,7 +213,7 @@ function onStatus(s) {
     return;
   }
   if (s === 'full') {
-    goHome('That game already has two players.', false);
+    goHome('That game is already full.', false);
     return;
   }
   if (s === 'replaced') {
@@ -246,7 +247,7 @@ const player = (seat) => S.st?.players.find((p) => p.seat === seat);
 const nameOf = (seat) => player(seat)?.name || 'Your buddy';
 const colorOf = (seat) => {
   const i = S.st ? S.st.players.findIndex((p) => p.seat === seat) : 0;
-  return i === 0 ? 'var(--p1)' : i === 1 ? 'var(--p2)' : '#8a3ffc';
+  return PLAYER_COLORS[Math.max(0, i) % PLAYER_COLORS.length];
 };
 const amDrawer = () => S.st && S.st.you === S.st.drawerSeat;
 
@@ -279,7 +280,12 @@ function renderAwayBanner() {
   if (away.length) {
     b.hidden = false;
     b.dataset.away = '1';
-    b.textContent = `${away[0].name} disconnected. Waiting for them to come back…`;
+    const who = away.length === 1
+      ? away[0].name
+      : away.length === 2
+        ? `${away[0].name} and ${away[1].name}`
+        : `${away[0].name} and ${away.length - 1} others`;
+    b.textContent = `${who} disconnected. Waiting for ${away.length === 1 ? 'them' : 'everyone'} to come back…`;
   } else if (b.dataset.away) {
     delete b.dataset.away;
     if (!b.dataset.flash) b.hidden = true;
@@ -308,8 +314,8 @@ function renderLobby() {
     : isHost ? 'Ready when you are!' : `Waiting for ${host?.name || 'the host'} to start…`;
 
   const slots = [];
-  st.players.forEach((p, i) => {
-    slots.push(`<li><span class="dot" style="--pc:${i ? 'var(--p2)' : 'var(--p1)'}"></span>${esc(p.name)}
+  st.players.forEach((p) => {
+    slots.push(`<li><span class="dot" style="--pc:${colorOf(p.seat)}"></span>${esc(p.name)}
       <span class="who">${p.seat === st.you ? 'you' : p.connected ? '' : 'away'}</span></li>`);
   });
   if (!two) slots.push('<li class="empty">Tell them the code above ✏️</li>');
@@ -352,7 +358,7 @@ function renderSettings(isHost) {
     }, !isHost));
   }
   const diff = $('set-diff'); diff.replaceChildren();
-  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly']]) {
+  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly'], ['hard', 'Hard 🔥']]) {
     diff.append(chip(label, s.difficulty === id, () => sendSettings({ difficulty: id }), !isHost));
   }
   const tm = $('set-timer'); tm.replaceChildren();
@@ -412,6 +418,17 @@ function renderGame(prev, phaseChanged) {
     fitHud(main.querySelector('.who'));
   } else {
     main.innerHTML = '';
+  }
+
+  const hint = $('word-hint');
+  if (!drawer && st.phase === 'drawing' && st.wordShape) {
+    hint.hidden = false;
+    const words = st.wordShape.length === 1 ? '1 word' : `${st.wordShape.length} words`;
+    hint.innerHTML = st.wordShape.map((n) => `<span class="wlen">${n}</span>`).join('<span class="gap"></span>');
+    hint.setAttribute('aria-label', `${words}: ${st.wordShape.join(', ')} letters`);
+  } else {
+    hint.hidden = true;
+    hint.innerHTML = '';
   }
 
   // Board shape: the drawer's screen decides it when they press Ready.
@@ -489,7 +506,7 @@ function updateTimer() {
   el.textContent = sec;
   el.className = 'hud-timer' + (sec <= 10 ? ' low' : '');
   el.setAttribute('aria-label', `${sec} seconds left`);
-  if (sec <= 5 && sec >= 1 && S.lastTickSec !== sec) snd.play('tick');
+  if (sec <= 10 && sec >= 1 && S.lastTickSec !== sec) snd.play('tick');
   S.lastTickSec = sec;
 }
 setInterval(updateTimer, 200);
@@ -724,8 +741,8 @@ $('btn-replay').addEventListener('click', () => {
 $('btn-next').addEventListener('click', () => S.net?.send({ type: 'next' }));
 
 function scoreCards() {
-  return S.st.players.map((p, i) => `
-    <div class="score" style="--pc:${i ? 'var(--p2)' : 'var(--p1)'}">
+  return S.st.players.map((p) => `
+    <div class="score" style="--pc:${colorOf(p.seat)}">
       <div class="n">${esc(p.name)}</div>
       <div class="v">${p.score}</div>
     </div>`).join('');
@@ -741,6 +758,9 @@ function renderOver() {
 }
 $('btn-again').addEventListener('click', () => S.net?.send({ type: 'again' }));
 $('btn-newgame').addEventListener('click', () => S.net?.send({ type: 'lobby' }));
+$('btn-gallery').addEventListener('click', () => {
+  window.open(`gallery.html?code=${encodeURIComponent(S.st.code)}`, '_blank', 'noopener');
+});
 
 // ── Header buttons ──────────────────────────────────────────
 
