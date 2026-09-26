@@ -92,17 +92,41 @@ body {
   pointer-events: auto;
   transform: translate(-50%, 0);
 }
-/* Radial layout on touch, opened by long-press or the corner dot. */
+/* Radial layout on touch, opened by long-press or the corner dot: every
+   swatch/size/toggle becomes an absolutely-positioned button arranged in a
+   circle around the tap point (via per-button --rx/--ry set in ui.ts), not a
+   row - a row would overflow the screen whenever the tap point is near an
+   edge, which is most of the time on a phone (see DECISIONS.md). */
 #palette.radial {
   left: var(--radial-x, 50%);
   bottom: auto;
   top: var(--radial-y, 50%);
+  width: var(--radial-diameter, 200px);
+  height: var(--radial-diameter, 200px);
+  padding: 0;
+  display: block;
   transform: translate(-50%, -50%) scale(0.7);
-  flex-direction: column;
-  border-radius: 28px;
+  border-radius: 50%;
 }
 #palette.radial.visible {
   transform: translate(-50%, -50%) scale(1);
+}
+#palette.radial #swatches,
+#palette.radial #sizes {
+  display: contents;
+}
+#palette.radial .swatch,
+#palette.radial .size-dot,
+#palette.radial #pixelToggle {
+  /* --rx/--ry (set per-button in ui.ts) already fold in "minus half this
+     button's own size", so this is a plain anchor + offset with no separate
+     margin math - each button ends up centred on its point regardless of
+     its own natural size (swatches, size-dots, and the toggle are all
+     different sizes). */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(var(--rx, 0px), var(--ry, 0px));
 }
 
 #swatches,

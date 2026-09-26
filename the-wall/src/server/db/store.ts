@@ -64,47 +64,58 @@ export async function insertOperation(db: Kysely<Schema>, op: Operation): Promis
   if (existing) return rowToOperation(existing as unknown as OperationRow);
 
   const ts = Date.now();
-  const inserted = await db
-    .insertInto("operations")
-    .values({
-      id: op.id,
-      type: op.type,
-      session: op.session,
-      color: op.color,
-      ts,
-      min_x: op.bbox.minX,
-      min_y: op.bbox.minY,
-      max_x: op.bbox.maxX,
-      max_y: op.bbox.maxY,
-      payload: payloadOf(op),
-    })
-    .returningAll()
-    .executeTakeFirst();
+  try {
+    const inserted = await db
+      .insertInto("operations")
+      .values({
+        id: op.id,
+        type: op.type,
+        session: op.session,
+        color: op.color,
+        ts,
+        min_x: op.bbox.minX,
+        min_y: op.bbox.minY,
+        max_x: op.bbox.maxX,
+        max_y: op.bbox.maxY,
+        payload: payloadOf(op),
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  let row = inserted as unknown as OperationRow | undefined;
-  if (!row) {
-    // Some SQLite configurations don't support RETURNING through this driver path; fall back to a lookup.
-    row = (await db.selectFrom("operations").selectAll().where("id", "=", op.id).executeTakeFirst()) as unknown as
-      | OperationRow
-      | undefined;
+    let row = inserted as unknown as OperationRow | undefined;
+    if (!row) {
+      // Some SQLite configurations don't support RETURNING through this driver path; fall back to a lookup.
+      row = (await db.selectFrom("operations").selectAll().where("id", "=", op.id).executeTakeFirst()) as unknown as
+        | OperationRow
+        | undefined;
+    }
+    if (!row) throw new Error("insert did not return a row");
+
+    const pad = paddingFor(op);
+    const tiles = tilesForBBox(0, {
+      minX: op.bbox.minX - pad,
+      minY: op.bbox.minY - pad,
+      maxX: op.bbox.maxX + pad,
+      maxY: op.bbox.maxY + pad,
+    });
+    if (tiles.length > 0) {
+      await db
+        .insertInto("tile_index")
+        .values(tiles.map((t) => ({ seq: row!.seq, tx: t.tx, ty: t.ty })))
+        .execute();
+    }
+
+    return rowToOperation(row);
+  } catch (err) {
+    // Lost a race: another call inserted this same id between our pre-check above and our
+    // insert just now (two near-simultaneous commits of the same op, e.g. an offline-queue
+    // flush racing a fresh submission). That caller already wrote the tile_index rows for it -
+    // recover by returning the row that won, rather than crashing the whole process on the
+    // id's unique-constraint violation.
+    const winner = await db.selectFrom("operations").selectAll().where("id", "=", op.id).executeTakeFirst();
+    if (winner) return rowToOperation(winner as unknown as OperationRow);
+    throw err;
   }
-  if (!row) throw new Error("insert did not return a row");
-
-  const pad = paddingFor(op);
-  const tiles = tilesForBBox(0, {
-    minX: op.bbox.minX - pad,
-    minY: op.bbox.minY - pad,
-    maxX: op.bbox.maxX + pad,
-    maxY: op.bbox.maxY + pad,
-  });
-  if (tiles.length > 0) {
-    await db
-      .insertInto("tile_index")
-      .values(tiles.map((t) => ({ seq: row!.seq, tx: t.tx, ty: t.ty })))
-      .execute();
-  }
-
-  return rowToOperation(row);
 }
 
 export async function getHeadSeq(db: Kysely<Schema>): Promise<number> {
@@ -190,6 +201,18 @@ export async function getTileCache(
   return { seq: row.seq, png: Buffer.from(row.png as unknown as Uint8Array) };
 }
 
+/**
+ * An atomic upsert, not select-then-branch: under concurrent requests for the
+ * same never-yet-cached tile (a real scenario under load - many clients
+ * committing near the same region trigger overlapping `warmTiles` calls),
+ * two connections can both see "no existing row" and both attempt an
+ * INSERT, and the loser crashes on the primary key constraint. A raced
+ * write "winning" with a slightly stale `seq` is harmless either way:
+ * `getOrRenderTile` always compares the cached seq against a freshly
+ * computed current seq, never against what it itself last wrote, so a
+ * stale entry just triggers one extra re-render on the next read rather
+ * than serving stale content forever.
+ */
 export async function setTileCache(
   db: Kysely<Schema>,
   level: number,
@@ -198,24 +221,11 @@ export async function setTileCache(
   seq: number,
   png: Buffer
 ): Promise<void> {
-  const existing = await db
-    .selectFrom("tile_cache")
-    .select(["level"])
-    .where("level", "=", level)
-    .where("tx", "=", tx)
-    .where("ty", "=", ty)
-    .executeTakeFirst();
-  if (existing) {
-    await db
-      .updateTable("tile_cache")
-      .set({ seq, png })
-      .where("level", "=", level)
-      .where("tx", "=", tx)
-      .where("ty", "=", ty)
-      .execute();
-  } else {
-    await db.insertInto("tile_cache").values({ level, tx, ty, seq, png }).execute();
-  }
+  await db
+    .insertInto("tile_cache")
+    .values({ level, tx, ty, seq, png })
+    .onConflict((oc) => oc.columns(["level", "tx", "ty"]).doUpdateSet({ seq, png }))
+    .execute();
 }
 
 export async function createSnapshot(db: Kysely<Schema>, seq: number): Promise<void> {

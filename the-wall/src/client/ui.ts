@@ -112,11 +112,21 @@ export function setupPalette(): ToolState {
     }
   });
 
+  layoutRadialButtons(palette);
+
   // Touch: long-press or the corner dot opens a compact radial palette at that point.
   const cornerDot = document.getElementById("cornerDot") as HTMLButtonElement;
+  const RADIAL_DIAMETER = 200;
+  palette.style.setProperty("--radial-diameter", `${RADIAL_DIAMETER}px`);
   function openRadialAt(x: number, y: number): void {
-    palette.style.setProperty("--radial-x", `${x}px`);
-    palette.style.setProperty("--radial-y", `${y}px`);
+    // Clamp so the whole circle stays on-screen - opening near a corner (the
+    // common case, since the corner dot itself lives in one) must not push
+    // half the menu off the edge of the viewport.
+    const r = RADIAL_DIAMETER / 2 + 12;
+    const cx = Math.min(Math.max(x, r), window.innerWidth - r);
+    const cy = Math.min(Math.max(y, r), window.innerHeight - r);
+    palette.style.setProperty("--radial-x", `${cx}px`);
+    palette.style.setProperty("--radial-y", `${cy}px`);
     palette.classList.add("radial", "visible");
   }
   function closeRadial(): void {
@@ -156,6 +166,27 @@ export function setupPalette(): ToolState {
 
   updateCursor(tool.get());
   return tool;
+}
+
+/**
+ * Positions every swatch/size/toggle button evenly around a circle instead of
+ * the default flex row - only takes effect once `#palette.radial` is active
+ * (see style.css). Static layout (button order never changes), so this runs
+ * once at setup rather than on every open.
+ */
+function layoutRadialButtons(palette: HTMLElement): void {
+  const buttons = Array.from(palette.querySelectorAll<HTMLElement>(".swatch, .size-dot, #pixelToggle"));
+  const radius = 78;
+  const n = buttons.length;
+  buttons.forEach((btn, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2; // start at the top, go clockwise
+    const w = btn.offsetWidth || 26;
+    const h = btn.offsetHeight || 26;
+    const rx = Math.cos(angle) * radius - w / 2;
+    const ry = Math.sin(angle) * radius - h / 2;
+    btn.style.setProperty("--rx", `${rx}px`);
+    btn.style.setProperty("--ry", `${ry}px`);
+  });
 }
 
 const cursorEl = () => document.getElementById("cursor")!;

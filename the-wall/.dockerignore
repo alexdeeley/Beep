@@ -1,0 +1,12 @@
+node_modules
+dist-client
+dist-server
+data
+*.db
+*.db-shm
+*.db-wal
+.env
+test-results
+playwright-report
+tmp
+*.tsbuildinfo
