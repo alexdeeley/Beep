@@ -60,13 +60,14 @@ Cloudflare Containers, routed at `wall.deeley.org` via `wrangler.jsonc` +
 `src/worker/index.ts` (a thin routing/lifecycle wrapper - see `DECISIONS.md`
 for why this path was chosen over a serverless rewrite).
 
-**Not deployed yet from this build session** - the sandbox this was built in has
-no Docker daemon, and Cloudflare Containers' `wrangler deploy` needs one locally
-to build the container image (confirmed: `wrangler deploy --dry-run` gets all the
-way to that step and fails only on the missing daemon). The config itself was
-validated as far as this environment allows - `wrangler types` and the dry-run
-both parse `wrangler.jsonc` successfully, and `npm run typecheck` covers
-`src/worker/` too.
+**Not deployed yet from this build session** - the last missing piece is a working
+Cloudflare API token (see below), not the app or its packaging. Everything up to
+the actual `wrangler deploy` push has been verified for real in this session:
+`docker build` on the exact committed `Dockerfile` completes successfully, and the
+resulting image was run as a real container and its `/api/health`, static page,
+and tile endpoints all responded correctly. `wrangler types` and
+`wrangler deploy --dry-run` both parse `wrangler.jsonc` successfully, and
+`npm run typecheck` covers `src/worker/` too.
 
 **To finish the deploy**, from a machine with Docker running and this repo checked out:
 

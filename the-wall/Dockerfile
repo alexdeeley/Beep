@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 
 # --- deps: install once with full devDependencies (needed to build the client + compile the server) ---
-FROM node:20-slim AS deps
+# Node 22, not 20: wrangler/miniflare (devDependencies, used only to deploy - see wrangler.jsonc)
+# require it, and `npm ci` installs the full devDependency tree here regardless of what the
+# runtime actually needs.
+FROM node:22-slim AS deps
 WORKDIR /app
 # better-sqlite3 has a native addon that needs a compiler; ffmpeg is the timelapse CLI's own
 # dependency, not a build tool, but installing it once here keeps the later stages simple.
@@ -17,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # --- runtime: a slimmer image with only production dependencies + the compiled output ---
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 # ffmpeg is a runtime dependency of the timelapse CLI (admin/export tooling), not just a build tool.
