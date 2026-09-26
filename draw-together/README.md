@@ -81,6 +81,8 @@ dev/                 Local server emulator and test harnesses
 
 **Hibernation.** Uses the WebSocket Hibernation API with a `ping`→`pong` auto-response, so idle rooms cost nothing while players are connected.
 
+**Invert colors (accessibility).** A per-device toggle (home screen, in-game HUD, and the gallery page) that inverts the whole page - `filter: invert(1) hue-rotate(180deg)` on `<html>` - for light sensitivity or low vision, while the drawing itself stays true to its real colors: the `.sheet` canvases and the color/tool pickers get the exact same filter applied a second time, which cancels out precisely (invert-of-invert is the original, pixel for pixel). So if one player draws a yellow sun, it looks yellow on every screen watching, whether or not that screen has inverted colors on. Persisted in `localStorage` (`public/js/a11y.js`), same pattern as the mute button.
+
 ## Protocol
 
 Client → server (JSON):
@@ -139,3 +141,4 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 23. Hard difficulty surfaces Symbols/Music/Architecture words; Mixed never does.
 24. Chaos difficulty surfaces the expansion-pack scenario prompts; Mixed never does.
 25. Gallery: every drawing from the game appears, replays correctly, downloads as a PNG, and the share button + QR code both work.
+26. Invert-colors toggle flips the page's colors and is remembered across reload; the drawing itself (and the color/tool pickers) look identical whether it's on or off.

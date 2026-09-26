@@ -3,6 +3,7 @@
 // drawing's stored strokes rather than shipping a rasterized image.
 
 import { Board } from './board.js';
+import { initInvertToggle } from './a11y.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -13,6 +14,7 @@ const code = (params.get('code') || '').trim().toUpperCase();
 function setState(text) { $('g-state').textContent = text; }
 
 async function main() {
+  initInvertToggle($('btn-a11y-gallery'));
   wireInvite();
   wireShare();
 

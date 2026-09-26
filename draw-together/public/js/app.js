@@ -1,6 +1,7 @@
 import { Board, replay } from './board.js';
 import { Net } from './net.js';
 import * as snd from './sound.js';
+import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
   PLAYER_COLORS,
@@ -773,6 +774,7 @@ function renderMute() {
 $('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); });
 renderMute();
 $('btn-quit').addEventListener('click', () => confirmBox('Leave the game?', leaveGame));
+initInvertToggle($('btn-a11y-home'), $('btn-a11y-hud'));
 
 // ── Confirm dialog ──────────────────────────────────────────
 

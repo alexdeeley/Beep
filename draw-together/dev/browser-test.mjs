@@ -142,6 +142,23 @@ ok(d1 < 6, `drawer and guesser pictures match (mean diff ${d1.toFixed(2)}) at di
 await A.page.screenshot({ path: `${OUT}/06-drawing-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/06-watching-phone.png` });
 
+// invert-colors accessibility toggle: the page chrome inverts, but the
+// drawn ink itself must stay pixel-identical (the artist's actual color).
+const inkPixel = () => A.page.evaluate(() => {
+  for (const cv of document.querySelectorAll('.board-host .sheet canvas')) {
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 40) return [d[i - 3], d[i - 2], d[i - 1], d[i]];
+  }
+  return null;
+});
+const inkBeforeInvert = await inkPixel();
+await A.page.click('#btn-a11y-hud');
+ok(await A.page.evaluate(() => document.documentElement.classList.contains('a11y-invert')), 'invert-colors toggle applies the class');
+await sleep(150);
+ok(JSON.stringify(await inkPixel()) === JSON.stringify(inkBeforeInvert), 'drawn ink pixel unchanged with invert-colors on');
+await A.page.click('#btn-a11y-hud'); // back off, so the rest of the test runs against the normal theme
+await sleep(150);
+
 // eraser live
 const before = await inkCount(M.page);
 await stroke(A.page, [[0.3, 0.55], [0.7, 0.55], [0.3, 0.6], [0.7, 0.6]], 'eraser', null, 1);

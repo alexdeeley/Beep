@@ -279,6 +279,23 @@ h1, h2, h3, p { margin: 0; }
 .game.drawer .sheet { cursor: crosshair; }
 .game.blocked .sheet { cursor: default; }
 
+/* ── Accessibility: invert colors ──────────────────────────
+   hue-rotate(180deg) after invert(1) flips lightness (light <-> dark)
+   while roughly restoring each color's original hue, so this reads as a
+   real high-contrast dark theme rather than a photo-negative. The actual
+   drawing (the .sheet canvases) and the color pickers get the exact same
+   filter applied a second time, which cancels out precisely - so whatever
+   color someone draws with looks the same on every screen, inverted or not. */
+html.a11y-invert { filter: invert(1) hue-rotate(180deg); }
+html.a11y-invert .sheet,
+html.a11y-invert #colors .swatch,
+html.a11y-invert #tools,
+html.a11y-invert #sizes .blob {
+  filter: invert(1) hue-rotate(180deg);
+}
+.a11y-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.a11y-btn[aria-pressed="true"] svg { filter: invert(1); }
+
 /* guesses floating over the board */
 .feed {
   position: absolute; left: 24px; right: 24px; bottom: 24px;
