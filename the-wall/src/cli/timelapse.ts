@@ -207,6 +207,7 @@ export async function run(opts: Options): Promise<void> {
     "-i", "-",
     "-pix_fmt", "yuv420p",
     "-vf", `scale=${WIDTH}:${HEIGHT}`,
+    "-crf", "18", // low compression, keeps thin/sparse marks from picking up colour-shifting artifacts
     opts.out,
   ]);
   ffmpeg.stderr.on("data", () => {}); // ffmpeg logs progress to stderr; suppressed for a quiet CLI
