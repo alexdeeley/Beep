@@ -24,7 +24,8 @@
   // Container-backed Durable Objects require the newer SQLite storage backend.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WallContainer"] }],
 
-  "routes": [{ "pattern": "wall.deeley.org/*", "custom_domain": true }],
+  // Custom Domains don't accept wildcards or paths - just the bare hostname.
+  "routes": [{ "pattern": "wall.deeley.org", "custom_domain": true }],
 
   "observability": { "enabled": true }
 }
