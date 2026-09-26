@@ -55,33 +55,44 @@ against a database a live server is also writing to).
 
 ## Deployment (Cloudflare Containers → wall.deeley.org)
 
-This repo is set up to deploy as-is (unmodified app, same Dockerfile) onto
-Cloudflare Containers, routed at `wall.deeley.org` via `wrangler.jsonc` +
-`src/worker/index.ts` (a thin routing/lifecycle wrapper - see `DECISIONS.md`
-for why this path was chosen over a serverless rewrite).
+**Live at https://wall.deeley.org.** Deployed via Cloudflare Containers - the
+exact same unmodified app and Dockerfile as any other host, with a thin Worker +
+Durable Object (`wrangler.jsonc`, `src/worker/index.ts`) as Cloudflare's own
+routing/lifecycle wrapper (see `DECISIONS.md` for why this was chosen over a
+serverless rewrite). Verified end-to-end, not just deployed: `/api/health`,
+the static page, and the tile endpoint all respond correctly, and a real browser
+session drew a stroke and confirmed it round-tripped through the live Worker →
+Durable Object → container → SQLite → back to the canvas.
 
-**Not deployed yet from this build session** - the last missing piece is a working
-Cloudflare API token (see below), not the app or its packaging. Everything up to
-the actual `wrangler deploy` push has been verified for real in this session:
-`docker build` on the exact committed `Dockerfile` completes successfully, and the
-resulting image was run as a real container and its `/api/health`, static page,
-and tile endpoints all responded correctly. `wrangler types` and
-`wrangler deploy --dry-run` both parse `wrangler.jsonc` successfully, and
-`npm run typecheck` covers `src/worker/` too.
+Two things worth knowing if you redeploy or hit similar issues:
 
-**To finish the deploy**, from a machine with Docker running and this repo checked out:
+- **Cloudflare Containers requires the account to be on the Workers Paid plan**
+  ($5/month) - not obvious from the Containers UI itself, which appears
+  navigable on the Free plan right up until a deploy fails with an opaque 401 on
+  the container registry push. If a deploy fails there, check
+  Billing → Subscriptions first.
+- **The API token needs three separate permission groups**, which aren't bundled
+  into any single quick-pick template: **Workers Scripts: Edit**, **Cloudflare
+  Containers: Edit**, and (for the custom domain) either **Workers Routes: Edit**
+  scoped to the zone, or just create the domain mapping directly via
+  `PUT /accounts/{account_id}/workers/domains` (what this deployment actually
+  used, since the account's token didn't have the zone-level Workers Routes
+  permission wrangler's own route-creation step wants - the Custom Domains API
+  itself worked fine with what the token already had).
+
+To redeploy from a machine with Docker running and this repo checked out:
 
 ```bash
 npm install
 npm run cf:login      # opens a browser to authenticate with Cloudflare - no token to paste anywhere
 npm run cf:types       # regenerates worker-configuration.d.ts (gitignored) from wrangler.jsonc
-npm run deploy         # wrangler deploy - builds the Docker image, pushes it, wires up the route
+npm run deploy         # wrangler deploy - builds the Docker image, pushes it, updates the Worker
 ```
 
-Prerequisites this assumes: `deeley.org` is already an active zone in the target
-Cloudflare account (i.e. Cloudflare is its DNS), and Containers is enabled on the
-account (confirmed available). `wrangler deploy` will create the `wall.deeley.org`
-custom domain route automatically given the `routes` entry in `wrangler.jsonc`.
+If wrangler's own route-creation step fails after that (the zone-level Workers
+Routes permission gap above), the custom domain mapping only needs to be created
+once and persists across future deploys - use the curl command above with a
+token that has Workers Scripts + Containers edit access.
 
 **Verify after deploying**: open `https://wall.deeley.org`, draw something, reload,
 confirm it persisted. Note the accepted tradeoff from `DECISIONS.md`: the wall's
