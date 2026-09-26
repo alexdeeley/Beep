@@ -53,6 +53,30 @@ them against a stopped server's data file, or a live one (reads are safe
 concurrent with a running server; `restore` is destructive and should not be run
 against a database a live server is also writing to).
 
+## Deployment
+
+Not deployed to a public URL from this build session - the sandbox this was built
+in has no Docker daemon and no cloud provider credentials, and provisioning either
+is a decision (which host, which budget) that belongs to whoever runs this next,
+not one to make silently. What's ready, and the exact remaining steps:
+
+1. **Pick a host that can run one container plus persistent storage.** Fly.io,
+   Render, Railway, or a plain VPS all work - the app is one Docker image plus
+   either a mounted volume (SQLite) or a managed Postgres instance.
+2. **Build and push the image**: `docker build -t the-wall .` (this Dockerfile was
+   written and reviewed but never actually run through `docker build` in this
+   session - see the honest report below).
+3. **Provision storage**: either mount a persistent volume at `/app/data` (SQLite
+   - fine for a single instance, not for multiple replicas) or provision a Postgres
+   database and set `DATABASE_URL`.
+4. **Set environment variables**: `PORT` (most hosts set this for you),
+   `DATABASE_URL` or `SQLITE_PATH`, `IP_HASH_SALT` (recommended explicit in
+   production, so rate-limit identity survives a restart).
+5. **Point a domain/TLS at it** - most of the hosts above do this for you on
+   deploy; a bare VPS needs a reverse proxy (Caddy/nginx) in front for TLS.
+6. **Verify**: hit `/api/health`, open the site, draw something, reload, confirm it
+   persisted.
+
 ## Documents in this repo
 
 - `DECISIONS.md` - every design decision this build made autonomously, with the
