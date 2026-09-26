@@ -53,7 +53,8 @@ The browser test pairs a 1180×820 tablet with a 390×844 touch phone, checks mi
 ```
 src/worker.js        HTTP routes, room creation, WebSocket hand-off
 src/game-room.js     GameRoom Durable Object: all game rules, scoring, timer, secrecy
-src/words.js         Word bank (~300 words) + guess matching + letter-count hint
+src/words.js         Word bank (~300 words, plus ~3,000 opt-in Chaos-mode
+                     scenario prompts) + guess matching + letter-count hint
 public/index.html    All screens and overlays
 public/gallery.html  Shareable gallery of a room's finished drawings
 public/styles.css    Sticker-book look, portrait/landscape layouts, safe areas
@@ -107,7 +108,7 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 
 10 rounds by default (6 or 16 selectable), the drawer role rotates through every seat in join order. The chosen round count is rounded to the nearest multiple of the player count when the game starts, so every player always draws the same number of times - e.g. 3 players + "10 rounds" plays 9 (3 each), not 10 (one player drawing an extra round). Timer 30 / 60 / 90 s or none, with a tick in the last 10 seconds. A correct guess scores 3 points, plus 2 if more than 40 s remain or 1 if more than 20 s remain, with a little victory fanfare. Guess matching ignores case, accents, punctuation, spacing and plurals, accepts listed alternatives ("kitty" for CAT), forgives one typo in words of 5+ letters and two in 9+, and says "So close!" for near misses. Guessers see how many letters are in each word of the answer (one numeral per word, not a row of blanks - those break apart confusingly when the page is pinch-zoomed).
 
-**Difficulty & categories.** Easy / Mixed / Silly draw from the regular word bank (Mixed being everything except Silly and Hard). **Hard** is a separate opt-in tier - currently Symbols, Music and Architecture - full of trickier, more abstract prompts that never show up under any other difficulty by accident.
+**Difficulty & categories.** Easy / Mixed / Silly draw from the regular word bank (Mixed being everything except Silly and Hard). **Hard** is a separate opt-in tier - currently Symbols, Music and Architecture - full of trickier, more abstract prompts that never show up under any other difficulty by accident. **Chaos** is a second opt-in tier: ~3,000 longer, sillier scenario prompts ("A firefighter arguing with a dinosaur over a traffic cone") from a curated expansion pack, kept out of every other difficulty the same way Hard mode is, so the regular game stays exactly as it was unless a group chooses Chaos on purpose.
 
 **Gallery.** After a game ends, "View & share the gallery" opens a page (`gallery.html?code=CODE`) listing every drawing made that game - word, artist, and the drawing itself replayed from its strokes (never a raster image, so it renders crisply at any size). Each drawing can be saved as a PNG, and the gallery page itself has a share button (native share sheet, or copies the link) plus a QR code back to the site so people can scan their way into a game of their own. A room's drawings live exactly as long as the room does (12 hours idle), and starting a new game (Play Again or New Game) clears the previous game's gallery.
 
@@ -136,4 +137,5 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 21. 3+ players: picked round count is rounded so every seat draws the same number of times.
 22. Guesser sees a numeral per word (not letter blanks) while drawing is in progress; drawer never sees it.
 23. Hard difficulty surfaces Symbols/Music/Architecture words; Mixed never does.
-24. Gallery: every drawing from the game appears, replays correctly, downloads as a PNG, and the share button + QR code both work.
+24. Chaos difficulty surfaces the expansion-pack scenario prompts; Mixed never does.
+25. Gallery: every drawing from the game appears, replays correctly, downloads as a PNG, and the share button + QR code both work.

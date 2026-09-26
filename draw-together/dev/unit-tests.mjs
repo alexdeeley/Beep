@@ -19,7 +19,7 @@ const names = new Set();
 for (const w of WORDS) {
   ok(!names.has(w.w.toLowerCase()), `duplicate word ${w.w}`); names.add(w.w.toLowerCase());
   ok(w.c.every((c) => cats.has(c)), `bad category on ${w.w}`);
-  ok(['easy', 'medium', 'silly', 'hard'].includes(w.d), `bad difficulty on ${w.w}`);
+  ok(['easy', 'medium', 'silly', 'hard', 'chaos'].includes(w.d), `bad difficulty on ${w.w}`);
   ok(w.e && w.e.length, `missing emoji on ${w.w}`);
   ok(checkGuess(w.w, w) === 'correct', `exact answer accepted: ${w.w}`);
   ok(checkGuess(w.w.toUpperCase() + '  ', w) === 'correct', `case/space-insensitive: ${w.w}`);
@@ -46,12 +46,20 @@ ok(WORDS[easy.index].d === 'easy', 'easy pick');
 for (let i = 0; i < 60; i++) {
   const mixed = pickWord({ categories: ['everything'], difficulty: 'mixed' }, []);
   ok(WORDS[mixed.index].d !== 'hard', 'mixed pool never surfaces a hard word');
+  ok(WORDS[mixed.index].d !== 'chaos', 'mixed pool never surfaces a chaos word');
 }
 const hard = pickWord({ categories: ['everything'], difficulty: 'hard' }, []);
 ok(WORDS[hard.index].d === 'hard', 'hard difficulty picks a hard word');
 for (let i = 0; i < 30; i++) {
   const sym = pickWord({ categories: ['symbols'], difficulty: 'hard' }, []);
   ok(WORDS[sym.index].c.includes('symbols'), 'symbols category stays in symbols');
+}
+// chaos mode: same opt-in isolation as hard mode
+const chaos = pickWord({ categories: ['everything'], difficulty: 'chaos' }, []);
+ok(WORDS[chaos.index].d === 'chaos', 'chaos difficulty picks a chaos word');
+for (let i = 0; i < 30; i++) {
+  const c = pickWord({ categories: ['everything'], difficulty: 'chaos' }, []);
+  ok(WORDS[c.index].d === 'chaos', 'chaos difficulty never surfaces a non-chaos word');
 }
 
 // ── Multiplayer protocol ────────────────────────────────────

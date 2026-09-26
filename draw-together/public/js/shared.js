@@ -42,7 +42,7 @@ export const PALETTE = [
 
 export const TIMER_OPTIONS = [30, 60, 90, 0];      // 0 = no timer
 export const ROUND_OPTIONS = [6, 10, 16];
-export const DIFFICULTIES = ['easy', 'mixed', 'silly', 'hard'];
+export const DIFFICULTIES = ['easy', 'mixed', 'silly', 'hard', 'chaos'];
 
 export const CATEGORIES = [
   { id: 'everything', label: 'Everything', emoji: '✨' },

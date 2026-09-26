@@ -358,7 +358,7 @@ function renderSettings(isHost) {
     }, !isHost));
   }
   const diff = $('set-diff'); diff.replaceChildren();
-  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly'], ['hard', 'Hard 🔥']]) {
+  for (const [id, label] of [['easy', 'Easy'], ['mixed', 'Mixed'], ['silly', 'Silly'], ['hard', 'Hard 🔥'], ['chaos', 'Chaos 🌀']]) {
     diff.append(chip(label, s.difficulty === id, () => sendSettings({ difficulty: id }), !isHost));
   }
   const tm = $('set-timer'); tm.replaceChildren();
