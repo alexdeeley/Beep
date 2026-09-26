@@ -1,0 +1,11 @@
+node_modules/
+dist-client/
+dist-server/
+data/
+*.db
+*.db-*
+.env
+playwright-report/
+test-results/
+*.tsbuildinfo
+tmp/

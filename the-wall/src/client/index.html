@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>&#9675;</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<canvas
+  id="wall"
+  tabindex="0"
+  aria-label="A shared drawing wall that everyone can draw on together. Draw with one finger, the mouse, or a pen. Two fingers, the mouse wheel, or a trackpad pinch pan and zoom. A small dot in the corner opens the colour and brush palette."
+></canvas>
+
+<div id="cursor" aria-hidden="true"></div>
+
+<div id="palette" role="group" aria-label="Drawing tools">
+  <div id="swatches" role="group" aria-label="Colours">
+    <!-- populated by ui.ts -->
+  </div>
+  <div id="sizes" role="group" aria-label="Brush sizes">
+    <!-- populated by ui.ts -->
+  </div>
+  <button id="pixelToggle" type="button" aria-label="Toggle pixel mode" aria-pressed="false"></button>
+</div>
+
+<button id="cornerDot" type="button" aria-label="Open drawing tools"></button>
+
+<script type="module" src="./main.ts"></script>
+</body>
+</html>
