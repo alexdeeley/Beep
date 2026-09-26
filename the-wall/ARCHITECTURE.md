@@ -22,6 +22,11 @@ Node process that runs the API and WebSocket server - one deployable unit. In
 development, Vite's own dev server runs on :5173 and proxies `/api` and `/ws` to the
 backend on :8787 (`vite.config.ts`).
 
+For the Cloudflare Containers deployment target specifically (`wrangler.jsonc`,
+`src/worker/index.ts`), that same one deployable unit runs completely unmodified
+inside a container; the Worker + Durable Object there is purely Cloudflare's own
+routing/lifecycle wrapper around it, not a second backend.
+
 Three standalone CLIs (`src/cli/`) talk to the same storage layer directly, no HTTP:
 `timelapse` (renders the op log to video), `admin` (stats/moderation/backup/export).
 

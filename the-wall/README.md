@@ -53,29 +53,42 @@ them against a stopped server's data file, or a live one (reads are safe
 concurrent with a running server; `restore` is destructive and should not be run
 against a database a live server is also writing to).
 
-## Deployment
+## Deployment (Cloudflare Containers → wall.deeley.org)
 
-Not deployed to a public URL from this build session - the sandbox this was built
-in has no Docker daemon and no cloud provider credentials, and provisioning either
-is a decision (which host, which budget) that belongs to whoever runs this next,
-not one to make silently. What's ready, and the exact remaining steps:
+This repo is set up to deploy as-is (unmodified app, same Dockerfile) onto
+Cloudflare Containers, routed at `wall.deeley.org` via `wrangler.jsonc` +
+`src/worker/index.ts` (a thin routing/lifecycle wrapper - see `DECISIONS.md`
+for why this path was chosen over a serverless rewrite).
 
-1. **Pick a host that can run one container plus persistent storage.** Fly.io,
-   Render, Railway, or a plain VPS all work - the app is one Docker image plus
-   either a mounted volume (SQLite) or a managed Postgres instance.
-2. **Build and push the image**: `docker build -t the-wall .` (this Dockerfile was
-   written and reviewed but never actually run through `docker build` in this
-   session - see the honest report below).
-3. **Provision storage**: either mount a persistent volume at `/app/data` (SQLite
-   - fine for a single instance, not for multiple replicas) or provision a Postgres
-   database and set `DATABASE_URL`.
-4. **Set environment variables**: `PORT` (most hosts set this for you),
-   `DATABASE_URL` or `SQLITE_PATH`, `IP_HASH_SALT` (recommended explicit in
-   production, so rate-limit identity survives a restart).
-5. **Point a domain/TLS at it** - most of the hosts above do this for you on
-   deploy; a bare VPS needs a reverse proxy (Caddy/nginx) in front for TLS.
-6. **Verify**: hit `/api/health`, open the site, draw something, reload, confirm it
-   persisted.
+**Not deployed yet from this build session** - the sandbox this was built in has
+no Docker daemon, and Cloudflare Containers' `wrangler deploy` needs one locally
+to build the container image (confirmed: `wrangler deploy --dry-run` gets all the
+way to that step and fails only on the missing daemon). The config itself was
+validated as far as this environment allows - `wrangler types` and the dry-run
+both parse `wrangler.jsonc` successfully, and `npm run typecheck` covers
+`src/worker/` too.
+
+**To finish the deploy**, from a machine with Docker running and this repo checked out:
+
+```bash
+npm install
+npm run cf:login      # opens a browser to authenticate with Cloudflare - no token to paste anywhere
+npm run cf:types       # regenerates worker-configuration.d.ts (gitignored) from wrangler.jsonc
+npm run deploy         # wrangler deploy - builds the Docker image, pushes it, wires up the route
+```
+
+Prerequisites this assumes: `deeley.org` is already an active zone in the target
+Cloudflare account (i.e. Cloudflare is its DNS), and Containers is enabled on the
+account (confirmed available). `wrangler deploy` will create the `wall.deeley.org`
+custom domain route automatically given the `routes` entry in `wrangler.jsonc`.
+
+**Verify after deploying**: open `https://wall.deeley.org`, draw something, reload,
+confirm it persisted. Note the accepted tradeoff from `DECISIONS.md`: the wall's
+data lives on the container's own disk (SQLite), not a managed database - durable
+across a normal restart, but not guaranteed to survive Cloudflare rescheduling the
+instance to different underlying hardware. `npm run admin -- backup <path>` run
+periodically against the live container is the mitigation already built for this,
+if it's worth wiring up as a cron job later.
 
 ## Documents in this repo
 

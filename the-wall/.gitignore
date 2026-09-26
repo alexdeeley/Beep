@@ -9,3 +9,6 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 tmp/
+.wrangler/
+.dev.vars
+worker-configuration.d.ts

@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "the-wall",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The app runs completely unmodified inside this container - the same
+  // Dockerfile used for any other deploy target. Cloudflare's container
+  // product just routes traffic to it via the Durable Object below.
+  "containers": [
+    {
+      "class_name": "WallContainer",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "basic"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "name": "WALL_CONTAINER", "class_name": "WallContainer" }]
+  },
+
+  // Container-backed Durable Objects require the newer SQLite storage backend.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WallContainer"] }],
+
+  "routes": [{ "pattern": "wall.deeley.org/*", "custom_domain": true }],
+
+  "observability": { "enabled": true }
+}

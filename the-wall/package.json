@@ -21,9 +21,13 @@
     "test:load": "tsx tests/load/load-test.ts",
     "timelapse": "tsx src/cli/timelapse.ts",
     "admin": "tsx src/cli/admin.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.worker.json",
+    "cf:login": "wrangler login",
+    "cf:types": "wrangler types",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "@napi-rs/canvas": "^0.1.53",
     "better-sqlite3": "^11.3.0",
     "commander": "^12.1.0",
@@ -32,6 +36,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
     "@playwright/test": "^1.47.2",
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22.7.4",
@@ -41,6 +46,7 @@
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
-    "vitest": "^2.1.1"
+    "vitest": "^2.1.1",
+    "wrangler": "^4.141.0"
   }
 }
