@@ -239,25 +239,26 @@ html.a11y-invert { filter: invert(1) hue-rotate(180deg); }
 .roll-count { font-family: var(--mono); opacity: .85; font-size: .95rem; }
 
 .scorecard { background: rgba(255,255,255,.05); border-radius: 18px; padding: 12px 14px calc(var(--sb) + 12px); }
-.score-rows { display: flex; flex-direction: column; gap: 4px; }
+.score-rows { display: flex; flex-direction: column; gap: 8px; }
 .score-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border-radius: 12px; background: transparent;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 18px; border-radius: 14px; background: transparent;
   border: none; width: 100%; text-align: left; font-family: var(--font);
+  min-height: 60px;
 }
-.score-row.section-total { opacity: .75; font-size: .85rem; }
-.score-row .cat-label { font-weight: 700; }
-.score-row .cat-hint { font-size: .7rem; opacity: .6; font-weight: 500; }
-.score-row .cat-score { font-family: var(--mono); font-weight: 700; font-size: 1.1rem; }
+.score-row.section-total { opacity: .75; font-size: .95rem; min-height: 0; padding: 10px 18px; }
+.score-row .cat-label { font-weight: 700; font-size: 1.15rem; }
+.score-row .cat-hint { font-size: .82rem; opacity: .65; font-weight: 500; }
+.score-row .cat-score { font-family: var(--mono); font-weight: 700; font-size: 1.5rem; }
 .score-row.filled { opacity: .55; }
 .score-row.available {
-  background: rgba(31,207,143,.14); box-shadow: inset 0 0 0 2px var(--go);
+  background: rgba(31,207,143,.16); box-shadow: inset 0 0 0 3px var(--go);
   animation: glow 1.6s ease-in-out infinite;
 }
-@keyframes glow { 50% { box-shadow: inset 0 0 0 2px var(--go), 0 0 12px rgba(31,207,143,.5); } }
+@keyframes glow { 50% { box-shadow: inset 0 0 0 3px var(--go), 0 0 14px rgba(31,207,143,.55); } }
 .score-row.available .cat-score { color: var(--go); }
-.total-row { border-top: 2px solid rgba(255,255,255,.15); margin-top: 6px; padding-top: 12px; font-size: 1.2rem; font-weight: 800; }
-.total-row .cat-score { color: var(--gold); font-size: 1.3rem; }
+.total-row { border-top: 2px solid rgba(255,255,255,.15); margin-top: 6px; padding-top: 16px; font-size: 1.3rem; font-weight: 800; }
+.total-row .cat-score { color: var(--gold); font-size: 1.6rem; }
 
 /* ── Game over ───────────────────────────────────────────── */
 

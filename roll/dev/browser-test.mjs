@@ -88,17 +88,28 @@ ok(facesAfterRoll1.every((d) => d >= 1 && d <= 6), 'first roll fills all 5 dice'
 await drawer.page.screenshot({ path: `${OUT}/04-rolled.png` });
 ok((await other.page.evaluate(() => window.__roll.S.st.dice.slice())).join(',') === facesAfterRoll1.join(','), 'the other player sees the exact same dice');
 
+// Regression: right after a roll settles, the button must be usable again
+// on its own - not just after some unrelated action (like holding a die)
+// happens to force a re-render. Nothing is held yet, so this re-rolls all
+// 5 dice - "reroll the same (unheld) dice" with no intervening tap.
+ok(!(await drawer.page.isDisabled('#btn-roll')), 'Roll button is enabled again once the roll animation settles, with nothing held');
+await drawer.page.click('#btn-roll');
+await sleep(700);
+ok((await drawer.page.evaluate(() => window.__roll.S.st.rollsUsed)) === 2, 'rolling again immediately (nothing held) works right after the previous roll');
+
 await drawer.page.click('#dice .die >> nth=0');
 await sleep(100);
 ok(await drawer.page.evaluate(() => window.__roll.S.st.held[0]) === true, 'tapping a die holds it');
 ok(await drawer.page.locator('#dice .die').first().evaluate((el) => el.classList.contains('held')), 'held die gets the "held" visual class');
-const heldValue = facesAfterRoll1[0];
+const heldValue = await drawer.page.evaluate(() => window.__roll.S.st.dice[0]);
 
+ok(!(await drawer.page.isDisabled('#btn-roll')), 'Roll button is still enabled after holding a die');
 await drawer.page.click('#btn-roll');
 await sleep(700);
-ok((await drawer.page.evaluate(() => window.__roll.S.st.dice[0])) === heldValue, 'the held die keeps its value through a second roll');
-ok((await drawer.page.evaluate(() => window.__roll.S.st.rollsUsed)) === 2, 'roll count is now 2');
-ok((await drawer.page.textContent('#roll-count')).includes('2'), 'the on-screen roll counter shows 2');
+ok((await drawer.page.evaluate(() => window.__roll.S.st.dice[0])) === heldValue, 'the held die keeps its value through a third roll');
+ok((await drawer.page.evaluate(() => window.__roll.S.st.rollsUsed)) === 3, 'roll count is now 3 (the maximum)');
+ok((await drawer.page.textContent('#roll-count')).includes('3'), 'the on-screen roll counter shows 3');
+ok(await drawer.page.isDisabled('#btn-roll'), 'Roll button correctly disables once all 3 rolls are used');
 
 // Score a category via the real confirm-overlay flow.
 const available = await drawer.page.evaluate(() => Array.from(document.querySelectorAll('.score-row.available')).length);

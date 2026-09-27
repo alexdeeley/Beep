@@ -152,6 +152,29 @@ against the die's actual `getComputedStyle().width`, which read over
 anything other than the viewport width the `clamp()` itself already
 accounts for.
 
+## A real bug a user caught: the Roll button stayed disabled after its own animation
+
+The Roll button's `disabled` state depends on an `animating` flag that's
+`true` for the ~450ms dice-shake animation and `false` once it settles.
+`renderRollControls()` (which reads that flag) only ran once per incoming
+server state - at the *start* of the animation, when `animating` had just
+been set `true` - and nothing called it again when the animation's own
+`setInterval` later flipped `animating` back to `false`. The dice
+themselves repainted correctly (their own repaint call already happens at
+the end of the animation), so the bug was invisible by just looking at the
+board - only the button was stuck. A player who rolled and then
+immediately wanted to roll again *without first holding or releasing any
+die* - "reroll the same dice" - hit a Roll button that looked identical
+but silently did nothing, until some unrelated action (tapping a die)
+happened to trigger a fresh render and un-stick it. Fixed by calling
+`renderRollControls()` again at the point the animation actually finishes,
+not just relying on the next incoming server state to happen to fix it.
+Caught by reproducing the exact reported sequence (roll, then roll again
+with nothing held) in a real browser and reading the button's actual
+`disabled` property rather than assuming the visible dice state told the
+whole story; a regression check for it now lives in
+`dev/browser-test.mjs`.
+
 ## No image assets - dice are drawn, not photographed
 
 Every die is a plain white rounded square with pip dots placed on a 3x3

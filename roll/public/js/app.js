@@ -353,6 +353,11 @@ function renderDiceAnimated(prev) {
         displayDice = st.dice.slice();
         animating = false;
         paintDice(new Array(DICE_COUNT).fill(false));
+        // The Roll button's disabled state depends on `animating`, which
+        // just flipped back to false - re-render it now, not just the dice,
+        // or it stays disabled until some unrelated action (e.g. a hold)
+        // happens to trigger another render.
+        renderRollControls();
         snd.play('land');
       }
     }, 70);
