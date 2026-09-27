@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "blackjack",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+
+  // index.html, styles.css and /js/* are served straight from ./public.
+  // Anything that isn't a file (i.e. /api/...) goes to the Worker.
+  "assets": { "directory": "./public" },
+
+  // One Durable Object per table.
+  "durable_objects": {
+    "bindings": [{ "name": "TABLES", "class_name": "TableRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TableRoom"] }],
+
+  "observability": { "enabled": true },
+
+  // Standalone for now; expected to fold into play.deeley.org later (see
+  // DECISIONS.md) once there's a shared hub for multiple games.
+  "routes": [{ "pattern": "blackjack.deeley.org", "custom_domain": true }]
+}

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b5e35">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Blackjack">
+<title>Blackjack</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-close" viewBox="0 0 48 48"><path d="M13 13l22 22M35 13L13 35" stroke="#000" stroke-width="5" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M32 17c3 4 3 10 0 14M37 12c6 7 6 17 0 24" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 19l10 10M43 19L33 29" stroke="#000" stroke-width="3.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-invert" viewBox="0 0 48 48"><circle cx="24" cy="24" r="17" fill="none" stroke="#000" stroke-width="3.2"/><path d="M24 7a17 17 0 0 1 0 34z" fill="#000"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0z" fill="#fff" stroke="#000" stroke-width="3"/><path d="M14 10H8a6 6 0 0 0 6 10M34 10h6a6 6 0 0 1-6 10" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"/><path d="M24 28v8M17 40h14M18 36h12v4H18z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- HOME -->
+  <section id="scr-home" class="screen home" aria-labelledby="logo">
+    <h1 id="logo" class="logo">🃏 Blackjack</h1>
+    <p class="tag">One shared table, one dealer, everyone plays live.</p>
+    <label class="name-field">
+      <span>Your name</span>
+      <input id="in-name" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" placeholder="Type your name">
+    </label>
+    <div class="home-actions">
+      <button id="btn-create" class="btn big gold">Open a table</button>
+      <button id="btn-join" class="btn big green">Join a table</button>
+    </div>
+    <button id="btn-rejoin" class="btn small ghost" hidden></button>
+    <p id="home-err" class="err" role="alert"></p>
+    <button id="btn-a11y-home" class="btn small ghost a11y-btn" type="button" aria-pressed="false" aria-label="Invert colors for readability">
+      <svg width="20" height="20" aria-hidden="true"><use href="#i-invert"/></svg> Invert colors
+    </button>
+  </section>
+
+  <!-- JOIN -->
+  <section id="scr-join" class="screen join" hidden>
+    <button class="btn icon back" data-go="home" aria-label="Back"><svg><use href="#i-close"/></svg></button>
+    <h2 class="title">Type the table code</h2>
+    <input id="in-code" class="code-input" type="text" inputmode="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" aria-label="Table code" placeholder="ACE7">
+    <label class="name-field" id="join-name-wrap">
+      <span>Your name</span>
+      <input id="in-name2" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Type your name">
+    </label>
+    <button id="btn-join-go" class="btn big green">Join</button>
+    <p id="join-err" class="err" role="alert"></p>
+  </section>
+
+  <!-- TABLE -->
+  <section id="scr-table" class="screen table" hidden>
+    <header class="hud">
+      <div class="hud-code">
+        <span class="hud-code-label">Table</span>
+        <span id="hud-code" class="hud-code-val"></span>
+      </div>
+      <div class="hud-round" id="hud-round"></div>
+      <div class="hud-btns">
+        <button class="btn icon mini" id="btn-leaderboard" aria-label="Leaderboard"><svg><use href="#i-trophy"/></svg></button>
+        <button class="btn icon mini a11y-btn" id="btn-a11y-hud" type="button" aria-pressed="false" aria-label="Invert colors for readability"><svg><use href="#i-invert"/></svg></button>
+        <button class="btn icon mini" id="btn-mute" aria-label="Mute sounds"><svg><use href="#i-sound"/></svg></button>
+        <button class="btn icon mini" id="btn-quit" aria-label="Leave table"><svg><use href="#i-close"/></svg></button>
+      </div>
+    </header>
+
+    <div class="felt">
+      <div class="dealer-area">
+        <div class="dealer-label">Dealer<span id="dealer-total" class="total"></span></div>
+        <div id="dealer-cards" class="cards"></div>
+      </div>
+      <div id="seats" class="seats"></div>
+    </div>
+
+    <div class="banner" id="phase-banner" aria-live="polite"></div>
+
+    <!-- betting controls -->
+    <div class="controls betting" id="ctl-betting" hidden>
+      <div class="bet-presets" id="bet-presets"></div>
+      <div class="bet-row">
+        <span id="my-bet" class="my-bet"></span>
+        <span id="bet-timer" class="ctl-timer"></span>
+      </div>
+    </div>
+
+    <!-- turn controls -->
+    <div class="controls turn" id="ctl-turn" hidden>
+      <div class="turn-row">
+        <span id="turn-msg" class="turn-msg"></span>
+        <span id="turn-timer" class="ctl-timer"></span>
+      </div>
+      <div class="turn-btns">
+        <button id="btn-hit" class="btn tool">Hit</button>
+        <button id="btn-stand" class="btn tool">Stand</button>
+        <button id="btn-double" class="btn tool">Double</button>
+        <button id="btn-split" class="btn tool">Split</button>
+      </div>
+    </div>
+
+    <!-- lobby control -->
+    <div class="controls lobby" id="ctl-lobby" hidden>
+      <p id="lobby-msg" class="lobby-msg"></p>
+      <button id="btn-start" class="btn big gold">Start the table</button>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD OVERLAY -->
+  <div class="ov" id="ov-leaderboard" hidden>
+    <div class="ov-card">
+      <button class="btn icon back" id="btn-leaderboard-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+      <h2>🏆 Table Leaderboard</h2>
+      <div id="leaderboard-rows" class="lb-rows"></div>
+    </div>
+  </div>
+
+  <!-- confirm overlay -->
+  <div class="ov" id="ov-confirm" hidden>
+    <div class="ov-card small">
+      <p id="confirm-msg"></p>
+      <div class="ov-actions">
+        <button id="btn-no" class="btn ghost">Cancel</button>
+        <button id="btn-yes" class="btn stop">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- connection overlay -->
+  <div class="ov" id="ov-conn" hidden>
+    <div class="ov-card small">
+      <p id="conn-msg">Reconnecting…</p>
+      <button id="btn-conn-home" class="btn ghost" hidden>Back home</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
