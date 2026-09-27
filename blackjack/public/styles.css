@@ -146,20 +146,20 @@ html.a11y-invert { filter: invert(1) hue-rotate(180deg); }
 .dealer-label { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
 .dealer-label .total { font-family: var(--mono); color: var(--gold); font-size: 1.1rem; }
 
-.cards { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 64px; }
+.cards { display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; min-height: 100px; }
 .card {
-  width: 44px; height: 62px; border-radius: 7px; background: var(--paper);
+  width: 70px; height: 98px; border-radius: 10px; background: var(--paper);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-family: var(--mono); font-weight: 700; color: var(--ink);
-  box-shadow: 0 2px 0 rgba(0,0,0,.3);
+  box-shadow: 0 3px 0 rgba(0,0,0,.3);
   flex: none;
 }
 .card.red { color: var(--red); }
-.card .rank { font-size: 1rem; line-height: 1; }
-.card .suit { font-size: 1.1rem; line-height: 1; }
+.card .rank { font-size: 1.7rem; line-height: 1; }
+.card .suit { font-size: 1.85rem; line-height: 1; }
 .card.back {
-  background: repeating-linear-gradient(45deg, var(--felt-line), var(--felt-line) 4px, var(--felt) 4px, var(--felt) 8px);
-  border: 2px solid var(--gold);
+  background: repeating-linear-gradient(45deg, var(--felt-line), var(--felt-line) 5px, var(--felt) 5px, var(--felt) 10px);
+  border: 3px solid var(--gold);
 }
 
 .seats {
@@ -183,7 +183,7 @@ html.a11y-invert { filter: invert(1) hue-rotate(180deg); }
 .seat-hands { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .seat-hand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .seat-hand.active-hand { outline: 2px dashed var(--gold); border-radius: 10px; padding: 4px; }
-.seat-hand .cards { min-height: 50px; }
+.seat-hand .cards { min-height: 80px; }
 .seat-hand .hand-total { font-family: var(--mono); font-size: .85rem; }
 .seat-hand .hand-result { font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
 .hand-result.win, .hand-result.blackjack { background: var(--go); color: var(--ink); }
@@ -243,5 +243,7 @@ html.a11y-invert { filter: invert(1) hue-rotate(180deg); }
 
 @media (max-width: 480px) {
   .seats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-  .card { width: 38px; height: 54px; }
+  .card { width: 58px; height: 82px; border-radius: 9px; }
+  .card .rank { font-size: 1.4rem; }
+  .card .suit { font-size: 1.55rem; }
 }
