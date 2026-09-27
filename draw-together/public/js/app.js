@@ -195,6 +195,7 @@ function leaveNet() {
 function goHome(message = '', forget = false) {
   leaveNet();
   S.st = null;
+  music.resume(); // harmless if it wasn't paused; undoes an over-screen pause
   store.del('dt.session', sessionStorage);
   if (forget) store.del('dt.last');
   history.replaceState(null, '', location.pathname);
@@ -285,6 +286,10 @@ function applyState(st) {
     if (st.phase === 'over' && prev) snd.play('over');
     if (st.phase === 'reveal' && st.result?.reason === 'correct' && prev) confetti();
     if (prev && prev.players.length < st.players.length && st.phase === 'lobby') snd.play('join');
+    // Game over gets quiet (just the chime above) instead of the music
+    // running under it forever; the next round starting brings it back.
+    if (st.phase === 'over' && prev) music.pause();
+    if (prev?.phase === 'over' && st.phase !== 'over') music.resume();
   }
 
   if (st.phase === 'lobby') { show('lobby'); renderLobby(); }

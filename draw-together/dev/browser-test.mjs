@@ -282,9 +282,13 @@ console.log('    (loop ended at ' + lastPhase + ')');
 await M.page.waitForSelector('#scr-over:not([hidden])');
 await M.page.screenshot({ path: `${OUT}/16-game-over-phone.png` });
 ok(true, 'reached game over');
+await sleep(400); // let the pause-on-'over' fade finish
+ok(!(await M.page.evaluate(() => window.__dt.music.isPlaying())), 'music pauses on game over (just the chime plays)');
 await M.page.click('#btn-again');
 await A.page.waitForFunction(() => window.__dt.S.st.phase === 'choosing' && window.__dt.S.st.round === 1);
 ok(true, 'play again');
+await sleep(400); // let the resume-on-next-round fade finish
+ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes once the next round starts');
 
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();
