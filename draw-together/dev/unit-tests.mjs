@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORDS, checkGuess, pickWord } from '../src/words.js';
-import { CATEGORIES, MAX_PLAYERS } from '../public/js/shared.js';
+import { CATEGORIES, MAX_PLAYERS, REACTIONS } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8799;
@@ -329,6 +329,77 @@ A.close(); M2.close();
   Dr.send({ type: 'ready', aspect: 1 }); await sleep(60);
   ok(P.st.guessesLocked === false && Q.st.guessesLocked === false, 'guessing is open immediately by default');
   ok(P.st.timer.running === true, 'timer starts right away by default');
+  P.close(); Q.close();
+}
+
+// quick reactions: fixed list, relayed to everyone including the sender,
+// gently rate-limited, never touches persisted state
+{
+  const { code: c5 } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const P = new Client(c5, 'rp-000001', 'P'), Q = new Client(c5, 'rq-000001', 'Q');
+  await P.open(); await Q.open(); await sleep(80);
+  P.send({ type: 'start' }); await sleep(60);
+  const Dr = P.st.drawerSeat === P.st.you ? P : Q;
+  Dr.send({ type: 'ready', aspect: 1 }); await sleep(60);
+
+  P.send({ type: 'react', i: 1 }); await sleep(60);
+  ok(P.of('react').length === 1 && Q.of('react').length === 1, 'a reaction reaches everyone, including the sender');
+  ok(P.of('react')[0].i === 1 && P.of('react')[0].seat === P.st.you, 'reaction carries the right index and seat');
+
+  P.send({ type: 'react', i: 2 }); await sleep(60);
+  ok(P.of('react').length === 1, 'rapid second reaction is rate-limited');
+  await sleep(550);
+  P.send({ type: 'react', i: 2 }); await sleep(60);
+  ok(P.of('react').length === 2, 'reacting again works once the cooldown passes');
+
+  P.send({ type: 'react', i: REACTIONS.length }); await sleep(60);
+  ok(P.of('react').length === 2, 'out-of-range reaction index is ignored');
+  P.send({ type: 'react', i: -1 }); await sleep(60);
+  ok(P.of('react').length === 2, 'negative reaction index is ignored');
+
+  const beforeSave = JSON.parse(JSON.stringify(P.st));
+  await sleep(100);
+  ok(JSON.stringify(P.st) === JSON.stringify(beforeSave), 'a reaction never shows up in the persisted state');
+  P.close(); Q.close();
+}
+
+// ghost doodles: guessers can gesture on the drawing; the drawer can't;
+// nothing here is stored, so there's no state to check beyond the relay
+{
+  const { code: c6 } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const P = new Client(c6, 'gp-000001', 'P'), Q = new Client(c6, 'gq-000001', 'Q');
+  await P.open(); await Q.open(); await sleep(80);
+  P.send({ type: 'start' }); await sleep(60);
+  const Dr = P.st.drawerSeat === P.st.you ? P : Q;
+  const Gu = Dr === P ? Q : P;
+  Dr.send({ type: 'ready', aspect: 1 }); await sleep(60);
+
+  Dr.send({ type: 'doodleStart', id: 'ghost001', pts: [100, 100] }); await sleep(60);
+  ok(Dr.of('doodleStart').length === 0 && Gu.of('doodleStart').length === 0, 'the drawer cannot start a doodle');
+
+  // two doodleStart back-to-back, no gap: the throttle is on *starting*, so
+  // the second (still-immediate) one is dropped and the first stays active
+  Gu.send({ type: 'doodleStart', id: 'ghost002', pts: [100, 100] });
+  Gu.send({ type: 'doodleStart', id: 'ghost002b', pts: [100, 100] });
+  await sleep(60);
+  ok(Gu.of('doodleStart').length === 1, 'starting again immediately is rate-limited');
+  ok(Dr.of('doodleStart').length === 1 && Gu.of('doodleStart')[0].seat === Gu.st.you, 'a guesser doodle reaches everyone, including themselves');
+
+  Gu.send({ type: 'doodlePoints', id: 'wrongid', pts: [200, 200] }); await sleep(60);
+  ok(Dr.of('doodlePoints').length === 0, 'points for an id that was never started are ignored');
+  Gu.send({ type: 'doodlePoints', id: 'ghost002', pts: [200, 200] }); await sleep(60);
+  ok(Dr.of('doodlePoints').length === 1, 'points for the active doodle (the first, not the throttled one) are relayed');
+
+  Gu.send({ type: 'doodleEnd', id: 'wrongid' }); await sleep(60);
+  ok(Dr.of('doodleEnd').length === 0, 'ending the wrong id does nothing');
+  Gu.send({ type: 'doodleEnd', id: 'ghost002' }); await sleep(60);
+  ok(Dr.of('doodleEnd').length === 1, 'ending the real doodle is relayed');
+
+  // a genuinely new gesture, well past the cooldown, starts fine
+  await sleep(350);
+  Gu.send({ type: 'doodleStart', id: 'ghost003', pts: [50, 50] }); await sleep(60);
+  ok(Gu.of('doodleStart').length === 2, 'a new doodle starts fine once the cooldown passes');
+
   P.close(); Q.close();
 }
 

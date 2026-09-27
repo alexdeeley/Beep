@@ -90,7 +90,7 @@ await A.page.click('#btn-ready');
 await M.page.waitForFunction(() => window.__dt.S.st.phase === 'drawing');
 await sleep(200);
 
-const inkCount = (page, sel = '.board-host .sheet canvas') => page.evaluate((sel) => {
+const inkCount = (page, sel = '.board-host .sheet canvas:not(.ghost)') => page.evaluate((sel) => {
   let n = 0;
   for (const cv of document.querySelectorAll(sel)) {
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
@@ -98,6 +98,36 @@ const inkCount = (page, sel = '.board-host .sheet canvas') => page.evaluate((sel
   }
   return n;
 }, sel);
+
+// Quick reactions: visible to everyone, gone in about a second, no free text.
+ok(await A.page.isVisible('#reactions'), 'reaction buttons are visible while drawing');
+await M.page.click('#reactions .btn >> nth=0');
+await A.page.waitForSelector('.bubble.reaction');
+ok(await A.page.isVisible('.bubble.reaction'), "a guesser's reaction appears on the drawer's screen");
+await sleep(1100);
+ok(!(await A.page.isVisible('.bubble.reaction')), 'the reaction bubble is gone about a second later');
+
+// Ghost doodles: a guesser can gesture on the drawing without touching the
+// real board, and the mark itself fades away on its own.
+const ghostInk = (page) => page.evaluate(() => {
+  const cv = document.querySelector('.board-host .sheet canvas.ghost');
+  if (!cv) return 0;
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 16) if (d[i] > 0) n++;
+  return n;
+});
+const realInkBeforeDoodle = await inkCount(A.page);
+const gbox = await M.page.locator('.board-host .sheet').boundingBox();
+await M.page.mouse.move(gbox.x + gbox.width * 0.2, gbox.y + gbox.height * 0.2);
+await M.page.mouse.down();
+await M.page.mouse.move(gbox.x + gbox.width * 0.4, gbox.y + gbox.height * 0.4, { steps: 6 });
+await M.page.mouse.up();
+await sleep(150);
+ok((await ghostInk(A.page)) > 0, "a guesser's doodle appears on the drawer's screen");
+ok((await inkCount(A.page)) === realInkBeforeDoodle, "the real drawing is untouched by the guesser's doodle");
+await sleep(1200);
+ok((await ghostInk(A.page)) === 0, 'the doodle fades away and clears itself on its own');
 
 const box = await A.page.locator('.board-host .sheet').boundingBox();
 const P = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];

@@ -315,6 +315,28 @@ html.a11y-invert #sizes .blob {
 .bubble.close { background: #fff3b0; }
 .bubble.fade { opacity: 0; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } }
+/* reactions fade much faster than a guess bubble - they're meant to feel
+   quick and light, not linger like something that needs reading */
+.bubble.reaction { background: #fff3b0; transition-duration: .25s; }
+
+/* quick-reaction buttons, floating over the board so they work for both
+   the drawer and every guesser without disturbing either one's own controls */
+.reactions {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
+  max-width: 60%;
+}
+.reactions .btn {
+  width: 40px; height: 40px; min-height: 0; padding: 0;
+  border-radius: 50%; font-size: 1.3rem;
+  display: grid; place-items: center;
+  background: var(--paper);
+}
+.reactions .btn:active { transform: translateY(2px); }
+
+/* ghost doodles: guessers gesturing on the drawing, faded and non-interactive
+   so they can never compete with or block the real drawing underneath */
+.sheet .layer.ghost { pointer-events: none; }
 
 /* ── Drawer tray ───────────────────────────────── */
 

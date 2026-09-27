@@ -89,6 +89,18 @@ export const PLAYER_COLORS = [
 ];
 export const MAX_POINTS_PER_MSG = 400; // x,y pairs → 800 ints
 export const MAX_NAME = 14;
+
+// Quick reactions anyone can fire off during drawing - a fixed list (not
+// free text) so there's nothing to moderate. Each shows briefly as a
+// bubble, same spot as the guess feed, then vanishes fast (see app.js).
+export const REACTIONS = [
+  { emoji: '😂', text: 'Ha ha!' },
+  { emoji: '👏', text: 'Nice drawing!' },
+  { emoji: '😍', text: 'Love it!' },
+  { emoji: '😮', text: 'Whoa!' },
+  { emoji: '🤔', text: 'Hmm…' },
+  { emoji: '👀', text: 'Look!' },
+];
 export const WORD_CHOICES = 5;         // word options the drawer can cycle through per round
 export const ASPECT_MIN = 0.55;
 export const ASPECT_MAX = 1.8;

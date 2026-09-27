@@ -5,7 +5,7 @@ import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
-  PLAYER_COLORS, WORD_CHOICES,
+  PLAYER_COLORS, WORD_CHOICES, REACTIONS,
 } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -216,6 +216,7 @@ function onStatus(s) {
   }
   if (s === 'lost') {
     if (S.stroke) { S.board.end(S.stroke.id); S.stroke = null; }
+    S.doodle = null;
     if (S.everOpen) $('ov-conn').hidden = false;
     return;
   }
@@ -256,6 +257,10 @@ function onMessage(m) {
     case 'undo': S.board.undo(m.id); updateUndo(); break;
     case 'clear': S.board.clear(m.id); updateUndo(); break;
     case 'guess': addBubble(m.guess); snd.play(m.guess.verdict === 'close' ? 'close' : 'nope'); break;
+    case 'doodleStart': addGhost(m.id, m.seat, m.pts); break;
+    case 'doodlePoints': addGhostPoints(m.id, m.pts); break;
+    case 'doodleEnd': endGhost(m.id); break;
+    case 'react': addReactionBubble(m.seat, m.i); snd.play('pop'); break;
     case 'event':
       if (m.kind === 'joined') { snd.play('join'); }
       if (m.kind === 'back') { snd.play('join'); }
@@ -418,7 +423,89 @@ function leaveGame() {
 // ── Game ────────────────────────────────────────────────────
 
 const gameEl = $('scr-game');
-S.board = new Board($('board-host'), { onLayout: () => {} });
+S.board = new Board($('board-host'), {
+  onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; },
+});
+
+// ── Ghost doodles: guessers gesturing on the drawing ─────────
+//
+// Never touches S.board's ops - not a real stroke, never persisted, never
+// undoable, never in the gallery. Lives on its own canvas layered on top of
+// the real drawing (see `.layer.ghost` in styles.css), faded and driven
+// entirely by relayed server messages (see onMessage below) rather than
+// drawn locally first, so every viewer - including the person doodling -
+// sees the exact same thing at the exact same time.
+const ghostCanvas = document.createElement('canvas');
+ghostCanvas.className = 'layer ghost';
+ghostCanvas.setAttribute('aria-hidden', 'true');
+S.board.sheet.append(ghostCanvas);
+const gctx = ghostCanvas.getContext('2d');
+
+const ghosts = new Map(); // stroke id -> { seat, pts, ended, lastAt, endAt }
+const GHOST_LINGER_MS = 650;   // how long a finished mark hangs around before fading
+const GHOST_FADE_MS = 300;     // fade-out duration once it starts vanishing
+const GHOST_STALL_MS = 1500;   // auto-end a mark that never got an explicit end (dropped message, disconnect)
+const GHOST_ALPHA = 0.6;       // always fainter than real ink, so it can't compete with it
+let ghostRaf = 0;
+
+function addGhost(id, seat, pts) {
+  ghosts.set(id, { seat, pts: pts.slice(), ended: false, lastAt: performance.now(), endAt: 0 });
+  if (!ghostRaf) ghostRaf = requestAnimationFrame(tickGhosts);
+}
+function addGhostPoints(id, pts) {
+  const g = ghosts.get(id);
+  if (!g) return;
+  for (const v of pts) g.pts.push(v);
+  g.lastAt = performance.now();
+}
+function endGhost(id) {
+  const g = ghosts.get(id);
+  if (!g || g.ended) return;
+  g.ended = true;
+  g.endAt = performance.now();
+}
+function clearGhosts() {
+  ghosts.clear();
+  gctx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+}
+function tickGhosts() {
+  gctx.setTransform(1, 0, 0, 1, 0, 0);
+  gctx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+  const now = performance.now();
+  for (const [id, g] of ghosts) {
+    if (!g.ended && now - g.lastAt > GHOST_STALL_MS) { g.ended = true; g.endAt = now; }
+    let alpha = 1;
+    if (g.ended) {
+      const age = now - g.endAt;
+      if (age > GHOST_LINGER_MS + GHOST_FADE_MS) { ghosts.delete(id); continue; }
+      if (age > GHOST_LINGER_MS) alpha = 1 - (age - GHOST_LINGER_MS) / GHOST_FADE_MS;
+    }
+    drawGhostStroke(g, alpha);
+  }
+  if (ghosts.size) requestAnimationFrame(tickGhosts);
+  else ghostRaf = 0;
+}
+function drawGhostStroke(g, alpha) {
+  const p = S.board.unitPoints(g.pts);
+  const n = p.length / 2;
+  if (!n) return;
+  gctx.save();
+  gctx.setTransform(S.board.scale, 0, 0, S.board.scale, 0, 0);
+  gctx.globalAlpha = alpha * GHOST_ALPHA;
+  gctx.strokeStyle = gctx.fillStyle = colorOf(g.seat);
+  gctx.lineCap = 'round';
+  gctx.lineJoin = 'round';
+  gctx.lineWidth = 16;
+  if (n === 1) {
+    gctx.beginPath(); gctx.arc(p[0], p[1], 8, 0, Math.PI * 2); gctx.fill();
+  } else {
+    gctx.beginPath();
+    gctx.moveTo(p[0], p[1]);
+    for (let i = 1; i < n; i++) gctx.lineTo(p[i * 2], p[i * 2 + 1]);
+    gctx.stroke();
+  }
+  gctx.restore();
+}
 
 // Shrink the HUD text until it fits in two lines, never cutting the word off.
 function fitHud(el) {
@@ -513,7 +600,9 @@ function renderGame(prev, phaseChanged) {
   if (phaseChanged && st.phase !== 'drawing') {
     $('feed').replaceChildren();
     $('in-guess').value = '';
+    clearGhosts();
   }
+  $('reactions').hidden = st.phase !== 'drawing';
   const justUnlocked = prev?.guessesLocked && !waitingToGuess && st.phase === 'drawing';
   if ((phaseChanged && st.phase === 'drawing' && !drawer && !waitingToGuess) || (justUnlocked && !drawer)) {
     // Focus the answer box without popping the keyboard over a phone screen.
@@ -641,67 +730,93 @@ buildTray();
 
 const sheet = S.board.sheet;
 const canDraw = () => S.st?.phase === 'drawing' && amDrawer() && S.net?.isOpen;
+// Anyone who ISN'T the drawer can doodle instead - a separate, ephemeral
+// mark (see the ghost-doodle block above), never the real drawing.
+const canDoodle = () => S.st?.phase === 'drawing' && !amDrawer() && S.net?.isOpen;
 const MIN_STEP = 10; // in 0..10000 board coordinates
 
 sheet.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'pen') S.lastPen = performance.now();
-  if (!canDraw() || S.stroke) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   // Palm rejection: ignore touches right after the pencil was used.
   if (e.pointerType === 'touch' && performance.now() - S.lastPen < 1500) return;
-  e.preventDefault();
-  try { sheet.setPointerCapture(e.pointerId); } catch {}
-  const [x, y] = S.board.toBoard(e.clientX, e.clientY);
-  const tool = S.tool;
-  const size = TOOLS[tool].sizes[S.sizeIdx[tool]];
-  const color = tool === 'eraser' ? '#ffffff' : S.color;
-  const id = rid();
-  S.stroke = { id, pointerId: e.pointerId, lx: x, ly: y, pending: [], raf: 0 };
-  S.board.begin({ id, tool, color, size, pts: [x, y] });
-  S.net.send({ type: 'strokeStart', id, tool, color, size, pts: [x, y] });
+  if (canDraw() && !S.stroke) {
+    e.preventDefault();
+    try { sheet.setPointerCapture(e.pointerId); } catch {}
+    const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+    const tool = S.tool;
+    const size = TOOLS[tool].sizes[S.sizeIdx[tool]];
+    const color = tool === 'eraser' ? '#ffffff' : S.color;
+    const id = rid();
+    S.stroke = { id, pointerId: e.pointerId, lx: x, ly: y, pending: [], raf: 0 };
+    S.board.begin({ id, tool, color, size, pts: [x, y] });
+    S.net.send({ type: 'strokeStart', id, tool, color, size, pts: [x, y] });
+  } else if (canDoodle() && !S.doodle) {
+    e.preventDefault();
+    try { sheet.setPointerCapture(e.pointerId); } catch {}
+    const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+    const id = rid();
+    S.doodle = { id, pointerId: e.pointerId, lx: x, ly: y, pending: [], raf: 0 };
+    S.net.send({ type: 'doodleStart', id, pts: [x, y] });
+  }
 });
 
 sheet.addEventListener('pointermove', (e) => {
-  const s = S.stroke;
   if (e.pointerType === 'pen') S.lastPen = performance.now();
-  if (!s || e.pointerId !== s.pointerId) return;
+  const s = S.stroke, d = S.doodle;
+  const active = (s && e.pointerId === s.pointerId) ? s : (d && e.pointerId === d.pointerId) ? d : null;
+  if (!active) return;
   e.preventDefault();
   let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
   if (!evs.length) evs = [e];
   const add = [];
   for (const ev of evs) {
     const [x, y] = S.board.toBoard(ev.clientX, ev.clientY);
-    if (Math.abs(x - s.lx) + Math.abs(y - s.ly) < MIN_STEP) continue;
-    s.lx = x; s.ly = y;
+    if (Math.abs(x - active.lx) + Math.abs(y - active.ly) < MIN_STEP) continue;
+    active.lx = x; active.ly = y;
     add.push(x, y);
   }
   if (!add.length) return;
-  S.board.add(s.id, add);
-  s.pending.push(...add);
-  if (!s.raf) s.raf = requestAnimationFrame(() => flush(s));
+  if (active === s) S.board.add(s.id, add);
+  active.pending.push(...add);
+  if (!active.raf) active.raf = requestAnimationFrame(() => flush(active));
 });
 
 function flush(s) {
   s.raf = 0;
+  const type = s === S.stroke ? 'strokePoints' : 'doodlePoints';
   while (s.pending.length) {
     const chunk = s.pending.splice(0, MAX_POINTS_PER_MSG * 2);
-    S.net?.send({ type: 'strokePoints', id: s.id, pts: chunk });
+    S.net?.send({ type, id: s.id, pts: chunk });
   }
 }
 
 function endStroke(e) {
   const s = S.stroke;
-  if (!s || (e && e.pointerId !== s.pointerId)) return;
-  if (e && e.type === 'pointerup') {
-    const [x, y] = S.board.toBoard(e.clientX, e.clientY);
-    if (x !== s.lx || y !== s.ly) { S.board.add(s.id, [x, y]); s.pending.push(x, y); }
+  if (s && (!e || e.pointerId === s.pointerId)) {
+    if (e && e.type === 'pointerup') {
+      const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+      if (x !== s.lx || y !== s.ly) { S.board.add(s.id, [x, y]); s.pending.push(x, y); }
+    }
+    cancelAnimationFrame(s.raf);
+    flush(s);
+    S.board.end(s.id);
+    S.net?.send({ type: 'strokeEnd', id: s.id });
+    S.stroke = null;
+    updateUndo();
+    return;
   }
-  cancelAnimationFrame(s.raf);
-  flush(s);
-  S.board.end(s.id);
-  S.net?.send({ type: 'strokeEnd', id: s.id });
-  S.stroke = null;
-  updateUndo();
+  const d = S.doodle;
+  if (d && (!e || e.pointerId === d.pointerId)) {
+    if (e && e.type === 'pointerup') {
+      const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+      if (x !== d.lx || y !== d.ly) d.pending.push(x, y);
+    }
+    cancelAnimationFrame(d.raf);
+    flush(d);
+    S.net?.send({ type: 'doodleEnd', id: d.id });
+    S.doodle = null;
+  }
 }
 sheet.addEventListener('pointerup', endStroke);
 sheet.addEventListener('pointercancel', endStroke);
@@ -735,6 +850,44 @@ function addBubble(g) {
   while (feed.children.length > 3) feed.firstChild.remove();
   setTimeout(() => el.classList.add('fade'), 3200);
   setTimeout(() => el.remove(), 3900);
+}
+
+// ── Quick reactions ──────────────────────────────────────────
+
+function buildReactions() {
+  const box = $('reactions');
+  REACTIONS.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.type = 'button';
+    b.textContent = r.emoji;
+    b.setAttribute('aria-label', r.text);
+    b.addEventListener('click', () => sendReaction(i));
+    box.append(b);
+  });
+}
+buildReactions();
+
+let lastReactAt = 0;
+function sendReaction(i) {
+  if (S.st?.phase !== 'drawing') return;
+  const now = performance.now();
+  if (now - lastReactAt < 550) return; // matches the server's own cooldown
+  lastReactAt = now;
+  S.net?.send({ type: 'react', i });
+}
+
+function addReactionBubble(seat, i) {
+  const r = REACTIONS[i];
+  if (!r) return;
+  const feed = $('feed');
+  const el = document.createElement('div');
+  el.className = 'bubble reaction';
+  el.innerHTML = `<span class="who" style="--pc:${colorOf(seat)}">${esc(nameOf(seat))}</span>${r.emoji} ${esc(r.text)}`;
+  feed.append(el);
+  while (feed.children.length > 3) feed.firstChild.remove();
+  setTimeout(() => el.classList.add('fade'), 700);
+  setTimeout(() => el.remove(), 950);
 }
 
 // ── Round results ───────────────────────────────────────────

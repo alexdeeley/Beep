@@ -10,13 +10,15 @@
 import { WORDS, pickWord, checkGuess, wordShape } from './words.js';
 import {
   COORD_MAX, TOOLS, PALETTE, TIMER_OPTIONS, ROUND_OPTIONS, DIFFICULTIES, CATEGORIES,
-  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX,
+  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX, REACTIONS,
 } from '../public/js/shared.js';
 
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;   // idle rooms are wiped after 12 hours
 const MAX_OPS_PER_ROUND = 4000;
 const MAX_INTS_PER_STROKE = 40000;
 const MAX_GUESS_LEN = 40;
+const REACT_COOLDOWN_MS = 500;
+const DOODLE_COOLDOWN_MS = 300;  // throttles new doodle strokes, not points within one
 const COLORS = new Set(PALETTE.map((p) => p.hex));
 const CAT_IDS = new Set(CATEGORIES.map((c) => c.id));
 
@@ -33,6 +35,12 @@ export class GameRoom {
     this.ops = [];        // completed drawing operations for the current round
     this.active = null;   // stroke currently being drawn (memory only)
     this.guessTimes = new Map();
+    this.reactTimes = new Map();
+    this.doodleTimes = new Map();
+    // Ephemeral "ghost" doodles (see doodleStart/Points/End) are never
+    // stored anywhere, not even in memory beyond "whose stroke is this id" -
+    // there is nothing here to persist, restore, or clean up on disconnect.
+    this.doodleActive = new Map(); // player id -> their current doodle stroke id
     // Let clients keep sockets alive without waking the object.
     try {
       if (globalThis.WebSocketRequestResponsePair) {
@@ -591,6 +599,43 @@ const HANDLERS = {
     this.relay({ type: 'strokeEnd', id: a.id }, ws);
   },
 
+  // Ephemeral "ghost" doodles: guessers can gesture on top of the drawing
+  // while it's happening. Unlike a real stroke, nothing here is stored -
+  // there's no `this.active`-style accumulation, no op, no gallery entry,
+  // no undo - the server only checks who's allowed to doodle right now and
+  // relays each chunk on, including back to the sender (it isn't drawn
+  // locally first, so it needs the same round trip everyone else gets).
+  async doodleStart(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'drawing' || me.seat === r.drawerSeat) return;
+    const id = cleanId(msg.id);
+    const pts = cleanPoints(msg.pts);
+    if (!id || !pts || pts.length < 2) return;
+    const now = Date.now();
+    const last = this.doodleTimes.get(me.id) || 0;
+    if (now - last < DOODLE_COOLDOWN_MS) return;
+    this.doodleTimes.set(me.id, now);
+    this.doodleActive.set(me.id, id);
+    this.relay({ type: 'doodleStart', seat: me.seat, id, pts });
+  },
+
+  async doodlePoints(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'drawing' || me.seat === r.drawerSeat) return;
+    const id = cleanId(msg.id);
+    const pts = cleanPoints(msg.pts);
+    if (!id || !pts || this.doodleActive.get(me.id) !== id) return;
+    this.relay({ type: 'doodlePoints', seat: me.seat, id, pts });
+  },
+
+  async doodleEnd(me, msg) {
+    if (me.seat === this.room.drawerSeat) return;
+    const id = cleanId(msg.id);
+    if (!id || this.doodleActive.get(me.id) !== id) return;
+    this.doodleActive.delete(me.id);
+    this.relay({ type: 'doodleEnd', seat: me.seat, id });
+  },
+
   async undo(me) {
     const r = this.room;
     if (r.phase !== 'drawing' || me.seat !== r.drawerSeat || this.active) return;
@@ -632,6 +677,21 @@ const HANDLERS = {
       this.save();
       this.relay({ type: 'guess', guess: g });
     }
+  },
+
+  // A quick reaction (fixed list, not free text - nothing to moderate).
+  // Never touches r.guesses or storage: it's shown for a moment on every
+  // screen and then it's gone, same as the doodles below.
+  async react(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'drawing') return;
+    const i = Number(msg.i);
+    if (!Number.isInteger(i) || i < 0 || i >= REACTIONS.length) return;
+    const now = Date.now();
+    const last = this.reactTimes.get(me.id) || 0;
+    if (now - last < REACT_COOLDOWN_MS) return;
+    this.reactTimes.set(me.id, now);
+    this.relay({ type: 'react', seat: me.seat, i });
   },
 
   async giveup(me) {

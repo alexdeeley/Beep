@@ -103,11 +103,13 @@ Client → server (JSON):
 | `undo` / `clear` | | drawer |
 | `guess` | `text` (rate limited 1 per 350 ms) | guesser, once guessing is open |
 | `giveup` | | guesser, while drawing ("Show answer") |
+| `react` | `i` (index into the fixed `REACTIONS` list, rate limited 1 per 500 ms) | anyone, while drawing |
+| `doodleStart` / `doodlePoints` / `doodleEnd` | `id, pts` (`doodleEnd` just `id`) | anyone but the drawer, while drawing |
 | `next` / `again` / `lobby` / `leave` | | reveal / game over / anytime |
 
 The spec's separate "erase" events are simply strokes with `tool: 'eraser'`, which keeps undo and live sync uniform.
 
-Server → client: `state` (tailored per player; only the drawer's copy contains `word`), `board` (full operation list on join/reconnect), `strokeStart` / `strokePoints` / `strokeEnd` / `undo` / `clear` (live relay), `guess` (`result: correct | close | wrong`), `event` (`joined`, `back`, `left`), and `error` (`notfound`, `full`, `replaced`).
+Server → client: `state` (tailored per player; only the drawer's copy contains `word`), `board` (full operation list on join/reconnect), `strokeStart` / `strokePoints` / `strokeEnd` / `undo` / `clear` (live relay), `guess` (`result: correct | close | wrong`), `react` (`seat, i`), `doodleStart` / `doodlePoints` / `doodleEnd` (`seat, id, pts`), `event` (`joined`, `back`, `left`), and `error` (`notfound`, `full`, `replaced`).
 
 ## Game rules
 
@@ -116,6 +118,10 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 **Word choices.** The drawer is offered 5 words at once and can press "Try another word" as many times as they like - it cycles forward through that fixed batch of 5, wrapping back to the first once it's gone all the way around, so there's always a next option and the same 5 to return to.
 
 **Guessing starts.** A lobby setting ("Right away" / "Let the drawer finish first"). On, guessing is held back the moment drawing starts - the timer doesn't run, the letter-count hint stays hidden, and the guess box is disabled - until the drawer presses their own "Let people guess" button, at which point the timer starts fresh at its full duration and guessing opens for everyone at once.
+
+**Quick reactions.** A row of six emoji buttons (😂 👏 😍 😮 🤔 👀), visible to everyone - drawer included - while a round is being drawn. Tapping one pops a bubble in the same feed a guess would, but it's gone in about a second (a much faster fade than a guess bubble) - a reaction is a quick aside, not something anyone needs to sit and read. It's a fixed list, not free text, so there's nothing to type and nothing to moderate.
+
+**Guesser doodles.** While a round is being drawn, anyone who isn't the drawer can gesture directly on the drawing - point at something, scribble a quick "here!" - without touching the real picture at all. It renders on its own layer above the real drawing, in the doodler's own color and at reduced opacity so it can never compete with the actual artwork, and it's gone within about a second of lifting a finger. None of it is a real stroke: it's never sent through the same pipeline as the drawer's strokes, never stored, never undoable, and never appears in the gallery - it's relayed live and then simply forgotten.
 
 **Difficulty & categories.** Easy / Mixed / Silly draw from the regular word bank (Mixed being everything except Silly and Hard). **Hard** is a separate opt-in tier - currently Symbols, Music and Architecture - full of trickier, more abstract prompts that never show up under any other difficulty by accident. **Chaos** is a second opt-in tier: ~3,000 longer, sillier scenario prompts ("A firefighter arguing with a dinosaur over a traffic cone") from a curated expansion pack, kept out of every other difficulty the same way Hard mode is, so the regular game stays exactly as it was unless a group chooses Chaos on purpose.
 
@@ -155,3 +161,5 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 30. Game over: music pauses (just the chime plays); Play Again brings the music back once the next round starts.
 31. Choosing a word: "Try another word" cycles through 5 options and going past the 5th returns to the 1st, forever.
 32. "Let the drawer finish first" setting: guessers see "Hang tight!" with the guess box disabled and no timer running until the drawer taps "Let people guess"; then the timer starts fresh and guessing opens for everyone at once.
+33. Quick reactions: tapping an emoji shows it on every screen (including the drawer's) and it's gone in about a second - much quicker than a guess bubble.
+34. Guesser doodles: anyone but the drawer can gesture on the drawing with a finger or mouse; the mark shows up faded on everyone's screen, never touches the real drawing, and fades away on its own roughly a second after it's lifted.
