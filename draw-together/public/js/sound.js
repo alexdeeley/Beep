@@ -1,4 +1,4 @@
-// Small synthesized sounds. No files, no background music.
+// Small synthesized sound effects. Background music lives in music.js.
 
 let ctx = null;
 let master = null;
@@ -38,6 +38,30 @@ function tone(freq, start, dur, { type = 'sine', vol = 0.3, slide = 0 } = {}) {
   o.stop(t + dur + 0.05);
 }
 
+// A short burst of filtered noise - reads as a soft pencil-scratch texture
+// rather than a musical blip, so it doesn't get confused with the tone-based
+// cues above.
+function scratch(dur, { vol = 0.1, freq = 3000, q = 1.3 } = {}) {
+  const t = ctx.currentTime;
+  const n = Math.max(1, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = freq;
+  filt.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(filt).connect(g).connect(master);
+  src.start(t);
+  src.stop(t + dur + 0.02);
+}
+
 const SOUNDS = {
   join() { tone(523, 0, 0.18, { type: 'triangle' }); tone(784, 0.1, 0.25, { type: 'triangle' }); },
   start() { [392, 523, 659].forEach((f, i) => tone(f, i * 0.09, 0.22, { type: 'triangle', vol: 0.25 })); },
@@ -58,6 +82,15 @@ const SOUNDS = {
     [523, 587, 659, 784, 880, 1047].forEach((f, i) => tone(f, i * 0.11, 0.35, { type: 'triangle', vol: 0.22 }));
   },
   pop() { tone(700, 0, 0.06, { type: 'sine', vol: 0.12, slide: 1.6 }); },
+  // A clear, confident click for any button press - deliberately more
+  // prominent than the other cues, since it's the main auditory confirmation
+  // that a tap actually registered.
+  tap() { tone(880, 0, 0.05, { type: 'square', vol: 0.24, slide: 0.72 }); },
+  // A guesser hears this while watching someone else's pen move live, so
+  // drawing is audible, not just visible - accessibility, not decoration.
+  // Randomized pitch each call keeps a run of these from blurring into one
+  // flat buzz when they repeat quickly.
+  scribble() { scratch(0.045, { vol: 0.1, freq: 2200 + Math.random() * 2600, q: 1.4 }); },
 };
 
 export function play(name) {

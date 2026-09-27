@@ -39,6 +39,13 @@ const M = await player('Maisie', { viewport: { width: 390, height: 844 }, device
 await A.page.screenshot({ path: `${OUT}/01-home-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/01-home-phone.png` });
 
+// music starts the moment there's any interaction, even on the home screen -
+// deliberately not gated on being in a game (an ambient audio landmark from
+// the very first screen, not just a gameplay effect).
+await A.page.click('#in-name');
+await sleep(150);
+ok(await A.page.evaluate(() => window.__dt.music.isPlaying()), 'background music starts on the home screen, before any game');
+
 await A.page.fill('#in-name', 'Alex');
 await A.page.click('#btn-create');
 await A.page.waitForSelector('#scr-lobby:not([hidden])');
@@ -94,6 +101,8 @@ for (let i = 0; i <= 40; i++) {
     await sleep(120);
     const live = await inkCount(M.page);
     ok(live > 50, `live stroke visible on the other device mid-stroke (${live} ink samples)`);
+    const ticks = await M.page.evaluate(() => window.__dt.S.scribbleCount);
+    ok(ticks > 0, `guesser hears pen-movement sound while watching the stroke (${ticks} ticks)`);
   }
 }
 await A.page.mouse.up();

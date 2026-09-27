@@ -1,6 +1,7 @@
 import { Board, replay } from './board.js';
 import { Net } from './net.js';
 import * as snd from './sound.js';
+import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
@@ -32,6 +33,7 @@ const S = {
   replayStop: null,
   confirmYes: null,
   everOpen: false,
+  scribbleCount: 0, // how many pen-movement sound ticks played (test hook)
 };
 
 // ── Viewport (iOS keyboard, safe areas) ─────────────────────
@@ -48,8 +50,15 @@ window.visualViewport?.addEventListener('scroll', fitViewport);
 window.addEventListener('resize', fitViewport);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
-document.addEventListener('pointerdown', () => snd.unlockAudio(), { capture: true });
-document.addEventListener('keydown', () => snd.unlockAudio(), { capture: true });
+document.addEventListener('pointerdown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
+document.addEventListener('keydown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
+
+// A clear tap sound on any button/chip/swatch press, anywhere in the app -
+// this is an accessibility game, so every interaction gets audible
+// confirmation, not just the ones that already had a bespoke sound.
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.btn, .chip, .swatch')) snd.play('tap');
+}, { capture: true });
 
 // ── Screens ─────────────────────────────────────────────────
 
@@ -224,12 +233,24 @@ function onStatus(s) {
 
 $('btn-conn-home').addEventListener('click', () => goHome());
 
+// A guesser hears these as someone else's pen moves live, so drawing is
+// audible as it happens, not just visible - throttled so a burst of
+// strokePoints messages reads as a scribbling texture, not a buzz.
+let lastScribbleAt = 0;
+function scribbleTick() {
+  const now = performance.now();
+  if (now - lastScribbleAt < 130) return;
+  lastScribbleAt = now;
+  snd.play('scribble');
+  S.scribbleCount++;
+}
+
 function onMessage(m) {
   switch (m.type) {
     case 'state': applyState(m); break;
     case 'board': S.board.load(m.ops, m.active); updateUndo(); break;
-    case 'strokeStart': S.board.begin(m); break;
-    case 'strokePoints': S.board.add(m.id, m.pts); break;
+    case 'strokeStart': S.board.begin(m); scribbleTick(); break;
+    case 'strokePoints': S.board.add(m.id, m.pts); scribbleTick(); break;
     case 'strokeEnd': S.board.end(m.id); updateUndo(); break;
     case 'undo': S.board.undo(m.id); updateUndo(); break;
     case 'clear': S.board.clear(m.id); updateUndo(); break;
@@ -771,7 +792,7 @@ function renderMute() {
   $('btn-mute').setAttribute('aria-label', m ? 'Turn sounds on' : 'Turn sounds off');
   $('btn-mute').setAttribute('aria-pressed', m ? 'true' : 'false');
 }
-$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); });
+$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); music.refreshMute(); });
 renderMute();
 $('btn-quit').addEventListener('click', () => confirmBox('Leave the game?', leaveGame));
 initInvertToggle($('btn-a11y-home'), $('btn-a11y-hud'));
@@ -849,6 +870,6 @@ function star(c, r) {
 })();
 
 // For automated tests only: read-only peek at local state.
-window.__dt = { S };
+window.__dt = { S, music };
 
 window.addEventListener('resize', () => document.querySelectorAll('#hud-main .word, #hud-main .who').forEach(fitHud));

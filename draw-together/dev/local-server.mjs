@@ -124,7 +124,7 @@ class ServerSocket {
 
 // ── HTTP ─────────────────────────────────────────────────────
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -142,7 +142,27 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/' ) file = path.join(PUBLIC, 'index.html');
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404).end('Not found'); return; }
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
+    const type = TYPES[path.extname(file)] || 'application/octet-stream';
+    // Media elements (<audio>/<video>) probe with a Range request; answering
+    // 200 with the full body instead of 206 with the requested slice reads
+    // as a malformed response to some browsers and can abort the load.
+    const range = req.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+    if (range) {
+      const size = data.length;
+      const start = range[1] ? parseInt(range[1], 10) : 0;
+      const end = range[2] ? parseInt(range[2], 10) : size - 1;
+      if (start >= size || end >= size || start > end) {
+        res.writeHead(416, { 'content-range': `bytes */${size}` }).end();
+        return;
+      }
+      res.writeHead(206, {
+        'content-type': type, 'cache-control': 'no-store', 'accept-ranges': 'bytes',
+        'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1,
+      });
+      res.end(data.subarray(start, end + 1));
+      return;
+    }
+    res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store', 'accept-ranges': 'bytes' });
     res.end(data);
   });
 });
