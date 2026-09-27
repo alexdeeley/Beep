@@ -154,9 +154,19 @@ ok(M.raw.every((r) => !r.toLowerCase().includes(word.toLowerCase())), 'secret wo
 // guesser cannot draw / cannot ready
 M.send({ type: 'ready', aspect: 1 }); await sleep(50);
 ok(A.st.phase === 'choosing', 'guesser cannot start the round');
+// word choices: 5 options, cycling forever, wrapping back to the first
+const word0 = A.st.word.w;
 A.send({ type: 'swap' }); await sleep(60);
+const word1 = A.st.word.w;
+ok(A.st.choiceIdx === 1, 'first swap moves to option 2 of 5');
+ok(word1 !== word0, 'swapping shows a different word');
+A.send({ type: 'swap' }); A.send({ type: 'swap' }); A.send({ type: 'swap' }); await sleep(60);
+ok(A.st.choiceIdx === 4, 'cycled to the 5th and last option');
+A.send({ type: 'swap' }); await sleep(60);
+ok(A.st.choiceIdx === 0 && A.st.word.w === word0, 'swapping past the 5th wraps back to the first word');
+A.send({ type: 'swap' }); await sleep(60);
+ok(A.st.choiceIdx === 1 && A.st.word.w === word1, 'cycling is stable - same 5 words every time around');
 const word2 = A.st.word.w;
-ok(A.st.swapsLeft === 1, 'word swap');
 A.send({ type: 'ready', aspect: 0.7 }); await sleep(60);
 ok(M.st.phase === 'drawing' && Math.abs(M.st.aspect - 0.7) < 1e-9, 'drawing started with aspect');
 ok(M.st.timer.running && M.st.timer.endsAt > Date.now(), 'timer running');
@@ -274,6 +284,51 @@ A.close(); M2.close();
   // fast-forward: set the room's timer to end now via the server clock is not possible from outside,
   // so check the alarm was scheduled by asserting endsAt ~ 30s ahead.
   ok(Math.abs(Q.st.timer.endsAt - Date.now() - 30000) < 1500, 'round timer scheduled');
+  P.close(); Q.close();
+}
+
+// lockGuesses: guessing waits until the drawer says they're ready
+{
+  const { code: c3 } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const P = new Client(c3, 'lp-000001', 'P'), Q = new Client(c3, 'lq-000001', 'Q');
+  await P.open(); await Q.open(); await sleep(80);
+  P.send({ type: 'settings', settings: { timer: 30, lockGuesses: true } }); await sleep(30);
+  P.send({ type: 'start' }); await sleep(60);
+  const Dr = P.st.drawerSeat === P.st.you ? P : Q;
+  const Gu = Dr === P ? Q : P;
+  Dr.send({ type: 'ready', aspect: 1 }); await sleep(60);
+  ok(Dr.st.guessesLocked === true && Gu.st.guessesLocked === true, 'guessing starts locked for everyone');
+  ok(Dr.st.timer.running === false && Dr.st.timer.remaining === 30000, "timer doesn't run while locked");
+  ok(Gu.st.wordShape === null, 'no letter-count hint while locked');
+
+  Gu.send({ type: 'guess', text: 'anything' }); await sleep(60);
+  ok(Gu.st.phase === 'drawing' && Gu.of('guess').length === 0, 'guesses ignored while locked');
+  Gu.send({ type: 'giveup' }); await sleep(60);
+  ok(Gu.st.phase === 'drawing', 'give up ignored while locked');
+  Gu.send({ type: 'unlock' }); await sleep(60);
+  ok(Dr.st.guessesLocked === true, "only the drawer can unlock (guesser's attempt is ignored)");
+
+  Dr.send({ type: 'unlock' }); await sleep(60);
+  ok(Dr.st.guessesLocked === false && Gu.st.guessesLocked === false, 'drawer unlocks guessing for everyone');
+  ok(Gu.st.timer.running === true && Math.abs(Gu.st.timer.endsAt - Date.now() - 30000) < 1500, 'unlocking starts the full timer fresh');
+  ok(Array.isArray(Gu.st.wordShape), 'letter-count hint appears once unlocked');
+
+  const secretWord = Dr.st.word.w;
+  Gu.send({ type: 'guess', text: secretWord }); await sleep(80);
+  ok(Gu.st.phase === 'reveal' && Gu.st.result.reason === 'correct', 'guessing works normally once unlocked');
+  P.close(); Q.close();
+}
+
+// lockGuesses off (the default): guessing is open immediately, no lock state
+{
+  const { code: c4 } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const P = new Client(c4, 'up-000001', 'P'), Q = new Client(c4, 'uq-000001', 'Q');
+  await P.open(); await Q.open(); await sleep(80);
+  P.send({ type: 'start' }); await sleep(60);
+  const Dr = P.st.drawerSeat === P.st.you ? P : Q;
+  Dr.send({ type: 'ready', aspect: 1 }); await sleep(60);
+  ok(P.st.guessesLocked === false && Q.st.guessesLocked === false, 'guessing is open immediately by default');
+  ok(P.st.timer.running === true, 'timer starts right away by default');
   P.close(); Q.close();
 }
 

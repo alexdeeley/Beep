@@ -10,7 +10,7 @@
 import { WORDS, pickWord, checkGuess, wordShape } from './words.js';
 import {
   COORD_MAX, TOOLS, PALETTE, TIMER_OPTIONS, ROUND_OPTIONS, DIFFICULTIES, CATEGORIES,
-  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_SWAPS, ASPECT_MIN, ASPECT_MAX,
+  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX,
 } from '../public/js/shared.js';
 
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;   // idle rooms are wiped after 12 hours
@@ -20,7 +20,10 @@ const MAX_GUESS_LEN = 40;
 const COLORS = new Set(PALETTE.map((p) => p.hex));
 const CAT_IDS = new Set(CATEGORIES.map((c) => c.id));
 
-const DEFAULT_SETTINGS = { timer: 60, rounds: 10, categories: ['everything'], difficulty: 'mixed' };
+const DEFAULT_SETTINGS = {
+  timer: 60, rounds: 10, categories: ['everything'], difficulty: 'mixed',
+  lockGuesses: false, // if true, guessing waits until the drawer says they're ready
+};
 
 export class GameRoom {
   constructor(ctx, env) {
@@ -249,7 +252,7 @@ export class GameRoom {
   // Pause the round timer while anyone is missing, resume when everyone is back.
   syncPause(excludeWs) {
     const r = this.room;
-    if (r.phase !== 'drawing' || !r.settings.timer) return;
+    if (r.phase !== 'drawing' || !r.settings.timer || r.guessesLocked) return;
     const everyone = r.players.every((p) => this.isConnected(p.id, excludeWs));
     const t = r.timer;
     if (t.running && !everyone) {
@@ -285,8 +288,9 @@ export class GameRoom {
       // The secret word only ever goes to the drawer. Guessers get just
       // its shape (letter count and word breaks) once drawing starts.
       word: showWord ? { w: WORDS[r.wordIndex].w, e: WORDS[r.wordIndex].e } : null,
-      wordShape: !isDrawer && r.phase === 'drawing' ? wordShape(WORDS[r.wordIndex].w) : null,
-      swapsLeft: isDrawer ? r.swapsLeft : 0,
+      wordShape: !isDrawer && r.phase === 'drawing' && !r.guessesLocked ? wordShape(WORDS[r.wordIndex].w) : null,
+      choiceIdx: isDrawer ? r.choiceIdx : 0,
+      guessesLocked: r.phase === 'drawing' && r.guessesLocked,
       aspect: r.aspect,
       timer: { ...r.timer, duration: r.settings.timer * 1000 },
       serverNow: Date.now(),
@@ -375,7 +379,6 @@ export class GameRoom {
     const seats = r.players.map((p) => p.seat);
     r.drawerSeat = seats[(r.round - 1) % seats.length];
     this.chooseWord();
-    r.swapsLeft = WORD_SWAPS;
     r.phase = 'choosing';
     r.guesses = [];
     r.result = null;
@@ -386,12 +389,25 @@ export class GameRoom {
     await this.scheduleAlarm();
   }
 
+  // Pre-picks a fixed batch of WORD_CHOICES distinct words for the drawer
+  // to cycle through this round (see `swap`), rather than handing out a
+  // fresh random word on every "another word" press. Every candidate in
+  // the batch counts as "used" for future rounds even if the drawer never
+  // actually lands on it - the same cost swapping already had before.
   chooseWord() {
     const r = this.room;
-    const { index, reset } = pickWord(r.settings, r.used);
-    if (reset) r.used = [];
-    r.used.push(index);
-    r.wordIndex = index;
+    const excluded = new Set(r.used);
+    const choices = [];
+    for (let n = 0; n < WORD_CHOICES; n++) {
+      const { index, reset } = pickWord(r.settings, excluded);
+      if (reset) { r.used = []; excluded.clear(); }
+      excluded.add(index);
+      r.used.push(index);
+      choices.push(index);
+    }
+    r.wordChoices = choices;
+    r.choiceIdx = 0;
+    r.wordIndex = choices[0];
   }
 
   async endRound(reason, winner) {
@@ -455,6 +471,7 @@ export class GameRoom {
     r.guesses = [];
     r.drawings = 0;
     r.timer = { running: false, endsAt: null, remaining: 0 };
+    r.guessesLocked = false;
     for (const p of r.players) p.score = 0;
   }
 }
@@ -470,6 +487,7 @@ const HANDLERS = {
     if (TIMER_OPTIONS.includes(s.timer)) next.timer = s.timer;
     if (ROUND_OPTIONS.includes(s.rounds)) next.rounds = s.rounds;
     if (DIFFICULTIES.includes(s.difficulty)) next.difficulty = s.difficulty;
+    if (typeof s.lockGuesses === 'boolean') next.lockGuesses = s.lockGuesses;
     if (Array.isArray(s.categories)) {
       let cats = [...new Set(s.categories.filter((c) => CAT_IDS.has(c)))];
       if (!cats.length || cats.includes('everything')) cats = ['everything'];
@@ -496,9 +514,11 @@ const HANDLERS = {
 
   async swap(me) {
     const r = this.room;
-    if (r.phase !== 'choosing' || me.seat !== r.drawerSeat || r.swapsLeft <= 0) return;
-    r.swapsLeft -= 1;
-    this.chooseWord();
+    if (r.phase !== 'choosing' || me.seat !== r.drawerSeat) return;
+    // Cycles forward through this round's fixed batch of choices, wrapping
+    // back to the first one - never runs out.
+    r.choiceIdx = (r.choiceIdx + 1) % r.wordChoices.length;
+    r.wordIndex = r.wordChoices[r.choiceIdx];
     this.save();
     this.broadcastState();
   },
@@ -509,8 +529,28 @@ const HANDLERS = {
     const a = Number(msg.aspect);
     r.aspect = Number.isFinite(a) ? Math.min(ASPECT_MAX, Math.max(ASPECT_MIN, a)) : 1;
     r.phase = 'drawing';
+    r.guessesLocked = !!r.settings.lockGuesses;
     const ms = r.settings.timer * 1000;
-    r.timer = ms ? { running: true, endsAt: Date.now() + ms, remaining: ms } : { running: false, endsAt: null, remaining: 0 };
+    // Locked: the timer is left paused (full duration in `remaining`) until
+    // the drawer unlocks it - see `unlock` - so nobody's clock burns down
+    // while they're still getting the drawing started.
+    r.timer = ms
+      ? { running: !r.guessesLocked, endsAt: r.guessesLocked ? null : Date.now() + ms, remaining: ms }
+      : { running: false, endsAt: null, remaining: 0 };
+    this.syncPause();
+    this.save();
+    this.broadcastState();
+    await this.scheduleAlarm();
+  },
+
+  // Drawer-only: opens up guessing for everyone once they're ready, ending
+  // the "finish drawing first" grace period from the lockGuesses setting.
+  async unlock(me) {
+    const r = this.room;
+    if (r.phase !== 'drawing' || me.seat !== r.drawerSeat || !r.guessesLocked) return;
+    r.guessesLocked = false;
+    const ms = r.settings.timer * 1000;
+    if (ms) r.timer = { running: true, endsAt: Date.now() + r.timer.remaining, remaining: r.timer.remaining };
     this.syncPause();
     this.save();
     this.broadcastState();
@@ -575,7 +615,7 @@ const HANDLERS = {
 
   async guess(me, msg) {
     const r = this.room;
-    if (r.phase !== 'drawing' || me.seat === r.drawerSeat) return;
+    if (r.phase !== 'drawing' || me.seat === r.drawerSeat || r.guessesLocked) return;
     const text = String(msg.text || '').replace(/\s+/g, ' ').trim().slice(0, MAX_GUESS_LEN);
     if (!text) return;
     const now = Date.now();
@@ -596,7 +636,7 @@ const HANDLERS = {
 
   async giveup(me) {
     const r = this.room;
-    if (r.phase !== 'drawing' || me.seat === r.drawerSeat) return;
+    if (r.phase !== 'drawing' || me.seat === r.drawerSeat || r.guessesLocked) return;
     await this.endRound('gaveup');
   },
 
@@ -665,7 +705,9 @@ function newRoom(code) {
     drawerSeat: null,
     wordIndex: null,
     used: [],
-    swapsLeft: 0,
+    wordChoices: [],
+    choiceIdx: 0,
+    guessesLocked: false,
     aspect: 1,
     timer: { running: false, endsAt: null, remaining: 0 },
     guesses: [],

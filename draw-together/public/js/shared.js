@@ -89,6 +89,6 @@ export const PLAYER_COLORS = [
 ];
 export const MAX_POINTS_PER_MSG = 400; // x,y pairs → 800 ints
 export const MAX_NAME = 14;
-export const WORD_SWAPS = 2;           // "another word" presses per round
+export const WORD_CHOICES = 5;         // word options the drawer can cycle through per round
 export const ASPECT_MIN = 0.55;
 export const ASPECT_MAX = 1.8;

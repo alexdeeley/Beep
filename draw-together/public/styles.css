@@ -429,6 +429,11 @@ html.a11y-invert #sizes .blob {
 .pencil-bob { font-size: 4.5rem; animation: bob 1.2s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-10px) rotate(-12deg); } }
 
+/* Which of the 5 word choices this round is showing (see "Try another word"). */
+.choice-dots { display: flex; gap: 8px; margin-top: -4px; }
+.choice-dots .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 3px solid var(--ink); }
+.choice-dots .dot.on { background: var(--sun); }
+
 .reveal { gap: 10px; }
 .reveal-head { display: grid; gap: 2px; justify-items: center; }
 .reveal-head .confetti-line { font-size: 2.4rem; }

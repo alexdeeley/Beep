@@ -74,6 +74,17 @@ await A.page.waitForSelector('#ov-choose:not([hidden]) #btn-ready');
 await M.page.waitForSelector('#ov-choose:not([hidden])');
 await A.page.screenshot({ path: `${OUT}/05-your-word-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/05-waiting-phone.png` });
+// word choices: 5 cycling options, infinite wraparound (never run out)
+const word0 = await A.page.evaluate(() => window.__dt.S.st.word.w);
+await A.page.click('#btn-swap');
+await sleep(80);
+const word1 = await A.page.evaluate(() => window.__dt.S.st.word.w);
+ok(word1 !== word0, 'trying another word shows a different one');
+ok((await A.page.evaluate(() => window.__dt.S.st.choiceIdx)) === 1, 'choice index advances');
+ok((await A.page.locator('.choice-dots .dot.on').count()) === 1, 'exactly one dot marks the current choice');
+for (let i = 0; i < 4; i++) { await A.page.click('#btn-swap'); await sleep(80); }
+ok((await A.page.evaluate(() => window.__dt.S.st.word.w)) === word0, 'cycling through all 5 options wraps back to the first');
+
 const word = await A.page.evaluate(() => window.__dt.S.st.word.w);
 await A.page.click('#btn-ready');
 await M.page.waitForFunction(() => window.__dt.S.st.phase === 'drawing');
@@ -289,6 +300,40 @@ await A.page.waitForFunction(() => window.__dt.S.st.phase === 'choosing' && wind
 ok(true, 'play again');
 await sleep(400); // let the resume-on-next-round fade finish
 ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes once the next round starts');
+
+// lockGuesses: the drawer can hold guessing back until they say they're ready
+{
+  const L = await player('Lee', { viewport: { width: 1000, height: 800 } });
+  const K = await player('Kai', { viewport: { width: 390, height: 844 } });
+  await L.page.fill('#in-name', 'Lee');
+  await L.page.click('#btn-create');
+  await L.page.waitForSelector('#scr-lobby:not([hidden])');
+  const lockCode = (await L.page.textContent('#lobby-code')).trim();
+  await L.page.click('#set-lock button:text("Let the drawer finish first")');
+  await K.page.fill('#in-name', 'Kai');
+  await K.page.click('#btn-join');
+  await K.page.fill('#in-code', lockCode);
+  await K.page.click('#btn-join-go');
+  await L.page.waitForSelector('#btn-start:not([hidden])');
+  await L.page.click('#btn-start');
+  await L.page.waitForSelector('#ov-choose:not([hidden]) #btn-ready');
+  const drawerIsLee = await L.page.evaluate(() => window.__dt.S.st.you === window.__dt.S.st.drawerSeat);
+  const Dr = drawerIsLee ? L : K, Gu = drawerIsLee ? K : L;
+  await Dr.page.click('#btn-ready');
+  await Gu.page.waitForFunction(() => window.__dt.S.st.phase === 'drawing');
+  await sleep(150);
+  ok(await Gu.page.evaluate(() => window.__dt.S.st.guessesLocked === true), 'guessing starts locked when the setting is on');
+  ok(await Gu.page.evaluate(() => document.getElementById('in-guess').disabled), 'guess box disabled while locked');
+  ok(await Dr.page.isVisible('#btn-unlock'), 'drawer sees a "Let people guess" button');
+  await Dr.page.click('#btn-unlock');
+  await Gu.page.waitForFunction(() => window.__dt.S.st.guessesLocked === false);
+  ok(!(await Gu.page.evaluate(() => document.getElementById('in-guess').disabled)), 'guess box enabled once the drawer unlocks it');
+  const lockWord = await Dr.page.evaluate(() => window.__dt.S.st.word.w);
+  await Gu.page.fill('#in-guess', lockWord);
+  await Gu.page.click('#btn-guess');
+  await Gu.page.waitForSelector('#ov-reveal:not([hidden])');
+  ok(true, 'guessing works normally once the drawer unlocks it');
+}
 
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();

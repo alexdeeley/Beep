@@ -5,7 +5,7 @@ import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
-  PLAYER_COLORS,
+  PLAYER_COLORS, WORD_CHOICES,
 } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -291,6 +291,11 @@ function applyState(st) {
     if (st.phase === 'over' && prev) music.pause();
     if (prev?.phase === 'over' && st.phase !== 'over') music.resume();
   }
+  // Guessing opening mid-round (lockGuesses) doesn't change phase or round,
+  // so it needs its own transition check alongside the one above.
+  if (prev?.phase === 'drawing' && st.phase === 'drawing' && prev.guessesLocked && !st.guessesLocked) {
+    snd.play('start');
+  }
 
   if (st.phase === 'lobby') { show('lobby'); renderLobby(); }
   else if (st.phase === 'over') { show('over'); renderOver(); }
@@ -392,6 +397,10 @@ function renderSettings(isHost) {
   for (const t of TIMER_OPTIONS) {
     tm.append(chip(t ? `${t}s` : 'No timer', s.timer === t, () => sendSettings({ timer: t }), !isHost));
   }
+  const lk = $('set-lock'); lk.replaceChildren();
+  for (const [v, label] of [[false, 'Right away'], [true, 'Let the drawer finish first']]) {
+    lk.append(chip(label, !!s.lockGuesses === v, () => sendSettings({ lockGuesses: v }), !isHost));
+  }
   const rd = $('set-rounds'); rd.replaceChildren();
   for (const r of ROUND_OPTIONS) {
     rd.append(chip(String(r), s.rounds === r, () => sendSettings({ rounds: r }), !isHost));
@@ -437,11 +446,16 @@ function renderGame(prev, phaseChanged) {
   $('hud-round').innerHTML = `Round<b>${st.round}</b>`;
   $('hud-round').setAttribute('aria-label', `Round ${st.round} of ${st.rounds}`);
   const main = $('hud-main');
+  const waitingToGuess = st.phase === 'drawing' && st.guessesLocked;
   if (drawer && st.word) {
-    main.innerHTML = `<span class="lbl">Draw:</span><span class="word">${esc(st.word.w)} ${st.word.e}</span>`;
+    main.innerHTML = `<span class="lbl">Draw:</span><span class="word">${esc(st.word.w)} ${st.word.e}</span>` +
+      (waitingToGuess ? `<button class="btn small green" id="btn-unlock" type="button">Let people guess</button>` : '');
     fitHud(main.querySelector('.word'));
+    $('btn-unlock')?.addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'unlock' }); });
   } else if (!drawer) {
-    main.innerHTML = `<span class="lbl">Guess it!</span><span class="who">${esc(nameOf(st.drawerSeat))} is drawing…</span>`;
+    main.innerHTML = waitingToGuess
+      ? `<span class="lbl">Hang tight!</span><span class="who">${esc(nameOf(st.drawerSeat))} is finishing up…</span>`
+      : `<span class="lbl">Guess it!</span><span class="who">${esc(nameOf(st.drawerSeat))} is drawing…</span>`;
     fitHud(main.querySelector('.who'));
   } else {
     main.innerHTML = '';
@@ -470,16 +484,19 @@ function renderGame(prev, phaseChanged) {
   if (st.phase === 'choosing') {
     ch.hidden = false;
     if (drawer) {
+      const dots = Array.from({ length: WORD_CHOICES }, (_, i) =>
+        `<span class="dot${i === st.choiceIdx ? ' on' : ''}"></span>`).join('');
       $('choose-body').innerHTML = `
         <p>Round ${st.round} · Your word is…</p>
         <div class="big-emoji" aria-hidden="true">${st.word.e}</div>
         <h2 class="big-word">${esc(st.word.w)}</h2>
         <button class="btn big green" id="btn-ready">Ready?</button>
-        ${st.swapsLeft > 0 ? `<button class="btn small ghost" id="btn-swap">Another word (${st.swapsLeft})</button>` : ''}`;
+        <button class="btn small ghost" id="btn-swap">Try another word</button>
+        <div class="choice-dots" aria-hidden="true">${dots}</div>`;
       $('btn-ready').addEventListener('click', () => {
         S.net?.send({ type: 'ready', aspect: hostAspect() });
       });
-      $('btn-swap')?.addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'swap' }); });
+      $('btn-swap').addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'swap' }); });
     } else {
       $('choose-body').innerHTML = `
         <p>Round ${st.round}</p>
@@ -497,13 +514,15 @@ function renderGame(prev, phaseChanged) {
     $('feed').replaceChildren();
     $('in-guess').value = '';
   }
-  if (phaseChanged && st.phase === 'drawing' && !drawer) {
+  const justUnlocked = prev?.guessesLocked && !waitingToGuess && st.phase === 'drawing';
+  if ((phaseChanged && st.phase === 'drawing' && !drawer && !waitingToGuess) || (justUnlocked && !drawer)) {
     // Focus the answer box without popping the keyboard over a phone screen.
     if (window.matchMedia('(pointer: fine)').matches) $('in-guess').focus();
   }
-  $('in-guess').disabled = st.phase !== 'drawing';
-  $('btn-guess').disabled = st.phase !== 'drawing';
-  $('btn-giveup').disabled = st.phase !== 'drawing';
+  $('in-guess').disabled = st.phase !== 'drawing' || waitingToGuess;
+  $('in-guess').placeholder = waitingToGuess ? 'Wait for it…' : 'Your guess';
+  $('btn-guess').disabled = st.phase !== 'drawing' || waitingToGuess;
+  $('btn-giveup').disabled = st.phase !== 'drawing' || waitingToGuess;
   updateTimer();
   updateUndo();
 }

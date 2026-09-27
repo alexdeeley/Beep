@@ -92,15 +92,16 @@ Client → server (JSON):
 | type | fields | who |
 |---|---|---|
 | `hello` | `playerId` (secret token), `name` | anyone joining or reconnecting |
-| `settings` | `settings: {timer, rounds, difficulty, categories}` | host, in lobby |
+| `settings` | `settings: {timer, rounds, difficulty, categories, lockGuesses}` | host, in lobby |
 | `start` | | host, in lobby, 2+ players |
-| `swap` | | drawer, while choosing (2 per round) |
+| `swap` | | drawer, while choosing (cycles through 5 options, wraps back to the first) |
 | `ready` | `aspect` | drawer, while choosing |
+| `unlock` | | drawer, while drawing, only if `lockGuesses` held guessing back |
 | `strokeStart` | `id, tool, size, color, pts` | drawer |
 | `strokePoints` | `id, pts` (flat `[x,y,x,y…]`, max 400 values) | drawer |
 | `strokeEnd` | `id` | drawer |
 | `undo` / `clear` | | drawer |
-| `guess` | `text` (rate limited 1 per 350 ms) | guesser |
+| `guess` | `text` (rate limited 1 per 350 ms) | guesser, once guessing is open |
 | `giveup` | | guesser, while drawing ("Show answer") |
 | `next` / `again` / `lobby` / `leave` | | reveal / game over / anytime |
 
@@ -111,6 +112,10 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 ## Game rules
 
 10 rounds by default (6 or 16 selectable), the drawer role rotates through every seat in join order. The chosen round count is rounded to the nearest multiple of the player count when the game starts, so every player always draws the same number of times - e.g. 3 players + "10 rounds" plays 9 (3 each), not 10 (one player drawing an extra round). Timer 30 / 60 / 90 s or none, with a tick in the last 10 seconds. A correct guess scores 3 points, plus 2 if more than 40 s remain or 1 if more than 20 s remain, with a little victory fanfare. Guess matching ignores case, accents, punctuation, spacing and plurals, accepts listed alternatives ("kitty" for CAT), forgives one typo in words of 5+ letters and two in 9+, and says "So close!" for near misses. Guessers see how many letters are in each word of the answer (one numeral per word, not a row of blanks - those break apart confusingly when the page is pinch-zoomed).
+
+**Word choices.** The drawer is offered 5 words at once and can press "Try another word" as many times as they like - it cycles forward through that fixed batch of 5, wrapping back to the first once it's gone all the way around, so there's always a next option and the same 5 to return to.
+
+**Guessing starts.** A lobby setting ("Right away" / "Let the drawer finish first"). On, guessing is held back the moment drawing starts - the timer doesn't run, the letter-count hint stays hidden, and the guess box is disabled - until the drawer presses their own "Let people guess" button, at which point the timer starts fresh at its full duration and guessing opens for everyone at once.
 
 **Difficulty & categories.** Easy / Mixed / Silly draw from the regular word bank (Mixed being everything except Silly and Hard). **Hard** is a separate opt-in tier - currently Symbols, Music and Architecture - full of trickier, more abstract prompts that never show up under any other difficulty by accident. **Chaos** is a second opt-in tier: ~3,000 longer, sillier scenario prompts ("A firefighter arguing with a dinosaur over a traffic cone") from a curated expansion pack, kept out of every other difficulty the same way Hard mode is, so the regular game stays exactly as it was unless a group chooses Chaos on purpose.
 
@@ -148,3 +153,5 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 28. Every button/chip/swatch press has an audible tap sound.
 29. Guessing while someone draws: a soft pen-movement sound is audible in time with the drawer's strokes, distinct from every other sound cue.
 30. Game over: music pauses (just the chime plays); Play Again brings the music back once the next round starts.
+31. Choosing a word: "Try another word" cycles through 5 options and going past the 5th returns to the 1st, forever.
+32. "Let the drawer finish first" setting: guessers see "Hang tight!" with the guess box disabled and no timer running until the drawer taps "Let people guess"; then the timer starts fresh and guessing opens for everyone at once.
