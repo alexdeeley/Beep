@@ -251,11 +251,64 @@ ok(A.st.phase === 'over' && A.st.drawings === 6, 'game over after 6 rounds');
 
 // gallery: every finished drawing survives the round transitions and game
 // end (see resetActiveOps vs wipeOps), and is fetchable over plain HTTP.
+let galleryBefore;
 {
   const g = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
+  galleryBefore = g;
   ok(g.exists && g.entries.length === 6, `gallery has all 6 drawings (got ${g.entries?.length})`);
   ok(g.entries[0].ops.length > 0 && Array.isArray(g.entries[0].ops[0].pts), 'first drawing kept its real strokes');
   ok(g.entries.every((e) => e.word && e.emoji && e.drawerName && typeof e.aspect === 'number'), 'every entry has word/emoji/drawer/aspect');
+  ok(g.entries.every((e) => e.remixOf == null && typeof e.drawerSeat === 'number'), 'a normal round entry is not a remix and carries a real drawer seat');
+}
+
+// remix: drawing on top of an already-finished entry. Never mutates the
+// source, never trusts the client for anything but the new strokes + a name.
+{
+  const post = (obj) => fetch(base + `/api/rooms/${code}/remix`, { method: 'POST', body: JSON.stringify(obj) });
+
+  const badSource = await post({ sourceIndex: 999, name: 'Rex', ops: [{ id: 'rmx00001', type: 'stroke', tool: 'pen', color: '#000000', size: 12, pts: [1, 1, 2, 2] }] });
+  ok(badSource.status === 400, 'remix: an out-of-range sourceIndex is rejected');
+
+  const noOps = await post({ sourceIndex: 0, name: 'Rex', ops: [] });
+  ok(noOps.status === 400, 'remix: an empty ops list is rejected');
+
+  const badTool = await post({ sourceIndex: 0, name: 'Rex', ops: [{ id: 'rmx00002', type: 'stroke', tool: 'flamethrower', color: '#000000', size: 12, pts: [1, 1, 2, 2] }] });
+  ok(badTool.status === 400, 'remix: an unknown tool is rejected');
+
+  const badColor = await post({ sourceIndex: 0, name: 'Rex', ops: [{ id: 'rmx00003', type: 'stroke', tool: 'pen', color: '#123456', size: 12, pts: [1, 1, 2, 2] }] });
+  ok(badColor.status === 400, 'remix: an off-palette color is rejected');
+
+  const goodRes = await post({
+    sourceIndex: 0,
+    name: '  Rex the Remixer  ',
+    ops: [
+      { id: 'rmx00004', type: 'stroke', tool: 'marker', color: '#1f5bff', size: 30, pts: [100, 100, 200, 200, 300, 100] },
+    ],
+  });
+  ok(goodRes.status === 200, 'remix: a valid submission is accepted');
+  const goodBody = await goodRes.json();
+  ok(goodBody.ok === true && goodBody.index === 6, 'remix: response reports the new entry’s index');
+
+  const g2 = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
+  ok(g2.entries.length === 7, 'remix: the gallery grows by exactly one entry');
+  const rmx = g2.entries[6];
+  ok(rmx.remixOf === 0 && rmx.remixOfName === galleryBefore.entries[0].drawerName, 'remix: attributes back to the original drawer');
+  ok(rmx.drawerName === 'Rex the Remixe', 'remix: the submitted name is trimmed and length-capped (MAX_NAME) like any other name');
+  ok(rmx.drawerSeat == null && rmx.round == null, 'remix: has no seat/round of its own - it did not happen during a live turn');
+  ok(rmx.word === galleryBefore.entries[0].word && rmx.aspect === galleryBefore.entries[0].aspect, 'remix: inherits the source’s word/aspect');
+  ok(rmx.ops.length === galleryBefore.entries[0].ops.length + 1, 'remix: contains the original strokes plus exactly the new one');
+  ok(JSON.stringify(g2.entries[0].ops) === JSON.stringify(galleryBefore.entries[0].ops), 'remix: the original entry’s own ops are completely untouched');
+
+  // A second, independent remix of the SAME source doesn't disturb the first.
+  const secondRes = await post({
+    sourceIndex: 0,
+    name: 'Second Artist',
+    ops: [{ id: 'rmx00005', type: 'stroke', tool: 'pen', color: '#e8202a', size: 6, pts: [50, 50, 60, 60] }],
+  });
+  ok(secondRes.status === 200, 'remix: a second remix of the same source is independently accepted');
+  const g3 = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
+  ok(g3.entries.length === 8 && g3.entries[7].remixOf === 0, 'remix: multiple people can remix the same original independently');
+  ok(g3.entries[6].ops.length === galleryBefore.entries[0].ops.length + 1, 'remix: the first remix is unaffected by the second');
 }
 
 A.send({ type: 'again' }); await sleep(80);

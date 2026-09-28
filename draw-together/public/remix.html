@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ffd84d">
+<title>Draw Together — Remix</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { min-height: 100dvh; overflow: hidden; }
+  .rwrap { position: fixed; inset: 0; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); }
+  .rhead {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: var(--line) solid var(--ink);
+  }
+  .rhead h1 { font-size: 1.1rem; margin: 0; flex: 1; min-width: 0; }
+  .rhead .who { font-size: .8rem; opacity: .75; display: block; font-weight: 600; }
+  .rstage { position: relative; flex: 1; min-height: 0; }
+  .rstage .board-host { position: absolute; inset: 8px 12px; }
+  .rname {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-top: var(--line) solid var(--ink);
+  }
+  .rname input {
+    flex: 1; min-width: 0; font-family: var(--hand); font-size: 1.1rem;
+    padding: 8px 10px; border-radius: 10px; border: var(--line) solid var(--ink);
+  }
+  .rstate { font-size: 1.1rem; font-weight: 700; text-align: center; padding: 40px 20px; }
+</style>
+</head>
+<body>
+
+<!-- Icon sprites (same set as the live game's tray) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pen" viewBox="0 0 48 48"><path d="M10 38l3-9L32 10l6 6-19 19z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M10 38l3-9 6 6z" fill="#000"/><path d="M28 14l6 6" stroke="#000" stroke-width="3.2"/></symbol>
+    <symbol id="i-marker" viewBox="0 0 48 48"><rect x="17" y="6" width="14" height="24" rx="4" fill="#fff" stroke="#000" stroke-width="3.2"/><path d="M18 30h12l-2 7h-8z" fill="currentColor" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M21 37h6l-1 5h-4z" fill="currentColor" stroke="#000" stroke-width="3"/></symbol>
+    <symbol id="i-crayon" viewBox="0 0 48 48"><path d="M16 42V16l8-10 8 10v26z" fill="currentColor" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M16 24h16M16 34h16" stroke="#000" stroke-width="3"/><path d="M19 20h10M19 28h10" stroke="#fff" stroke-width="2" opacity=".7"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 48 48"><g fill="currentColor" stroke="#000" stroke-width="2.4"><circle cx="9" cy="34" r="4.5"/><circle cx="18" cy="24" r="4.5"/><circle cx="29" cy="18" r="4.5"/><circle cx="40" cy="16" r="4.5"/></g></symbol>
+    <symbol id="i-rainbow" viewBox="0 0 48 48"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M6 38a18 18 0 0 1 36 0" stroke="#e8202a"/><path d="M12 38a12 12 0 0 1 24 0" stroke="#ffd400"/><path d="M18 38a6 6 0 0 1 12 0" stroke="#1f5bff"/></g></symbol>
+    <symbol id="i-eraser" viewBox="0 0 48 48"><path d="M6 32l16-16 14 14-10 10H14z" fill="#ff9fcb" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M22 16l8-8 14 14-8 8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M24 42h18" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 48 48"><path d="M14 20h18a9 9 0 0 1 0 18H20" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round"/><path d="M20 10L10 20l10 10" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 48 48"><path d="M12 15h24l-2 26H14z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M8 15h32M19 15v-5h10v5M20 22v13M28 22v13" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 48 48"><path d="M13 13l22 22M35 13L13 35" stroke="#000" stroke-width="5" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="rwrap">
+  <header class="rhead">
+    <button class="btn icon back" id="btn-back" aria-label="Back to gallery" style="position:static"><svg width="22" height="22"><use href="#i-close"/></svg></button>
+    <h1>Add to this drawing<span class="who" id="r-who"></span></h1>
+  </header>
+
+  <p id="r-state" class="rstate" hidden></p>
+
+  <main class="rstage" id="r-stage" hidden>
+    <div class="board-host" id="board-host"></div>
+  </main>
+
+  <div class="tray" id="tray" role="toolbar" aria-label="Drawing tools" hidden>
+    <div class="tools" id="tools"></div>
+    <div class="row2">
+      <div class="sizes" id="sizes" role="radiogroup" aria-label="Brush size"></div>
+      <div class="acts">
+        <button class="btn tool act" id="btn-undo" aria-label="Undo"><svg><use href="#i-undo"/></svg><span>Undo</span></button>
+        <button class="btn tool act" id="btn-clear" aria-label="Clear drawing"><svg><use href="#i-trash"/></svg><span>Clear</span></button>
+      </div>
+    </div>
+    <div class="colors" id="colors" role="radiogroup" aria-label="Colors"></div>
+  </div>
+
+  <form class="rname" id="r-name-form" hidden>
+    <input id="in-name" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name">
+    <button id="btn-save" class="btn green" type="submit">Save</button>
+  </form>
+</div>
+
+<script type="module" src="/js/remix.js"></script>
+</body>
+</html>

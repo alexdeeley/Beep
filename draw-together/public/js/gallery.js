@@ -10,6 +10,10 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 const params = new URLSearchParams(location.search);
 const code = (params.get('code') || '').trim().toUpperCase();
+const you = params.get('you') != null && params.get('you') !== '' ? Number(params.get('you')) : null;
+const myName = params.get('name') || '';
+let onlyMine = false;
+let allEntries = [];
 
 function setState(text) { $('g-state').textContent = text; }
 
@@ -41,12 +45,31 @@ async function main() {
     return;
   }
   setState('');
-  renderGrid(data.entries);
+  allEntries = data.entries;
+  if (you != null && allEntries.some((e) => e.drawerSeat === you)) wireMineFilter();
+  renderGrid();
 }
 
-function renderGrid(entries) {
+function wireMineFilter() {
+  const wrap = $('g-filter');
+  wrap.hidden = false;
+  $('btn-filter-all').addEventListener('click', () => { onlyMine = false; renderGrid(); });
+  $('btn-filter-mine').addEventListener('click', () => { onlyMine = true; renderGrid(); });
+}
+
+function renderGrid() {
   const grid = $('g-grid');
-  entries.forEach((entry, i) => {
+  grid.replaceChildren();
+  $('btn-filter-all')?.classList.toggle('active', !onlyMine);
+  $('btn-filter-mine')?.classList.toggle('active', onlyMine);
+  const entries = onlyMine ? allEntries.filter((e) => e.drawerSeat === you) : allEntries;
+  if (!entries.length) {
+    grid.innerHTML = '<p class="gstate">No drawings of yours in this game yet.</p>';
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const i = allEntries.indexOf(entry);
     const card = document.createElement('div');
     card.className = 'gcard';
     const host = document.createElement('div');
@@ -55,15 +78,27 @@ function renderGrid(entries) {
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.innerHTML = `<div class="word">${esc(entry.word)} ${esc(entry.emoji)}</div>
-      <div class="who">Round ${entry.round} · drawn by ${esc(entry.drawerName)}</div>`;
+    const who = entry.remixOf != null
+      ? `Remix by ${esc(entry.drawerName)} · started from ${esc(entry.remixOfName)}'s drawing`
+      : `Round ${entry.round} · drawn by ${esc(entry.drawerName)}`;
+    meta.innerHTML = `<div class="word">${esc(entry.word)} ${esc(entry.emoji)}</div><div class="who">${who}</div>`;
     card.appendChild(meta);
 
+    const actions = document.createElement('div');
+    actions.className = 'gactions';
     const dl = document.createElement('button');
     dl.className = 'btn small ghost dl';
     dl.type = 'button';
-    dl.textContent = '⬇️ Save drawing';
-    card.appendChild(dl);
+    dl.textContent = '⬇️ Save';
+    const remix = document.createElement('a');
+    remix.className = 'btn small blue';
+    const remixParams = new URLSearchParams({ code, entry: i });
+    if (you != null) remixParams.set('you', you);
+    if (myName) remixParams.set('name', myName);
+    remix.href = `remix.html?${remixParams}`;
+    remix.textContent = '🎨 Add to this drawing';
+    actions.append(dl, remix);
+    card.appendChild(actions);
 
     grid.appendChild(card);
 

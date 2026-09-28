@@ -133,10 +133,23 @@ export class GameRoom {
           for (const k of keys.slice(i, i + 128)) { const op = got.get(k); if (op) ops.push(op); }
         }
         entries.push({
-          round: g.round, drawerName: g.drawerName, word: g.word, emoji: g.emoji, aspect: g.aspect, ops,
+          round: g.round, drawerSeat: g.drawerSeat, drawerName: g.drawerName,
+          word: g.word, emoji: g.emoji, aspect: g.aspect, ops,
+          remixOf: g.remixOf ?? null, remixOfName: g.remixOfName || null,
         });
       }
       return Response.json({ exists: true, code: this.room.code, entries });
+    }
+
+    // A remix is a brand-new, independent gallery entry that starts from
+    // another entry's already-finished ops - see submitRemix(). It never
+    // touches a live round (no drawerSeat/phase involved at all), so it's
+    // plain request/response, not routed through the WebSocket protocol.
+    if (action === 'remix' && request.method === 'POST') {
+      if (!this.room) return Response.json({ error: 'notfound' }, 404);
+      let body;
+      try { body = await request.json(); } catch { return new Response('bad json', { status: 400 }); }
+      return this.submitRemix(body);
     }
 
     if (action === 'ws') {
@@ -470,6 +483,47 @@ export class GameRoom {
     this.relay({ type: 'strokeEnd', id: op.id });
   }
 
+  // A remix: someone drew more on top of an already-finished gallery entry
+  // (never a live round's drawing - see the fetch() handler). The new ops
+  // are appended to the SOURCE entry's own op keys, never copied or
+  // mutated, so the original stays exactly as it was; only a new gallery
+  // entry is created, pointing back at it via remixOf/remixOfName.
+  async submitRemix(body) {
+    const r = this.room;
+    const srcIdx = Number(body?.sourceIndex);
+    const src = Number.isInteger(srcIdx) && srcIdx >= 0 ? r.gallery[srcIdx] : null;
+    if (!src) return new Response('bad source', { status: 400 });
+    const name = cleanName(body?.name) || 'Someone';
+    const rawOps = Array.isArray(body?.ops) ? body.ops : [];
+    if (!rawOps.length || rawOps.length > MAX_OPS_PER_ROUND) return new Response('bad ops', { status: 400 });
+    const cleaned = [];
+    for (const op of rawOps) {
+      const co = validateOp(op);
+      if (!co) return new Response('bad op', { status: 400 });
+      cleaned.push(co);
+    }
+    const newKeys = [];
+    for (const op of cleaned) {
+      const n = ++r.opSeq;
+      op.n = n;
+      await this.ctx.storage.put('op:' + n, op);
+      newKeys.push(n);
+    }
+    r.gallery.push({
+      round: null,
+      drawerSeat: null,
+      drawerName: name,
+      remixOf: srcIdx,
+      remixOfName: src.drawerName,
+      word: src.word,
+      emoji: src.emoji,
+      aspect: src.aspect,
+      opKeys: [...src.opKeys, ...newKeys],
+    });
+    this.save();
+    return Response.json({ ok: true, index: r.gallery.length - 1 });
+  }
+
   resetToLobby() {
     const r = this.room;
     r.phase = 'lobby';
@@ -795,4 +849,24 @@ function cleanPoints(p) {
   if (!Array.isArray(p) || p.length % 2 || p.length > MAX_POINTS_PER_MSG * 2) return null;
   for (const v of p) if (!Number.isInteger(v) || v < 0 || v > COORD_MAX) return null;
   return p;
+}
+
+// Validates one whole, already-finished op submitted in a single request
+// (a remix) - unlike cleanPoints() above, which only ever validates one
+// incremental chunk of a stroke still being streamed live, so its point-
+// count cap (MAX_POINTS_PER_MSG) is far too small for a finished stroke.
+function validateOp(op) {
+  if (!op || typeof op !== 'object') return null;
+  const id = cleanId(op.id);
+  if (!id) return null;
+  if (op.type === 'clear') return { id, type: 'clear' };
+  if (op.type !== 'stroke') return null;
+  const tool = TOOLS[op.tool] ? op.tool : null;
+  if (!tool || !TOOLS[tool].sizes.includes(op.size)) return null;
+  const color = tool === 'eraser' ? '#ffffff' : (COLORS.has(op.color) ? op.color : null);
+  if (!color) return null;
+  const pts = op.pts;
+  if (!Array.isArray(pts) || pts.length % 2 || pts.length < 2 || pts.length > MAX_INTS_PER_STROKE) return null;
+  for (const v of pts) if (!Number.isInteger(v) || v < 0 || v > COORD_MAX) return null;
+  return { id, type: 'stroke', tool, color, size: op.size, pts: pts.slice() };
 }

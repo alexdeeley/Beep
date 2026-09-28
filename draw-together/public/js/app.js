@@ -958,7 +958,10 @@ function renderOver() {
 $('btn-again').addEventListener('click', () => S.net?.send({ type: 'again' }));
 $('btn-newgame').addEventListener('click', () => S.net?.send({ type: 'lobby' }));
 $('btn-gallery').addEventListener('click', () => {
-  window.open(`gallery.html?code=${encodeURIComponent(S.st.code)}`, '_blank', 'noopener');
+  const me = S.st.players.find((p) => p.seat === S.st.you);
+  const params = new URLSearchParams({ code: S.st.code, you: S.st.you });
+  if (me?.name) params.set('name', me.name);
+  window.open(`gallery.html?${params}`, '_blank', 'noopener');
 });
 
 // ── Header buttons ──────────────────────────────────────────

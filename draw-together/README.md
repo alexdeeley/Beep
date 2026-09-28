@@ -57,19 +57,21 @@ src/words.js         Word bank (~300 words, plus ~3,000 opt-in Chaos-mode
                      scenario prompts) + guess matching + letter-count hint
 public/index.html    All screens and overlays
 public/gallery.html  Shareable gallery of a room's finished drawings
+public/remix.html    Editor for adding to an already-finished drawing
 public/styles.css    Sticker-book look, portrait/landscape layouts, safe areas
 public/js/shared.js  Constants shared by browser and server (tools, sizes, palette, options)
 public/js/board.js   Canvas renderer (high-DPI, letterboxing, deterministic brushes, replay)
 public/js/net.js     WebSocket client with reconnect + heartbeat
 public/js/sound.js   Procedural sound effects + mute
 public/js/app.js     Screens, input, game UI
-public/js/gallery.js Fetches and renders a room's gallery, PNG export, share + QR code
+public/js/gallery.js Fetches and renders a room's gallery, PNG export, share + QR code, the Mine/All filter
+public/js/remix.js   Loads one gallery entry, lets you draw more on top, saves it as a new entry
 dev/                 Local server emulator and test harnesses
 ```
 
 ## How it works
 
-**Rooms.** `POST /api/rooms` makes a code like `CAT7` (short word + a digit 2–9, no confusable letters). `GET /api/rooms/:code` says whether it exists and is full. `/api/rooms/:code/ws` upgrades to a WebSocket owned by that room's Durable Object. `GET /api/rooms/:code/gallery` returns the finished drawings for the gallery page. Rooms clean themselves up after 12 hours idle.
+**Rooms.** `POST /api/rooms` makes a code like `CAT7` (short word + a digit 2–9, no confusable letters). `GET /api/rooms/:code` says whether it exists and is full. `/api/rooms/:code/ws` upgrades to a WebSocket owned by that room's Durable Object. `GET /api/rooms/:code/gallery` returns the finished drawings for the gallery page. `POST /api/rooms/:code/remix` submits a remix - see "Remix" above - and is the only other way a drawing ever reaches storage; there's no way to write to a room over plain HTTP that skips validation. Rooms clean themselves up after 12 hours idle.
 
 **The server is the referee.** The word is picked on the server and sent only to the drawer's socket. Guesses are judged on the server; the guesser's browser never receives the word until the reveal. Every incoming message is validated (whose turn it is, tool, colour, size, point counts).
 
@@ -125,7 +127,9 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 
 **Difficulty & categories.** Easy / Mixed / Silly draw from the regular word bank (Mixed being everything except Silly and Hard). **Hard** is a separate opt-in tier - currently Symbols, Music and Architecture - full of trickier, more abstract prompts that never show up under any other difficulty by accident. **Chaos** is a second opt-in tier: ~3,000 longer, sillier scenario prompts ("A firefighter arguing with a dinosaur over a traffic cone") from a curated expansion pack, kept out of every other difficulty the same way Hard mode is, so the regular game stays exactly as it was unless a group chooses Chaos on purpose.
 
-**Gallery.** After a game ends, "View & share the gallery" opens a page (`gallery.html?code=CODE`) listing every drawing made that game - word, artist, and the drawing itself replayed from its strokes (never a raster image, so it renders crisply at any size). Each drawing can be saved as a PNG, and the gallery page itself has a share button (native share sheet, or copies the link) plus a QR code back to the site so people can scan their way into a game of their own. A room's drawings live exactly as long as the room does (12 hours idle), and starting a new game (Play Again or New Game) clears the previous game's gallery.
+**Gallery.** After a game ends, "View & share the gallery" opens a page (`gallery.html?code=CODE`) listing every drawing made that game - word, artist, and the drawing itself replayed from its strokes (never a raster image, so it renders crisply at any size). Each drawing can be saved as a PNG, and the gallery page itself has a share button (native share sheet, or copies the link) plus a QR code back to the site so people can scan their way into a game of their own. A room's drawings live exactly as long as the room does (12 hours idle), and starting a new game (Play Again or New Game) clears the previous game's gallery. If the gallery link was opened from inside a game (`?you=SEAT`), a "My drawings / All drawings" filter appears, letting a player pick out just their own.
+
+**Remix.** Every card also has an "Add to this drawing" button (`remix.html?code=CODE&entry=INDEX`), which loads that finished drawing - anyone's, not just your own - into the same drawing tools as the live game and lets you add more strokes on top, then save the result as its own new gallery card ("Remix by X - started from Y's drawing"). The original is never touched: a remix's new strokes are appended to a copy of the source's stroke list, under a fresh gallery entry, so the drawing being remixed keeps existing exactly as it was, remixable again by someone else independently. There's no live sync while remixing - it's a solo, asynchronous action against the finished picture, submitted once as a whole (`POST /api/rooms/:code/remix`), validated with the same tool/color/size/point-count rules as a live stroke.
 
 ## QA checklist (on real devices)
 

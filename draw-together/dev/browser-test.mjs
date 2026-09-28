@@ -24,10 +24,10 @@ async function player(name, opts) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(name + ': ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_FAILED/.test(m.text())) errors.push(name + ': ' + m.text()); });
-  page.on('requestfailed', (r) => { if (!/fonts\.(googleapis|gstatic)/.test(r.url())) errors.push(name + ': failed ' + r.url()); });
+  page.on('requestfailed', (r) => { if (!/fonts\.(googleapis|gstatic)|api\.qrserver\.com/.test(r.url())) errors.push(name + ': failed ' + r.url()); });
   page.frames_ = [];
   page.on('websocket', (ws) => ws.on('framereceived', (f) => page.frames_.push(String(f.payload))));
-  await page.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
+  await page.route(/fonts\.(googleapis|gstatic)|api\.qrserver\.com/, (r) => r.abort());
   await page.goto(URL0);
   return { ctx, page };
 }
@@ -325,6 +325,56 @@ await M.page.screenshot({ path: `${OUT}/16-game-over-phone.png` });
 ok(true, 'reached game over');
 await sleep(400); // let the pause-on-'over' fade finish
 ok(!(await M.page.evaluate(() => window.__dt.music.isPlaying())), 'music pauses on game over (just the chime plays)');
+
+// ── Gallery: the personal filter + remixing another player's drawing ──
+{
+  const meSeat = await A.page.evaluate(() => window.__dt.S.st.you);
+  const meName = await A.page.evaluate(() => window.__dt.S.st.players.find((p) => p.seat === window.__dt.S.st.you)?.name);
+  const galleryUrl = `${URL0}gallery.html?code=${code}&you=${meSeat}&name=${encodeURIComponent(meName || '')}`;
+  const G = await player('GalleryViewer', { viewport: { width: 900, height: 900 } });
+  await G.page.goto(galleryUrl);
+  await G.page.waitForSelector('.gcard');
+  const totalCards = await G.page.locator('.gcard').count();
+  const preCheck = await (await fetch(`${URL0}api/rooms/${code}/gallery`)).json();
+  ok(totalCards > 0 && totalCards === preCheck.entries.length, `gallery page shows all ${totalCards} finished drawings (matches server truth)`);
+  ok(await G.page.isVisible('#g-filter'), 'the Mine/All filter appears once a "you" seat is known');
+
+  await G.page.click('#btn-filter-mine');
+  await sleep(150);
+  const mineCards = await G.page.locator('.gcard').count();
+  ok(mineCards > 0 && mineCards < totalCards, `"My drawings" filters down to ${mineCards} of ${totalCards}`);
+
+  await G.page.click('#btn-filter-all');
+  await sleep(150);
+  ok((await G.page.locator('.gcard').count()) === totalCards, 'switching back to All restores every drawing');
+
+  const galleryData = await (await fetch(`${URL0}api/rooms/${code}/gallery`)).json();
+  const firstDrawer = galleryData.entries[0].drawerName;
+
+  await G.page.locator('.gcard').nth(0).locator('a', { hasText: 'Add to this drawing' }).click();
+  await G.page.waitForSelector('#r-stage:not([hidden])');
+  await sleep(300); // the base drawing loads on the next animation frame
+  const stageBox = await G.page.locator('#board-host').boundingBox();
+  await G.page.mouse.move(stageBox.x + stageBox.width * 0.3, stageBox.y + stageBox.height * 0.3);
+  await G.page.mouse.down();
+  await G.page.mouse.move(stageBox.x + stageBox.width * 0.6, stageBox.y + stageBox.height * 0.6, { steps: 6 });
+  await G.page.mouse.up();
+  ok(!(await G.page.isDisabled('#btn-undo')), 'drawing a stroke on top of the loaded drawing enables Undo');
+
+  await G.page.fill('#in-name', 'Remix Tester');
+  await G.page.click('#btn-save');
+  await G.page.waitForSelector('.gcard');
+  const afterCards = await G.page.locator('.gcard').count();
+  ok(afterCards === totalCards + 1, `gallery grows by one entry after saving a remix (now ${afterCards})`);
+  const lastWho = await G.page.locator('.gcard').last().locator('.who').textContent();
+  ok(lastWho.includes('Remix Tester') && lastWho.includes(firstDrawer), `newest card attributes the remix correctly: "${lastWho}"`);
+
+  const galleryAfter = await (await fetch(`${URL0}api/rooms/${code}/gallery`)).json();
+  ok(JSON.stringify(galleryAfter.entries[0].ops) === JSON.stringify(galleryData.entries[0].ops), 'the original drawing that was remixed is completely unchanged');
+
+  await G.ctx.close();
+}
+
 await M.page.click('#btn-again');
 await A.page.waitForFunction(() => window.__dt.S.st.phase === 'choosing' && window.__dt.S.st.round === 1);
 ok(true, 'play again');

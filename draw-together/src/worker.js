@@ -3,7 +3,8 @@
 //   POST /api/rooms              → create a room, returns { code }
 //   GET  /api/rooms/:code        → { exists, full }
 //   GET  /api/rooms/:code/ws     → WebSocket into that room's Durable Object
-//   GET  /api/rooms/:code/gallery → { exists, code, entries: [{round, drawerName, word, emoji, aspect, ops}] }
+//   GET  /api/rooms/:code/gallery → { exists, code, entries: [{round, drawerSeat, drawerName, word, emoji, aspect, ops, remixOf, remixOfName}] }
+//   POST /api/rooms/:code/remix  → { sourceIndex, name, ops } -> { ok, index }
 //
 // Everything else is served from ./public by Workers Static Assets.
 
@@ -62,6 +63,9 @@ export default {
     }
     if (parts.length === 4 && parts[3] === 'gallery' && request.method === 'GET') {
       return stub.fetch('https://room/gallery');
+    }
+    if (parts.length === 4 && parts[3] === 'remix' && request.method === 'POST') {
+      return stub.fetch(new Request('https://room/remix', request));
     }
     return json({ error: 'notfound' }, 404);
   },
