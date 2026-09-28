@@ -152,7 +152,7 @@ export class MatchRoom {
       this.broadcastState();
     } else if (r.deadlineAt != null && now >= r.deadlineAt - 30) {
       if (r.status === 'intro') this.beginPlaying();
-      else if (r.status === 'result') this.advanceAfterResult();
+      else if (r.status === 'result') await this.advanceAfterResult();
       this.save();
       this.broadcastState();
     }
@@ -213,6 +213,8 @@ export class MatchRoom {
       gameState: r.gameState && mod ? mod.view(r.gameState) : null,
       lastResult: r.lastResult,
       finalWinners: r.finalWinners,
+      highScoreCandidates: r.highScoreCandidates || [],
+      leaderboardTop: r.leaderboardTop || null,
       deadlineAt: r.deadlineAt,
       serverNow: Date.now(),
     };
@@ -261,7 +263,7 @@ export class MatchRoom {
         return;
       }
       const color = pickColor(r, cleanColor(msg.color));
-      me = { id: pid, seat: r.nextSeat++, name: name || 'Player ' + r.nextSeat, color, ready: false, score: 0, wins: 0, gamesPlayed: 0 };
+      me = { id: pid, seat: r.nextSeat++, name: name || 'Player ' + r.nextSeat, color, ready: false, score: 0, wins: 0, gamesPlayed: 0, highScoreSubmitted: false };
       r.players.push(me);
       this.relay({ type: 'event', kind: 'joined', seat: me.seat, name: me.name });
     } else {
@@ -346,18 +348,49 @@ export class MatchRoom {
     r.gameState = null;
   }
 
-  advanceAfterResult() {
+  async advanceAfterResult() {
     const r = this.room;
-    if (r.round >= r.matchLength) this.finishMatch();
+    if (r.round >= r.matchLength) await this.finishMatch();
     else this.beginIntro();
   }
 
-  finishMatch() {
+  async finishMatch() {
     const r = this.room;
     const best = Math.max(...r.players.map((p) => p.score));
     r.finalWinners = r.players.filter((p) => p.score === best).map((p) => p.seat);
     r.status = 'matchover';
     r.deadlineAt = null;
+    await this.refreshLeaderboard();
+  }
+
+  // Checks each player's final score against the shared Leaderboard DO and
+  // records who's eligible to enter their name (view() exposes this so the
+  // client only ever shows the prompt to a player the server has actually
+  // confirmed qualifies - the client never decides this for itself).
+  async refreshLeaderboard() {
+    const r = this.room;
+    const stub = this.leaderboardStub();
+    try {
+      const top = await (await stub.fetch('https://leaderboard/top')).json();
+      r.leaderboardTop = top.entries;
+      const candidates = [];
+      for (const p of r.players) {
+        if (p.highScoreSubmitted) continue;
+        const check = await (await stub.fetch('https://leaderboard/check', {
+          method: 'POST', body: JSON.stringify({ score: p.score }),
+        })).json();
+        if (check.qualifies) candidates.push(p.seat);
+      }
+      r.highScoreCandidates = candidates;
+    } catch {
+      // The leaderboard is a nice-to-have, never a reason a match can't end.
+      r.leaderboardTop = r.leaderboardTop || [];
+      r.highScoreCandidates = [];
+    }
+  }
+
+  leaderboardStub() {
+    return this.env.LEADERBOARD.get(this.env.LEADERBOARD.idFromName('global'));
   }
 
   // A player leaving mid-round is treated as an immediate forfeit: pulled
@@ -419,16 +452,42 @@ const HANDLERS = {
   async again(me) {
     const r = this.room;
     if (r.status !== 'matchover') return;
-    for (const p of r.players) { p.score = 0; p.wins = 0; p.gamesPlayed = 0; p.ready = false; }
+    for (const p of r.players) { p.score = 0; p.wins = 0; p.gamesPlayed = 0; p.ready = false; p.highScoreSubmitted = false; }
     r.round = 0;
     r.recentCategories = [];
     r.currentGameId = null;
     r.gameState = null;
     r.lastResult = null;
     r.finalWinners = null;
+    r.highScoreCandidates = [];
+    r.leaderboardTop = null;
     r.status = 'lobby';
     this.save();
     this.broadcastState();
+  },
+
+  // Matchover-only: a player the server has already confirmed qualifies
+  // (see refreshLeaderboard()) submits a display name to attach to their
+  // already-authoritative score. The client never gets to supply the score
+  // itself - only ever the name.
+  async submitHighScore(me, msg) {
+    const r = this.room;
+    if (r.status !== 'matchover') return;
+    if (me.highScoreSubmitted || !r.highScoreCandidates?.includes(me.seat)) return;
+    const name = cleanName(msg.name) || me.name;
+    if (!name) return;
+    try {
+      const res = await this.leaderboardStub().fetch('https://leaderboard/submit', {
+        method: 'POST', body: JSON.stringify({ name, score: me.score }),
+      });
+      if (!res.ok) return;
+      const { entries } = await res.json();
+      me.highScoreSubmitted = true;
+      r.highScoreCandidates = r.highScoreCandidates.filter((s) => s !== me.seat);
+      r.leaderboardTop = entries;
+      this.save();
+      this.broadcastState();
+    } catch { /* leaderboard unreachable - the player's match result is unaffected */ }
   },
 
   // Host-only, lobby-only: remove someone before the match starts.
@@ -457,6 +516,7 @@ const HANDLERS = {
     if (r.players.length === 0) {
       r.status = 'lobby'; r.round = 0; r.currentGameId = null; r.gameState = null;
       r.lastResult = null; r.finalWinners = null; r.recentCategories = [];
+      r.highScoreCandidates = []; r.leaderboardTop = null;
     } else if (r.status === 'lobby') {
       this.maybeAutoStart();
     }
@@ -492,6 +552,8 @@ function newRoom(code) {
     gameState: null,
     lastResult: null,
     finalWinners: null,
+    highScoreCandidates: [],
+    leaderboardTop: null,
     deadlineAt: null,
   };
 }

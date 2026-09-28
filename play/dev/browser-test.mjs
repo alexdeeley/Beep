@@ -144,6 +144,35 @@ ok(!!overWinner, 'match-over screen names a winner: ' + overWinner);
 const overScores = await A.page.locator('#over-scores .over-score-row').count();
 ok(overScores === 2, 'match-over scoreboard lists both players');
 
+// ── High scores (shared across every game) ────────────────────
+
+const lbRendered = await A.page.locator('#over-leaderboard-list .lb-row, #over-leaderboard-list .lb-empty').count();
+ok(lbRendered > 0, 'match-over screen renders the shared high-score list (rows or an empty-state message)');
+
+for (const pg of [A, M]) {
+  const formVisible = await pg.page.locator('#hs-form:not([hidden])').count();
+  if (formVisible) {
+    await pg.page.fill('#hs-name-input', pg.name);
+    await pg.page.click('#btn-hs-submit');
+    await pg.page.waitForFunction(() => document.getElementById('hs-form').hidden === true, { timeout: 3000 });
+    ok(true, `${pg.name} qualified for the high-score board and submitted a name`);
+    await pg.page.waitForFunction(
+      (name) => [...document.querySelectorAll('#over-leaderboard-list .lb-name')].some((el) => el.textContent === name),
+      pg.name,
+      { timeout: 3000 },
+    );
+    ok(true, `${pg.name}'s submitted name now appears in the shared leaderboard`);
+  }
+}
+
+// The standalone /leaderboard page needs no room or websocket at all.
+await A.page.goto(`${URL0}leaderboard`);
+await A.page.waitForSelector('#scr-leaderboard:not([hidden])');
+await A.page.waitForFunction(() => document.querySelectorAll('#leaderboard-list .lb-row, #leaderboard-list .lb-empty').length > 0, { timeout: 5000 });
+ok(true, 'the standalone /leaderboard page loads and renders on its own');
+await A.page.goBack();
+await A.page.waitForSelector('#panel-matchover:not([hidden])', { timeout: 5000 });
+
 // ── Play again ────────────────────────────────────────────────
 
 await A.page.click('#btn-again');

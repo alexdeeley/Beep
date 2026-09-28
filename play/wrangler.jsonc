@@ -14,11 +14,17 @@
     "run_worker_first": ["/api/*"],
   },
 
-  // One Durable Object per game room (a "match" - several mini-game rounds).
+  // One Durable Object per game room (a "match" - several mini-game rounds),
+  // plus a single global LEADERBOARD instance shared by every room (see
+  // src/leaderboard.js) - always addressed by the same fixed name, so
+  // there's only ever one.
   "durable_objects": {
-    "bindings": [{ "name": "MATCHES", "class_name": "MatchRoom" }]
+    "bindings": [
+      { "name": "MATCHES", "class_name": "MatchRoom" },
+      { "name": "LEADERBOARD", "class_name": "Leaderboard" },
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MatchRoom"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MatchRoom", "Leaderboard"] }],
 
   "observability": { "enabled": true },
 

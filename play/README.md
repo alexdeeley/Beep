@@ -25,6 +25,18 @@ Winner of a round scores 3 points; in a 3-4 player round the
 second-to-last-eliminated tier scores 1 more. First to the end of 5 rounds
 with the most points wins the match.
 
+## Shared high scores
+
+One leaderboard, shared across every room and every game (`src/leaderboard.js`,
+a second Durable Object alongside `MatchRoom`). When a match ends, each
+player's final score is checked against the board; anyone who qualifies
+gets an "ADD ME" name-entry prompt right there on the match-over screen. A
+score never travels from client to leaderboard directly - only `MatchRoom`
+itself (which computed it) submits it, and only after independently
+re-confirming eligibility server-side; the client only ever supplies the
+name. See it any time at `/leaderboard`, reachable from the home screen's
+"HIGH SCORES" button - no room or match needed to view it.
+
 ## Run it locally
 
 ```bash
@@ -46,8 +58,8 @@ Durable Object binding and Workers Static Assets config live entirely in
 ## Testing
 
 ```bash
-npm test                      # every game module + the full room protocol (68 checks)
-node dev/browser-test.mjs     # two real browsers play a full match end to end (needs Playwright + Chromium)
+npm test                      # every game module + the full room protocol + the leaderboard (88 checks)
+node dev/browser-test.mjs     # two real browsers play a full match end to end, including submitting a high score (needs Playwright + Chromium)
 ```
 
 Each of the 5 game rule modules (`src/games/*.js`) is pure and takes its

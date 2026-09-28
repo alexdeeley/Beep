@@ -3,11 +3,16 @@
 //   POST /api/rooms                → create a room, returns { code }
 //   GET  /api/rooms/:code          → { exists, full, started }
 //   GET  /api/rooms/:code/ws       → WebSocket into that room's Durable Object
+//   GET  /api/leaderboard          → { entries } - the shared top-scores board
 //
-// Everything else is served from ./public by Workers Static Assets.
+// Everything else is served from ./public by Workers Static Assets. There
+// is deliberately no write route for the leaderboard here - a score only
+// ever reaches it from a MatchRoom itself (server-to-Durable-Object), never
+// from an HTTP request a client could forge. See src/leaderboard.js.
 
 import { MatchRoom } from './match-room.js';
-export { MatchRoom };
+import { Leaderboard } from './leaderboard.js';
+export { MatchRoom, Leaderboard };
 
 // Short, game-show-themed room codes: a word + a digit. No 0/1 (look like O/I).
 const CODE_WORDS = [
@@ -31,6 +36,13 @@ export default {
     const parts = url.pathname.split('/').filter(Boolean); // ['api','rooms',code?,'ws'?]
 
     if (parts[0] !== 'api') return new Response('Not found', { status: 404 });
+
+    if (parts[1] === 'leaderboard') {
+      if (parts.length !== 2 || request.method !== 'GET') return json({ error: 'notfound' }, 404);
+      const stub = env.LEADERBOARD.get(env.LEADERBOARD.idFromName('global'));
+      return stub.fetch('https://leaderboard/top');
+    }
+
     if (parts[1] !== 'rooms') return json({ error: 'notfound' }, 404);
 
     if (parts.length === 2 && request.method === 'POST') {

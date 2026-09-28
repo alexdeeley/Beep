@@ -143,6 +143,37 @@ like a hung game or an infinite-loop product bug, and isn't - the actual
 `rope.js` module already has correct, tested reprieve-on-mutual-failure
 logic (see `dev/unit-tests.mjs`).
 
+## The shared leaderboard never trusts the client for the one thing that matters: the score
+
+Added after the initial build, at the user's request, as a single
+high-score board shared across all five games rather than five separate
+ones - the natural shared metric already sitting in every room is the
+match's final score, so that's what it tracks (a per-game metric would
+have meant inventing five different, not-really-comparable numbers for
+games that don't otherwise produce one).
+
+The temptation with a feature like this is a simple public `POST
+/api/leaderboard {name, score}` - and that would reintroduce exactly the
+hole the rest of this platform was built to avoid: a client could submit
+any score it likes with a raw HTTP request, no gameplay required. Instead
+`Leaderboard` (`src/leaderboard.js`) is a second Durable Object with *no
+public write route at all* - `worker.js` only ever proxies `GET
+/api/leaderboard` (read-only). The only way a score reaches it is
+`MatchRoom` calling it directly, Durable-Object-to-Durable-Object, at the
+exact moment it has already computed that score itself
+(`refreshLeaderboard()`, called from `finishMatch()`). A client's
+`submitHighScore` message carries a name and nothing else; `MatchRoom`
+looks up the player's own already-authoritative `score` field and sends
+that, never anything from the message. `Leaderboard.submit()` still
+independently re-checks eligibility itself (not just trusting
+`MatchRoom`'s earlier `check()` call), since a match can run long enough
+for the board to change between the two.
+
+The one place this shows up as extra ceremony: `finishMatch()`,
+`advanceAfterResult()`, and `alarm()`'s `result`-phase branch all had to
+become `async` to await that cross-Durable-Object call, where they were
+synchronous before.
+
 ## Local stats on the home screen are honest about what they are
 
 The spec's homepage sketch mentions "RECENT GAMES / PLAYERS / WINS." There

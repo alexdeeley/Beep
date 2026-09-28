@@ -21,11 +21,17 @@ const PORT = Number(process.env.PORT || 8787);
 
 const { default: worker } = await import(path.join(ROOT, 'src/worker.js'));
 const { MatchRoom } = await import(path.join(ROOT, 'src/match-room.js'));
+const { Leaderboard } = await import(path.join(ROOT, 'src/leaderboard.js'));
 
-const objects = new Map();
+const matchObjects = new Map();
 function getObject(name) {
-  if (!objects.has(name)) objects.set(name, makeHolder(MatchRoom));
-  return objects.get(name);
+  if (!matchObjects.has(name)) matchObjects.set(name, makeHolder(MatchRoom, env));
+  return matchObjects.get(name);
+}
+const leaderboardObjects = new Map();
+function getLeaderboard(name) {
+  if (!leaderboardObjects.has(name)) leaderboardObjects.set(name, makeHolder(Leaderboard));
+  return leaderboardObjects.get(name);
 }
 
 const env = {
@@ -34,6 +40,17 @@ const env = {
     get: (id) => ({
       fetch: async (input, init) => {
         const h = getObject(id);
+        await h.ctx.ready;
+        const req = input instanceof Request ? input : new Request(input, init);
+        return h.instance.fetch(req);
+      },
+    }),
+  },
+  LEADERBOARD: {
+    idFromName: (n) => n,
+    get: (id) => ({
+      fetch: async (input, init) => {
+        const h = getLeaderboard(id);
         await h.ctx.ready;
         const req = input instanceof Request ? input : new Request(input, init);
         return h.instance.fetch(req);

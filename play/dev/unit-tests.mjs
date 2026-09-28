@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeHolder, FakeSocket } from './emulate.mjs';
 import { MatchRoom } from '../src/match-room.js';
+import { Leaderboard } from '../src/leaderboard.js';
 import { GAMES, pickNextGame } from '../src/games/index.js';
 import * as bigBlast from '../src/games/big-blast.js';
 import * as hotPotato from '../src/games/hot-potato.js';
@@ -164,10 +165,81 @@ const seq = (...vals) => { let i = 0; return () => vals[Math.min(i++, vals.lengt
   ok(g3.id === 'x', 'pickNextGame: falls back to a same-category game when no alternative is compatible');
 }
 
+// ── Part 1g: the shared Leaderboard Durable Object ─────────────
+
+async function lbFetch(instance, path, opts) {
+  return instance.fetch(new Request('https://leaderboard/' + path, opts));
+}
+
+{
+  const h = makeHolder(Leaderboard);
+  await h.ctx.ready;
+
+  const check1 = await (await lbFetch(h.instance, 'check', { method: 'POST', body: JSON.stringify({ score: 5 }) })).json();
+  ok(check1.qualifies === true, 'leaderboard: an empty board qualifies any positive score');
+  const check0 = await (await lbFetch(h.instance, 'check', { method: 'POST', body: JSON.stringify({ score: 0 }) })).json();
+  ok(check0.qualifies === false, 'leaderboard: a score of 0 never qualifies');
+
+  await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: 'Alex', score: 9 }) });
+  await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: 'Maisie', score: 15 }) });
+  const top = await (await lbFetch(h.instance, 'top')).json();
+  ok(top.entries[0].name === 'Maisie' && top.entries[0].score === 15, 'leaderboard: entries sort highest score first');
+  ok(top.entries[1].name === 'Alex', 'leaderboard: a lower score ranks below a higher one');
+
+  const badName = await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: '', score: 5 }) });
+  ok(badName.status === 400, 'leaderboard: an empty name is rejected');
+  const badScore = await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: 'X', score: -3 }) });
+  ok(badScore.status === 400, 'leaderboard: a negative score is rejected');
+
+  const sanitized = await (await lbFetch(h.instance, 'submit', {
+    method: 'POST', body: JSON.stringify({ name: '<script>alert(1)</script> way too long a name', score: 3 }),
+  })).json();
+  const added = sanitized.entries.find((e) => e.score === 3);
+  ok(!!added && !added.name.includes('<') && added.name.length <= 16, 'leaderboard: a submitted name is sanitized and length-capped');
+
+  for (let i = 0; i < 25; i++) {
+    await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: 'P' + i, score: i + 1 }) });
+  }
+  const full = await (await lbFetch(h.instance, 'top')).json();
+  ok(full.entries.length === 20, 'leaderboard: the board caps at 20 entries even after 28 submissions');
+
+  const lowCheck = await (await lbFetch(h.instance, 'check', { method: 'POST', body: JSON.stringify({ score: 1 }) })).json();
+  ok(lowCheck.qualifies === false, 'leaderboard: once full, a score below the current cutoff no longer qualifies');
+  const highCheck = await (await lbFetch(h.instance, 'check', { method: 'POST', body: JSON.stringify({ score: 999 }) })).json();
+  ok(highCheck.qualifies === true, 'leaderboard: once full, a score above the cutoff still qualifies');
+
+  const rejectedSubmit = await lbFetch(h.instance, 'submit', { method: 'POST', body: JSON.stringify({ name: 'TooLow', score: 1 }) });
+  ok(rejectedSubmit.status === 400, 'leaderboard: submit() itself re-checks qualification, not just check()');
+}
+
 // ── Part 2: MatchRoom protocol (in-process, forced state) ─────
 
+// Every room gets its own fresh, isolated leaderboard (a real MatchRoom
+// would share one global instance across every room - see worker.js - but
+// per-test isolation matters more here than that realism).
+function makeEnv() {
+  const objects = new Map();
+  const get = (id) => {
+    if (!objects.has(id)) objects.set(id, makeHolder(Leaderboard));
+    return objects.get(id);
+  };
+  return {
+    LEADERBOARD: {
+      idFromName: (n) => n,
+      get: (id) => ({
+        fetch: async (input, init) => {
+          const h = get(id);
+          await h.ctx.ready;
+          const req = input instanceof Request ? input : new Request(input, init);
+          return h.instance.fetch(req);
+        },
+      }),
+    },
+  };
+}
+
 async function withRoom(fn) {
-  const h = makeHolder(MatchRoom);
+  const h = makeHolder(MatchRoom, makeEnv());
   await h.ctx.ready;
   await h.instance.fetch(new Request('https://room/init', { method: 'POST', body: JSON.stringify({ code: 'TEST1' }) }));
   await fn(h);
@@ -304,6 +376,53 @@ await withRoom(async (h) => {
   await h.instance.webSocketMessage(wsB, JSON.stringify({ type: 'leave' }));
   ok(!r.gameState.seats.includes(2), 'leave: the departed seat is removed from the active game state');
   ok(r.gameState.holder !== 2, 'leave: a holder/turn field pointing at the departed seat is patched to someone still in the game');
+});
+
+await withRoom(async (h) => {
+  // Reaching the final round's result surfaces high-score candidacy against
+  // a fresh (empty) leaderboard - everyone with a positive score qualifies.
+  const wsA = new FakeSocket(), wsB = new FakeSocket();
+  h.instance.acceptSocket(wsA); h.instance.acceptSocket(wsB);
+  await join(h, wsA, 'pid-a', 'Alice');
+  await join(h, wsB, 'pid-b', 'Bob');
+  const r = h.instance.room;
+  r.players[0].score = 12;
+  r.players[1].score = 3;
+  r.round = r.matchLength;
+  r.status = 'result';
+  r.deadlineAt = Date.now() - 5;
+  await h.instance.advanceAfterResult();
+  ok(r.status === 'matchover', 'high score: reaching the final round’s result moves straight to matchover');
+  ok(r.highScoreCandidates.includes(1) && r.highScoreCandidates.includes(2), 'high score: both players qualify against a fresh empty leaderboard');
+  ok(Array.isArray(r.leaderboardTop), 'high score: the current top list is fetched and stored for display');
+
+  await h.instance.webSocketMessage(wsA, JSON.stringify({ type: 'submitHighScore', name: 'Alex R' }));
+  ok(r.players[0].highScoreSubmitted === true, 'high score: a qualifying player’s submission is recorded');
+  ok(!r.highScoreCandidates.includes(1), 'high score: a submitted player drops off the pending-candidates list');
+  ok(r.leaderboardTop.some((e) => e.name === 'Alex R' && e.score === 12), 'high score: the entry lands on the board with the server-computed score, never a client-supplied one (the message carried no score at all)');
+
+  await h.instance.webSocketMessage(wsA, JSON.stringify({ type: 'submitHighScore', name: 'Someone Else' }));
+  ok(!r.leaderboardTop.some((e) => e.name === 'Someone Else'), 'high score: a player who already submitted this match cannot submit again');
+});
+
+await withRoom(async (h) => {
+  // Pre-fill the shared board so a modest score genuinely doesn't qualify,
+  // then confirm the server - not the client - is what decides that.
+  const wsA = new FakeSocket();
+  h.instance.acceptSocket(wsA);
+  await join(h, wsA, 'pid-a', 'Alice');
+  const stub = h.instance.leaderboardStub();
+  for (let i = 0; i < 20; i++) {
+    await stub.fetch('https://leaderboard/submit', { method: 'POST', body: JSON.stringify({ name: 'P' + i, score: 100 + i }) });
+  }
+  const r = h.instance.room;
+  r.players[0].score = 5; // far below the board's current cutoff
+  await h.instance.finishMatch();
+  ok(!r.highScoreCandidates.includes(1), 'high score: a score below the current cutoff does not qualify');
+
+  await h.instance.webSocketMessage(wsA, JSON.stringify({ type: 'submitHighScore', name: 'Cheater' }));
+  const top = await (await stub.fetch('https://leaderboard/top')).json();
+  ok(!top.entries.some((e) => e.name === 'Cheater'), 'high score: a non-candidate cannot force a submission through regardless of what the client claims');
 });
 
 // ── Part 3: real wire protocol against a real spawned server ────

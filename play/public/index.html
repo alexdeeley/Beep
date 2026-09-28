@@ -49,6 +49,7 @@
         <button id="btn-join" class="btn big blue">JOIN GAME</button>
       </div>
       <button id="btn-rejoin" class="btn small ghost" hidden></button>
+      <button id="btn-leaderboard-home" class="btn small ghost">&#127942; HIGH SCORES</button>
     </div>
     <div class="home-stats" aria-label="Your local play history">
       <div class="stat-box"><span class="stat-n" id="stat-games">0</span><span class="stat-l">RECENT GAMES</span></div>
@@ -77,6 +78,14 @@
     <input id="in-name-j" class="name-input" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" placeholder="Type your name">
     <p class="err" id="join-err" role="alert"></p>
     <button id="btn-join-go" class="btn big blue wide">JOIN GAME</button>
+  </section>
+
+  <!-- HIGH SCORES (standalone - no room/websocket needed to view it) -->
+  <section id="scr-leaderboard" class="screen simple" hidden>
+    <button class="btn icon back" id="btn-leaderboard-back" aria-label="Back"><svg width="22" height="22"><use href="#i-close"/></svg></button>
+    <h2 class="title">&#127942; High Scores</h2>
+    <p class="label">Shared across every game on Play</p>
+    <div class="lb-list" id="leaderboard-list"></div>
   </section>
 
   <!-- ROOM (persistent while in a match: lobby -> intro -> playing -> result -> matchover) -->
@@ -145,6 +154,18 @@
       <h2 class="over-winner" id="over-winner"></h2>
       <p class="over-points" id="over-points"></p>
       <div class="over-scores" id="over-scores"></div>
+
+      <div id="hs-form" class="hs-form" hidden>
+        <p class="hs-label">&#127942; YOU MADE THE HIGH SCORE BOARD!</p>
+        <div class="hs-row">
+          <input id="hs-name-input" class="hs-input" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name">
+          <button id="btn-hs-submit" class="btn big yellow" type="button">ADD ME</button>
+        </div>
+      </div>
+
+      <p class="lb-label">Top scores</p>
+      <div class="lb-list" id="over-leaderboard-list"></div>
+
       <button id="btn-again" class="btn big red wide">PLAY AGAIN</button>
       <button id="btn-over-leave" class="btn small ghost">Leave game</button>
     </div>

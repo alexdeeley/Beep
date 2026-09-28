@@ -42,9 +42,9 @@ export class FakeSocket {
   }
 }
 
-export function makeHolder(InstanceClass) {
+export function makeHolder(InstanceClass, env = {}) {
   const holder = {};
   holder.ctx = new Ctx(holder);
-  holder.instance = new InstanceClass(holder.ctx, {});
+  holder.instance = new InstanceClass(holder.ctx, env);
   return holder;
 }

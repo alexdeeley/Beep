@@ -28,7 +28,7 @@ const S = {
 };
 const nowMs = () => Date.now() + S.clockOffset;
 
-const SCREENS = ['home', 'create', 'join', 'room'];
+const SCREENS = ['home', 'create', 'join', 'room', 'leaderboard'];
 function show(name) {
   S.screen = name;
   for (const s of SCREENS) $('scr-' + s).hidden = s !== name;
@@ -82,6 +82,44 @@ renderStats();
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { snd.play('tap'); show(b.dataset.go); }));
 $('btn-create').addEventListener('click', () => { snd.play('tap'); show('create'); history.replaceState(null, '', '/create'); });
 $('btn-join').addEventListener('click', () => { snd.play('tap'); show('join'); history.replaceState(null, '', '/join'); });
+
+// ── High scores (shared across every game - see DECISIONS.md) ─────
+
+function renderLeaderboardList(entries, listId) {
+  const box = $(listId);
+  box.replaceChildren();
+  if (!entries || entries.length === 0) {
+    box.innerHTML = '<p class="lb-empty">No high scores yet — be the first!</p>';
+    return;
+  }
+  entries.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row' + (i < 3 ? ' lb-top3' : '');
+    row.innerHTML = `<span class="lb-rank">${i + 1}</span><span class="lb-name">${esc(e.name)}</span><span class="lb-score">${e.score}</span>`;
+    box.append(row);
+  });
+}
+
+async function loadLeaderboardPage() {
+  const box = $('leaderboard-list');
+  box.innerHTML = '<p class="lb-empty">Loading…</p>';
+  try {
+    const res = await fetch('/api/leaderboard');
+    const { entries } = await res.json();
+    renderLeaderboardList(entries, 'leaderboard-list');
+  } catch {
+    box.innerHTML = '<p class="lb-empty">Could not load the high scores right now.</p>';
+  }
+}
+
+function goLeaderboard() {
+  snd.play('tap');
+  history.pushState(null, '', '/leaderboard');
+  show('leaderboard');
+  loadLeaderboardPage();
+}
+$('btn-leaderboard-home').addEventListener('click', goLeaderboard);
+$('btn-leaderboard-back').addEventListener('click', () => { snd.play('tap'); history.replaceState(null, '', '/'); show('home'); });
 
 function refreshRejoin() {
   const last = store.get('play.last');
@@ -486,9 +524,27 @@ function renderMatchover() {
       <span class="v">${p.score} pts · ${p.wins} won</span>`;
     box.append(row);
   });
+
+  // The server has already decided who qualifies (see refreshLeaderboard()
+  // in match-room.js) - the client only ever offers the name field, never
+  // decides for itself whether a score is good enough.
+  const iQualify = (st.highScoreCandidates || []).includes(st.you);
+  $('hs-form').hidden = !iQualify;
+  if (iQualify && !$('hs-name-input').value) $('hs-name-input').value = store.get('play.name') || '';
+  renderLeaderboardList(st.leaderboardTop, 'over-leaderboard-list');
 }
 $('btn-again').addEventListener('click', () => { snd.play('tap'); S.net?.send({ type: 'again' }); });
 $('btn-over-leave').addEventListener('click', () => confirmBox('Leave this game?', leaveGame));
+
+$('hs-name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-hs-submit').click(); });
+$('btn-hs-submit').addEventListener('click', () => {
+  const name = $('hs-name-input').value.trim();
+  if (!name) return;
+  store.set('play.name', name);
+  S.net?.send({ type: 'submitHighScore', name });
+  snd.play('score');
+  $('hs-form').hidden = true; // optimistic - the next state confirms either way
+});
 
 // ── Boot / routing ───────────────────────────────────────────────
 // Clean routes: / , /create , /join , /room/CODE (see README).
@@ -496,6 +552,7 @@ $('btn-over-leave').addEventListener('click', () => confirmBox('Leave this game?
 function boot() {
   const m = /^\/room\/([A-Za-z0-9]+)/i.exec(location.pathname);
   const sess = store.get('play.session', sessionStorage);
+  if (location.pathname === '/leaderboard') { show('leaderboard'); loadLeaderboardPage(); return; }
   if (m) {
     const code = m[1].toUpperCase();
     if (sess && sess.code === code) { enter(code, sess.pid, sess.name); return; }
