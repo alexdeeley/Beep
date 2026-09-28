@@ -1,0 +1,16 @@
+{
+  "name": "play",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PLAY.DEELY.ORG - a persistent multiplayer mini-game platform on Cloudflare Workers + Durable Objects",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:local": "node dev/local-server.mjs",
+    "deploy": "wrangler deploy",
+    "test": "node dev/unit-tests.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
