@@ -72,6 +72,11 @@ const SOUNDS = {
     tone(f, 0, 0.16, { type: 'square', vol: 0.26 });
   },
   tick() { tone(1300, 0, 0.05, { type: 'square', vol: 0.1 }); },
+  // A quick fibrous snap - a rope strand parting, not a button click.
+  snap() {
+    noise(0, 0.05, { vol: 0.24, freq: 2400, q: 1.1, type: 'highpass' });
+    tone(650, 0, 0.09, { type: 'triangle', vol: 0.2, slide: 0.35 });
+  },
   // A rising pulse for "something is about to happen" - reveal pauses,
   // the machine building up before a button's fate is known.
   tension(intensity = 1) {

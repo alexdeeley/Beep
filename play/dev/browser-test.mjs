@@ -29,8 +29,14 @@ async function player(name, opts) {
   return { ctx, page, name };
 }
 
-const A = await player('Alex', { viewport: { width: 420, height: 860 } });
-const M = await player('Maisie', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+// reducedMotion: the strand buttons sway continuously (CSS animation) for
+// sighted players; a real tap on a moving button works fine, but Playwright's
+// click() waits for an element to sit still first, which a perpetual sway
+// would never satisfy. Reduced motion (already a real accessibility path -
+// see styles.css's prefers-reduced-motion block) sidesteps that honestly
+// rather than forcing every click past its actionability checks.
+const A = await player('Alex', { viewport: { width: 420, height: 860 }, reducedMotion: 'reduce' });
+const M = await player('Maisie', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
 
 await A.page.screenshot({ path: `${OUT}/01-home.png` });
 ok(await A.page.textContent('#logo'), 'home screen shows the logo');
@@ -66,61 +72,17 @@ await A.page.waitForSelector('#panel-intro:not([hidden])', { timeout: 5000 });
 ok(true, 'both ready auto-starts the match straight into the intro beat');
 await A.page.screenshot({ path: `${OUT}/03-intro.png` });
 
-// ── Play through the whole match, whatever games get picked ──
-
-const COLOR_LABEL = { red: 'RED', white: 'WHITE', black: 'BLACK', yellow: 'YELLOW' };
-const ropeHandled = new Set();
+// ── Play through the whole match — the single game, The Last Strand ──
 
 async function driveOneTick(pg) {
   const st = await pg.page.evaluate(() => window.__play?.S?.st);
   if (!st || st.status !== 'playing' || !st.gameState) return;
   const gs = st.gameState;
   const seat = st.you;
-  switch (st.currentGameId) {
-    case 'big-blast': {
-      if (gs.phase === 'choosing' && gs.seats[gs.turnIdx] === seat) {
-        const btn = pg.page.locator('.bb-btn.empty').first();
-        if (await btn.count()) await btn.click().catch(() => {});
-      }
-      break;
-    }
-    case 'hot-potato': {
-      if (gs.phase === 'holding' && gs.holder === seat) {
-        const btn = pg.page.locator('.hp-target').first();
-        if (await btn.count()) await btn.click().catch(() => {});
-      }
-      break;
-    }
-    case 'color-panic': {
-      if (gs.phase === 'prompt' && gs.seats.includes(seat) && gs.picks[seat] == null) {
-        // A little imperfection so the game can actually resolve: two bots
-        // playing perfectly forever would never eliminate anyone.
-        const mistake = Math.random() < 0.3;
-        const label = COLOR_LABEL[mistake ? Object.keys(COLOR_LABEL).find((c) => c !== gs.target) : gs.target];
-        await pg.page.locator('.cp-btn', { hasText: label }).click().catch(() => {});
-      }
-      break;
-    }
-    case 'rope': {
-      // Decide once per (match round, pass) - a real player doesn't get to
-      // keep re-rolling their decision every poll until they like the answer.
-      const key = pg.name + ':' + st.round + ':' + gs.pass;
-      if (gs.phase === 'sweeping' && gs.seats.includes(seat) && !ropeHandled.has(key)) {
-        ropeHandled.add(key);
-        const mistake = Math.random() < 0.3;
-        const willJump = mistake ? !gs.requireJump : gs.requireJump;
-        if (willJump) await pg.page.click('#rope-jump').catch(() => {});
-      }
-      break;
-    }
-    case 'wobbly-tower': {
-      if (gs.phase === 'placing' && gs.seats[gs.turnIdx] === seat) {
-        await pg.page.fill('#wt-slider', String(Math.floor((Math.random() - 0.5) * 40))).catch(() => {});
-        await pg.page.click('#wt-drop').catch(() => {});
-      }
-      break;
-    }
-  }
+  if (st.currentGameId !== 'last-strand') return;
+  if (gs.phase !== 'cutting' || gs.seats[gs.turnIdx] !== seat) return;
+  const btn = pg.page.locator('.ls-strand:not(.cut):not([disabled])').first();
+  if (await btn.count()) await btn.click().catch(() => {});
 }
 
 const gamesSeen = new Set();
@@ -136,7 +98,7 @@ while (Date.now() - start < 150000) {
 
 const final = await A.page.evaluate(() => window.__play?.S?.st);
 ok(final?.status === 'matchover', 'the match reaches matchover within 5 rounds');
-ok(gamesSeen.size >= 2, `at least 2 different games were played during the match (saw ${[...gamesSeen].join(', ')})`);
+ok(gamesSeen.size === 1 && gamesSeen.has('last-strand'), `every round played The Last Strand (saw ${[...gamesSeen].join(', ')})`);
 await A.page.screenshot({ path: `${OUT}/04-matchover.png` });
 
 const overWinner = (await A.page.textContent('#over-winner'))?.trim();

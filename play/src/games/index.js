@@ -1,20 +1,15 @@
-// The server-side dispatch table: game id -> its rules module. Adding a
-// sixth game means adding one entry here, one entry in
-// public/js/shared.js's GAME_REGISTRY, one file in this folder, and one
-// client renderer in public/js/games/ - see DECISIONS.md and README.md.
+// The server-side dispatch table: game id -> its rules module. The
+// platform launched with 5 games and was deliberately pared back down to
+// one (see DECISIONS.md) to get a single, well-polished game right before
+// expanding again. Bringing an old game back or adding a new one means
+// adding one entry here, one entry in public/js/shared.js's
+// GAME_REGISTRY, one file in this folder, and one client renderer in
+// public/js/games/ - see DECISIONS.md and README.md.
 
-import * as bigBlast from './big-blast.js';
-import * as hotPotato from './hot-potato.js';
-import * as colorPanic from './color-panic.js';
-import * as rope from './rope.js';
-import * as wobblyTower from './wobbly-tower.js';
+import * as lastStrand from './last-strand.js';
 
 export const GAMES = {
-  'big-blast': bigBlast,
-  'hot-potato': hotPotato,
-  'color-panic': colorPanic,
-  rope,
-  'wobbly-tower': wobblyTower,
+  'last-strand': lastStrand,
 };
 
 // Picks a random game compatible with the current player count, preferring

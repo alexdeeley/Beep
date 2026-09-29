@@ -25,9 +25,11 @@ nextAlarmAt(state)                              -> timestamp | null
 ```
 
 `MatchRoom` (the Durable Object) only ever calls through this interface -
-it has no `if (gameId === 'big-blast')` anywhere. That's what makes adding
-game #6 a matter of writing one file and one registry line rather than
-touching the room's state machine (see README.md).
+it has no `if (gameId === 'last-strand')` anywhere. That's what makes
+adding game #2 a matter of writing one file and one registry line rather
+than touching the room's state machine (see README.md) - the interface
+was kept even after the pare-down to one launch game specifically so this
+stays true.
 
 `rand` is always passed in by the caller - a game module never calls
 `Math.random()` itself. `MatchRoom` passes the real `Math.random` in
@@ -40,15 +42,16 @@ supposedly-authoritative outcome - better to just not have the door).
 
 `getResult()` returns `{ tiers, note }` where `tiers` is best-to-worst
 ranked groups of seats, e.g. `[[3], [1, 2]]` (seat 3 won outright; 1 and 2
-tied for the round). This one shape covers every game's actual outcome
-shape without forcing a fake total order:
-
-- Turn-based single elimination (Big Blast, Hot Potato): each tier after
-  the first is a single seat, oldest-eliminated last.
-- Simultaneous multi-elimination (Color Panic, Don't Touch the Rope): a
-  tier can hold several seats who were wrong at the same instant.
-- "Everyone but one" (Wobbly Tower): exactly two tiers, `[survivors, [who
-  brought it down]]`.
+tied for the round). This one shape covers any game's actual outcome shape
+without forcing a fake total order - a turn-based repeated-elimination
+game like The Last Strand produces one tier per elimination event
+(`[champion], [most-recently-eliminated], ..., [first-eliminated]`), while
+a simultaneous multi-elimination game could tie several seats in one tier.
+Kept general on purpose even with only one game live today, since it's
+what let the four now-deleted launch games (turn-based single elimination,
+a passed-object fuse game, simultaneous reaction elimination, "everyone but
+one") all share this same field without any game-specific result shape in
+`match-room.js`.
 
 `pointsForTier(tierIdx, totalPlayers)` in `match-room.js` reads this
 uniformly: tier 0 always scores `POINTS_FIRST` (3); tier 1 scores
@@ -59,33 +62,38 @@ loser.
 
 ## Dramatic delay is a client-side courtesy, not a secret
 
-The Big Blast is the only game with anything actually hidden from clients
-(which button is dangerous - stripped in `view()`). But the spec also asks
-for suspense on *every* reveal: a pause before "SAFE"/"BOOM", before a rope
-resolves, before a tower topples. For every game except Big Blast, the
-true outcome is already sitting in the state the client receives the
-instant the action lands - there's nothing left to hide. The renderers
-(`public/js/games/*.js`) deliberately withhold *showing* that outcome for
-a beat anyway, timed against the server's own reveal/impact/collapse
-timestamp (`revealAt`, `impactAt`, `collapseAt`), so every client's
-suspense lines up with the same real moment rather than an arbitrary local
-delay. This is presentation, not security - the server was already correct
-the moment the action was handled; the client just chooses when to say so.
+The Last Strand (like most of this platform's games, past and present) has
+nothing actually hidden from clients - `view()` is the identity function,
+because the danger is a genuine live roll at the moment of the cut, not a
+static fact a client could infer or leak. The true outcome is already
+sitting in the state the client receives the instant an action lands - but
+the platform still wants suspense on every reveal, so the renderer
+(`public/js/games/last-strand.js`) deliberately withholds *showing* the
+collapse for a beat anyway, timed against the server's own `collapseAt`
+timestamp, so every client's suspense lands on the same real moment rather
+than an arbitrary local delay. This is presentation, not security - the
+server was already correct the moment the action was handled; the client
+just chooses when to say so. (One of this platform's four original launch
+games, The Big Blast, did have a genuine secret field stripped in
+`view()`; a future skill-or-bluffing-based game could bring that pattern
+back.)
 
-## Wobbly Tower's "physics" is a deterministic score, not a simulation
+## The Last Strand's "fraying rope" is a deterministic score, not a simulation
 
-The spec's own fallback suggestion for a physics-flavored game that must
-stay in sync: calculate authoritative physics on the server, never let
+Calculate authoritative physics-flavored state on the server, never let
 each browser simulate its own slightly-different result. Rather than
-bring in an actual physics engine for one mini-game, `wobbly-tower.js`
-tracks a single `instability` number that grows with how off-center each
-placement was, and rolls a collapse chance derived from it using the
-server's own `rand`. Every client sees the identical number and the
-identical roll outcome; the "wobble" and "toppling" the player sees are
-purely a CSS animation reacting to that number, not a rendering of any
-simulated positions. It's honest about not being real physics, and it's
-exactly as sync-safe as real server-side physics would be, for a fraction
-of the code.
+bring in an actual physics engine, `last-strand.js` tracks a single
+`instability` number that grows with every cut, and rolls a collapse
+chance derived from it (`(instability/100)^1.5`, capped at 0.97) using the
+server's own `rand` - with a guaranteed collapse forced regardless of the
+roll if a cut ever leaves zero strands uncut, so a round can never stall
+out at "instability high, nobody unlucky yet, out of strands." Every
+client sees the identical number and the identical roll outcome; the
+fraying, sway, and fall the player sees are purely CSS reacting to that
+number and phase, not a rendering of any simulated rope physics. This is
+the same technique the now-deleted Wobbly Tower used for its own
+instability score - reused here because it had already proven itself
+sync-safe and cheap.
 
 ## Leaving mid-round: one generic patch, not five bespoke handlers
 
@@ -102,7 +110,58 @@ correct in the limit and more code for a case (a player quitting mid
 mini-game, in a match that's already forfeiting them) that doesn't need
 five different flavors of "and now patch the game state."
 
+## Paring down to one launch game
+
+After the initial five-game build shipped, the user decided starting with
+five games at once had been a mistake, and asked to pare the platform down
+to a single game - to be expanded later - and for that one game to be an
+up-to-four-player luck game in a "cut the rope" style, richly colored in
+deep reds and oranges, with a cool rope theme, played over multiple
+rounds.
+
+Two choices worth recording:
+
+- **Delete the other four games' files outright, don't just unregister
+  them.** "Pare down" plus "expanded later" plus this repo's own practice
+  elsewhere of not leaving dead code around made deletion the right call
+  over disabling-in-place - git history keeps them fully recoverable if a
+  future game wants to reuse or reference one, and nothing about the
+  shared interface (`src/games/index.js` / `public/js/games/index.js` /
+  `GAME_REGISTRY`) needed to change shape to go from five entries to one,
+  which is exactly what "the room never special-cases a game id" was
+  supposed to buy.
+- **Not calling it "Cut the Rope."** That's a real, trademarked game
+  (ZeptoLab), and this platform's standing rule from its original spec is
+  no existing game's names, characters, art, or sounds - a rule that
+  predates and outranks this specific request. The Last Strand keeps every
+  bit of the requested theme (rope strands, cutting, a hanging weight, rich
+  red/orange staging) as an original mechanic and name instead.
+
+The mechanic itself is a deliberate hybrid of two patterns the deleted
+games had already proven out, rather than something invented from
+scratch: Wobbly Tower's rising-`instability`-drives-an-escalating-roll
+technique (see above) supplies the "luck," and The Big Blast's
+repeated-elimination-into-`eliminationOrder`-tiers structure (read in
+reverse for `getResult()`) supplies the "down to one champion" shape. The
+one genuine departure from both: nothing is hidden. Big Blast had one
+fixed secret index for the whole round; The Last Strand's danger is a
+fresh roll on every single cut, so there's no secret fact to strip in
+`view()` at all - see "Dramatic delay" above.
+
+Constants (8 strands, `instability` growing ~14-24 per cut, collapse
+chance `(instability/100)^1.5` capped at 0.97) were tuned by running the
+plain game logic through a few thousand simulated Node trials before
+committing to them, rather than guessed: a 4-player game averages ~9-10
+cuts to a champion (range 4-17), a 2-player game ~3 cuts (range 1-7) -
+short enough to keep a 5-round match brisk, long enough that a round
+rarely resolves on the very first or second cut.
+
 ## Two real bugs this build caught before shipping
+
+(Both predate the pare-down to one launch game described above and mention
+some of the four now-deleted games by name - kept as-is since the bugs,
+fixes, and regression tests are still exactly as real and still exactly
+what's under test today, just against The Last Strand instead.)
 
 **The alarm handler could resolve a round and never tell anyone.**
 `MatchRoom.alarm()` had a branch for `status === 'playing'` that called
@@ -146,11 +205,12 @@ logic (see `dev/unit-tests.mjs`).
 ## The shared leaderboard never trusts the client for the one thing that matters: the score
 
 Added after the initial build, at the user's request, as a single
-high-score board shared across all five games rather than five separate
-ones - the natural shared metric already sitting in every room is the
-match's final score, so that's what it tracks (a per-game metric would
-have meant inventing five different, not-really-comparable numbers for
-games that don't otherwise produce one).
+high-score board shared across every game in the platform rather than one
+per game (there were five at the time; there's one now, with more planned)
+- the natural shared metric already sitting in every room is the match's
+final score, so that's what it tracks (a per-game metric would have meant
+inventing a different, not-really-comparable number for each game, most
+of which don't otherwise produce one).
 
 The temptation with a feature like this is a simple public `POST
 /api/leaderboard {name, score}` - and that would reintroduce exactly the

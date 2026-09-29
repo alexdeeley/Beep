@@ -25,14 +25,11 @@ export const PLAYER_COLORS = [
 
 // The public catalogue of mini-games. Each entry is metadata only - the
 // actual rules live in src/games/<id>.js (server) and
-// public/js/games/<id>.js (client renderer). Adding game #6 means adding
-// one entry here plus those two files - see DECISIONS.md.
+// public/js/games/<id>.js (client renderer). Deliberately pared down to
+// one launch game (see DECISIONS.md) - adding game #2 means adding one
+// entry here plus those two files.
 export const GAME_REGISTRY = [
-  { id: 'big-blast', name: 'The Big Blast', category: 'luck', minPlayers: 2, maxPlayers: 4 },
-  { id: 'hot-potato', name: 'Hot Potato', category: 'timing', minPlayers: 2, maxPlayers: 4 },
-  { id: 'color-panic', name: 'Color Panic', category: 'reaction', minPlayers: 2, maxPlayers: 4 },
-  { id: 'rope', name: "Don't Touch the Rope", category: 'reaction', minPlayers: 2, maxPlayers: 4 },
-  { id: 'wobbly-tower', name: 'Wobbly Tower', category: 'physics', minPlayers: 2, maxPlayers: 4 },
+  { id: 'last-strand', name: 'The Last Strand', category: 'luck', minPlayers: 2, maxPlayers: 4 },
 ];
 
 export function gameById(id) {

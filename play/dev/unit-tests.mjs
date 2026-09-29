@@ -1,5 +1,5 @@
 // Automated checks.
-//   Part 1: each of the 5 game rule modules, in isolation, with a forced
+//   Part 1: the one game rule module, in isolation, with a forced
 //     (non-random) `rand` function passed directly - no server involved.
 //   Part 2: the MatchRoom Durable Object's protocol via an in-process
 //     harness (deterministic scenarios forced directly onto room/gameState,
@@ -14,11 +14,7 @@ import { makeHolder, FakeSocket } from './emulate.mjs';
 import { MatchRoom } from '../src/match-room.js';
 import { Leaderboard } from '../src/leaderboard.js';
 import { GAMES, pickNextGame } from '../src/games/index.js';
-import * as bigBlast from '../src/games/big-blast.js';
-import * as hotPotato from '../src/games/hot-potato.js';
-import * as colorPanic from '../src/games/color-panic.js';
-import * as rope from '../src/games/rope.js';
-import * as wobblyTower from '../src/games/wobbly-tower.js';
+import * as lastStrand from '../src/games/last-strand.js';
 import { MAX_PLAYERS, MIN_PLAYERS, PLAYER_COLORS, GAME_REGISTRY } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,141 +24,81 @@ const ok = (cond, label) => { if (cond) pass++; else { fail++; console.log('  �
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const seq = (...vals) => { let i = 0; return () => vals[Math.min(i++, vals.length - 1)]; };
 
-// ── Part 1a: Big Blast ──────────────────────────────────────
+// ── Part 1: The Last Strand ──────────────────────────────────
 
 {
-  const s = bigBlast.createState([1, 2], seq(0.5)); // floor(0.5*6) = 3
-  ok(s.dangerousIndex === 3, 'big-blast: dangerousIndex derives from the injected rand, not Math.random');
-  ok(s.seats.length === 2 && s.phase === 'choosing', 'big-blast: fresh state is 2 seats, choosing');
-  ok(!('dangerousIndex' in bigBlast.view(s)), 'big-blast: view() strips the secret dangerous index');
+  const s = lastStrand.createState([1, 2]);
+  ok(s.strandsTotal === 8 && s.cutMask.every((c) => !c), 'last-strand: a fresh rope has 8 uncut strands');
+  ok(s.phase === 'cutting' && s.turnIdx === 0 && s.instability === 0, 'last-strand: fresh state starts cutting, seat 0’s turn, no tension yet');
+  ok(lastStrand.view(s) === s, 'last-strand: view() is the identity - nothing here is ever secret');
 
-  bigBlast.handleAction(s, 2, { index: 0 }); // not seat 1's turn to act as seat 2
-  ok(s.phase === 'choosing' && s.buttons[0] == null, 'big-blast: acting out of turn is rejected');
+  lastStrand.handleAction(s, 2, { index: 0 }, Date.now(), seq(0.99)); // not seat 1's turn
+  ok(s.cutMask.every((c) => !c), 'last-strand: acting out of turn is rejected');
 
-  bigBlast.handleAction(s, 1, { index: 1 }); // a safe pick
-  ok(s.phase === 'reveal' && s.buttons[1] === 'safe' && s.lastPick.result === 'safe', 'big-blast: a safe pick enters reveal');
-  bigBlast.tick(s, s.revealAt + 1);
-  ok(s.phase === 'choosing' && s.turnIdx === 1, 'big-blast: turn advances to the next seat after a safe reveal');
+  lastStrand.handleAction(s, 1, { index: 0 }, Date.now(), seq(0.99)); // rand()=0.99 always misses the collapse roll
+  ok(s.cutMask[0] === true && s.lastCut.seat === 1 && s.lastCut.index === 0, 'last-strand: a valid cut marks the strand and records who cut it');
+  ok(s.instability > 0, 'last-strand: instability rises after a cut');
+  ok(s.phase === 'cutting' && s.turnIdx === 1, 'last-strand: a cut that doesn’t collapse just passes the turn');
 
-  bigBlast.handleAction(s, 2, { index: 3 }); // the dangerous button
-  ok(s.lastPick.result === 'danger', 'big-blast: picking the dangerous index is recorded as danger');
-  bigBlast.tick(s, s.revealAt + 1);
-  ok(s.phase === 'done' && s.seats.length === 1 && s.seats[0] === 1, 'big-blast: the game ends once one seat remains');
-  const r = bigBlast.getResult(s);
-  ok(r.tiers[0][0] === 1 && r.tiers[1][0] === 2, 'big-blast: winner ranks above the seat that was blasted');
-  ok(bigBlast.nextAlarmAt(s) === null, 'big-blast: no pending alarm once done');
-}
+  lastStrand.handleAction(s, 1, { index: 0 }, Date.now(), seq(0.99)); // seat 1's turn, but strand 0 already cut
+  ok(s.turnIdx === 1, 'last-strand: cutting an already-cut strand is rejected');
 
-// ── Part 1b: Hot Potato ──────────────────────────────────────
+  // Force near-certain collapse and confirm an unlucky roll brings it down.
+  const s2 = lastStrand.createState([1, 2, 3]);
+  s2.instability = 95;
+  lastStrand.handleAction(s2, 1, { index: 0 }, Date.now(), seq(0)); // rand()=0 always beats the collapse chance
+  ok(s2.phase === 'collapsing' && s2.collapsedBy === 1 && s2.collapseAt != null, 'last-strand: high instability plus an unlucky roll collapses the rope');
+  lastStrand.tick(s2, s2.collapseAt - 1); // not yet due
+  ok(s2.phase === 'collapsing', 'last-strand: tick() before collapseAt does nothing yet');
+  lastStrand.tick(s2, s2.collapseAt + 1);
+  ok(!s2.seats.includes(1) && s2.seats.length === 2, 'last-strand: the cutter is eliminated once the collapse resolves');
+  ok(s2.phase === 'cutting' && s2.strandsTotal === 8 && s2.cutMask.every((c) => !c) && s2.instability === 0, 'last-strand: survivors get a brand new rope, fully reset');
+  ok(lastStrand.isOver(s2) === false, 'last-strand: not over with 2 seats left');
 
-{
-  const s = hotPotato.createState([1, 2, 3], seq(0)); // shortest possible fuse
-  ok(s.holder === 1 && s.expiresAt === s.startedAt + 8000, 'hot-potato: fuse floors at MIN_FUSE_MS with rand()=0');
+  // Cutting the literal last remaining strand is a guaranteed collapse,
+  // regardless of how the dice would otherwise land.
+  const s3 = lastStrand.createState([1, 2]);
+  s3.cutMask = new Array(8).fill(true);
+  s3.cutMask[7] = false; // exactly one strand left
+  lastStrand.handleAction(s3, 1, { index: 7 }, Date.now(), seq(0.9999)); // would never collapse under the normal formula
+  ok(s3.phase === 'collapsing' && s3.collapsedBy === 1, 'last-strand: cutting the final strand always brings it down');
 
-  hotPotato.handleAction(s, 2, { target: 3 }); // not the holder
-  ok(s.holder === 1, 'hot-potato: only the current holder can pass it');
-  hotPotato.handleAction(s, 1, { target: 1 }); // can't pass to yourself
-  ok(s.holder === 1, 'hot-potato: cannot pass to yourself');
-  hotPotato.handleAction(s, 1, { target: 2 });
-  ok(s.holder === 2, 'hot-potato: a valid pass moves the holder');
-
-  hotPotato.tick(s, s.expiresAt + 1, seq(0));
-  ok(s.phase === 'boom' && s.boomAt != null, 'hot-potato: expiring the fuse enters boom');
-  hotPotato.tick(s, s.boomAt + 1, seq(0));
-  ok(s.phase === 'holding' && !s.seats.includes(2) && s.holder === 1, 'hot-potato: the holder at boom time is eliminated; survivors get a fresh bomb');
-  ok(hotPotato.isOver(s) === false, 'hot-potato: not over with 2 seats left');
-
-  hotPotato.tick(s, s.expiresAt + 1, seq(0));
-  hotPotato.tick(s, s.boomAt + 1, seq(0));
-  ok(hotPotato.isOver(s) === true, 'hot-potato: over once one seat remains');
-  const r = hotPotato.getResult(s);
-  ok(r.tiers.length === 3 && r.tiers[0][0] === s.seats[0], 'hot-potato: elimination order reverses into ranked tiers');
-}
-
-// ── Part 1c: Color Panic ──────────────────────────────────────
-
-{
-  const COLORS = colorPanic.COLORS;
-  const s = colorPanic.createState([1, 2], seq(0)); // target = COLORS[0]
-  ok(s.target === COLORS[0] && s.round === 1 && s.decoyCount === 0, 'color-panic: round 1 has no decoys, target picked by rand');
-
-  colorPanic.handleAction(s, 1, { color: 'not-a-color' });
-  ok(s.picks[1] == null, 'color-panic: an invalid color is rejected');
-  colorPanic.handleAction(s, 1, { color: s.target });
-  colorPanic.handleAction(s, 2, { color: COLORS.find((c) => c !== s.target) });
-  colorPanic.tick(s, s.deadlineAt + 1, seq(0));
-  ok(s.seats.length === 1 && s.seats[0] === 1, 'color-panic: only the correct picker survives');
-  ok(colorPanic.isOver(s), 'color-panic: over once one seat remains');
-
-  const s2 = colorPanic.createState([1, 2], seq(0));
-  colorPanic.handleAction(s2, 1, { color: COLORS.find((c) => c !== s2.target) });
-  colorPanic.handleAction(s2, 2, { color: COLORS.find((c) => c !== s2.target) });
-  const roundBefore = s2.round;
-  colorPanic.tick(s2, s2.deadlineAt + 1, seq(0));
-  ok(s2.seats.length === 2 && s2.round === roundBefore + 1, 'color-panic: nobody right is a reprieve, not a wipe');
-
-  // decoyCount and the reaction window both ramp up with round via startRound -
-  // drive 4 reprieved rounds (nobody answers) to reach round 5 and check both.
-  const s3 = colorPanic.createState([1, 2], seq(0));
-  const firstDeadlineMs = s3.deadlineAt - s3.promptAt;
-  for (let i = 0; i < 4; i++) colorPanic.tick(s3, s3.deadlineAt + 1, seq(0));
-  ok(s3.round === 5 && s3.decoyCount === 2, 'color-panic: round 5 introduces 2 decoy flashes');
-  ok(s3.deadlineAt - s3.promptAt < firstDeadlineMs, 'color-panic: the reaction window shrinks as rounds go on');
-}
-
-// ── Part 1d: Don't Touch the Rope ─────────────────────────────
-
-{
-  const s = rope.createState([1, 2], seq(0.9)); // rand()=0.9 -> requireJump = 0.9 < 0.75 is false -> high rope
-  ok(s.requireJump === false, 'rope: requireJump derives from the injected rand');
-
-  rope.handleAction(s, 1, { type: 'jump' }); // jumping into a high rope is wrong
-  rope.tick(s, s.impactAt + 1, seq(0.9));
-  ok(!s.seats.includes(1) && s.seats.includes(2), 'rope: jumping when you should stay still eliminates you');
-
-  const s2 = rope.createState([1, 2], seq(0.1)); // requireJump = true -> low rope, must jump
-  rope.handleAction(s2, 1, { type: 'jump' });
-  // seat 2 does nothing (stays still) - wrong when requireJump is true
-  rope.tick(s2, s2.impactAt + 1, seq(0.1));
-  ok(s2.seats.includes(1) && !s2.seats.includes(2), 'rope: staying still when you should jump eliminates you');
-
-  const s3 = rope.createState([1, 2], seq(0.1));
-  // neither seat acts - both touch it - a reprieve, not a double elimination
-  const passBefore = s3.pass;
-  rope.tick(s3, s3.impactAt + 1, seq(0.1));
-  ok(s3.seats.length === 2 && s3.pass === passBefore + 1, 'rope: everyone touching it is a reprieve');
-}
-
-// ── Part 1e: Wobbly Tower ──────────────────────────────────────
-
-{
-  const s = wobblyTower.createState([1, 2]);
-  wobblyTower.handleAction(s, 2, { offset: 0 }, Date.now(), seq(0)); // not seat 2's turn (seat 1 goes first)
-  ok(s.blocksPlaced === 0, 'wobbly-tower: acting out of turn is rejected');
-
-  wobblyTower.handleAction(s, 1, { offset: 100 }, Date.now(), seq(0, 0.99)); // max risk, but the collapse roll misses
-  ok(s.blocksPlaced === 1 && s.phase === 'placing' && s.turnIdx === 1, 'wobbly-tower: a risky-but-lucky placement just passes the turn');
-  ok(s.instability > 0, 'wobbly-tower: instability accumulates from off-center placement');
-
-  const s2 = wobblyTower.createState([1, 2]);
-  s2.instability = 90; // force near-certain collapse on the next roll
-  wobblyTower.handleAction(s2, 1, { offset: 0 }, Date.now(), seq(0)); // rand()=0 always beats the collapse chance
-  ok(s2.phase === 'collapsing' && s2.collapsedBy === 1, 'wobbly-tower: high instability plus an unlucky roll collapses the tower');
-  wobblyTower.tick(s2, s2.collapseAt + 1);
-  ok(wobblyTower.isOver(s2), 'wobbly-tower: over once collapse resolves');
-  const r = wobblyTower.getResult(s2);
-  ok(r.tiers[0].length === 1 && r.tiers[0][0] === 2 && r.tiers[1][0] === 1, 'wobbly-tower: everyone but the collapser wins the round');
+  // Run a full 3-player game to a champion and check the result shape.
+  const s4 = lastStrand.createState([1, 2, 3]);
+  s4.instability = 95;
+  lastStrand.handleAction(s4, 1, { index: 0 }, Date.now(), seq(0)); // seat 1 collapses it
+  lastStrand.tick(s4, s4.collapseAt + 1);
+  ok(s4.seats.length === 2 && !s4.seats.includes(1), 'last-strand: seat 1 eliminated first');
+  s4.instability = 95;
+  lastStrand.handleAction(s4, s4.seats[s4.turnIdx], { index: 0 }, Date.now(), seq(0)); // whoever's turn it is collapses it
+  const secondOut = s4.collapsedBy;
+  lastStrand.tick(s4, s4.collapseAt + 1);
+  ok(lastStrand.isOver(s4), 'last-strand: over once one seat remains');
+  const r = lastStrand.getResult(s4);
+  ok(r.tiers[0][0] === s4.seats[0], 'last-strand: the sole survivor is tier 0 (the champion)');
+  ok(r.tiers[1][0] === secondOut, 'last-strand: the more-recently-eliminated seat ranks above the earliest one');
+  ok(r.tiers[2][0] === 1, 'last-strand: the first seat eliminated ranks last');
+  ok(r.note === 'brought the rope down', 'last-strand: getResult carries the expected note');
+  ok(lastStrand.nextAlarmAt(s4) === null, 'last-strand: no pending alarm once done');
+  ok(lastStrand.nextAlarmAt(s2) === null, 'last-strand: no pending alarm mid-cutting either');
 }
 
 // ── Part 1f: game selection ─────────────────────────────────────
+// Uses fake multi-entry registries throughout, deliberately decoupled from
+// how many real games GAME_REGISTRY happens to contain right now.
 
 {
-  const g1 = pickNextGame(GAME_REGISTRY, 2, ['luck'], seq(0));
+  const fakeRegistry = [
+    { id: 'a', category: 'luck', minPlayers: 2, maxPlayers: 4 },
+    { id: 'b', category: 'reaction', minPlayers: 2, maxPlayers: 4 },
+  ];
+  const g1 = pickNextGame(fakeRegistry, 2, ['luck'], seq(0));
   ok(g1.category !== 'luck', 'pickNextGame: avoids repeating the last category when an alternative exists');
-  const g2 = pickNextGame(GAME_REGISTRY, 2, [], seq(0));
-  ok(GAME_REGISTRY[0] === g2, 'pickNextGame: with no history, rand()=0 picks the first compatible entry');
+  const g2 = pickNextGame(fakeRegistry, 2, [], seq(0));
+  ok(g2 === fakeRegistry[0], 'pickNextGame: with no history, rand()=0 picks the first compatible entry');
   const g3 = pickNextGame([{ id: 'x', category: 'luck', minPlayers: 2, maxPlayers: 2 }], 2, ['luck'], seq(0));
   ok(g3.id === 'x', 'pickNextGame: falls back to a same-category game when no alternative is compatible');
+  ok(GAME_REGISTRY.length === 1 && GAME_REGISTRY[0].id === 'last-strand', 'GAME_REGISTRY: pared down to just The Last Strand for launch');
 }
 
 // ── Part 1g: the shared Leaderboard Durable Object ─────────────
@@ -272,7 +208,7 @@ await withRoom(async (h) => {
   await join(h, wsB, 'pid-b', 'Bob');
   const r = h.instance.room;
   r.status = 'intro';
-  r.currentGameId = 'big-blast';
+  r.currentGameId = 'last-strand';
   r.deadlineAt = Date.now() - 5; // already due
   await h.instance.alarm();
   ok(r.status === 'playing' && r.gameState != null, 'alarm: an overdue intro deadline advances straight into play');
@@ -282,12 +218,10 @@ await withRoom(async (h) => {
   // that used to get stuck forever before the alarm-broadcast fix.
   r.gameState.seats = [1, 2];
   r.gameState.turnIdx = 0;
-  r.gameState.buttons = new Array(6).fill(null);
-  r.gameState.dangerousIndex = 2;
-  r.gameState.phase = 'choosing';
-  GAMES['big-blast'].handleAction(r.gameState, 1, { index: 2 }); // picks the dangerous button
-  ok(r.gameState.phase === 'reveal', 'big-blast: picking danger enters the reveal pause');
-  r.gameState.revealAt = Date.now() - 5; // force the reveal pause to already be over
+  r.gameState.instability = 95; // the next cut is very likely to collapse it
+  GAMES['last-strand'].handleAction(r.gameState, 1, { index: 0 }, Date.now(), () => 0); // an unlucky cut
+  ok(r.gameState.phase === 'collapsing', 'last-strand: an unlucky cut enters the collapse pause');
+  r.gameState.collapseAt = Date.now() - 5; // force the collapse pause to already be over
   await h.instance.alarm();
   ok(r.status === 'result', 'alarm regression: a round that resolves purely on a timer still advances the room to result');
   ok(wsA.lastState()?.status === 'result', 'alarm regression: the resolved state is actually broadcast to clients, not just mutated in memory');
@@ -301,8 +235,8 @@ await withRoom(async (h) => {
   await join(h, wsB, 'pid-b', 'Bob');
   const r = h.instance.room;
   r.status = 'playing';
-  r.currentGameId = 'hot-potato';
-  r.gameState = { seats: [2], holder: 2, phase: 'done', expiresAt: Date.now() + 99999, boomAt: null, eliminationOrder: [[1]] };
+  r.currentGameId = 'last-strand';
+  r.gameState = { seats: [2], turnIdx: 0, strandsTotal: 8, cutMask: new Array(8).fill(false), instability: 0, phase: 'done', lastCut: null, collapseAt: null, collapsedBy: 1, eliminationOrder: [[1]] };
   h.instance.afterGameUpdate();
   const [pA, pB] = r.players;
   ok(pA.score === 0 && pB.score === 3, '2-player scoring: winner gets 3, loser gets 0 (not a generic "second place" point)');
@@ -316,10 +250,10 @@ await withRoom(async (h) => {
   await join(h, wsA, 'pid-a', 'Alice'); await join(h, wsB, 'pid-b', 'Bob'); await join(h, wsC, 'pid-c', 'Cara');
   const r = h.instance.room;
   r.status = 'playing';
-  r.currentGameId = 'color-panic';
+  r.currentGameId = 'last-strand';
   // eliminationOrder is oldest-eliminated-first; seat 1 went out in an
   // earlier round than seat 2, so seat 2's more-recent exit ranks better.
-  r.gameState = { seats: [3], round: 1, target: 'red', picks: {}, promptAt: 0, deadlineAt: 0, decoyCount: 0, phase: 'done', eliminationOrder: [[1], [2]] };
+  r.gameState = { seats: [3], turnIdx: 0, strandsTotal: 8, cutMask: new Array(8).fill(false), instability: 0, phase: 'done', lastCut: null, collapseAt: null, collapsedBy: 2, eliminationOrder: [[1], [2]] };
   h.instance.afterGameUpdate();
   const players = r.players;
   ok(players.find((p) => p.seat === 3).score === 3, '3-player scoring: winner gets 3');
@@ -370,12 +304,12 @@ await withRoom(async (h) => {
   await join(h, wsA, 'pid-a', 'Alice'); await join(h, wsB, 'pid-b', 'Bob'); await join(h, wsC, 'pid-c', 'Cara');
   const r = h.instance.room;
   r.status = 'playing';
-  r.currentGameId = 'hot-potato';
-  r.gameState = hotPotato.createState([1, 2, 3], seq(0));
-  r.gameState.holder = 2;
+  r.currentGameId = 'last-strand';
+  r.gameState = lastStrand.createState([1, 2, 3]);
+  r.gameState.turnIdx = 2; // seat 3's turn
   await h.instance.webSocketMessage(wsB, JSON.stringify({ type: 'leave' }));
   ok(!r.gameState.seats.includes(2), 'leave: the departed seat is removed from the active game state');
-  ok(r.gameState.holder !== 2, 'leave: a holder/turn field pointing at the departed seat is patched to someone still in the game');
+  ok(r.gameState.turnIdx === 0, 'leave: a turn index left pointing past the shrunk seat list is clamped back to a valid seat');
 });
 
 await withRoom(async (h) => {
