@@ -1,7 +1,9 @@
 // Shared by the browser AND the Cloudflare Worker / Durable Object.
 // Keep this file dependency-free.
 
-export const MIN_PLAYERS = 2;
+// Room capacity ceiling only - whether a room can actually *start* at a
+// given player count is per-game (see GAME_REGISTRY / canStartWithCount
+// below), since not every game supports solo play.
 export const MAX_PLAYERS = 4;
 export const MAX_NAME = 14;
 
@@ -27,11 +29,21 @@ export const PLAYER_COLORS = [
 // actual rules live in src/games/<id>.js (server) and
 // public/js/games/<id>.js (client renderer). Deliberately pared down to
 // one launch game (see DECISIONS.md) - adding game #2 means adding one
-// entry here plus those two files.
+// entry here plus those two files. minPlayers: 1 means the game supports
+// solo play (a personal-best challenge, not head-to-head) - see
+// DECISIONS.md and last-strand.js's getResult().
 export const GAME_REGISTRY = [
-  { id: 'last-strand', name: 'The Last Strand', category: 'luck', minPlayers: 2, maxPlayers: 4 },
+  { id: 'last-strand', name: 'The Last Strand', category: 'luck', minPlayers: 1, maxPlayers: 4 },
 ];
 
 export function gameById(id) {
   return GAME_REGISTRY.find((g) => g.id === id) || null;
+}
+
+// Whether at least one registered game can actually be played by this many
+// players - the room's real "can we start" gate (see match-room.js's
+// maybeAutoStart and app.js's lobby render), replacing a flat "always need
+// 2" rule now that solo-capable games exist.
+export function canStartWithCount(playerCount) {
+  return GAME_REGISTRY.some((g) => playerCount >= g.minPlayers && playerCount <= g.maxPlayers);
 }

@@ -15,7 +15,7 @@ import { MatchRoom } from '../src/match-room.js';
 import { Leaderboard } from '../src/leaderboard.js';
 import { GAMES, pickNextGame } from '../src/games/index.js';
 import * as lastStrand from '../src/games/last-strand.js';
-import { MAX_PLAYERS, MIN_PLAYERS, PLAYER_COLORS, GAME_REGISTRY } from '../public/js/shared.js';
+import { MAX_PLAYERS, PLAYER_COLORS, GAME_REGISTRY, canStartWithCount } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8799;
@@ -83,6 +83,41 @@ const seq = (...vals) => { let i = 0; return () => vals[Math.min(i++, vals.lengt
   ok(lastStrand.nextAlarmAt(s2) === null, 'last-strand: no pending alarm mid-cutting either');
 }
 
+// ── Part 1e: solo play ───────────────────────────────────────────
+// One seat, nobody to eliminate - reframed as "how many strands can you
+// cut before it comes down", scored by strand count rather than tiers.
+
+{
+  const s = lastStrand.createState([9]);
+  ok(s.solo === true, 'last-strand solo: a single-seat game is flagged solo');
+  ok(canStartWithCount(1), 'canStartWithCount: 1 player can start now that a solo-capable game exists');
+
+  lastStrand.handleAction(s, 9, { index: 0 }, Date.now(), seq(0.99)); // survives
+  lastStrand.handleAction(s, 9, { index: 1 }, Date.now(), seq(0.99)); // survives
+  ok(s.turnIdx === 0 && s.seats.length === 1, 'last-strand solo: turn always comes back around to the only seat');
+  s.instability = 95;
+  lastStrand.handleAction(s, 9, { index: 2 }, Date.now(), seq(0)); // an unlucky third cut
+  ok(s.phase === 'collapsing' && s.collapsedBy === 9, 'last-strand solo: the sole player can still collapse their own rope');
+  lastStrand.tick(s, s.collapseAt + 1);
+  ok(lastStrand.isOver(s), 'last-strand solo: the round ends the instant the only player is eliminated');
+  ok(s.seats.length === 0, 'last-strand solo: no survivor remains (there was no one else to survive against)');
+
+  const r = lastStrand.getResult(s);
+  ok(r.tiers[0].length === 0, 'last-strand solo: no "champion" tier - there was no one to out-survive');
+  ok(r.tiers[1][0] === 9, 'last-strand solo: the player themselves is the only tier');
+  ok(r.score === 3, 'last-strand solo: score is the number of strands actually cut this attempt (2 safe + 1 fatal)');
+  ok(r.note === 'cut 3 strands before it came down', 'last-strand solo: note reports the strand count in words');
+
+  // A single unlucky first cut still produces a valid (if small) score.
+  const s5 = lastStrand.createState([1]);
+  s5.instability = 95;
+  lastStrand.handleAction(s5, 1, { index: 0 }, Date.now(), seq(0));
+  lastStrand.tick(s5, s5.collapseAt + 1);
+  const r5 = lastStrand.getResult(s5);
+  ok(r5.score === 1, 'last-strand solo: even an immediate collapse scores the one cut that caused it');
+  ok(r5.note === 'cut 1 strand before it came down', 'last-strand solo: singular "strand" wording for a score of exactly 1');
+}
+
 // ── Part 1f: game selection ─────────────────────────────────────
 // Uses fake multi-entry registries throughout, deliberately decoupled from
 // how many real games GAME_REGISTRY happens to contain right now.
@@ -99,6 +134,7 @@ const seq = (...vals) => { let i = 0; return () => vals[Math.min(i++, vals.lengt
   const g3 = pickNextGame([{ id: 'x', category: 'luck', minPlayers: 2, maxPlayers: 2 }], 2, ['luck'], seq(0));
   ok(g3.id === 'x', 'pickNextGame: falls back to a same-category game when no alternative is compatible');
   ok(GAME_REGISTRY.length === 1 && GAME_REGISTRY[0].id === 'last-strand', 'GAME_REGISTRY: pared down to just The Last Strand for launch');
+  ok(GAME_REGISTRY[0].minPlayers === 1, 'GAME_REGISTRY: The Last Strand supports solo play');
 }
 
 // ── Part 1g: the shared Leaderboard Durable Object ─────────────
@@ -201,6 +237,16 @@ await withRoom(async (h) => {
 });
 
 await withRoom(async (h) => {
+  // Solo lobby: a lone host can ready up and start alone, since The Last
+  // Strand's minPlayers is 1 - no need to wait for a second player.
+  const wsA = new FakeSocket();
+  h.instance.acceptSocket(wsA);
+  await join(h, wsA, 'pid-a', 'Alice');
+  await h.instance.webSocketMessage(wsA, JSON.stringify({ type: 'ready', ready: true }));
+  ok(h.instance.room.status === 'intro', 'lobby: a single ready player auto-starts a solo-capable game');
+});
+
+await withRoom(async (h) => {
   // Force straight into a known game so the round-flow can be driven deterministically.
   const wsA = new FakeSocket(), wsB = new FakeSocket();
   h.instance.acceptSocket(wsA); h.instance.acceptSocket(wsB);
@@ -241,6 +287,22 @@ await withRoom(async (h) => {
   const [pA, pB] = r.players;
   ok(pA.score === 0 && pB.score === 3, '2-player scoring: winner gets 3, loser gets 0 (not a generic "second place" point)');
   ok(pB.wins === 1 && pA.wins === 0, 'scoring: wins increments only for the top tier');
+});
+
+await withRoom(async (h) => {
+  // Solo scoring: a lone player's round is scored by the game's own
+  // performance number (here, strands cut), never the fixed tiers-based
+  // POINTS_FIRST/SECOND scheme, which only makes sense against opponents.
+  const wsA = new FakeSocket();
+  h.instance.acceptSocket(wsA);
+  await join(h, wsA, 'pid-a', 'Alice');
+  const r = h.instance.room;
+  r.status = 'playing';
+  r.currentGameId = 'last-strand';
+  r.gameState = { seats: [], turnIdx: 0, strandsTotal: 8, cutMask: [true, true, true, true, true, false, false, false], instability: 0, phase: 'done', lastCut: null, collapseAt: null, collapsedBy: 1, eliminationOrder: [[1]], solo: true };
+  h.instance.afterGameUpdate();
+  ok(r.players[0].score === 5, 'solo scoring: awarded exactly the strand count (5), not POINTS_FIRST (3)');
+  ok(r.players[0].wins === 0, 'solo scoring: no "wins" tracked - there was no one to beat');
 });
 
 await withRoom(async (h) => {
@@ -417,6 +479,17 @@ try {
   await untilStatus(p1, 'playing', 5000);
   ok(p1.state.gameState != null && p1.state.currentGameId != null, 'live: entering play delivers a real game state and id to both clients');
   ok(p2.state.currentGameId === p1.state.currentGameId, 'live: both clients see the same active game');
+
+  // Solo, end to end: a lone player over a real socket can ready up and
+  // start alone (no second client ever connects to this room).
+  const soloRes = await fetch(`http://localhost:${PORT}/api/rooms`, { method: 'POST' });
+  const { code: soloCode } = await soloRes.json();
+  const solo = await wsClient(soloCode, 'pid-solo', 'Solo');
+  send(solo, { type: 'ready', ready: true });
+  await untilStatus(solo, 'intro');
+  await untilStatus(solo, 'playing', 5000);
+  ok(solo.state.gameState != null && solo.state.players.length === 1, 'live: a solo player auto-starts a real match alone over a real WebSocket');
+  solo.ws.close();
 
   p1.ws.close(); p2.ws.close();
 } catch (e) {

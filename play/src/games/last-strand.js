@@ -11,12 +11,20 @@
 // odds, not a secret a client could try to infer or leak - view() is the
 // identity function, same as Hot Potato/Color Panic/Rope before it.
 //
+// Solo play (one seat): the "eliminate everyone else" objective doesn't
+// exist with nobody else at the table, so a solo round is reframed as a
+// personal-best challenge - how many strands can you cut before it comes
+// down? getResult() detects this (state.solo) and reports a strand count
+// as `score` instead of the usual tiers-based points; match-room.js awards
+// that directly rather than running it through pointsForTier(). See
+// DECISIONS.md.
+//
 // Every game module in this folder shares one shape (see DECISIONS.md):
 //   createState(seats, rand)                      -> state
 //   handleAction(state, seat, action, now, rand)   -> mutates state
 //   tick(state, now, rand)                         -> mutates state (time-driven progress)
 //   isOver(state)                                  -> bool
-//   getResult(state)                                -> { tiers: [[seat,...], ...], note }
+//   getResult(state)                                -> { tiers: [[seat,...], ...], note, score? }
 //   view(state)                                     -> state with anything secret stripped
 //   nextAlarmAt(state)                              -> timestamp | null
 
@@ -39,7 +47,7 @@ function freshRope(state) {
 }
 
 export function createState(seats) {
-  return freshRope({ seats: seats.slice(), turnIdx: 0, eliminationOrder: [] });
+  return freshRope({ seats: seats.slice(), turnIdx: 0, eliminationOrder: [], solo: seats.length === 1 });
 }
 
 export function handleAction(state, seat, action, now, rand) {
@@ -86,6 +94,14 @@ export function tick(state, now) {
 export function isOver(state) { return state.phase === 'done'; }
 
 export function getResult(state) {
+  if (state.solo) {
+    const cuts = state.cutMask.filter(Boolean).length;
+    return {
+      tiers: [[], state.eliminationOrder[0] || []],
+      note: `cut ${cuts} strand${cuts === 1 ? '' : 's'} before it came down`,
+      score: cuts,
+    };
+  }
   const tiers = [state.seats.slice()];
   for (let i = state.eliminationOrder.length - 1; i >= 0; i--) tiers.push(state.eliminationOrder[i]);
   return { tiers, note: 'brought the rope down' };

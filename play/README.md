@@ -1,11 +1,16 @@
 # Play
 
-A persistent multiplayer mini-game platform. 2-4 players in a room with a
+A persistent multiplayer mini-game platform. 1-4 players in a room with a
 short code play a fast round of the current mini-game, see who won, and get
 auto-launched straight into the next one - five rounds, then a match
 winner. No accounts, no lobby micromanagement, no dead time between rounds.
 All original visual identity and game content - nothing here is modeled
 on, or references, any existing game's characters, art, sounds, or names.
+
+Solo play works too, for any game whose rules actually support it (see
+"Solo play" below) - a lone host can ready up and start immediately rather
+than waiting for a second player, and the room still welcomes others to
+join mid-lobby if they show up.
 
 Deliberately launching with a single game rather than several at once -
 see DECISIONS.md for why - with the architecture already built to add
@@ -25,6 +30,25 @@ more later at no cost to the room/scoring/reconnection machinery.
 Winner of a round scores 3 points; in a 3-4 player round the
 second-to-last-eliminated tier scores 1 more. First to the end of 5 rounds
 with the most points wins the match.
+
+## Solo play
+
+The Last Strand supports 1 player (`minPlayers: 1` in its `GAME_REGISTRY`
+entry) - a lone player can't "eliminate everyone else" since there's no one
+else, so a solo round is reframed as a personal-best challenge: how many
+strands can you cut before the rope comes down? Your score for that round
+is exactly that strand count, not the usual fixed win/lose points - see
+`getResult()`'s `score` field in `src/games/last-strand.js` and the solo
+branch in `finishRound()` in `src/match-room.js`. The match still runs its
+usual 5 rounds, so a solo player gets 5 separate attempts and a cumulative
+score, same as everyone else.
+
+Not every future game will support this - a room only lets a player start
+alone when at least one registered game's `minPlayers` allows the current
+head count (`canStartWithCount()` in `public/js/shared.js`); a game that
+genuinely needs an opponent (or a bluff, or a pass) just keeps its
+`minPlayers: 2`, and a lone player in the lobby simply waits, same as
+before this feature existed.
 
 ## Shared high scores
 
@@ -59,7 +83,7 @@ Durable Object binding and Workers Static Assets config live entirely in
 ## Testing
 
 ```bash
-npm test                      # the game module + the full room protocol + the leaderboard (75 checks)
+npm test                      # the game module + the full room protocol + the leaderboard (92 checks)
 node dev/browser-test.mjs     # two real browsers play a full match end to end, including submitting a high score (needs Playwright + Chromium)
 ```
 

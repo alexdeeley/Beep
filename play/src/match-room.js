@@ -15,7 +15,7 @@
 
 import { GAMES, pickNextGame } from './games/index.js';
 import {
-  MIN_PLAYERS, MAX_PLAYERS, MAX_NAME, PLAYER_COLORS, GAME_REGISTRY,
+  MAX_PLAYERS, MAX_NAME, PLAYER_COLORS, GAME_REGISTRY, canStartWithCount,
   MATCH_LENGTHS, DEFAULT_MATCH_LENGTH, POINTS_FIRST, POINTS_SECOND,
 } from '../public/js/shared.js';
 
@@ -290,7 +290,7 @@ export class MatchRoom {
   maybeAutoStart() {
     const r = this.room;
     if (r.status !== 'lobby') return;
-    if (r.players.length < MIN_PLAYERS) return;
+    if (!canStartWithCount(r.players.length)) return;
     if (!r.players.every((p) => p.ready)) return;
     this.beginIntro();
   }
@@ -330,13 +330,21 @@ export class MatchRoom {
   finishRound() {
     const r = this.room;
     const mod = GAMES[r.currentGameId];
-    const { tiers, note } = mod.getResult(r.gameState);
+    const { tiers, note, score } = mod.getResult(r.gameState);
     const totalPlayers = r.players.length;
     const points = {};
-    tiers.forEach((tier, idx) => {
-      const pts = pointsForTier(idx, totalPlayers);
-      for (const seat of tier) points[seat] = pts;
-    });
+    // Solo play (score present, exactly one player) isn't "beat everyone
+    // else" - there's nobody else - so it's scored directly by the game's
+    // own performance number instead of the generic tiers/pointsForTier
+    // ranking scheme, which assumes at least one opponent to rank against.
+    if (totalPlayers === 1 && score != null) {
+      points[r.players[0].seat] = score;
+    } else {
+      tiers.forEach((tier, idx) => {
+        const pts = pointsForTier(idx, totalPlayers);
+        for (const seat of tier) points[seat] = pts;
+      });
+    }
     for (const p of r.players) {
       p.score += points[p.seat] || 0;
       p.gamesPlayed += 1;

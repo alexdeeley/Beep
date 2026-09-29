@@ -60,6 +60,47 @@ spec's explicit "for two-player games the loser gets 0" rule rather than
 a generic "second place" point that wouldn't make sense with only one
 loser.
 
+## Solo play: an optional per-game minimum, not a special "solo mode" flag
+
+Requested after launch: "any game which can be done one player should have
+the option." The room-level gate used to be a flat `MIN_PLAYERS = 2`
+(`public/js/shared.js`); it's now `canStartWithCount(playerCount)`, which
+just asks whether *any* registered game's own `minPlayers` covers the
+current head count. A lone host in the lobby can ready up and start the
+instant some game supports it - today that's The Last Strand
+(`minPlayers: 1`); a future game that genuinely needs an opponent (a bluff,
+a pass, a race) simply keeps `minPlayers: 2` and a lone player just waits,
+exactly as before this feature existed. There's no platform-wide "solo
+mode" toggle anywhere - it falls straight out of the existing per-game
+`minPlayers`/`maxPlayers` metadata that `pickNextGame` already used to
+filter compatible games.
+
+The harder part wasn't the gate, it was **scoring**. "Eliminate everyone
+else" has no meaning with nobody else at the table, and tier-0-always-3
+would have given a solo player either a fixed 3 points forever (boring: no
+feedback on how well they actually did) or 0 forever (the literal result of
+running the existing tiers unchanged - see below - which would make solo
+scoring look broken, not "not implemented yet"). Reusing the existing
+`getResult()` shape unchanged would mean tier 0 (the "champion" tier) is
+always empty for a lone player - by the time they collapse the rope
+themselves, there's no one left in `state.seats` to call a survivor, so
+`tiers = [[], [thatSeat]]` and every point scheme built on "who's in tier
+0" gives them nothing, every round, forever.
+
+So `getResult()` gained one more optional field: `score` (present only
+when `state.solo`, set by `last-strand.js` to the number of strands
+actually cut that attempt - free to compute, since `cutMask` already
+tracks exactly that and a solo round never survives to a `freshRope()`
+reset). `finishRound()` in `match-room.js` checks for it before falling
+back to `pointsForTier`: one lone player with a `score` gets awarded that
+number directly; anyone else still goes through the normal tiers ranking.
+This keeps the six-function game-module interface exactly as general as
+before - a game with nothing meaningful to say about "solo performance"
+just never sets `state.solo` or returns `score`, and falls through to the
+ordinary tiers path unchanged - while giving The Last Strand's solo
+players a score that actually reflects how far they got, round to round,
+match to match, and feeds the same shared leaderboard as everyone else.
+
 ## Dramatic delay is a client-side courtesy, not a secret
 
 The Last Strand (like most of this platform's games, past and present) has

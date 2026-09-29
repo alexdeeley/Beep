@@ -2,7 +2,7 @@ import { Net } from './net.js';
 import * as snd from './sound.js';
 import { initInvertToggle, reducedMotion } from './a11y.js';
 import {
-  MIN_PLAYERS, MAX_PLAYERS, MAX_NAME, PLAYER_COLORS, GAME_REGISTRY, gameById,
+  MAX_PLAYERS, MAX_NAME, PLAYER_COLORS, GAME_REGISTRY, gameById, canStartWithCount,
 } from './shared.js';
 import { GAME_RENDERERS } from './games/index.js';
 
@@ -386,11 +386,13 @@ function renderLobby() {
     confirmBox(`Remove ${p?.name || 'this player'} from the game?`, () => S.net?.send({ type: 'kick', seat }));
   }));
   $('lobby-count').textContent = `${st.players.length} / ${MAX_PLAYERS} PLAYERS`;
-  const enough = st.players.length >= MIN_PLAYERS;
+  const enough = canStartWithCount(st.players.length);
   const me = player(st.you);
   $('lobby-status').textContent = !enough
     ? 'Waiting for more players to join…'
-    : me?.ready ? 'Waiting for everyone to be ready…' : 'Hit ready when you are!';
+    : me?.ready ? 'Waiting for everyone to be ready…'
+    : st.players.length === 1 ? 'Hit ready to play solo, or wait for friends to join!'
+    : 'Hit ready when you are!';
   const btn = $('btn-ready');
   btn.classList.toggle('on', !!me?.ready);
   btn.textContent = me?.ready ? "I'M READY ✓" : "I'M READY";
@@ -485,8 +487,16 @@ function renderResult() {
   const winners = r.tiers[0] || [];
   const g = gameById(r.gameId);
   $('result-game-name').textContent = g?.name || '';
-  $('result-winner').textContent = winners.map((s) => nameOf(s)).join(' & ') || '—';
-  $('result-note').textContent = winners.length === st.players.length ? 'Everyone survived!' : `Everyone else ${r.note}.`;
+  const solo = st.players.length === 1;
+  if (solo) {
+    // No "winner" to name and nobody else to have survived - just report
+    // how the one solo attempt went, in the game's own words (r.note).
+    $('result-winner').textContent = nameOf(st.players[0].seat);
+    $('result-note').textContent = r.note.charAt(0).toUpperCase() + r.note.slice(1) + '.';
+  } else {
+    $('result-winner').textContent = winners.map((s) => nameOf(s)).join(' & ') || '—';
+    $('result-note').textContent = winners.length === st.players.length ? 'Everyone survived!' : `Everyone else ${r.note}.`;
+  }
   const myPoints = r.points?.[st.you] ?? 0;
   $('result-points').textContent = myPoints > 0 ? `+${myPoints} POINTS` : '+0 POINTS';
   $('result-points').classList.toggle('zero', myPoints <= 0);
