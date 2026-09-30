@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WORDS, checkGuess, pickWord } from '../src/words.js';
+import { WORDS, checkGuess, pickWord, MAX_CLUE_LEN } from '../src/words.js';
 import { CATEGORIES, MAX_PLAYERS, REACTIONS } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,6 +60,24 @@ ok(WORDS[chaos.index].d === 'chaos', 'chaos difficulty picks a chaos word');
 for (let i = 0; i < 30; i++) {
   const c = pickWord({ categories: ['everything'], difficulty: 'chaos' }, []);
   ok(WORDS[c.index].d === 'chaos', 'chaos difficulty never surfaces a non-chaos word');
+}
+
+// ── Clue length cap (the word-choice card's layout is fixed-width) ──
+ok(WORDS.some((w) => w.w.length > MAX_CLUE_LEN), `word bank actually contains an entry over ${MAX_CLUE_LEN} chars (else this cap is untested)`);
+for (let i = 0; i < 200; i++) {
+  const c = pickWord({ categories: ['everything'], difficulty: 'chaos' }, []);
+  ok(WORDS[c.index].w.length <= MAX_CLUE_LEN, `chaos pick "${WORDS[c.index].w}" respects the ${MAX_CLUE_LEN}-char clue cap`);
+}
+{
+  // Even once every eligible word has been used and pickWord resets, the
+  // cap still holds - a too-long prompt never sneaks in just because
+  // everything else was already seen this game.
+  const allUsed = WORDS.map((_, i) => i);
+  for (let i = 0; i < 50; i++) {
+    const r = pickWord({ categories: ['everything'], difficulty: 'chaos' }, allUsed);
+    ok(r.reset === true, 'pickWord: reset flag set once every word has been used');
+    ok(WORDS[r.index].w.length <= MAX_CLUE_LEN, 'pickWord: the post-reset pick also respects the clue length cap');
+  }
 }
 
 // ── Multiplayer protocol ────────────────────────────────────

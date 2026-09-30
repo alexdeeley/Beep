@@ -338,6 +338,20 @@ html.a11y-invert #sizes .blob {
    so they can never compete with or block the real drawing underneath */
 .sheet .layer.ghost { pointer-events: none; }
 
+/* Emoji tracing guide (drawer only, opt-in setting): sits *below* the ink
+   layers (first child of .sheet - see app.js) like tracing paper, so a
+   drawn-over area covers the guide instead of the guide sitting on top of
+   the art. vmin-based so it scales to whichever of width/height is
+   smaller, staying sane in both portrait and landscape. */
+.sheet .layer.trace {
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(3rem, 35vmin, 14rem);
+  line-height: 1;
+  opacity: .5;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Drawer tray ───────────────────────────────── */
 
 .tray {

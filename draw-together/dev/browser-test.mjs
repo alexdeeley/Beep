@@ -127,7 +127,9 @@ await sleep(150);
 ok((await ghostInk(A.page)) > 0, "a guesser's doodle appears on the drawer's screen");
 ok((await inkCount(A.page)) === realInkBeforeDoodle, "the real drawing is untouched by the guesser's doodle");
 await sleep(1200);
-ok((await ghostInk(A.page)) === 0, 'the doodle fades away and clears itself on its own');
+ok((await ghostInk(A.page)) > 0, 'the doodle is still visible well under its ten-second lifetime');
+await sleep(9300);
+ok((await ghostInk(A.page)) === 0, 'the doodle fades away and clears itself on its own after about ten seconds');
 
 const box = await A.page.locator('.board-host .sheet').boundingBox();
 const P = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
@@ -413,6 +415,34 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   await Gu.page.click('#btn-guess');
   await Gu.page.waitForSelector('#ov-reveal:not([hidden])');
   ok(true, 'guessing works normally once the drawer unlocks it');
+}
+
+// Emoji tracing guide: drawer-only, never leaked to the guesser
+{
+  const E1 = await player('Ellie', { viewport: { width: 1000, height: 800 } });
+  const E2 = await player('Evan', { viewport: { width: 390, height: 844 } });
+  await E1.page.fill('#in-name', 'Ellie');
+  await E1.page.click('#btn-create');
+  await E1.page.waitForSelector('#scr-lobby:not([hidden])');
+  const emojiCode = (await E1.page.textContent('#lobby-code')).trim();
+  await E1.page.click('#set-emoji button:text("On (drawer only) 🖍️")');
+  await E2.page.fill('#in-name', 'Evan');
+  await E2.page.click('#btn-join');
+  await E2.page.fill('#in-code', emojiCode);
+  await E2.page.click('#btn-join-go');
+  await E1.page.waitForSelector('#btn-start:not([hidden])');
+  await E1.page.click('#btn-start');
+  await E1.page.waitForSelector('#ov-choose:not([hidden]) #btn-ready');
+  const drawerIsEllie = await E1.page.evaluate(() => window.__dt.S.st.you === window.__dt.S.st.drawerSeat);
+  const eDr = drawerIsEllie ? E1 : E2, eGu = drawerIsEllie ? E2 : E1;
+  await eDr.page.click('#btn-ready');
+  await eGu.page.waitForFunction(() => window.__dt.S.st.phase === 'drawing');
+  await sleep(150);
+  const traceEmoji = await eDr.page.evaluate(() => window.__dt.S.st.word.e);
+  ok(await eDr.page.isVisible('.layer.trace'), 'drawer sees the emoji tracing guide layer while drawing');
+  ok((await eDr.page.textContent('.layer.trace')) === traceEmoji, "the guide shows the round's actual emoji");
+  ok(!(await eGu.page.isVisible('.layer.trace')), "the guesser's tracing guide layer stays hidden - it never learns the emoji");
+  ok((await eGu.page.evaluate(() => document.querySelector('.layer.trace')?.textContent || '')) === '', "the guesser's DOM never even holds the emoji text, hidden or not");
 }
 
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));

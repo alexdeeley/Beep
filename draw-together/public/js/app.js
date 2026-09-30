@@ -406,6 +406,10 @@ function renderSettings(isHost) {
   for (const [v, label] of [[false, 'Right away'], [true, 'Let the drawer finish first']]) {
     lk.append(chip(label, !!s.lockGuesses === v, () => sendSettings({ lockGuesses: v }), !isHost));
   }
+  const em = $('set-emoji'); em.replaceChildren();
+  for (const [v, label] of [[false, 'Off'], [true, 'On (drawer only) 🖍️']]) {
+    em.append(chip(label, !!s.emojiGuide === v, () => sendSettings({ emojiGuide: v }), !isHost));
+  }
   const rd = $('set-rounds'); rd.replaceChildren();
   for (const r of ROUND_OPTIONS) {
     rd.append(chip(String(r), s.rounds === r, () => sendSettings({ rounds: r }), !isHost));
@@ -427,6 +431,21 @@ S.board = new Board($('board-host'), {
   onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; },
 });
 
+// ── Emoji tracing guide (opt-in lobby setting) ────────────────
+//
+// A faint outline of the word's own emoji, for the drawer to trace over -
+// nothing to keep secret here that isn't already secret: `st.word` (the
+// only place `.e` comes from) is already only ever sent to the drawer's
+// own socket (see game-room.js's view()), so a guesser's client simply
+// never has an emoji to show. Sits *below* the real ink (first child of
+// `.sheet`, drawn before `.base`/`.live`), like tracing paper, so drawn-over
+// areas cover the guide instead of the guide sitting on top of the art.
+const traceEl = document.createElement('div');
+traceEl.className = 'layer trace';
+traceEl.setAttribute('aria-hidden', 'true');
+traceEl.hidden = true;
+S.board.sheet.prepend(traceEl);
+
 // ── Ghost doodles: guessers gesturing on the drawing ─────────
 //
 // Never touches S.board's ops - not a real stroke, never persisted, never
@@ -442,7 +461,7 @@ S.board.sheet.append(ghostCanvas);
 const gctx = ghostCanvas.getContext('2d');
 
 const ghosts = new Map(); // stroke id -> { seat, pts, ended, lastAt, endAt }
-const GHOST_LINGER_MS = 650;   // how long a finished mark hangs around before fading
+const GHOST_LINGER_MS = 10000; // how long a finished mark hangs around before fading
 const GHOST_FADE_MS = 300;     // fade-out duration once it starts vanishing
 const GHOST_STALL_MS = 1500;   // auto-end a mark that never got an explicit end (dropped message, disconnect)
 const GHOST_ALPHA = 0.6;       // always fainter than real ink, so it can't compete with it
@@ -558,6 +577,13 @@ function renderGame(prev, phaseChanged) {
     hint.hidden = true;
     hint.innerHTML = '';
   }
+
+  // Emoji tracing guide: drawer only, only while actually drawing (see
+  // traceEl's creation above for why nothing here needs to check secrecy -
+  // st.word is already null for anyone but the drawer).
+  const showTrace = drawer && st.phase === 'drawing' && st.settings?.emojiGuide && !!st.word?.e;
+  traceEl.hidden = !showTrace;
+  traceEl.textContent = showTrace ? st.word.e : '';
 
   // Board shape: the drawer's screen decides it when they press Ready.
   if (st.phase === 'choosing' && drawer) {

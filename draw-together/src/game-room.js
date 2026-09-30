@@ -25,6 +25,12 @@ const CAT_IDS = new Set(CATEGORIES.map((c) => c.id));
 const DEFAULT_SETTINGS = {
   timer: 60, rounds: 10, categories: ['everything'], difficulty: 'mixed',
   lockGuesses: false, // if true, guessing waits until the drawer says they're ready
+  // If true, the drawer (only) sees a faint tracing outline of the word's
+  // own emoji while they draw - see view()'s `word` field, which is
+  // already secret-to-the-drawer, and app.js's trace layer. Guessers
+  // never receive it: nothing new to keep secret here, just a rendering
+  // toggle on data the drawer already has.
+  emojiGuide: false,
 };
 
 export class GameRoom {
@@ -550,6 +556,7 @@ const HANDLERS = {
     if (ROUND_OPTIONS.includes(s.rounds)) next.rounds = s.rounds;
     if (DIFFICULTIES.includes(s.difficulty)) next.difficulty = s.difficulty;
     if (typeof s.lockGuesses === 'boolean') next.lockGuesses = s.lockGuesses;
+    if (typeof s.emojiGuide === 'boolean') next.emojiGuide = s.emojiGuide;
     if (Array.isArray(s.categories)) {
       let cats = [...new Set(s.categories.filter((c) => CAT_IDS.has(c)))];
       if (!cats.length || cats.includes('everything')) cats = ['everything'];

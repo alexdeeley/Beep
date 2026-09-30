@@ -3422,6 +3422,16 @@ export const WORDS = [
 
 // ── Word picking ─────────────────────────────────────────────
 
+// The word-choice card (public/index.html #ov-choose, styled by .big-word
+// in styles.css) is a fixed-width card sized for a normal word or short
+// phrase. A handful of the longest Chaos-mode scenario prompts run past
+// 60 characters and would overflow that card's layout, so pickWord()
+// never offers one - see DECISIONS.md. This excludes only a tiny sliver
+// of Chaos's ~3,000 prompts (well under 1%); nothing is deleted from the
+// word bank itself, so trimming this cap back down would need nothing
+// more than editing this number.
+export const MAX_CLUE_LEN = 60;
+
 export function pickWord(settings, used, rand = Math.random) {
   const cats = settings.categories || ['everything'];
   const all = cats.includes('everything');
@@ -3434,20 +3444,26 @@ export function pickWord(settings, used, rand = Math.random) {
     // 'mixed' (the default) never surfaces hard-mode or chaos-mode words by
     // accident - both tiers are opt-in only.
     : x.d !== 'hard' && x.d !== 'chaos';
+  const lenOk = (x) => x.w.length <= MAX_CLUE_LEN;
   const usedSet = new Set(used);
   const tries = [
-    (x, i) => !usedSet.has(i) && inCats(x) && diffOk(x),
-    (x, i) => !usedSet.has(i) && inCats(x),
-    (x, i) => !usedSet.has(i) && diffOk(x),
-    (x, i) => !usedSet.has(i),
+    (x, i) => !usedSet.has(i) && inCats(x) && diffOk(x) && lenOk(x),
+    (x, i) => !usedSet.has(i) && inCats(x) && lenOk(x),
+    (x, i) => !usedSet.has(i) && diffOk(x) && lenOk(x),
+    (x, i) => !usedSet.has(i) && lenOk(x),
   ];
   for (const ok of tries) {
     const pool = [];
     WORDS.forEach((x, i) => { if (ok(x, i)) pool.push(i); });
     if (pool.length) return { index: pool[Math.floor(rand() * pool.length)], reset: false };
   }
-  // Every word has been used: start over.
-  return { index: Math.floor(rand() * WORDS.length), reset: true };
+  // Every eligible word has already been used this game: start over, but
+  // still never past the length cap (an all-different-tomorrow reset
+  // shouldn't be the one way a too-long prompt sneaks through).
+  const freshPool = [];
+  WORDS.forEach((x, i) => { if (lenOk(x)) freshPool.push(i); });
+  const pool = freshPool.length ? freshPool : WORDS.map((_, i) => i);
+  return { index: pool[Math.floor(rand() * pool.length)], reset: true };
 }
 
 // ── Length hint for guessers ─────────────────────────────────
