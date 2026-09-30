@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Quadrant Machine</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; cursor: crosshair; }
+  #err { position: fixed; inset: 0; color: #fff; background: #000; font: 16px/1.5 ui-monospace, Menlo, monospace;
+    padding: 24px; white-space: pre-wrap; display: none; overflow: auto; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="err"></div>
+
+<script id="vs" type="x-shader/x-vertex">#version 300 es
+in vec2 aPos;
+void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
+</script>
+
+<script id="fs" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+precision highp int;
+out vec4 outColor;
+
+uniform vec2  uRes;
+uniform float uBeat;
+uniform vec4  uCur[16];   // per quadrant: A,B,C,D
+uniform vec4  uPrev[16];
+uniform vec4  uAnim[4];   // env, zoom, age, crossMod
+uniform vec4  uFx[4];     // remapFlags, schemeSwap, transProgress, transType
+uniform vec4  uFx2[4];    // shockAge, shockStrength, shockX, shockY
+uniform vec4  uEvent;     // type(-1 none), progress, env, src
+uniform vec4  uEvent2;    // beatsIn, param, 0, src2
+
+#define PI  3.14159265
+#define TAU 6.28318531
+
+struct Frag { vec4 f; float schA; float schB; float ovCol; float remap; };
+
+vec3 pal(int i){
+  if(i == 0) return vec3(0.0);
+  if(i == 1) return vec3(1.0);
+  if(i == 2) return vec3(0.5);
+  return vec3(0.93, 0.02, 0.04);
+}
+mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = hash21(i), b = hash21(i + vec2(1.0, 0.0)), c = hash21(i + vec2(0.0, 1.0)), d = hash21(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm(vec2 p){
+  float v = 0.0, a = 0.5;
+  for(int i = 0; i < 4; i++){ v += a * noise(p); p = rot(0.6) * p * 2.03 + 1.7; a *= 0.5; }
+  return v;
+}
+float tri(float x){ return abs(fract(x) - 0.5) * 2.0; }
+float polyM(vec2 p, float n){
+  float a = atan(p.y, p.x); float r = length(p); float s = TAU / n;
+  return r * cos(PI / n) / cos(mod(a + PI / n, s) - PI / n);
+}
+vec2 voro(vec2 x, float t){
+  vec2 n = floor(x), f = fract(x); float d1 = 8.0, d2 = 8.0;
+  for(int j = -1; j <= 1; j++) for(int i = -1; i <= 1; i++){
+    vec2 g = vec2(float(i), float(j));
+    vec2 o = vec2(hash21(n + g), hash21(n + g + 17.3));
+    o = 0.5 + 0.4 * sin(t + TAU * o);
+    float d = length(g + o - f);
+    if(d < d1){ d2 = d1; d1 = d; } else if(d < d2){ d2 = d; }
+  }
+  return vec2(d1, d2);
+}
+
+/* ---------------- QUADRANT 1 : GEOMETRIC / RADIAL ---------------- */
+float radialF(int g, vec2 p, float dens, float sym, vec4 k){
+  float t = k.x, env = k.y, md = k.z, sd = k.w;
+  float r = length(p) + 1e-4;
+  float a = atan(p.y, p.x);
+  float n = floor(sym + md * 3.0 + 0.5);
+  if(g == 0) return tri(log(r) * dens * 0.45 + a / TAU * n - t);                       // spiral
+  if(g == 1) return tri(r * dens * 0.6 - t + env * 0.3);                                // rings
+  if(g == 2) return tri(a / TAU * n * 2.0 + r * sin(sd) * 1.5 + t * 0.25);              // starburst
+  if(g == 3){                                                                           // nested polygons
+    float nn = max(3.0, n);
+    float ring = floor(polyM(p, nn) * dens * 0.6 - t);
+    vec2 q = rot(ring * 0.2 * sin(sd)) * p;
+    return tri(polyM(q, nn) * dens * 0.6 - t);
+  }
+  if(g == 4){                                                                           // kaleidoscope
+    float s = TAU / max(n, 2.0);
+    float aa = abs(mod(a, s) - 0.5 * s);
+    vec2 q = vec2(cos(aa), sin(aa)) * r;
+    float c = length(fract(q * dens * 0.3 - vec2(t * 0.5, 0.0)) - 0.5);
+    return 1.0 - c * 2.0;
+  }
+  if(g == 5){                                                                           // interference
+    vec2 c1 = 0.45 * vec2(cos(t * 0.5 + sd), sin(t * 0.7));
+    float v = sin(length(p - c1) * dens * 2.2 - t * PI) + sin(length(p + c1) * dens * 2.2 - t * PI);
+    return 0.5 + 0.25 * v;
+  }
+  return 0.5 + (tri(a / TAU * n) - 0.5) * (tri(r * dens * 0.4 - t) - 0.5) * 6.0;         // polar checker
+}
+
+/* ---------------- QUADRANT 2 : ORGANIC / LIQUID ---------------- */
+float organicF(int g, vec2 p, float dens, float sym, vec4 k){
+  float t = k.x, env = k.y, md = k.z, sd = k.w;
+  if(g == 0){                                                                           // warped contours
+    vec2 q = p * 1.1 + sd;
+    float w = fbm(q + 1.8 * vec2(fbm(q * 1.2 + vec2(t * 0.25, 0.0)), fbm(q * 1.2 + vec2(5.2, -t * 0.2))));
+    return tri(w * dens * 0.9 - t * 0.3);
+  }
+  if(g == 1){                                                                           // metaballs
+    float f = 0.0;
+    for(int i = 0; i < 6; i++){
+      float fi = float(i);
+      vec2 c = 0.62 * vec2(sin(t * (0.7 + 0.13 * fi) + fi * 1.3 + sd), cos(t * (0.5 + 0.11 * fi) + fi * 2.1));
+      vec2 dd = p - c;
+      f += (0.035 + 0.02 * env) / (dot(dd, dd) + 0.002);
+    }
+    if(mod(sym, 2.0) < 0.5) return clamp(f * 0.3, 0.0, 1.0);
+    return tri(log(f) * dens * 0.35 - t * 0.6);
+  }
+  if(g == 2){                                                                           // waves
+    vec2 q = p; q.x = mix(q.x, abs(q.x), clamp(md, 0.0, 1.0));
+    return tri(q.y * dens * 0.45 + sin(q.x * (2.0 + sym * 0.4) + t * TAU * 0.25 + sd) * (0.5 + env * 0.4) + sin(q.x * 6.3 - t * 2.0) * 0.12);
+  }
+  if(g == 3){                                                                           // cells
+    vec2 v = voro(p * dens * 0.45 + sd, t * 1.2);
+    return clamp((v.y - v.x) * 2.2 + (0.25 - v.x) * 0.8 * env, 0.0, 1.0);
+  }
+  if(g == 4){                                                                           // tendrils
+    return tri(atan(p.y, p.x) / TAU * sym + fbm(p * 2.0 + vec2(sd, -t * 0.35)) * 1.6 + length(p) * 0.4);
+  }
+  if(g == 5){                                                                           // warped grid
+    vec2 q = p * dens * 0.35 + 1.6 * (vec2(fbm(p * 1.3 + vec2(t * 0.2, sd)), fbm(p * 1.3 + vec2(sd, -t * 0.2))) - 0.5);
+    return smoothstep(0.55, 1.0, max(tri(q.x), tri(q.y)));
+  }
+  vec2 c = 0.4 * vec2(sin(t * 0.4 + sd), cos(t * 0.3));                                 // topographic ripples
+  return tri(length(p - c) * dens * 0.5 - t + fbm(p * 2.0 + sd) * 0.9);
+}
+
+/* ---------------- QUADRANT 3 : ARCHITECTURAL / GRID ---------------- */
+float archF(int g, vec2 p, float dens, float sym, vec4 k){
+  float t = k.x, env = k.y, md = k.z, sd = k.w;
+  vec2 vp = vec2(sin(sd) * 0.25 + md * 0.35, cos(sd * 1.3) * 0.18);
+  if(g == 0){                                                                           // square tunnel
+    vec2 q = p - vp;
+    float d = max(abs(q.x), abs(q.y)) + 1e-4;
+    float z = 0.35 / d;
+    float u = abs(q.x) > abs(q.y) ? q.y / abs(q.x) : q.x / (abs(q.y) + 1e-4);
+    float v = 0.5 + (tri(z * dens * 0.25 - t) - 0.5) * (tri(u * sym * 0.5) - 0.5) * 6.0;
+    return mix(0.0, v, smoothstep(0.02, 0.14, d));
+  }
+  if(g == 1){                                                                           // round tunnel
+    vec2 q = p - vp;
+    float r = length(q) + 1e-4;
+    float z = 0.3 / r;
+    float v = 0.5 + (tri(z * dens * 0.3 - t) - 0.5) * (tri(atan(q.y, q.x) / TAU * sym * 2.0 + z * 0.1 * sin(sd)) - 0.5) * 6.0;
+    return mix(0.0, v, smoothstep(0.02, 0.16, r));
+  }
+  if(g == 2){                                                                           // corridor planes
+    vec2 q = p - vp * 0.5;
+    float h = abs(q.y) + 1e-4;
+    float z = 0.3 / h;
+    float x = q.x * z;
+    float v = smoothstep(0.55, 1.0, max(tri(x * dens * 0.35 + sin(sd)), tri(z * dens * 0.2 - t)));
+    return v * smoothstep(0.0, 0.1, h);
+  }
+  if(g == 3){                                                                           // nested twisting frames
+    float d = max(abs(p.x), abs(p.y));
+    float lvl = floor(d * dens * 0.5 - t);
+    vec2 q = rot(lvl * 0.12 * sym) * p;
+    float d2 = max(abs(q.x), abs(q.y));
+    return tri(d2 * dens * 0.5 - t);
+  }
+  if(g == 4){                                                                           // brick checker
+    vec2 q = p * dens * 0.3; q.x += t; q.y += floor(q.x) * 0.5 * sin(sd);
+    return 0.5 + (tri(q.x) - 0.5) * (tri(q.y) - 0.5) * 8.0;
+  }
+  if(g == 5){                                                                           // windows
+    vec2 q = p * dens * 0.35 + vec2(0.0, t);
+    vec2 cell = floor(q); vec2 c = fract(q) - 0.5;
+    float fr = max(abs(c.x) * 1.25, abs(c.y));
+    float lit = step(0.45, hash21(cell + floor(t * 2.0 + sd)));
+    return mix(lit * 0.9 + 0.05, 1.0, smoothstep(0.33, 0.37, fr));
+  }
+  vec2 q = p * dens * 0.35;                                                             // stair machine
+  float v = tri(q.y - floor(q.x) * 0.5 - t);
+  return max(v, smoothstep(0.85, 1.0, tri(q.x + 0.5)));
+}
+
+/* ---------------- QUADRANT 4 : PSYCHEDELIC / SYMBOLIC ---------------- */
+float eyeF(vec2 p, float dens, float sym, float t, float env, float look){
+  float w = 0.95;
+  float open = 0.44 * (1.0 - env * env * 0.9);
+  float lid = abs(p.y) - open * max(0.0, 1.0 - (p.x * p.x) / (w * w));
+  vec2 pc = p - vec2(look * 0.14, 0.0);
+  float r = length(pc);
+  float pupR = 0.12 + 0.05 * sin(t * 0.9);
+  float inner = r < pupR ? 0.0 : (r < 0.38 ? tri(r * dens * 2.0 - t) : 1.0);
+  float outer = tri(atan(p.y, p.x) / TAU * sym * 2.0 + length(p) * 1.5 - t * 0.3);
+  float rim = (1.0 - smoothstep(0.0, 0.035, abs(lid))) * step(abs(p.x), w);
+  float v = lid < 0.0 ? inner : outer;
+  return max(v, rim);
+}
+float faceF(vec2 p, float dens, float sym, vec4 k){
+  float t = k.x, env = k.y, sd = k.w;
+  vec2 q = vec2(abs(p.x), p.y);
+  float head = length(p * vec2(1.0, 0.8)) - 0.8;
+  float eyeD = length((q - vec2(0.3, 0.16)) * vec2(1.0, 1.7));
+  float mouth = length((p - vec2(0.0, -0.38)) * vec2(1.0, mix(4.0, 1.6, env))) - 0.24;
+  float nose = max(abs(p.x) - 0.025, abs(p.y + 0.04) - 0.13);
+  float vin = 1.0;
+  if(eyeD < 0.16) vin = eyeD < 0.05 ? 0.0 : tri(eyeD * dens * 4.0 - t);
+  if(mouth < 0.0) vin = tri(p.x * dens * 2.0 + 0.5);
+  if(nose < 0.0) vin = 0.0;
+  float rays = tri(atan(p.y, p.x) / TAU * sym * 2.0 - t * 0.25);
+  float halo = tri(head * dens * 0.8 - t);
+  float vout = mix(rays, halo, step(0.0, sin(sd)));
+  return head < 0.0 ? vin : vout;
+}
+float flowerF(vec2 p, float dens, vec4 k){
+  float R = 1.6 / max(dens, 2.0) + 0.1;
+  p = rot(k.x * 0.2) * p;
+  float lw = 0.018;
+  float line = 0.0, cnt = 0.0;
+  for(int i = 0; i < 19; i++){
+    vec2 c = vec2(0.0);
+    if(i > 0 && i < 7){ float a = float(i) * TAU / 6.0; c = R * vec2(cos(a), sin(a)); }
+    else if(i >= 7 && i < 13){ float a = float(i - 7) * TAU / 6.0; c = 2.0 * R * vec2(cos(a), sin(a)); }
+    else if(i >= 13){ float a = float(i - 13) * TAU / 6.0 + TAU / 12.0; c = 1.7320508 * R * vec2(cos(a), sin(a)); }
+    float dd = length(p - c);
+    line = max(line, 1.0 - smoothstep(lw * 0.5, lw, abs(dd - R * (1.0 + 0.15 * k.y))));
+    cnt += step(dd, R);
+  }
+  float par = mod(cnt, 2.0);
+  float outer = 1.0 - smoothstep(lw * 0.5, lw, abs(length(p) - 3.0 * R));
+  float fill = fract(k.w * 1.7) > 0.5 ? abs(par - line) : line;
+  return max(fill, outer);
+}
+float nestF(vec2 p, float sym, vec4 k){
+  float v = 0.0, par = 0.0, sc = 1.0;
+  vec2 q = p;
+  float n = max(3.0, floor(sym));
+  for(int i = 0; i < 5; i++){
+    float circ = abs(length(q) - 0.85) / sc;
+    float pd = polyM(q, n) - 0.8;
+    float poly = abs(pd) / sc;
+    v = max(v, 1.0 - smoothstep(0.006, 0.014, min(circ, poly)));
+    par += step(pd, 0.0);
+    q = rot(k.x * 0.25 * (mod(float(i), 2.0) * 2.0 - 1.0) + PI / n) * q * 1.9;
+    sc *= 1.9;
+  }
+  return fract(k.w * 2.3) > 0.5 ? abs(v - mod(par, 2.0)) : v;
+}
+float psyF(int g, vec2 p, float dens, float sym, vec4 k){
+  float t = k.x, env = k.y, md = k.z, sd = k.w;
+  p += md * 0.18 * sin(p.yx * 4.0 + t);
+  if(g == 0) return eyeF(p * 0.95, dens, sym, t, env, sin(t * 0.7 + sd));
+  if(g == 1){                                                                           // field of eyes
+    float n = floor(2.0 + mod(sd, 3.0));
+    vec2 q = p * n * 0.5; vec2 cell = floor(q); vec2 l = (fract(q) - 0.5) * 2.2;
+    float h = hash21(cell + floor(sd));
+    l = rot((h - 0.5) * 0.8) * l;
+    return eyeF(l, dens, sym, t + h * 4.0, env * step(0.35, h), sin(t * 0.6 + h * 6.28));
+  }
+  if(g == 2){                                                                           // mirrored creature
+    vec2 q = vec2(abs(p.x), p.y);
+    float v = fbm(q * (0.9 + dens * 0.18) + vec2(sd, -t * 0.18)) + 0.5 - 0.55 * length(p * vec2(1.25, 1.0));
+    return mod(sym, 2.0) < 0.5 ? v + 0.05 : tri(v * dens * 0.7);
+  }
+  if(g == 3) return faceF(p, dens, sym, k);                                              // mask
+  if(g == 4) return flowerF(p, dens, k);                                                 // sacred geometry
+  if(g == 5){                                                                           // moire
+    vec2 c1 = 0.25 * vec2(sin(t * 0.6 + sd), cos(t * 0.45));
+    return 0.5 + (tri(length(p - c1) * dens * 1.6) - 0.5) * (tri(length(p + c1) * dens * 1.6) - 0.5) * 8.0;
+  }
+  return nestF(p, sym, k);                                                               // nested symbols
+}
+
+float engine(int q, int g, vec2 p, float dens, float sym, vec4 k){
+  if(q == 0) return radialF(g, p, dens, sym, k);
+  if(q == 1) return organicF(g, p, dens, sym, k);
+  if(q == 2) return archF(g, p, dens, sym, k);
+  return psyF(g, p, dens, sym, k);
+}
+
+float maskF(int mode, vec2 p, float env, float ph){
+  if(mode == 1) return 0.5 + (0.42 + env * 0.18 - length(p));
+  if(mode == 2) return 0.5 + p.x * (mod(floor(uBeat * 0.5), 2.0) * 2.0 - 1.0);
+  if(mode == 3) return tri(p.x * 28.0 + ph);
+  if(mode == 4) return 0.5 + (tri(p.x * 1.2) - 0.5) * (tri(p.y * 1.2) - 0.5) * 8.0;
+  if(mode == 5) return fbm(p * 1.8 + vec2(uBeat * 0.08, 0.0)) + 0.05;
+  if(mode == 6) return tri(p.y * 2.5 + floor(uBeat) * 0.25);
+  if(mode == 7) return tri(length(p) * 2.5 - uBeat * 0.5);
+  return -1.0;
+}
+
+// A: dens, rot, scale, sym | B: t, distortion, seed, detailPhase | C: detDens, thr, mask, layer | D: gen, gen2, schA, schB
+vec3 stateFields(int q, vec2 p, vec4 A, vec4 B, vec4 C, vec4 D, vec4 an){
+  vec2 pp = rot(A.y) * p;
+  pp /= max(A.z * an.y, 0.05);
+  float t = B.x;
+  if(B.y > 0.01){
+    vec2 w = vec2(noise(pp * 1.4 + vec2(t * 0.3, 1.3)), noise(pp * 1.4 + vec2(4.1, -t * 0.3))) - 0.5;
+    pp += w * B.y * 1.4;
+  }
+  vec4 k = vec4(t, an.x, an.w, B.z);
+  float s = engine(q, int(D.x + 0.5), pp, A.x, A.w, k);
+  float d = -1.0;
+  if(C.w > 0.5){
+    vec4 k2 = vec4(t * 1.6 + B.w, an.x, an.w, B.z + 3.7);
+    d = 0.5 + engine(q, int(D.y + 0.5), rot(0.5) * pp, C.x, A.w, k2) - C.y;
+  }
+  float m = maskF(int(C.z + 0.5), pp, an.x, B.w);
+  return vec3(0.5 + s - C.y, d, m);
+}
+
+Frag evalQuad(int q, vec2 p){
+  Frag fr = Frag(vec4(0.0), 0.0, 0.0, 3.0, 0.0);
+  int bi = q * 4;
+  vec4 A = uCur[bi], B = uCur[bi + 1], C = uCur[bi + 2], D = uCur[bi + 3];
+  vec4 an = uAnim[q]; vec4 fx = uFx[q]; vec4 fx2 = uFx2[q];
+  float pr = fx.z; int tt = int(fx.w + 0.5);
+  fr.remap = fx.x;
+  float edge = 0.0;
+  float sa = D.z, sb = D.w;
+  vec3 f;
+  if(pr >= 0.999){
+    f = stateFields(q, p, A, B, C, D, an);
+  } else {
+    vec4 PA = uPrev[bi], PB = uPrev[bi + 1], PC = uPrev[bi + 2], PD = uPrev[bi + 3];
+    if(tt == 6){                                                          // morph: blend the fields themselves
+      vec3 fo = stateFields(q, p, PA, PB, PC, PD, an);
+      vec3 fn = stateFields(q, p, A, B, C, D, an);
+      float e = smoothstep(0.0, 1.0, pr);
+      f = mix(fo, fn, e);
+      if(e < 0.5){ sa = PD.z; sb = PD.w; }
+    } else {
+      vec2 pn = p, po = p;
+      float v = 2.0;
+      if(tt == 1) v = length(p) / 1.45;
+      else if(tt == 2){ float ang = B.z * 1.7; v = dot(p, vec2(cos(ang), sin(ang))) * 0.36 + 0.5; }
+      else if(tt == 3) v = hash21(floor(p * 9.0) + floor(B.z));
+      else if(tt == 4) v = fract(atan(p.y, p.x) / TAU + length(p) * 0.7) * 0.5 + min(length(p) / 1.45, 1.0) * 0.5;
+      else if(tt == 5) v = clamp(fbm(p * 2.2 + B.z) * 1.5 - 0.25, 0.0, 1.0);
+      else if(tt == 7){ v = length(p) / 1.45; pn = p * mix(4.0, 1.0, pr); po = p / mix(1.0, 2.5, pr); }
+      else if(tt == 8) v = 0.5;
+      bool nv = (tt != 0) && (v < pr);
+      if(nv){ f = stateFields(q, pn, A, B, C, D, an); }
+      else { f = stateFields(q, po, PA, PB, PC, PD, an); sa = PD.z; sb = PD.w; }
+      if((tt == 1 || tt == 2 || tt == 4 || tt == 5 || tt == 7) && pr > 0.001)
+        edge = 1.0 - smoothstep(0.0, 0.025, abs(v - pr));
+      if(tt == 8 && pr > 0.2 && pr < 0.6) fr.remap = float(int(fx.x + 0.5) ^ 1);
+    }
+  }
+  if(fx.y > 0.5){ float tmp = sa; sa = sb; sb = tmp; }
+  fr.schA = sa; fr.schB = sb;
+
+  float shock = 0.0;
+  float age = fx2.x;
+  if(age >= 0.0 && age < 0.9){
+    float n = q == 0 ? 6.0 : (q == 1 ? 48.0 : (q == 2 ? 4.0 : 3.0));
+    float pd = polyM(rot(age * 1.5) * (p - fx2.zw), n);
+    float rad = age * 1.6;
+    shock = (1.0 - smoothstep(0.0, 0.03 + age * 0.03, abs(pd - rad))) * (1.0 - age / 0.9) * fx2.y;
+  }
+  fr.f = vec4(f, max(edge, shock * 1.2));
+  int bg = int(sa + 0.5) & 3;
+  fr.ovCol = bg == 3 ? 1.0 : 3.0;
+  return fr;
+}
+
+int remapIdx(int i, int flags){
+  if((flags & 2) != 0){ i = (i == 0) ? 3 : ((i == 2) ? 0 : 1); }   // red flood: black->red, grey->black, white/red->white
+  if((flags & 1) != 0){ i = (i == 0) ? 1 : ((i == 1) ? 0 : i); }   // inversion: black<->white
+  return i;
+}
+vec3 colorize(float code, int flags, float s, float d){
+  int c = int(code + 0.5);
+  vec3 c0 = pal(remapIdx(c & 3, flags));
+  vec3 c1 = pal(remapIdx((c >> 2) & 3, flags));
+  vec3 c2 = pal(remapIdx((c >> 4) & 3, flags));
+  vec3 c3 = pal(remapIdx((c >> 6) & 3, flags));
+  return mix(mix(c0, c1, s), mix(c2, c3, s), d);
+}
+float aastep(float v){
+  float w = min(fwidth(v) * 0.7, 0.12) + 1e-4;
+  return smoothstep(0.5 - w, 0.5 + w, v);
+}
+
+void main(){
+  vec2 fc = gl_FragCoord.xy;
+  vec2 R = uRes;
+  int evt = uEvent.x < -0.5 ? -1 : int(uEvent.x + 0.5);
+  float eenv = uEvent.z;
+  int esrc = int(uEvent.w + 0.5);
+  float mn = min(R.x, R.y);
+  vec2 gp = (fc - 0.5 * R) / (0.5 * mn);
+
+  if(evt == 5 && eenv > 0.0){                                   // KALEIDOSCOPE: fold screen onto one quadrant
+    vec2 k = 0.5 * R - abs(fc - 0.5 * R);
+    if(esrc == 1 || esrc == 3) k.x = R.x - k.x;
+    if(esrc == 0 || esrc == 1) k.y = R.y - k.y;
+    fc = k;
+  }
+
+  int qx = fc.x >= 0.5 * R.x ? 1 : 0;
+  int top = fc.y >= 0.5 * R.y ? 1 : 0;
+  int q = (top == 1 ? 0 : 2) + qx;
+  vec2 qc = vec2((float(qx) + 0.5) * 0.5 * R.x, (top == 1 ? 0.75 : 0.25) * R.y);
+  vec2 p = (fc - qc) / (0.25 * mn);
+
+  float ps = 1.0;
+  if(evt == 6) ps = 1.0 + eenv * 5.0;                                          // VOID collapse
+  if(evt == 7) ps = 1.0 / (1.0 + eenv * (1.5 + 0.5 * sin(uBeat * PI)));       // BURST expand
+
+  Frag fr;
+  if(evt == 3 && length(gp) < eenv * 2.8) fr = evalQuad(2, gp * 0.5);         // GRID takeover
+  else fr = evalQuad(q, p * ps);
+
+  if(evt == 4){                                                                // COLLISION
+    float Rr = eenv * (0.75 + 0.1 * sin(uBeat * PI));
+    if(length(gp) < Rr){
+      Frag a = evalQuad(esrc, gp * 0.8);
+      Frag b = evalQuad(int(uEvent2.w + 0.5), gp * 0.8);
+      a.f.x = 0.5 - (a.f.x - 0.5) * (b.f.x - 0.5) * 4.0;
+      a.f.y = max(a.f.y, b.f.y);
+      fr = a;
+    }
+  }
+  if(evt == 9 && fr.f.x < 0.5 && length(gp) < eenv * 3.0){                    // BREACH
+    Frag b = evalQuad(esrc, gp * 0.55);
+    fr.f.xyz = b.f.xyz; fr.schA = b.schA; fr.schB = b.schB;
+  }
+
+  int flags = int(fr.remap + 0.5);
+  if(evt == 1) flags ^= 1;
+  if(evt == 0) flags |= 2;
+
+  float s = aastep(fr.f.x), d = aastep(fr.f.y), m = aastep(fr.f.z), o = aastep(fr.f.w);
+  vec3 col = mix(colorize(fr.schA, flags, s, d), colorize(fr.schB, flags, s, d), m);
+  col = mix(col, pal(remapIdx(int(fr.ovCol + 0.5), flags)), o);
+
+  // global overlays
+  float go = -1.0; int gcol = 3;
+  float gr = length(gp); float ga = atan(gp.y, gp.x);
+  if(evt == 2){                                                                // SPIRAL
+    float band = tri(log(gr + 1e-3) * 2.5 + ga / TAU * 3.0 - uBeat * 0.5);
+    go = gr < eenv * 3.2 ? band + 0.05 : -1.0;
+    gcol = mod(floor(uBeat * 0.5), 2.0) < 0.5 ? 3 : 0;
+  } else if(evt == 8){                                                         // RINGS
+    float reach = uEvent.y * 4.2;
+    float band = tri(gr * 2.2 - uBeat);
+    go = (gr < reach && gr > reach - 1.6) ? band + 0.1 : -1.0;
+    gcol = uEvent2.y > 0.5 ? 3 : 1;
+  } else if(evt == 6){                                                         // VOID
+    go = 0.5 + (gr - (1.0 - eenv) * 2.6) * 3.0;
+    gcol = 0;
+  }
+  col = mix(col, pal(gcol), aastep(go));
+  outColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= CONSTANTS ================= */
+const BPM = 120;
+const BEAT_SEC = 60 / BPM;          // 0.5 s
+const TAU = Math.PI * 2;
+const EV = { FLOOD:0, INVERT:1, SPIRAL:2, GRID:3, COLLISION:4, KALEIDO:5, VOID:6, BURST:7, RINGS:8, BREACH:9 };
+const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ================= SEEDED RANDOMNESS ================= */
+function xmur3(str){
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++){ h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^= h >>> 16) >>> 0; };
+}
+function sfc32(a, b, c, d){
+  return () => {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
+}
+class RNG {
+  constructor(seed){ const h = xmur3(seed); this.n = sfc32(h(), h(), h(), h()); for (let i = 0; i < 15; i++) this.n(); }
+  f(){ return this.n(); }
+  range(a, b){ return a + (b - a) * this.n(); }
+  int(a, b){ return a + Math.floor(this.n() * (b - a + 1)); }
+  pick(arr){ return arr[Math.floor(this.n() * arr.length)]; }
+  chance(p){ return this.n() < p; }
+  sign(){ return this.n() < 0.5 ? -1 : 1; }
+}
+function hashInt(a, b, c){ // stateless hash → [0,1)
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35) ^ Math.imul(c + 0x27d4eb2f, 0x165667b1);
+  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; h = Math.imul(h, 0x297a2d39); h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/* ================= SEED MANAGER ================= */
+const SeedManager = {
+  master: '',
+  init(){
+    const m = location.hash.match(/s=([a-z0-9]+)/i);
+    this.master = m ? m[1] : this.fresh();
+    this.write();
+  },
+  fresh(){
+    const a = new Uint32Array(2); crypto.getRandomValues(a);
+    return (a[0].toString(36) + a[1].toString(36)).slice(0, 10);
+  },
+  write(){ try { history.replaceState(null, '', '#s=' + this.master); } catch (e) {} },
+  num(){ return xmur3(this.master)(); },
+};
+
+/* ================= PALETTE SCHEMES =================
+   Colour indices: 0 black, 1 white, 2 grey, 3 red.
+   Order: [background, structure, detail-on-bg, detail-on-structure] */
+const SCHEMES_MONO = [[0,1,2,1],[1,0,2,0],[0,1,1,0],[1,0,0,1],[0,2,1,0],[2,0,1,1],[0,1,2,0],[1,2,0,1]];
+const SCHEMES_RED  = [[0,3,1,0],[3,0,1,3],[0,3,3,1],[1,3,0,2],[3,1,0,3],[0,1,3,1],[3,0,0,1],[1,0,3,0],[0,3,2,1],[2,3,0,1],[3,1,1,0],[1,3,3,0]];
+const SCHEMES_BARE = [[0,3,0,3],[1,0,1,0],[3,0,3,0],[0,1,0,1],[1,3,1,3],[3,1,3,1]];
+const packScheme = c => c[0] + 4 * c[1] + 16 * c[2] + 64 * c[3];
+
+/* ================= ENGINE PERSONALITIES ================= */
+// transition ids: 0 cut, 1 radial, 2 wipe, 3 pixel, 4 spiral, 5 liquid, 6 morph, 7 zoom-through, 8 inversion
+const ENGINES = [
+  { name:'radial',  gens:7, dens:[3,13], syms:[3,4,5,6,8,12,16], dist:[0,0.35,0.6],  speedMul:1.0, trans:[0,1,4,7,1,4], red:0.55, every:[4,8,8,16], regen:0.45 },
+  { name:'organic', gens:7, dens:[2,9],  syms:[2,3,4,5,6,7],     dist:[0.2,1.1,0.1], speedMul:0.6, trans:[6,6,5,1,5],   red:0.40, every:[8,8,16],   regen:0.35 },
+  { name:'arch',    gens:7, dens:[2,9],  syms:[2,4,4,6,8],       dist:[0,0.25,0.75], speedMul:1.0, trans:[0,2,3,7,2,3,0], red:0.35, every:[2,4,4,8], regen:0.50 },
+  { name:'psy',     gens:7, dens:[2,9],  syms:[3,4,5,6,8,12],    dist:[0,0.5,0.45],  speedMul:0.8, trans:[8,4,3,5,0,6,1], red:0.70, every:[2,4,4,8], regen:0.60 },
+];
+const PRESERVE = ['gen','gen2','dens','scale','sym','speed','dist','sub','detDens','thr','mask','layer','schA','schB','rotSpeed'];
+
+/* ================= FLASH SAFETY =================
+   Large-area luminance flips (tap inversions, full-quadrant palette swaps, global inversions)
+   all pass through this limiter: max 3 per rolling second across the whole screen. */
+const FlashGuard = {
+  times: [],
+  allow(nowMs, cost = 1){
+    if (REDUCED) return false;
+    this.times = this.times.filter(t => nowMs - t < 1000);
+    if (this.times.length + cost > 3) return false;
+    for (let i = 0; i < cost; i++) this.times.push(nowMs);
+    return true;
+  }
+};
+
+/* ================= MASTER CLOCK ================= */
+const MasterClock = {
+  t0: 0,
+  reset(now){ this.t0 = now; },
+  beat(now){ return (now - this.t0) / 1000 / BEAT_SEC; },
+};
+
+/* ================= QUADRANT ================= */
+class Quadrant {
+  constructor(i, seed){
+    this.i = i; this.E = ENGINES[i];
+    this.rng = new RNG(seed + ':q' + i);
+    this.seedNum = xmur3(seed + ':fill' + i)();
+    this.cur = this.makeState(null, false, 0);
+    this.prev = this.cur;
+    this.trans = { start: -99, dur: 0, type: 0 };
+    this.pattern = this.makePattern();
+    this.lastHit = -99; this.swap = 0; this.lastSwap = -99;
+    this.flashFrom = -99; this.flashTo = -99;
+    this.shock = { beat: -99, x: 0, y: 0, str: 0 };
+    this.nextMutate = this.rng.pick(this.E.every);
+    this.env = 0;
+  }
+
+  makeState(base, simplify, born){
+    const r = this.rng, E = this.E;
+    const sym = r.pick(E.syms);
+    const s = {
+      gen: r.int(0, E.gens - 1), gen2: r.int(0, E.gens - 1),
+      dens: r.range(E.dens[0], E.dens[1]), rot0: r.range(0, TAU), scale: r.range(0.7, 1.5), sym,
+      speed: r.pick([0.0625, 0.125, 0.25, 0.5]) * r.sign() * E.speedMul,
+      dist: r.chance(E.dist[2]) ? 0 : r.range(E.dist[0], E.dist[1]),
+      seed: r.range(0, 100), sub: r.pick([0.25, 0.5, 0.5, 1, 2]),
+      detDens: 0, thr: r.range(0.42, 0.58), mask: r.chance(0.45) ? 0 : r.int(1, 7), layer: r.chance(0.72) ? 1 : 0,
+      schA: packScheme(r.chance(E.red) ? r.pick(SCHEMES_RED) : r.pick(SCHEMES_MONO)),
+      schB: packScheme(r.chance(E.red) ? r.pick(SCHEMES_RED) : r.pick(SCHEMES_MONO)),
+      rotSpeed: r.pick([0, 0, 1/32, 1/16, 1/8, 1/4]) * r.sign(),
+      rotStepAmt: r.chance(0.55) ? (TAU / (sym * 2)) * r.sign() : 0,
+      kick: r.range(-0.1, 0.22), hitRot: r.chance(0.45), hitSwap: r.chance(0.3),
+      stepRot: 0, stepRotTarget: 0, born,
+    };
+    s.detDens = s.dens * r.range(1.5, 3.2);
+    if (base){
+      for (const key of PRESERVE) if (r.chance(0.35)) s[key] = base[key];
+      if (s.gen === base.gen && r.chance(0.75)) s.gen = (base.gen + r.int(1, E.gens - 1)) % E.gens;
+      s.rot0 = base.rot0 + base.rotSpeed * TAU * born + base.stepRot - s.rotSpeed * TAU * born; // rotation continuity
+    }
+    if (simplify){ // complexity breathes: collapse to one bold gesture
+      s.layer = 0; s.mask = 0; s.dist = 0; s.dens = r.range(0.8, 2.4);
+      s.schA = s.schB = packScheme(r.pick(SCHEMES_BARE));
+    }
+    return s;
+  }
+
+  makePattern(){
+    const r = this.rng, busy = r.range(0.25, 0.95), off = r.pick([0, 0, 1, 2, 3]);
+    const p = [];
+    for (let k = 0; k < 16; k++){
+      const j = (k + off) % 16;
+      const pr = j % 8 === 0 ? 0.95 : j % 4 === 0 ? 0.7 : j % 2 === 0 ? 0.35 : 0.18;
+      p.push(r.chance(pr * busy + (j % 4 === 0 ? 0.2 : 0)));
+    }
+    if (!p.some(Boolean)) p[0] = true;
+    return p;
+  }
+
+  isHit(step){
+    const k = ((step % 16) + 16) % 16;
+    if (this.pattern[k]) return true;
+    const phrase = ((step % 64) + 64) % 64;
+    return phrase >= 48 && (k % 2 === 1) && hashInt(this.seedNum, this.i, step) < 0.3; // fills in bar 4 of each phrase
+  }
+
+  transitionTo(ns, startBeat, type, dur){
+    this.prev = this.cur;
+    this.cur = ns;
+    this.trans = { start: startBeat, dur, type };
+  }
+
+  onStep(step, sb, now){
+    const st = this.cur;
+    if (this.isHit(step)){
+      this.lastHit = sb;
+      if (st.hitRot && st.rotStepAmt) st.stepRotTarget += st.rotStepAmt;
+      if (st.hitSwap && sb - this.lastSwap >= 1 && FlashGuard.allow(now)){ this.swap ^= 1; this.lastSwap = sb; }
+    }
+    if (step % 4 === 0){
+      const beatN = step / 4;
+      if (beatN >= this.nextMutate){
+        const r = this.rng;
+        const regen = r.chance(this.E.regen);
+        const ns = this.makeState(this.cur, r.chance(0.08), sb);
+        if (!regen){ // gentle mutation: keep most of the current state
+          for (const key of PRESERVE) if (r.chance(0.6)) ns[key] = this.cur[key];
+        }
+        if (r.chance(0.25)) this.pattern = this.makePattern();
+        const type = r.pick(this.E.trans);
+        const dur = type === 0 ? 0 : r.pick(regen ? [0.5, 1, 2, 4] : [1, 2, 4]);
+        this.transitionTo(ns, sb, type, dur);
+        this.nextMutate = beatN + r.pick(this.E.every);
+      }
+    }
+  }
+
+  tap(lx, ly, beat, now){
+    const r = this.rng;
+    const q = Math.ceil(beat * 4 - 1e-6) / 4;          // quantize to next 1/16 note
+    if (FlashGuard.allow(now)){ this.flashFrom = beat; this.flashTo = beat + 0.2; }
+    this.shock = { beat, x: lx, y: ly, str: 1 };
+    const ns = this.makeState(this.cur, r.chance(0.12), q);
+    if (r.chance(0.3)) this.pattern = this.makePattern();
+    const type = r.pick(this.E.trans);
+    const dur = type === 0 ? 0 : (type === 8 ? 0.5 : r.pick([0.25, 0.5, 0.5, 1, 2]));
+    this.transitionTo(ns, q, type, dur);
+    this.lastHit = beat;
+    this.nextMutate = Math.floor(q) + r.pick(this.E.every);
+  }
+
+  live(st, beat, dt){
+    st.stepRot += (st.stepRotTarget - st.stepRot) * (1 - Math.exp(-dt * 16));
+    return {
+      rot: st.rot0 + st.rotSpeed * TAU * beat + st.stepRot,
+      t: beat * st.speed + st.seed * 0.1,
+      ph: Math.floor(beat / st.sub) * 0.618,
+    };
+  }
+
+  pack(arr, st, L){
+    const o = this.i * 16;
+    arr[o+0] = st.dens; arr[o+1] = L.rot; arr[o+2] = st.scale; arr[o+3] = st.sym;
+    arr[o+4] = L.t;     arr[o+5] = st.dist; arr[o+6] = st.seed; arr[o+7] = L.ph;
+    arr[o+8] = st.detDens; arr[o+9] = st.thr; arr[o+10] = st.mask; arr[o+11] = st.layer;
+    arr[o+12] = st.gen; arr[o+13] = st.gen2; arr[o+14] = st.schA; arr[o+15] = st.schB;
+  }
+}
+
+/* ================= GLOBAL EVENT ENGINE ================= */
+class GlobalEvents {
+  constructor(seed){ this.rng = new RNG(seed + ':events'); this.active = null; this.last = -1; this.energy = 0; this.nextCheck = 16; this.pending = null; }
+  onBeat(beatN, now){
+    if (this.active && beatN >= this.active.start + this.active.dur){ this.active = null; this.nextCheck = Math.max(this.nextCheck, beatN + 8); }
+    this.energy *= 0.88;
+    if (this.active) return;
+    if (this.pending !== null && beatN >= this.pending){ this.pending = null; this.trigger(beatN, now); return; }
+    if (beatN >= this.nextCheck && beatN % 16 === 0){
+      this.nextCheck = beatN + 16;
+      const p = (beatN % 32 === 0 ? 0.45 : 0.2) + Math.min(this.energy, 4) * 0.08;
+      if (this.rng.chance(p)) this.trigger(beatN, now);
+    }
+  }
+  noteTap(beat){
+    this.energy += 1;
+    if (this.energy > 5.5 && !this.active && this.pending === null){ this.pending = Math.ceil(beat / 4) * 4; this.energy = 0; }
+  }
+  trigger(beatN, now){
+    const r = this.rng;
+    const weights = [2, 1.2, 2, 1.6, 1.6, 1.6, 1, 1.4, 1.8, 1.6];
+    if (REDUCED){ weights[EV.INVERT] = 0; weights[EV.FLOOD] = 0; }
+    if (this.last >= 0) weights[this.last] = 0;
+    let type = 0;
+    const tot = weights.reduce((a, b) => a + b, 0); let x = r.f() * tot;
+    for (let i = 0; i < weights.length; i++){ x -= weights[i]; if (x <= 0){ type = i; break; } }
+    if ((type === EV.INVERT || type === EV.FLOOD) && !FlashGuard.allow(now, 2)) type = EV.RINGS;
+    const DUR = { 0:4, 1:2, 2:8, 3:8, 4:8, 5:8, 6:2, 7:4, 8:4, 9:8 };
+    const src = r.int(0, 3);
+    this.active = { type, start: beatN, dur: DUR[type], src, src2: (src + r.int(1, 3)) % 4, param: r.f() };
+    if (type === EV.GRID) this.active.src = 2;
+    this.last = type;
+    Sound.event(beatN);
+  }
+  uniforms(beat, out, out2){
+    const a = this.active;
+    if (!a || beat < a.start){ out[0] = -1; out[1] = 0; out[2] = 0; out[3] = 0; return; }
+    const pr = Math.min(1, Math.max(0, (beat - a.start) / a.dur));
+    const into = beat - a.start, left = a.start + a.dur - beat;
+    let env;
+    if (a.type === EV.KALEIDO || a.type === EV.FLOOD || a.type === EV.INVERT) env = 1;      // hard cuts on the beat
+    else if (a.type === EV.VOID) env = Math.sin(Math.PI * pr);
+    else env = Math.min(1, into / 0.5) * Math.min(1, Math.max(0, left) / 1);
+    out[0] = a.type; out[1] = pr; out[2] = env; out[3] = a.src;
+    out2[0] = into; out2[1] = a.param; out2[2] = 0; out2[3] = a.src2;
+  }
+}
+
+/* ================= OPTIONAL AUDIO (off by default) ================= */
+const Sound = {
+  ctx: null, on: false, master: null, noiseBuf: null, lastStep: -1,
+  toggle(){
+    if (!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      this.ctx = new AC();
+      const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+      this.master = this.ctx.createGain(); this.master.gain.value = 0;
+      this.master.connect(comp); comp.connect(this.ctx.destination);
+      const len = this.ctx.sampleRate; this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    this.on = !this.on;
+    if (this.on) this.ctx.resume();
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setTargetAtTime(this.on ? 0.32 : 0, t, 0.05);
+    this.lastStep = -1;
+  },
+  noise(t, dur, type, freq, q, gain){
+    const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = c.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+  },
+  voice(q, t, accent, st){
+    if (!this.on || !this.ctx) return;
+    const c = this.ctx; t = Math.max(t, c.currentTime + 0.002);
+    const a = accent ? 1 : 0.7;
+    if (q === 0){ // kick
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      g.gain.setValueAtTime(0.9 * a, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.32);
+    } else if (q === 1){ // liquid shaker
+      this.noise(t, 0.09, 'bandpass', 1400 + (st ? st.dens * 120 : 0), 5, 0.35 * a);
+    } else if (q === 2){ // metallic hat
+      this.noise(t, accent ? 0.12 : 0.04, 'highpass', 7200, 0.8, 0.22 * a);
+    } else { // symbolic blip
+      const scale = [0, 3, 5, 7, 10, 12];
+      const n = scale[st ? (st.gen + Math.round(st.sym)) % scale.length : 0];
+      const o = c.createOscillator(), g = c.createGain(); o.type = 'triangle';
+      o.frequency.setValueAtTime(220 * Math.pow(2, n / 12), t);
+      g.gain.setValueAtTime(0.16 * a, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.14);
+    }
+  },
+  event(){
+    if (!this.on || !this.ctx) return;
+    const c = this.ctx, t = c.currentTime + 0.01, o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(34, t + 1.2);
+    g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 1.5);
+  },
+  schedule(beat, quads){
+    if (!this.on || !this.ctx) return;
+    const ahead = beat + 0.3;
+    let s = Math.max(this.lastStep + 1, Math.floor(beat * 4) + 1);
+    for (; s / 4 <= ahead; s++){
+      const t = this.ctx.currentTime + (s / 4 - beat) * BEAT_SEC;
+      for (const q of quads) if (q.isHit(s)) this.voice(q.i, t, s % 4 === 0, q.cur);
+      this.lastStep = s;
+    }
+  },
+};
+
+/* ================= RENDERER ================= */
+const canvas = document.getElementById('c');
+const errBox = document.getElementById('err');
+function fail(msg){ errBox.style.display = 'block'; errBox.textContent = msg; }
+
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
+if (!gl){ fail('This piece needs WebGL2. Open it in a current version of Safari, Chrome, Firefox or Edge.'); return; }
+
+function compile(type, src){
+  const s = gl.createShader(type); gl.shaderSource(s, src.trim()); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+let prog;
+try {
+  prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, document.getElementById('vs').textContent));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent));
+  gl.bindAttribLocation(prog, 0, 'aPos');
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+} catch (e){ fail('Shader error:\n' + e.message); return; }
+gl.useProgram(prog);
+
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+for (const n of ['uRes','uBeat','uCur','uPrev','uAnim','uFx','uFx2','uEvent','uEvent2']) U[n] = gl.getUniformLocation(prog, n);
+
+const curArr = new Float32Array(64), prevArr = new Float32Array(64);
+const animArr = new Float32Array(16), fxArr = new Float32Array(16), fx2Arr = new Float32Array(16);
+const evArr = new Float32Array(4), ev2Arr = new Float32Array(4);
+
+/* adaptive resolution */
+let renderScale = 1, frameAvg = 16, frameCount = 0;
+const DPR_CAP = 2;
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP) * renderScale;
+  const w = Math.max(2, Math.floor(window.innerWidth * dpr)), h = Math.max(2, Math.floor(window.innerHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+
+/* ================= APP STATE ================= */
+let quads, events, lastStep, lastFrame, coupleRng, coupleActive = false;
+function boot(){
+  const seed = SeedManager.master;
+  quads = [0, 1, 2, 3].map(i => new Quadrant(i, seed));
+  events = new GlobalEvents(seed);
+  coupleRng = new RNG(seed + ':couple');
+  MasterClock.reset(performance.now());
+  lastStep = -1; lastFrame = performance.now();
+  Sound.lastStep = -1;
+}
+
+function processStep(s, now){
+  const sb = s / 4;
+  for (const q of quads) q.onStep(s, sb, now);
+  if (s % 4 === 0){
+    const beatN = s / 4;
+    if (beatN % 32 === 0) coupleActive = coupleRng.chance(0.6);
+    events.onBeat(beatN, now);
+  }
+}
+
+/* ================= INTERACTION ================= */
+function quadrantAt(x, y){
+  const w = window.innerWidth, h = window.innerHeight;
+  const qx = x >= w / 2 ? 1 : 0, top = y < h / 2;
+  const i = (top ? 0 : 2) + qx;
+  const cx = (qx + 0.5) * w / 2, cy = top ? h / 4 : 3 * h / 4;
+  const mn = Math.min(w, h);
+  return { i, lx: (x - cx) / (0.25 * mn), ly: -(y - cy) / (0.25 * mn) };
+}
+function tapQuadrant(i, lx, ly){
+  const now = performance.now(), beat = MasterClock.beat(now);
+  quads[i].tap(lx, ly, beat, now);
+  events.noteTap(beat);
+  if (Sound.on) Sound.voice(i, Sound.ctx.currentTime + (Math.ceil(beat * 4 - 1e-6) / 4 - beat) * BEAT_SEC, true, quads[i].cur);
+}
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const w = window.innerWidth, h = window.innerHeight;
+  const dc = Math.hypot(e.clientX - w / 2, e.clientY - h / 2);
+  if (dc < Math.min(w, h) * 0.045){ Sound.toggle(); return; }   // the crosshair itself toggles sound
+  const q = quadrantAt(e.clientX, e.clientY);
+  tapQuadrant(q.i, q.lx, q.ly);
+}, { passive: false });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k >= '1' && k <= '4'){ tapQuadrant(+k - 1, 0, 0); }
+  else if (k === 'm'){ Sound.toggle(); }
+  else if (k === 'e' || k === ' '){ const now = performance.now(); if (!events.active) events.pending = Math.ceil(MasterClock.beat(now)); e.preventDefault(); }
+  else if (k === 'r'){ SeedManager.master = SeedManager.fresh(); SeedManager.write(); boot(); }
+  else if (k === 'f'){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  }
+});
+window.addEventListener('hashchange', () => {
+  const m = location.hash.match(/s=([a-z0-9]+)/i);
+  if (m && m[1] !== SeedManager.master){ SeedManager.master = m[1]; boot(); }
+});
+
+/* ================= MAIN LOOP ================= */
+function frame(now){
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  const beat = MasterClock.beat(now);
+
+  const step = Math.floor(beat * 4);
+  if (step > lastStep){
+    const from = Math.max(lastStep + 1, step - 8);   // don't replay minutes of steps after a background tab
+    for (let s = from; s <= step; s++) processStep(s, now);
+    lastStep = step;
+  }
+  Sound.schedule(beat, quads);
+
+  // cross-quadrant coupling: fades in and out across 32-beat blocks
+  const blockPos = (beat % 32) / 32;
+  const couple = coupleActive ? Math.pow(Math.sin(Math.PI * blockPos), 2) * 0.9 : 0;
+
+  const lives = [];
+  for (const q of quads){
+    const Lc = q.live(q.cur, beat, dt);
+    const Lp = q.prev === q.cur ? Lc : q.live(q.prev, beat, dt);
+    lives.push(Lc);
+    q.pack(curArr, q.cur, Lc); q.pack(prevArr, q.prev, Lp);
+    q.env = Math.exp(-Math.max(0, beat - q.lastHit) * 6);
+  }
+  const mods = [
+    couple * Math.min(1, quads[2].cur.dens / 9),               // arch density   → radial complexity
+    couple * (quads[3].cur.sym / 12),                          // psy symmetry   → organic wave symmetry
+    couple * Math.sin(lives[0].rot),                           // radial rotation→ arch perspective
+    couple * (quads[1].env + 0.5 * Math.sin(lives[1].t * 2)),  // organic pulse  → psy distortion
+  ];
+
+  for (const q of quads){
+    const i = q.i, o = i * 4, st = q.cur, tr = q.trans;
+    let pr = tr.dur <= 0 ? (beat >= tr.start ? 1 : 0) : Math.min(1, Math.max(0, (beat - tr.start) / tr.dur));
+    if (pr >= 1 && q.prev !== q.cur) q.prev = q.cur;
+    animArr[o] = q.env; animArr[o+1] = 1 + q.env * st.kick; animArr[o+2] = beat - st.born; animArr[o+3] = mods[i];
+    fxArr[o] = (beat >= q.flashFrom && beat < q.flashTo) ? 1 : 0;
+    fxArr[o+1] = q.swap; fxArr[o+2] = pr; fxArr[o+3] = tr.type;
+    fx2Arr[o] = beat - q.shock.beat; fx2Arr[o+1] = q.shock.str; fx2Arr[o+2] = q.shock.x; fx2Arr[o+3] = q.shock.y;
+  }
+  events.uniforms(beat, evArr, ev2Arr);
+
+  gl.uniform2f(U.uRes, canvas.width, canvas.height);
+  gl.uniform1f(U.uBeat, beat);
+  gl.uniform4fv(U.uCur, curArr); gl.uniform4fv(U.uPrev, prevArr);
+  gl.uniform4fv(U.uAnim, animArr); gl.uniform4fv(U.uFx, fxArr); gl.uniform4fv(U.uFx2, fx2Arr);
+  gl.uniform4fv(U.uEvent, evArr); gl.uniform4fv(U.uEvent2, ev2Arr);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // adaptive resolution: hold the frame rate, trade pixels for smoothness
+  frameAvg = frameAvg * 0.95 + dt * 1000 * 0.05;
+  if (++frameCount % 90 === 0){
+    if (frameAvg > 19 && renderScale > 0.45){ renderScale *= 0.85; resize(); }
+    else if (frameAvg < 12 && renderScale < 1){ renderScale = Math.min(1, renderScale * 1.1); resize(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+SeedManager.init();
+resize();
+boot();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

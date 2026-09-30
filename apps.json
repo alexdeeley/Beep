@@ -1521,5 +1521,14 @@
     "path": "MaisiesGemstoneAdventure.html",
     "added": "2026-09-30T00:00:00+00:00",
     "thumbnail": "thumbnails/maisies-gemstone-adventure.jpg"
+  },
+  {
+    "id": "quadrant-machine",
+    "name": "Quadrant Machine",
+    "description": "Four generative engines - radial, organic, architectural, psychedelic - mutate on a shared beat clock and occasionally erupt into screen-wide glitch events. Tap a quadrant to shock it, or the center to add optional procedural sound.",
+    "category": "Art",
+    "path": "QuadrantMachine.html",
+    "added": "2026-09-30T00:00:00+00:00",
+    "thumbnail": "thumbnails/quadrant-machine.jpg"
   }
 ]
