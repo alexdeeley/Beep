@@ -1512,5 +1512,14 @@
     "path": "BombCascade.html",
     "added": "2026-09-25T21:51:19+00:00",
     "thumbnail": "thumbnails/bomb-cascade.jpg"
+  },
+  {
+    "id": "maisies-gemstone-adventure",
+    "name": "Maisie's Magical Gemstone Adventure",
+    "description": "Explore a sparkly meadow and woods, meet magical friends, and collect gems to bring to the stone ring.",
+    "category": "Maisie's Arcade",
+    "path": "MaisiesGemstoneAdventure.html",
+    "added": "2026-09-30T00:00:00+00:00",
+    "thumbnail": "thumbnails/maisies-gemstone-adventure.jpg"
   }
 ]

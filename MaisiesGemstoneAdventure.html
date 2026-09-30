@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1d3b24">
+<title>Maisie's Magical Gemstone Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2b1740;--cream:#fff7ea;--pink:#ff6fb1;--pinkD:#e0418f;--lilac:#b69cff;--gold:#ffd23f;--leaf:#3f9e4d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#1d3b24;font-family:'Fredoka',ui-rounded,'Arial Rounded MT Bold','Trebuchet MS',system-ui,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none}
+canvas#game{position:fixed;inset:0;display:block;image-rendering:pixelated}
+.hidden{display:none!important}
+.panel{background:var(--cream);border:5px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink)}
+.btn{font:inherit;font-weight:700;font-size:clamp(22px,3.2vw,32px);color:var(--ink);background:var(--pink);border:5px solid var(--ink);border-radius:18px;padding:.4em 1.1em;box-shadow:0 6px 0 var(--ink);cursor:pointer;touch-action:manipulation}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+.btn.alt{background:#fff}.btn.gold{background:var(--gold)}.btn.small{font-size:22px;padding:.3em .9em}
+.btn:focus-visible,.round:focus-visible{outline:5px solid #fff;outline-offset:3px}
+#hud{position:fixed;inset:0;pointer-events:none}
+#check{position:absolute;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));padding:10px 16px 12px;min-width:220px;pointer-events:auto}
+#lvName{font-weight:700;font-size:20px;color:var(--pinkD);margin-bottom:4px;max-width:260px;line-height:1.15}
+.row{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:600;line-height:1.35}
+.row .ic{width:30px;text-align:center}.row .lab{flex:1}.row b{font-weight:700}
+.row.done b::after{content:' ✓';color:#1f9c45}
+#carry{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;max-width:250px}
+#carry img{width:30px;height:auto;image-rendering:pixelated}
+#topBtns{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;pointer-events:auto}
+.round{width:66px;height:66px;border-radius:50%;border:5px solid var(--ink);background:var(--cream);font-size:32px;box-shadow:0 5px 0 var(--ink);cursor:pointer;padding:0;touch-action:manipulation}
+.round:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
+#tip{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));background:var(--ink);color:#fff;font-size:clamp(20px,2.6vw,28px);font-weight:600;padding:10px 22px;border-radius:40px;max-width:min(560px,56vw);text-align:center;line-height:1.2;pointer-events:none}
+#hintBtn{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));animation:pulse 1.4s ease-in-out infinite;z-index:5}
+@keyframes pulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07)}}
+#toast{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);background:var(--cream);border:5px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);font-size:clamp(24px,3.4vw,36px);font-weight:700;padding:12px 26px;text-align:center;pointer-events:none;animation:toastIn .35s ease-out;z-index:6;max-width:88vw}
+@keyframes toastIn{from{transform:translate(-50%,-50%) scale(.6);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+#banner{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;text-align:center;animation:bannerA 3.2s ease forwards;z-index:6}
+#bNum{font-size:clamp(30px,5vw,54px);font-weight:700;color:var(--gold);-webkit-text-stroke:8px var(--ink);paint-order:stroke fill}
+#bName{font-size:clamp(40px,8vw,90px);font-weight:700;color:#fff;-webkit-text-stroke:10px var(--ink);paint-order:stroke fill;line-height:1.05;padding:0 20px}
+@keyframes bannerA{0%{opacity:0;transform:scale(.8)}12%{opacity:1;transform:scale(1)}78%{opacity:1}100%{opacity:0}}
+#pad{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));width:190px;height:190px;border-radius:50%;background:rgba(255,247,234,.55);border:5px solid var(--ink);touch-action:none;z-index:4}
+#knob{position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:var(--pink);border:5px solid var(--ink);box-shadow:0 4px 0 var(--ink);pointer-events:none}
+.ar{position:absolute;font-size:22px;color:var(--ink);pointer-events:none;font-weight:700}
+.ar.u{left:50%;top:6px;transform:translateX(-50%)}.ar.d{left:50%;bottom:6px;transform:translateX(-50%)}.ar.l{left:10px;top:50%;transform:translateY(-50%)}.ar.r{right:10px;top:50%;transform:translateY(-50%)}
+#act{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:var(--gold);border:6px solid var(--ink);box-shadow:0 7px 0 var(--ink);font-size:60px;padding:0;touch-action:none;z-index:4;cursor:pointer}
+#act.ready{animation:actP .8s ease-in-out infinite;background:#fff27a}
+@keyframes actP{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+#act:active{transform:translateY(4px);box-shadow:0 3px 0 var(--ink)}
+#dialog{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:min(920px,95vw);display:flex;gap:16px;align-items:center;padding:14px 20px;z-index:8;cursor:pointer;animation:dIn .2s ease-out}
+@keyframes dIn{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+#portrait{width:104px;height:104px;flex:none;image-rendering:pixelated;background:#e9f7de;border:4px solid var(--ink);border-radius:14px}
+.dtext{flex:1;min-width:0}
+#dName{font-size:22px;font-weight:700;color:var(--pinkD)}
+#dLine{font-size:clamp(24px,3.2vw,32px);font-weight:600;line-height:1.25;margin:4px 0}
+#dMore{font-size:18px;opacity:.7;text-align:right}
+#title{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(43,23,64,0) 30%,rgba(43,23,64,.45) 100%);z-index:10;padding:20px}
+.tbox{text-align:center}
+#tName{margin:0;font-weight:700;font-size:clamp(38px,7.4vw,96px);line-height:1.02;letter-spacing:.01em;-webkit-text-stroke:12px var(--ink);paint-order:stroke fill;filter:drop-shadow(0 8px 0 var(--ink))}
+#tName span{display:block}#tName .a{color:#fff}#tName .b{color:var(--gold)}
+.sub{font-size:clamp(20px,2.8vw,30px);font-weight:700;color:#fff;-webkit-text-stroke:6px var(--ink);paint-order:stroke fill;margin:14px 0 26px}
+.tbtns{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+#modal{position:fixed;inset:0;background:rgba(43,23,64,.5);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.mbox{width:min(760px,96vw);max-height:92vh;overflow:auto;padding:22px 26px;text-align:center;touch-action:pan-y}
+.mbox h2{margin:0 0 8px;font-size:clamp(34px,5vw,56px);color:var(--pinkD);line-height:1.05}
+.mbox h3{margin:18px 0 8px;font-size:28px;text-align:left}
+.mbox p{font-size:clamp(22px,2.8vw,28px);font-weight:600;line-height:1.3;margin:8px 0}
+.mbtns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.cell{background:#fff;border:4px solid var(--ink);border-radius:14px;padding:8px 4px;font-size:20px;font-weight:600;line-height:1.15}
+.cell canvas,.cell img{display:block;margin:0 auto 4px;image-rendering:pixelated}
+.cell.dim{opacity:.35}
+.disc{text-align:left;font-size:22px;font-weight:600;margin:4px 0}
+.how{text-align:left;font-size:clamp(20px,2.6vw,26px);font-weight:600;line-height:1.35}
+.how div{margin:8px 0}
+#fade{position:fixed;inset:0;background:#fff7ea;opacity:0;pointer-events:none;transition:opacity .45s;z-index:30}
+@media (max-width:620px){#check{min-width:0;padding:8px 12px}.row{font-size:20px}#lvName{font-size:16px;max-width:170px}.round{width:56px;height:56px;font-size:26px}#pad{width:160px;height:160px}#knob{width:70px;height:70px;margin:-35px 0 0 -35px}#act{width:116px;height:116px;font-size:50px}#portrait{width:76px;height:76px}#tip{top:auto;bottom:calc(200px + env(safe-area-inset-bottom));max-width:90vw}}
+@media (prefers-reduced-motion:reduce){#hintBtn,#act.ready{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud" class="hidden">
+  <div id="check" class="panel">
+    <div id="lvName"></div>
+    <div class="row" id="rowF"><span class="ic">💬</span><span class="lab">Friends</span><b id="cF"></b></div>
+    <div class="row" id="rowG"><span class="ic">💎</span><span class="lab">Gems</span><b id="cG"></b></div>
+    <div class="row" id="rowR"><span class="ic">⭕</span><span class="lab">Ring</span><b id="cR"></b></div>
+    <div id="carry"></div>
+  </div>
+  <div id="topBtns"><button class="round" id="bJournal" aria-label="Open journal">📖</button><button class="round" id="bSound" aria-label="Sound on or off">🔊</button></div>
+</div>
+<div id="tip" class="hidden"></div>
+<button id="hintBtn" class="btn gold hidden">✨ Need a hint?</button>
+<div id="toast" class="hidden"></div>
+<div id="banner" class="hidden"><div id="bNum"></div><div id="bName"></div></div>
+<div id="pad" class="hidden"><div id="knob"></div><span class="ar u">▲</span><span class="ar d">▼</span><span class="ar l">◀</span><span class="ar r">▶</span></div>
+<button id="act" class="hidden" aria-label="Magic button">✨</button>
+<div id="dialog" class="panel hidden"><canvas id="portrait" width="104" height="104"></canvas><div class="dtext"><div id="dName"></div><div id="dLine"></div><div id="dMore">Tap to continue ▶</div></div></div>
+<div id="title">
+  <div class="tbox">
+    <h1 id="tName"><span class="a">MAISIE'S MAGICAL</span><span class="b">GEMSTONE ADVENTURE</span></h1>
+    <p class="sub">Explore • Discover • Collect • Make Friends</p>
+    <div class="tbtns"><button class="btn gold hidden" id="bCont">Continue</button><button class="btn" id="bStart">Start Adventure</button><button class="btn alt" id="bHow">How to Play</button></div>
+  </div>
+</div>
+<div id="modal" class="hidden"><div class="panel mbox" id="mbox"></div></div>
+<div id="fade"></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('game'),ctx=cv.getContext('2d');
+const INK='#2b1740';
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const lerp=(a,b,t)=>a+(b-a)*t;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hexRgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function lighten(h,a){const[r,g,b]=hexRgb(h);return`rgb(${r+(255-r)*a|0},${g+(255-g)*a|0},${b+(255-b)*a|0})`}
+function darken(h,a){const[r,g,b]=hexRgb(h);return`rgb(${r*(1-a)|0},${g*(1-a)|0},${b*(1-a)|0})`}
+function mk(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ================= AUDIO ================= */
+const Snd={on:true,ac:null};
+try{Snd.on=localStorage.getItem('maisie-sound')!=='off'}catch(e){}
+function audioInit(){
+  if(Snd.ac){if(Snd.ac.state==='suspended')Snd.ac.resume();return}
+  try{Snd.ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){return}
+  const a=Snd.ac;
+  const comp=a.createDynamicsCompressor();comp.connect(a.destination);
+  Snd.master=a.createGain();Snd.master.gain.value=Snd.on?.9:0;Snd.master.connect(comp);
+  const len=a.sampleRate*2.6,ib=a.createBuffer(2,len,a.sampleRate);
+  for(let c=0;c<2;c++){const d=ib.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)}
+  Snd.rev=a.createConvolver();Snd.rev.buffer=ib;const rg=a.createGain();rg.gain.value=.4;Snd.rev.connect(rg);rg.connect(Snd.master);
+  Snd.music=a.createGain();Snd.music.gain.value=.55;Snd.music.connect(Snd.master);
+  const ms=a.createGain();ms.gain.value=.5;Snd.music.connect(ms);ms.connect(Snd.rev);
+  Snd.sfx=a.createGain();Snd.sfx.gain.value=.8;Snd.sfx.connect(Snd.master);
+  const ss=a.createGain();ss.gain.value=.3;Snd.sfx.connect(ss);ss.connect(Snd.rev);
+  const nb=a.createBuffer(1,a.sampleRate*2,a.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;Snd.noise=nb;
+  // water ambience
+  const ws=a.createBufferSource();ws.buffer=nb;ws.loop=true;const wf=a.createBiquadFilter();wf.type='bandpass';wf.frequency.value=900;wf.Q.value=.6;
+  Snd.water=a.createGain();Snd.water.gain.value=0;ws.connect(wf);wf.connect(Snd.water);Snd.water.connect(Snd.master);ws.start();
+  // soft forest air
+  const fs=a.createBufferSource();fs.buffer=nb;fs.loop=true;fs.playbackRate.value=.7;const ff=a.createBiquadFilter();ff.type='lowpass';ff.frequency.value=380;
+  const fg=a.createGain();fg.gain.value=.018;fs.connect(ff);ff.connect(fg);fg.connect(Snd.master);fs.start();
+}
+function setSound(on){Snd.on=on;try{localStorage.setItem('maisie-sound',on?'on':'off')}catch(e){}
+  if(Snd.master)Snd.master.gain.setTargetAtTime(on?.9:0,Snd.ac.currentTime,.05);$('bSound').textContent=on?'🔊':'🔈'}
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function note(freq,t,dur,type,vol,dest,attack){
+  const a=Snd.ac;if(!a)return;attack=attack||.005;
+  const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+attack);g.gain.exponentialRampToValueAtTime(.0001,t+attack+dur);
+  o.connect(g);g.connect(dest||Snd.sfx);o.start(t);o.stop(t+attack+dur+.05);return o;
+}
+function noiseHit(t,dur,type,freq,vol,Q){
+  const a=Snd.ac;if(!a)return;const s=a.createBufferSource();s.buffer=Snd.noise;s.playbackRate.value=rnd(.8,1.2);
+  const f=a.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=Q||1;const g=a.createGain();
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(Snd.sfx);s.start(t,Math.random()*1.5);s.stop(t+dur+.05);
+}
+const now=()=>Snd.ac?Snd.ac.currentTime:0;
+const SFX={
+  step(k){if(!Snd.ac)return;const t=now();if(k==='bridge'){note(rnd(260,300),t,.05,'triangle',.05)}else if(k==='path'){noiseHit(t,.05,'bandpass',2400,.035,1.5)}else noiseHit(t,.06,'lowpass',900,.04)},
+  chime(){const t=now();[0,4,7,12,16].forEach((s,i)=>{note(mtof(84+s),t+i*.07,.5,'sine',.13);note(mtof(96+s),t+i*.07,.2,'triangle',.03)})},
+  talk(){const t=now();note(620,t,.07,'triangle',.08);note(840,t+.07,.09,'triangle',.07)},
+  rustle(){const t=now();for(let i=0;i<4;i++)noiseHit(t+i*.06,.09,'bandpass',rnd(1800,3200),.09,2)},
+  dig(){const t=now();noiseHit(t,.15,'lowpass',500,.2);noiseHit(t+.18,.15,'lowpass',420,.2)},
+  pop(){const t=now();const o=note(400,t,.18,'sine',.14);if(o)o.frequency.exponentialRampToValueAtTime(1100,t+.15)},
+  ring(i){const t=now();const s=[0,2,4,7,9,12,14,16,19];const m=72+s[i%9];note(mtof(m),t,1.6,'sine',.16);note(mtof(m+12),t,.8,'triangle',.04);note(mtof(m+19),t+.02,.4,'sine',.02)},
+  activate(){const t=now();const o=note(220,t,2.2,'sine',.12,null,.3);if(o)o.frequency.exponentialRampToValueAtTime(880,t+1.8);
+    [60,64,67,72,76,79,84].forEach((m,i)=>{note(mtof(m),t+.6+i*.12,2.4,'sine',.07);note(mtof(m+12),t+.6+i*.12,1,'triangle',.02)})},
+  portal(){const t=now();if(!Snd.ac)return;const a=Snd.ac,s=a.createBufferSource();s.buffer=Snd.noise;const f=a.createBiquadFilter();f.type='bandpass';f.Q.value=3;
+    f.frequency.setValueAtTime(300,t);f.frequency.exponentialRampToValueAtTime(2400,t+2);const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+1);g.gain.exponentialRampToValueAtTime(.0001,t+2.4);
+    s.connect(f);f.connect(g);g.connect(Snd.sfx);s.start(t);s.stop(t+2.5);note(mtof(48),t,2.2,'sine',.1,null,.6)},
+  item(){const t=now();note(mtof(79),t,.2,'triangle',.1);note(mtof(84),t+.12,.4,'triangle',.1)},
+  hint(){const t=now();for(let i=0;i<6;i++)note(mtof(88+i*2),t+i*.05,.3,'sine',.05)},
+  bird(){const t=now()+rnd(0,.2);const n=2+(Math.random()*3|0),b=rnd(2200,3400);for(let i=0;i<n;i++){const o=note(b,t+i*.13,.08,'sine',.025);if(o)o.frequency.exponentialRampToValueAtTime(b*rnd(1.2,1.5),t+i*.13+.07)}},
+  twinkle(){const t=now();note(mtof(96+[0,4,7,11][Math.random()*4|0]),t,.6,'sine',.025)},
+  discover(){const t=now();[67,71,74,79].forEach((m,i)=>note(mtof(m),t+i*.09,.6,'triangle',.07))}
+};
+/* music */
+const MUSIC=[
+ {root:60,scale:[0,2,4,7,9],bpm:96,inst:'box',prog:[[0,4,7],[-3,0,4],[5,9,12],[7,11,14]]},
+ {root:57,scale:[0,2,3,5,7,10],bpm:84,inst:'flute',prog:[[0,3,7],[-4,0,3],[-2,2,5],[-5,-2,2]]},
+ {root:65,scale:[0,2,4,6,7,9,11],bpm:104,inst:'marimba',prog:[[0,4,7],[2,6,9],[4,7,11],[-5,-1,2]]},
+ {root:62,scale:[0,2,3,5,7,9,10],bpm:80,inst:'harp',prog:[[0,3,7],[5,9,12],[0,3,7],[-2,2,5]]},
+ {root:64,scale:[0,2,4,6,7,9,11],bpm:90,inst:'celesta',prog:[[0,4,7],[2,6,9],[-3,0,4],[-5,-1,2]]}
+];
+const Mus={lv:-1,next:0,step:0,mi:5};
+function musicStart(li){Mus.lv=li;Mus.step=0;Mus.mi=5;if(Snd.ac)Mus.next=Snd.ac.currentTime+.3}
+function instPlay(k,m,t,d){const f=mtof(m),D=Snd.music;
+  if(k==='box'){note(f,t,.9,'sine',.11,D);note(f*2,t,.3,'sine',.035,D)}
+  else if(k==='flute'){note(f,t,d*1.3,'sine',.08,D,.06);note(f*2,t,d*.6,'sine',.012,D,.06)}
+  else if(k==='marimba'){note(f,t,.35,'sine',.13,D);note(f*4,t,.05,'sine',.025,D)}
+  else if(k==='harp'){note(f,t,1.2,'triangle',.08,D);note(f*2,t,.4,'sine',.03,D)}
+  else {note(f,t,1.3,'sine',.09,D);note(f*2,t,.6,'triangle',.03,D);note(f*3.01,t,.25,'sine',.015,D)}}
+function musicTick(){
+  if(!Snd.ac||Mus.lv<0)return;const M=MUSIC[Mus.lv],spb=60/M.bpm/2,a=Snd.ac;
+  if(Mus.next<a.currentTime)Mus.next=a.currentTime+.05;
+  while(Mus.next<a.currentTime+.25){
+    const s=Mus.step,t=Mus.next,bar=s>>3,pos=s&7,ch=M.prog[(bar>>1)&3];
+    if(s%16===0)ch.forEach(c=>{note(mtof(M.root+c-12),t,spb*15,'triangle',.018,Snd.music,.9);note(mtof(M.root+c-12)*1.004,t,spb*15,'sine',.015,Snd.music,.9)});
+    if(pos===0||pos===4)note(mtof(M.root+ch[0]-24),t,spb*3.5,'sine',.07,Snd.music,.02);
+    const quiet=(bar&7)===7;
+    const pr=pos===0?.95:pos%2===0?(quiet?.2:.55):(quiet?0:.22);
+    if(Math.random()<pr){
+      const sc=M.scale,N=sc.length*2;Mus.mi=clamp(Mus.mi+[-2,-1,-1,1,1,2,0][Math.random()*7|0],0,N-1);
+      let m=M.root+sc[Mus.mi%sc.length]+12*Math.floor(Mus.mi/sc.length);
+      if(pos===0){let best=m,bd=99;for(const c of ch)for(const o of[0,12,24]){const cm=M.root+c+o;if(Math.abs(cm-m)<bd){bd=Math.abs(cm-m);best=cm}}m=best}
+      instPlay(M.inst,m+12,t,spb*2);
+    }
+    Mus.next+=spb;Mus.step++;
+  }
+}
+setInterval(musicTick,60);
+
+/* ================= SPRITES ================= */
+function sprite(w,h,fn,outline){
+  if(outline===undefined)outline=INK;
+  const c=mk(w+2,h+2),g=c.getContext('2d');
+  const f=(col,x,y,ww,hh)=>{g.fillStyle=col;g.fillRect(Math.round(x)+1,Math.round(y)+1,ww||1,hh||1)};
+  f.disc=(col,cx,cy,r)=>{for(let y=Math.floor(cy-r);y<=cy+r;y++){const dy=y+.5-cy;if(dy*dy>r*r)continue;const hw=Math.sqrt(r*r-dy*dy);const x0=Math.round(cx-hw),x1=Math.round(cx+hw);if(x1>x0)f(col,x0,y,x1-x0,1)}};
+  f.ell=(col,cx,cy,rx,ry)=>{for(let y=Math.floor(cy-ry);y<=cy+ry;y++){const dy=(y+.5-cy)/ry;if(dy*dy>1)continue;const hw=rx*Math.sqrt(1-dy*dy);const x0=Math.round(cx-hw),x1=Math.round(cx+hw);if(x1>x0)f(col,x0,y,x1-x0,1)}};
+  fn(f);
+  if(outline){
+    const W=w+2,H=h+2,id=g.getImageData(0,0,W,H),d=id.data,out=new Uint8Array(W*H);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(d[i*4+3]!==0)continue;
+      if((x>0&&d[(i-1)*4+3])||(x<W-1&&d[(i+1)*4+3])||(y>0&&d[(i-W)*4+3])||(y<H-1&&d[(i+W)*4+3]))out[i]=1}
+    const[r,gg,b]=hexRgb(outline);for(let i=0;i<W*H;i++)if(out[i]){d[i*4]=r;d[i*4+1]=gg;d[i*4+2]=b;d[i*4+3]=255}
+    g.putImageData(id,0,0);
+  }
+  return c;
+}
+const EYE=(f,b,x,y,w,h)=>{w=w||1;h=h||2;if(b)f(INK,x,y+h-1,w,1);else f(INK,x,y,w,h)};
+
+function drawUnicorn(f0,leg,blink,tail){
+  const f=(c,x,y,w,h)=>f0(c,x,y+2,w,h);
+  const W='#ffffff',SH='#eadcf6',PK='#ff6fb1',PU='#a066ff',BL='#4fb4ff',YE='#ffd23f',HO='#c9a8ff',GO='#ffcf40',GD='#e89c00';
+  f(PK,4,11,4,3);f(PK,2,12+tail,3,3);f(PU,1,14+tail,4,3);f(BL,0,17+tail,4,3);f(YE,1,20+tail,3,2);
+  const off=[[0,0,0,0],[1,0,-1,0],[0,0,0,0],[-1,0,1,0]][leg],lift=[[0,0,0,0],[0,1,0,1],[0,0,0,0],[1,0,1,0]][leg],lx=[8,11,19,22];
+  for(let i=0;i<4;i++){const x=lx[i]+off[i],yb=26-lift[i];f((i===1||i===3)?SH:W,x,20,3,yb-20);f(HO,x,yb,3,2)}
+  f(W,7,12,17,9);f(W,6,13,1,7);f(W,24,13,1,6);f(SH,8,19,15,2);
+  f(W,19,7,6,8);f(W,21,3,8,7);f(W,27,6,4,5);f('#ffd6e8',28,7,3,4);f(INK,30,8,1,1);f(INK,28,10,2,1);
+  f(W,22,1,2,3);f('#ffb3d6',22,2,1,1);
+  f(GO,25,0,2,2);f(GD,25,1,1,1);f(GO,26,-1,2,1);f(GO,27,-2,1,1);
+  f(PK,21,1,3,2);f(PU,20,2,2,2);f(PK,18,3,3,4);f(PU,17,7,3,4);f(BL,17,11,2,3);
+  if(blink)f(INK,24,7,3,1);else{f(INK,24,5,3,3);f(W,24,5,1,1);f(INK,27,5,1,1)}
+  f('#ffa6cb',25,8,2,1);
+}
+const CHARDEF={
+ rabbit:{w:18,h:20,d(f,b){const W='#f3eefc',S='#d9cfee';f(W,5,0,2,7);f(W,10,0,2,7);f('#ffb3d6',6,1,1,5);f('#ffb3d6',11,1,1,5);f(W,3,12,12,6);f(S,4,16,10,2);f(W,4,6,10,7);f(W,1,13,3,3);f(W,3,17,4,3);f(W,11,17,4,3);EYE(f,b,6,8);EYE(f,b,11,8);f('#ff6fb1',8,10,2,1);f('#ffc2da',5,11,1,1);f('#ffc2da',12,11,1,1)}},
+ squirrel:{w:20,h:20,d(f,b){const O='#ef8a3a',D='#c9661e',B='#ffe3b8';f(D,1,4,6,11);f(O,2,1,6,5);f(O,1,5,5,9);f(O,3,0,4,2);f(O,7,10,9,8);f(B,9,12,5,5);f(O,8,3,9,8);f(O,8,1,2,3);f(O,14,1,2,3);EYE(f,b,10,6);EYE(f,b,14,6);f('#5e3a26',16,8,1,1);f('#ffc2da',10,8,1,1);f('#8a5a3b',11,13,4,3);f('#5e3a26',11,12,4,1);f(D,8,17,3,2);f(D,13,17,3,2)}},
+ fairy:{w:20,h:20,d(f,b){const Wg='#c9f0ff',W2='#9fe0ff',S='#ffdcbf',Dr='#ff6fb1',H='#ffe066';f(Wg,0,4,6,5);f(W2,1,9,5,4);f(Wg,14,4,6,5);f(W2,14,9,5,4);f(Dr,7,10,6,4);f(Dr,6,13,8,3);f('#ffb3d6',7,13,6,1);f(S,7,4,6,6);f(H,6,2,8,3);f(H,6,4,2,5);f(H,12,4,2,3);f('#fff',9,0,2,2);EYE(f,b,8,6);EYE(f,b,11,6);f('#ffb3d6',8,8,1,1);f('#ffb3d6',11,8,1,1);f(S,8,16,1,3);f(S,11,16,1,3)}},
+ deer:{w:24,h:26,d(f,b){const B='#bb7c49',D='#8f5a31',L='#f0d2a8',Sp='#fff3e0';f(D,6,18,2,8);f(B,9,18,2,8);f(D,15,18,2,8);f(B,18,18,2,8);f(B,4,11,17,8);f(L,6,17,13,2);f(Sp,8,13,1,1);f(Sp,11,12,1,1);f(Sp,14,14,1,1);f(Sp,10,15,1,1);f(Sp,2,11,3,2);f(B,16,5,4,8);f(B,15,2,7,6);f(L,20,4,4,4);f(INK,23,4,1,1);EYE(f,b,18,3);f(B,13,2,3,2);f('#ffc2da',14,2,1,1);f('#6b4a2e',16,0,1,2);f('#6b4a2e',19,0,1,2)}},
+ mushroom:{w:20,h:19,d(f,b){const R='#ff4f5e',Rd='#d9304a',St='#fff1dc',Sd='#e8d2b8';f(R,4,0,12,2);f(R,2,2,16,3);f(R,1,5,18,3);f(Rd,1,7,18,1);f('#fff',6,1,2,2);f('#fff',12,2,3,2);f('#fff',3,5,2,2);f('#fff',15,5,2,1);f('#fff',9,4,2,1);f(St,5,8,10,8);f(Sd,5,14,10,2);EYE(f,b,7,10);EYE(f,b,12,10);f('#ffb3d6',6,12,1,1);f('#ffb3d6',13,12,1,1);f(INK,9,13,2,1);f(Sd,4,16,4,3);f(Sd,12,16,4,3)}},
+ bird:{w:16,h:14,d(f,b){const B='#4fb4ff',D='#2a86d6',L='#c9ecff';f(B,6,0,2,2);f(B,3,2,10,9);f(B,2,4,1,5);f(L,5,6,6,5);f(D,2,6,4,3);f(D,0,5,2,3);EYE(f,b,10,4);f('#ffd23f',13,5,3,2);f('#ff9a3c',13,6,2,1);f('#ff9a3c',6,11,1,3);f('#ff9a3c',9,11,1,3)}},
+ fox:{w:24,h:19,d(f,b){const O='#f2772a',Wf='#fff4ea',K='#4a2a1c';f(O,0,7,7,5);f(O,1,6,5,1);f(Wf,0,8,2,3);f(O,6,8,11,6);f(Wf,14,10,4,4);f(K,7,14,2,5);f(K,10,14,2,5);f(K,13,14,2,5);f(K,16,14,2,5);f(O,15,3,7,6);f(O,15,0,2,3);f(O,19,0,2,3);f(K,15,1,1,1);f(K,20,1,1,1);f(Wf,19,6,4,3);f(INK,22,6,1,1);EYE(f,b,18,4)}},
+ frog:{w:20,h:16,d(f,b){const G='#56c24a',D='#3a9a34',L='#c9f28e';f(G,3,2,5,5);f(G,12,2,5,5);f(G,2,6,16,8);f(L,5,9,10,5);f('#fff',4,3,3,3);f('#fff',13,3,3,3);if(b){f(INK,4,5,3,1);f(INK,13,5,3,1)}else{f(INK,5,4,2,2);f(INK,14,4,2,2)}f(INK,7,11,6,1);f(INK,6,10,1,1);f(INK,13,10,1,1);f('#ffb3d6',4,9,2,1);f('#ffb3d6',14,9,2,1);f(D,0,12,4,3);f(D,16,12,4,3)}},
+ sprite:{w:18,h:21,d(f,b){const P='#ff7fbf',Pd='#e0489a',S='#ffeacc',G='#57c14a',Gd='#3a9a34';f(P,4,0,10,4);f(P,1,3,5,6);f(P,12,3,5,6);f(Pd,2,7,3,2);f(Pd,13,7,3,2);f(S,5,3,8,7);f('#ffd23f',8,0,2,2);EYE(f,b,7,6);EYE(f,b,10,6);f('#ffb3d6',6,8,1,1);f('#ffb3d6',11,8,1,1);f(G,6,10,6,7);f(Gd,6,15,6,2);f(G,3,11,3,2);f(G,12,11,3,2);f(Gd,6,17,2,3);f(Gd,10,17,2,3)}},
+ dragon:{w:22,h:20,d(f,b){const D='#9c7bff',Dd='#7654d9',Be='#ffe08a',Wn='#ff9fd0';f(Wn,2,2,6,3);f(Wn,1,5,7,3);f('#ff7fbf',3,8,5,2);f(D,0,14,6,3);f(Wn,0,12,2,2);f(D,6,8,10,9);f(Be,9,10,5,6);f(D,11,2,9,7);f(D,18,5,4,4);f(INK,21,6,1,1);EYE(f,b,15,4,2,2);f('#ffd23f',12,0,2,2);f('#ffd23f',16,0,2,2);f(Wn,9,6,2,2);f(Dd,7,17,3,3);f(Dd,13,17,3,3);f('#ffb3d6',17,7,1,1)}},
+ owl:{w:18,h:21,d(f,b){const B='#9a6a44',D='#74492a',L='#ecd3a8';f(B,3,2,2,2);f(B,13,2,2,2);f(B,3,4,12,15);f(D,1,9,2,8);f(D,15,9,2,8);f(L,6,11,6,7);f('#fff',4,5,4,4);f('#fff',10,5,4,4);if(b){f(INK,4,7,4,1);f(INK,10,7,4,1)}else{f(INK,5,6,2,2);f(INK,11,6,2,2)}f('#ff9a3c',8,9,2,2);f('#ff9a3c',6,19,2,2);f('#ff9a3c',10,19,2,2);f(D,7,13,1,1);f(D,10,14,1,1);f(D,8,16,1,1)}},
+ hedgehog:{w:20,h:14,d(f,b){const S='#6e4b33',D='#4e3322',F='#f0d2a8';for(let i=0;i<7;i++)f(i%2?D:S,1+i*2,i%2?1:0,2,3);f(S,1,2,14,8);f(D,2,4,1,1);f(D,6,3,1,1);f(D,10,5,1,1);f(D,4,7,1,1);f(F,12,4,6,7);f(F,17,7,2,2);f(INK,19,7,1,1);EYE(f,b,14,6);f('#ffb3d6',15,9,1,1);f(F,3,10,3,3);f(F,9,10,3,3);f(F,13,10,3,3)}}
+};
+const GEMCOL={pink:['#ff6fb1','#ffc0dc','#d93d8a'],blue:['#4fb4ff','#b8e6ff','#2477d6'],purple:['#a066ff','#d8c0ff','#6f37d9'],green:['#46d36b','#b9f7c2','#1f9c45'],yellow:['#ffd23f','#fff3a8','#e0a100']};
+const GEMNAME={pink:'Pink',blue:'Blue',purple:'Purple',green:'Green',yellow:'Yellow',rainbow:'Rainbow'};
+const GEMLIST=['pink','blue','purple','green','yellow','rainbow'];
+function gemSprite(color){return sprite(12,9,f=>{
+  const rows=[[3,6],[1,10],[0,12],[0,12],[1,10],[2,8],[3,6],[4,4],[5,2]];
+  const rb=['#ff5e7e','#ff9a3c','#ffd23f','#46d36b','#4fb4ff','#a066ff','#ff6fb1','#ff6fb1','#ff6fb1'];
+  rows.forEach(([s,w],y)=>{if(color==='rainbow')f(rb[y],s,y,w,1);else{const[b,l,d]=GEMCOL[color];f(b,s,y,w,1);if(y<3)f(l,s,y,Math.ceil(w/2),1);else f(d,s+Math.floor(w/2),y,Math.ceil(w/2),1)}});
+  f('#fff',3,1,2,1);f('#fff',2,2,1,1);})}
+const SPR={uniWalk:[],uniIdle:[],char:{},gem:{},gemURL:{},bub:{}};
+function initSprites(){
+  for(let i=0;i<4;i++)SPR.uniWalk.push(sprite(32,30,f=>drawUnicorn(f,i,false,i%2)));
+  SPR.uniIdle=[sprite(32,30,f=>drawUnicorn(f,0,false,0)),sprite(32,30,f=>drawUnicorn(f,0,true,1))];
+  for(const k in CHARDEF){const d=CHARDEF[k];SPR.char[k]=[sprite(d.w,d.h,f=>d.d(f,false)),sprite(d.w,d.h,f=>d.d(f,true))]}
+  for(const c of GEMLIST){SPR.gem[c]=gemSprite(c);const s=SPR.gem[c],u=mk(s.width*4,s.height*4),g=u.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(s,0,0,u.width,u.height);SPR.gemURL[c]=u.toDataURL()}
+  const bub=(inner)=>sprite(11,10,f=>{f('#fff',1,0,9,8);f('#fff',0,1,11,6);f('#fff',4,8,3,1);f('#fff',5,9,1,1);inner(f)});
+  SPR.bub.ex=bub(f=>{f('#e0418f',5,1,1,4);f('#e0418f',5,6,1,1)});
+  SPR.bub.q=bub(f=>{f('#6f37d9',4,1,3,1);f('#6f37d9',7,2,1,2);f('#6f37d9',5,4,2,1);f('#6f37d9',5,6,1,1)});
+  SPR.bub.heart=bub(f=>{const R='#ff4f5e';f(R,3,1,2,1);f(R,6,1,2,1);f(R,2,2,7,2);f(R,3,4,5,1);f(R,4,5,3,1);f(R,5,6,1,1)});
+  SPR.bub.talk=bub(f=>{f(INK,3,3,1,1);f(INK,5,3,1,1);f(INK,7,3,1,1)});
+  SPR.ladybug=sprite(9,7,f=>{f(INK,3,0,3,2);f('#ff4f5e',1,1,7,5);f(INK,4,1,1,5);f(INK,2,2,1,1);f(INK,6,2,1,1);f(INK,2,4,1,1);f(INK,6,4,1,1);f('#fff',3,0,1,1)});
+  SPR.crown=sprite(11,8,f=>{const Y='#ffd23f';f(Y,0,3,11,4);f(Y,0,1,2,2);f(Y,4,0,3,3);f(Y,9,1,2,2);f('#ff6fb1',5,4,1,2);f('#4fb4ff',2,4,1,1);f('#4fb4ff',8,4,1,1);f('#e0a100',0,6,11,1)});
+  SPR.ringBase=sprite(52,30,f=>{f.ell('#9b8db3',26,16,25.5,13);f.ell('#d6cce6',26,15,22.5,10.5);f.ell('#b6a9cc',26,16,14,6.5);f.ell('#efe9f6',26,15,6,3.5);
+    for(let k=0;k<12;k++){const a=k/12*Math.PI*2,x=26+Math.cos(a)*23.5,y=16+Math.sin(a)*11.5,h=Math.sin(a)<0?7:5;f('#8a7ea0',x-1,y-h+1,3,h);f('#c3b9d6',x-1,y-h+1,1,h-1)}});
+  const gl=mk(64,64),gg=gl.getContext('2d'),gr=gg.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.35,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');gg.fillStyle=gr;gg.fillRect(0,0,64,64);SPR.glow=gl;
+  SPR.glowC={};for(const[k,c]of[['gold','255,220,110'],['pink','255,140,200'],['cyan','120,230,255'],['lilac','190,150,255']]){const x=mk(64,64),xg=x.getContext('2d'),r=xg.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,`rgba(${c},1)`);r.addColorStop(.4,`rgba(${c},.4)`);r.addColorStop(1,`rgba(${c},0)`);xg.fillStyle=r;xg.fillRect(0,0,64,64);SPR.glowC[k]=x}
+}
+function treeSpr(cols,seed){const[L,D,Lt]=cols;return sprite(34,44,f=>{const r=mulberry32(seed);
+  f('#8a5a3b',14,28,6,15);f('#6b4430',14,28,2,15);f('#a8744d',18,31,1,8);f('#8a5a3b',11,40,12,3);f('#6b4430',11,42,12,1);
+  f.disc(D,17,17,15.5);f.disc(D,6,21,6);f.disc(D,28,21,6);f.disc(L,16,15,13.5);f.disc(L,7,19,5);f.disc(L,27,19,5);f.disc(Lt,12,9,6);f.disc(Lt,23,12,3.5);
+  for(let i=0;i<34;i++){const x=3+r()*28|0,y=3+r()*26|0,dx=x-17,dy=y-16;if(dx*dx+dy*dy<150)f(r()<.6?D:Lt,x,y,r()<.5?2:1,1)}})}
+function pineSpr(cols){const[L,D,Lt]=cols;return sprite(26,46,f=>{f('#7a4f30',11,36,4,10);f('#5e3a26',11,36,1,10);
+  for(const[ty,hw]of[[3,6],[10,9],[17,11],[24,12]])for(let y=0;y<13;y++){const w=Math.max(1,Math.round(hw*(y+1)/13));f(D,13-w,ty+y,w*2,1);f(L,13-w,ty+y,w,1)}
+  f(Lt,12,1,2,4)})}
+function bushSpr(cols,berry){const[L,D,Lt]=cols;return sprite(22,15,f=>{f.disc(D,11,9,7.5);f.disc(D,5,10,5);f.disc(D,17,10,5);f.disc(L,10,8,6);f.disc(L,5,9,4);f.disc(L,16,9,4);f.disc(Lt,8,5,2.5);f.disc(Lt,14,6,2);
+  if(berry)for(const[x,y]of[[6,10],[12,7],[16,11],[9,12]])f(berry,x,y,2,2)})}
+function rockSpr(moss){return sprite(16,11,f=>{f.ell('#a99dbd',8,6,7.5,5);f.ell('#c9bfd8',7,5,5,3);f('#8a7ea0',3,9,10,2);f('#e4ddee',5,3,2,1);if(moss){f.ell('#62b554',8,2.6,5.5,2);f('#8fdc6f',5,1,3,1);f('#4a9a44',10,4,3,1)}})}
+function smallMush(glow){const C=glow?'#6fe7ff':'#ff4f5e',S=glow?'#e8fdff':'#fff';return sprite(8,8,f=>{f(glow?'#dff6ff':'#fff1dc',3,4,2,4);f(C,1,1,6,3);f(C,2,0,4,1);f(S,2,1,1,1);f(S,5,2,1,1)})}
+function bigMush(glow){const C=glow?'#6fe7ff':'#ff4f5e',Cd=glow?'#35b9dd':'#d9304a',St=glow?'#e6fbff':'#fff1dc',Sd=glow?'#bfeaf5':'#e8d2b8';return sprite(16,15,f=>{
+  f(St,5,8,6,7);f(Sd,5,13,6,2);f(C,4,0,8,1);f(C,2,1,12,1);f(C,1,2,14,2);f(C,0,4,16,3);f(Cd,0,7,16,1);
+  for(const[x,y,w,h]of[[4,2,2,2],[9,1,3,2],[12,4,2,2],[2,5,2,1],[7,4,2,2]])f('#fff',x,y,w,h)})}
+function gFlowerSpr(col){const L=lighten(col,.45),C=col==='#ffd23f'||col==='#ffffff'?'#ff9a3c':'#ffd23f';return sprite(18,26,f=>{
+  f('#3f9e3a',8,12,2,14);f('#57c14a',3,17,5,2);f('#57c14a',4,16,3,1);f('#57c14a',10,19,5,2);f('#57c14a',11,18,3,1);
+  f.disc(col,9,3.5,3.6);f.disc(col,4,7.5,3.6);f.disc(col,14,7.5,3.6);f.disc(col,6,12,3.4);f.disc(col,12,12,3.4);
+  f.disc(L,8,2.5,1.6);f.disc(L,3,6.5,1.4);f.disc(L,13,6.5,1.4);f.disc(C,9,8.5,3);f('#ff9a3c',8,8,1,1);f('#ff9a3c',10,9,1,1);f('#fff',8,7,1,1)})}
+function tuftSpr(){return sprite(12,12,f=>{const cs=['#3f9e3a','#57c14a','#7fd35a'];[[0,5],[2,2],[4,0],[6,3],[8,1],[10,4]].forEach(([x,y],i)=>{f(cs[i%3],x,y+1,2,12-y-1);f(cs[(i+1)%3],x,y,1,1)})},null)}
+function stoneSpr(){return sprite(12,24,f=>{f('#9d93b2',2,2,8,22);f('#9d93b2',3,0,6,2);f('#bdb4cf',3,2,3,18);f('#7c7196',8,4,2,20);f('#6fd3ff',5,8,2,1);f('#6fd3ff',5,9,1,3);f('#6fd3ff',5,13,2,1);f('#6fd3ff',6,16,1,2);f('#7cc866',2,19,3,2);f('#7cc866',7,3,2,1)})}
+function bigTreeSpr(){return sprite(74,86,f=>{const r=mulberry32(77),L='#6fcf6a',D='#3f9e4d';
+  f('#8a5a3b',25,46,24,36);f('#6b4430',25,46,5,36);f('#a8744d',44,50,2,24);f('#8a5a3b',16,78,42,7);f('#6b4430',16,84,42,1);f('#8a5a3b',12,82,8,3);f('#8a5a3b',54,82,8,3);
+  f(INK,30,62,5,1);f(INK,29,61,1,1);f(INK,35,61,1,1);f(INK,40,62,5,1);f(INK,39,61,1,1);f(INK,45,61,1,1);f(INK,34,69,7,1);f(INK,33,68,1,1);f(INK,41,68,1,1);f('#ff9fc0',28,65,3,1);f('#ff9fc0',44,65,3,1);
+  f.disc(D,37,28,27);f.disc(D,13,38,12);f.disc(D,61,38,12);f.disc(L,36,25,24);f.disc(L,13,36,10);f.disc(L,61,36,10);
+  f.disc('#ffc2e2',25,15,7);f.disc('#dac6ff',47,13,6);f.disc('#b8ecff',55,28,5);f.disc('#fff0b0',21,32,4);f.disc('#ffc2e2',60,42,3);f.disc('#dac6ff',14,40,3);
+  for(let i=0;i<60;i++){const x=6+r()*62|0,y=4+r()*46|0,dx=x-37,dy=y-28;if(dx*dx+dy*dy<700)f(r()<.5?D:['#ff8fc8','#b58cff','#6fd3ff','#ffd86b'][i%4],x,y,1,1)}})}
+
+/* ================= THEMES & LEVELS ================= */
+const THEMES={
+ meadow:{grass:'#86d65e',g2:'#74c54f',g3:'#a2e57a',path:'#f4dca4',p2:'#e2c07f',water:'#4db6ee',w2:'#a6e4ff',bg:'#2e6e3c',bg2:'#255a31',trees:[['#4fb257','#2f8a3e','#8ee07a'],['#58ba5a','#338f40','#98e684']],pine:0,flowers:['#ff6fb1','#ffd23f','#ffffff','#b58cff','#ff9a3c']},
+ woods:{grass:'#63b653',g2:'#55a647',g3:'#7cc866',path:'#e2c893',p2:'#c9a96f',water:'#46a9e0',w2:'#9fdcff',bg:'#1f4d2b',bg2:'#173d22',trees:[['#3f9e4d','#276e35','#6fcb6a'],['#4aa84a','#2c7a37','#7ed772']],pine:.3,flowers:['#ffffff','#ffd23f','#b58cff','#ff6fb1']},
+ grove:{grass:'#7fd06a',g2:'#6ec15b',g3:'#9ee285',path:'#f6dfb0',p2:'#e4c48a',water:'#55c0f2',w2:'#b0ebff',bg:'#2a6538',bg2:'#21532d',trees:[['#52b85a','#318c42','#93e27e'],['#5fc06a','#3a9448','#a6ea8e']],pine:0,flowers:['#ff6fb1','#ffd23f','#b58cff','#4fb4ff','#ff9a3c','#ffffff']},
+ secret:{grass:'#58a84e',g2:'#4b9843',g3:'#6fbd61',path:'#d8bf8c',p2:'#bea06a',water:'#3fa4dc',w2:'#98d8ff',bg:'#163f25',bg2:'#10321c',trees:[['#378f45','#1f6130','#5fb862'],['#3f9a48','#236a33','#6cc66a']],pine:.4,flowers:['#ff4f5e','#ffffff','#ffd23f','#b58cff']},
+ rainbow:{grass:'#7fdc70',g2:'#6ccb61',g3:'#a6ee8e',path:'#f9dcff',p2:'#e7b9f7',water:'#6fd0ff',w2:'#e0f7ff',bg:'#2d3f6e',bg2:'#243359',trees:[['#ff8fc8','#d9559b','#ffc2e2'],['#b58cff','#8358d9','#dac6ff'],['#6fd3ff','#3a9ed6','#b8ecff'],['#62d06a','#35a046','#a0ec90'],['#ffd86b','#e0a832','#fff0b0']],pine:0,flowers:['#ff6fb1','#ffd23f','#b58cff','#4fb4ff','#ff9a3c','#62d06a','#ffffff']}
+};
+const LEVELS=[
+{name:'The Flower Meadow',theme:'meadow',w:26,h:20,seed:3,density:.14,bushRate:.05,rockRate:.02,flowerRate:.55,butterflies:12,clue:1,hintDelay:35,
+ start:[6,14],ring:[13,9],
+ clearings:[[13,10,8],[6,14,3]],
+ paths:[[[6,14],[10,12],[13,10]],[[13,10],[16,12],[18,13]],[[13,10],[9,7],[6,6]],[[13,10],[17,7],[19,6]]],
+ ponds:[[21,14,2.6,1.8]],gardens:[[17,4,2]],giantFlowers:[[20,9,'#ff6fb1'],[4,11,'#b58cff'],[10,4,'#ff9a3c']],
+ landmarks:[{name:'The Little Pond',x:21,y:14,r:4.5},{name:'The Stone Ring',x:13,y:9,r:3}],
+ chars:[
+  {id:'rosie',kind:'rabbit',name:'Rosie the Rabbit',x:8,y:13,lines:["Hello, Maisie! I'm Rosie. Welcome to the Flower Meadow!","To walk, use the arrow keys, the big round pad, or hold your finger on the grass.","See the pink gem just down the path? Walk over it to pick it up!","When you have gems, bring them to the stone ring in the middle of the meadow."],again:["Find all the gems, then bring them to the stone ring. You can do it!"]},
+  {id:'pip',kind:'bird',name:'Pip the Bird',x:19,y:6,lines:["Tweet tweet! Hello, Maisie!","I saw a sparkly blue gem beside the little pond."],again:["The blue gem is beside the little pond!"]},
+  {id:'hazel',kind:'squirrel',name:'Hazel the Squirrel',x:5,y:6,lines:["Hi Maisie! I'm Hazel.","See the big yellow flower up here? I think it's hiding something!","Walk right up to it and press the magic ✨ button."],again:["Press ✨ next to the big yellow flower!"]}],
+ gems:[
+  {id:'a1',color:'pink',x:9,y:16,hide:'open',hints:["A pink gem is very close to where you started.","Look near Rosie the Rabbit.","The pink gem is just below Rosie. Walk over it!"]},
+  {id:'a2',color:'blue',x:18,y:16,hide:'open',hints:["Someone saw a gem near some water.","Try talking to Pip the Bird.","The blue gem is beside the little pond on the right."]},
+  {id:'a3',color:'purple',x:15,y:4,hide:'open',hints:["There's a gem out in the open, near the top of the meadow.","Walk up past the stone ring.","The purple gem is at the top of the meadow, by the flowers."]},
+  {id:'a4',color:'yellow',x:7,y:4,hide:'flower',flower:'#ffd23f',hints:["A flower is hiding a secret.","Try talking to Hazel the Squirrel.","Walk up to the big yellow flower near Hazel and press ✨."]}]},
+
+{name:'The Whispering Woods',theme:'woods',w:32,h:26,seed:21,density:.34,bushRate:.07,rockRate:.03,flowerRate:.3,butterflies:10,clue:.85,hintDelay:40,
+ start:[4,21],ring:[16,12],
+ clearings:[[4,21,3.5],[16,12,4],[26,6,3.5],[25,20,3.5],[7,6,3.5]],
+ paths:[[[4,21],[9,19],[13,15],[16,12]],[[16,12],[21,9],[26,6]],[[16,12],[20,16],[25,20]],[[16,12],[11,9],[7,6]]],
+ streams:[[[22,0],[21,8],[20,13],[20,26]]],mushroomRings:[[7,6,2.3]],
+ landmarks:[{name:'The Mushroom Circle',x:7,y:6,r:3},{name:'The Little Bridge',x:21,y:9,r:2}],
+ chars:[
+  {id:'fern',kind:'fox',name:'Fern the Fox',x:6,y:20,lines:["Hello Maisie! Welcome to the Whispering Woods.","The trees are tall here, so gems can hide behind things.","Talk to everyone you meet. Friends always know where the sparkles are!"]},
+  {id:'button',kind:'mushroom',name:'Sir Button',x:7,y:6,lines:["Greetings, Maisie! I am Sir Button of the Mushroom Circle.","Gems love hiding behind bushes. If you see a bush wiggle, give it a nudge with ✨!","I think one is wiggling just below my circle."]},
+  {id:'dot',kind:'deer',name:'Dot the Deer',x:26,y:7,lines:["Oh, hello! I'm Dot.","I saw a green sparkle under the big red mushroom by the stream.","It's just to the right of the stone ring, near the water."]},
+  {id:'wren',kind:'owl',name:'Wren the Owl',x:25,y:19,gives:'b5',lines:["Whoo! Hello, Maisie!","I found this shiny yellow gem in my nest. I think it's for you!"],again:["Whoo! Good luck finding all the gems!"]}],
+ gems:[
+  {id:'b1',color:'pink',x:12,y:16,hide:'open',hints:["A pink gem is sitting on a path.","Walk along the path from the start toward the ring.","The pink gem is on the path between the start and the stone ring."]},
+  {id:'b2',color:'blue',x:28,y:4,hide:'bush',hints:["A bush at the top of the woods is wiggling.","Visit Dot the Deer's clearing.","Nudge the wiggly bush just above and right of Dot with ✨."]},
+  {id:'b3',color:'green',x:22,y:14,hide:'mushroom',hints:["A big mushroom is sitting on something.","Try talking to Dot the Deer.","Press ✨ at the big red mushroom by the stream, right of the ring."]},
+  {id:'b4',color:'purple',x:5,y:9,hide:'bush',hints:["A bush near the mushroom circle keeps wiggling.","Try talking to Sir Button.","Nudge the wiggly bush just below the mushroom circle."]},
+  {id:'b5',color:'yellow',x:25,y:19,hide:'talk',hints:["A friend has a present for you.","Someone lives in the bottom-right of the woods.","Talk to Wren the Owl, down and to the right of the ring."]}]},
+
+{name:'The Butterfly Grove',theme:'grove',w:36,h:30,seed:37,density:.36,bushRate:.06,rockRate:.02,flowerRate:.55,butterflies:46,clue:.75,hintDelay:45,
+ start:[5,25],ring:[18,15],
+ clearings:[[5,25,3.5],[18,15,4.5],[30,24,3.5],[29,7,3.5],[8,7,3.5],[18,26,3]],
+ paths:[[[5,25],[10,22],[14,18],[18,15]],[[18,15],[24,11],[29,7]],[[18,15],[24,19],[30,24]],[[18,15],[13,11],[8,7]],[[14,18],[16,22],[18,26]]],
+ streams:[[[36,13],[27,15],[23,20],[21,30]]],
+ tallGrass:[[22,8,2.3],[11,27,2]],gardens:[[30,27,2.2],[25,4,1.8]],
+ giantFlowers:[[29,27,'#ff6fb1'],[31,28,'#ff6fb1'],[33,26,'#ff6fb1'],[21,17,'#ffd23f'],[12,13,'#b58cff'],[3,21,'#ff9a3c']],
+ trails:[[[10,15],[11,17],[12,20]]],butterflyTrails:[[[12,19],[11,17],[10,16],[9,15],[7,15]]],
+ secrets:[{x:6,y:15,r:2.5,gap:'E',name:'The Hidden Butterfly Glade'}],
+ objects:[{type:'stone',x:10,y:6}],
+ landmarks:[{name:'The Standing Stone',x:10,y:6,r:3},{name:'The Giant Pink Flowers',x:31,y:27,r:3}],
+ items:[{id:'ladybug',kind:'ladybug',x:32,y:27,name:'Dotty the Ladybug'}],
+ chars:[
+  {id:'luna',kind:'fairy',name:'Luna the Fairy',x:7,y:24,lines:["Hi Maisie! I'm Luna the fairy.","Butterflies always fly toward hidden places. Follow them and see where they lead!","And I once saw a twinkle beside the tall standing stone, far up and to the left."]},
+  {id:'bramble',kind:'hedgehog',name:'Bramble the Hedgehog',x:19,y:25,lines:["Oh! Hello there. I'm Bramble.","Sometimes gems get buried in the ground.","If you see a patch of earth that twinkles, stand on it and press ✨ to dig!","I think there's one right near my home."]},
+  {id:'petal',kind:'sprite',name:'Petal the Flower Sprite',x:29,y:7,gives:'c5',task:{item:'ladybug',waiting:["Have you found Dotty yet? She loves the giant pink flowers, down in the bottom-right."],thanks:["Dotty! You found her! Thank you, Maisie!","Please have this yellow gem. It's my favourite!"],after:["Dotty and I are so happy. Thank you!"]},
+   lines:["Oh, Maisie! I'm Petal. I've lost my best friend, Dotty the Ladybug!","She was playing by the giant pink flowers, down in the bottom-right.","Could you find her and bring her back to me?"]},
+  {id:'ribbit',kind:'frog',name:'Ribbit the Frog',x:31,y:23,lines:["Ribbit! Hello, Maisie!","I watch the stream all day long.","There's a giant blue flower by the water, and it's been glowing all morning!"]}],
+ gems:[
+  {id:'c1',color:'pink',x:22,y:8,hide:'open',hints:["Something pink is peeking out of some tall grass.","Look in the tall grass between the ring and Petal.","The pink gem is in the tall grass, up and to the right of the ring."]},
+  {id:'c2',color:'blue',x:26,y:17,hide:'flower',flower:'#4fb4ff',hints:["A flower by the water is glowing.","Try talking to Ribbit the Frog.","Press ✨ at the giant blue flower by the stream, right of the ring."]},
+  {id:'c3',color:'purple',x:16,y:27,hide:'buried',hints:["Something is buried near a friend's home.","Try talking to Bramble the Hedgehog.","Look for twinkling ground just left of Bramble, at the bottom of the grove."]},
+  {id:'c4',color:'green',x:6,y:15,hide:'open',hints:["The butterflies know a secret.","Follow the trail of butterflies on the left side of the grove.","Walk left into the trees where the butterflies dance. There's a hidden glade!"]},
+  {id:'c5',color:'yellow',x:29,y:7,hide:'task',hints:["A friend has lost someone special.","Talk to Petal, at the top-right of the grove.","Find Dotty the Ladybug by the giant pink flowers, then bring her to Petal."]},
+  {id:'c6',color:'rainbow',x:9,y:5,hide:'buried',hints:["An old stone is guarding a secret.","Try talking to Luna the Fairy.","Dig at the twinkling ground next to the standing stone, top-left."]}]},
+
+{name:'The Secret Forest',theme:'secret',w:46,h:36,seed:53,density:.5,bushRate:.07,rockRate:.03,flowerRate:.3,butterflies:14,fireflies:10,clue:.6,hintDelay:50,
+ start:[5,31],ring:[23,18],
+ clearings:[[5,31,3.5],[23,18,5],[23,7,4.5],[38,26,4.5],[8,13,3.5]],
+ cliffs:[{x0:17,x1:29,y:1,h:3,waterfall:23},{x0:3,x1:12,y:8,h:2,cave:7}],
+ ponds:[[23,5.2,3,1.6]],streams:[[[23,6],[29,8],[35,9],[40,11],[46,12]]],
+ paths:[[[5,31],[10,28],[16,24],[23,18]],[[23,18],[22,13],[23,8.5]],[[23,18],[30,22],[38,26]],[[23,18],[15,16],[8,13]]],
+ trails:[[[27,5],[31,4],[35,4],[37,4]]],gardens:[[38,26,4]],
+ giantFlowers:[[34,27,'#ff4f5e'],[36,30,'#ff4f5e'],[40,29,'#ff4f5e'],[41,24,'#ff4f5e'],[37,23,'#ff4f5e']],
+ butterflyTrails:[[[33,4],[36,4],[38,4]]],fireflyTrails:[[[5,11],[7,10],[9,11]]],
+ secrets:[{x:40,y:4,r:2.5,gap:'W',name:'The Secret Glade'}],
+ landmarks:[{name:'The Sparkling Waterfall',x:23,y:4,r:4},{name:"Ember's Cave",x:7,y:10,r:3},{name:'The Flower Garden',x:38,y:26,r:4}],
+ chars:[
+  {id:'twig',kind:'squirrel',name:'Twig the Squirrel',x:7,y:30,lines:["Hello, Maisie! Welcome to the Secret Forest.","This forest is full of secrets. Some paths hide in plain sight!","Listen to everyone. Sometimes you'll need to remember what a friend told you."]},
+  {id:'shimmer',kind:'fairy',name:'Shimmer the Fairy',x:20,y:7,lines:["Oh, hello! I'm Shimmer.","I love sitting beside the waterfall. The splashing sounds like music!"]},
+  {id:'clover',kind:'rabbit',name:'Clover the Rabbit',x:36,y:24,lines:["Hi Maisie! Welcome to my flower garden.","Yesterday I saw something sparkle, right near where the fairy likes to sit.","In my garden, one giant flower is blue instead of red. Funny, isn't it?","And one of the bushes at the edge of my garden keeps giggling!"],again:["Something sparkled near where the fairy sits. And look for the blue flower, and the giggly bush!"]},
+  {id:'ember',kind:'dragon',name:'Ember the Dragon',x:9,y:12,lines:["Hello! I'm Ember. That's my cave, just up there!","I found a gem in my cave, but it's too dark for me. Could you look inside with ✨?","And my friend buried something shiny at the far-left edge of my glade."]},
+  {id:'sage',kind:'owl',name:'Sage the Owl',x:30,y:21,lines:["Whoo! Hello, Maisie.","The stepping stones by the waterfall pool lead somewhere secret...","Follow them, and don't be afraid to walk right into the trees!"]}],
+ gems:[
+  {id:'d1',color:'pink',x:13,y:26,hide:'open',hints:["A gem is lying on a path.","Follow the path from the start toward the ring.","The pink gem is on the path, between the start and the ring."]},
+  {id:'d2',color:'blue',x:7,y:10,hide:'cave',hints:["A cave is hiding something.","Try talking to Ember the Dragon.","Stand at Ember's cave, top-left, and press ✨."]},
+  {id:'d3',color:'purple',x:19,y:6,hide:'buried',hints:["Remember what friends said about the fairy?","Talk to Shimmer the Fairy, and to Clover the Rabbit.","Dig at the twinkling ground next to Shimmer, by the waterfall."]},
+  {id:'d4',color:'green',x:40,y:4,hide:'open',hints:["Some stepping stones lead somewhere secret.","Try talking to Sage the Owl.","Follow the stepping stones right from the waterfall pool, then walk into the trees."]},
+  {id:'d5',color:'yellow',x:35,y:29,hide:'flower',flower:'#4fb4ff',hints:["One flower is different from all the others.","Try talking to Clover the Rabbit.","Press ✨ at the giant blue flower in the red flower garden."]},
+  {id:'d6',color:'rainbow',x:4,y:14,hide:'buried',hints:["Something is buried at the edge of a glade.","Try talking to Ember the Dragon.","Dig at the twinkling ground on the far left of Ember's glade."]},
+  {id:'d7',color:'blue',x:42,y:23,hide:'bush',hints:["A bush is giggling somewhere.","Try talking to Clover the Rabbit.","Nudge the giggly bush at the top-right edge of the flower garden."]}]},
+
+{name:'The Rainbow Forest',theme:'rainbow',w:52,h:42,seed:71,density:.46,bushRate:.07,rockRate:.02,flowerRate:.6,butterflies:30,fireflies:40,clue:.5,hintDelay:55,sparklePaths:true,
+ start:[6,37],ring:[26,21],
+ clearings:[[6,37,3.5],[26,21,5.5],[10,9,4.5],[40,7,4.5],[42,34,4.5],[8,24,3.8],[24,35,4]],
+ cliffs:[{x0:34,x1:47,y:1,h:2,waterfall:40}],
+ ponds:[[10,9,2.6,1.6],[40,4.6,2.6,1.3]],streams:[[[40,5.5],[44,12],[46,20],[48,30],[52,33]]],
+ paths:[[[6,37],[12,33],[18,27],[26,21]],[[26,21],[18,15],[12,11]],[[26,21],[31,13],[37,8]],[[26,21],[34,27],[42,34]],[[26,21],[16,23],[8,24]],[[6,37],[15,37],[24,36]],[[24,36],[27,32],[25,26]]],
+ trails:[[[31,13],[29,10],[28,8]]],fireflyTrails:[[[31,12],[30,10],[29,9],[28,8],[27,7]],[[44,36],[44,38],[45,37]]],
+ secrets:[{x:28,y:5,r:2.3,gap:'S',name:'The Firefly Secret Garden'},{x:47,y:37,r:2.2,gap:'W',name:'The Hidden Rainbow Garden'}],
+ gardens:[[42,34,4]],glowMush:[[8,24,3]],
+ giantFlowers:[[38,33,'#ff6fb1'],[41,31,'#b58cff'],[45,33,'#4fb4ff'],[43,36,'#ffd23f'],[40,35,'#ff9a3c'],[37,36,'#62d06a']],
+ objects:[{type:'bigtree',x:24,y:33}],
+ landmarks:[{name:'The Moon Pond',x:10,y:9,r:4},{name:'The Rainbow Waterfall',x:40,y:4,r:4},{name:'The Grandmother Tree',x:24,y:34,r:4},{name:'The Glowing Hollow',x:8,y:24,r:4},{name:'The Rainbow Garden',x:42,y:34,r:4}],
+ items:[{id:'crown',kind:'crown',x:43,y:4,name:"Lily's golden crown"}],
+ chars:[
+  {id:'aurora',kind:'fairy',name:'Aurora the Fairy',x:8,y:35,lines:["Welcome to the Rainbow Forest, Maisie! It's the most magical place of all.","The gems here are very good at hiding. Listen carefully to everyone you meet.","I heard a bush giggling beside the path to the great ring."]},
+  {id:'oakley',kind:'owl',name:'Oakley the Owl',x:21,y:35,lines:["Hoo! Welcome to the Grandmother Tree.","The fireflies dance where a secret garden hides. Look for them above the great ring.","And the Grandmother Tree's roots have been twinkling, on the right side."]},
+  {id:'glimmer',kind:'dragon',name:'Glimmer the Dragon',x:10,y:23,lines:["Hi Maisie! I'm Glimmer. These glowing mushrooms are my night lights.","One of them is sitting on something shiny. Can you find which one?"]},
+  {id:'lily',kind:'frog',name:'Lily the Frog',x:13,y:10,gives:'e4',task:{item:'crown',waiting:["Have you found my golden crown? It's by the rainbow waterfall, top-right.","And don't forget the mossy rock by my pond!"],thanks:["My crown! Thank you, Maisie! I feel like a princess again.","Please take this green gem as a thank-you!"],after:["My crown is so sparkly. Thank you!"]},
+   lines:["Ribbit! Oh, Maisie, I've lost my golden crown!","I think I dropped it by the rainbow waterfall, up in the top-right.","And something clinks under the mossy rock by my pond. Have a look!"]},
+  {id:'misty',kind:'deer',name:'Misty the Deer',x:37,y:9,lines:["Hello, Maisie. I'm Misty.","The rainbow garden, down in the bottom-right, hides a secret.","Some of the trees there aren't really trees at all!"]},
+  {id:'poppy',kind:'sprite',name:'Poppy the Flower Sprite',x:40,y:32,lines:["Ooh, hello! I'm Poppy, and this is my rainbow garden!","Of all my giant flowers, the pure white one is the most special."]}],
+ gems:[
+  {id:'e1',color:'pink',x:16,y:31,hide:'bush',hints:["A bush beside a path is giggling.","Try talking to Aurora the Fairy.","Nudge the giggly bush beside the path, up and right from where you started."]},
+  {id:'e2',color:'blue',x:28,y:5,hide:'open',hints:["The fireflies know a secret.","Try talking to Oakley the Owl.","Follow the fireflies up from the great ring, and walk into the trees at the top."]},
+  {id:'e3',color:'purple',x:6,y:26,hide:'mushroom',hints:["A glowing mushroom is sitting on something shiny.","Try talking to Glimmer the Dragon.","Press ✨ at the big glowing mushroom that twinkles, in the Glowing Hollow."]},
+  {id:'e4',color:'green',x:13,y:10,hide:'task',hints:["A friend has lost her crown.","Talk to Lily the Frog by the Moon Pond.","Find the golden crown by the rainbow waterfall, then bring it to Lily."]},
+  {id:'e5',color:'yellow',x:47,y:37,hide:'buried',hints:["Some trees in a garden aren't really trees.","Try talking to Misty the Deer.","Walk into the trees on the right of the rainbow garden, then dig at the twinkling ground."]},
+  {id:'e6',color:'rainbow',x:39,y:37,hide:'flower',flower:'#ffffff',hints:["One flower is pure white.","Try talking to Poppy the Flower Sprite.","Press ✨ at the white giant flower in the rainbow garden."]},
+  {id:'e7',color:'pink',x:27,y:34,hide:'buried',hints:["Some roots are twinkling.","Try talking to Oakley the Owl.","Dig at the twinkling ground on the right side of the Grandmother Tree."]},
+  {id:'e8',color:'blue',x:14,y:7,hide:'rock',hints:["A mossy rock is hiding something.","Try talking to Lily the Frog.","Press ✨ at the mossy rock just right of the Moon Pond."]}]}
+];
+for(const L of LEVELS)for(const k of['clearings','paths','ponds','streams','cliffs','trails','secrets','tallGrass','gardens','giantFlowers','objects','mushroomRings','glowMush','butterflyTrails','fireflyTrails','landmarks','items'])if(!L[k])L[k]=[];
+
+/* ================= WORLD BUILD ================= */
+const TS=16;
+let W=null,S=null,mode='title';
+const P={x:0,y:0,vx:0,vy:0,face:1,anim:0,moving:false,hopT:0,blinkT:3,stepT:0,sparkT:0};
+const cam={x:0,y:0,fx:0,fy:0,fT:0};
+const G={t:0};
+let DPR=1,VW=0,VH=0,ZOOM=3;
+let isTouch=matchMedia('(pointer:coarse)').matches;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);cv.style.width=VW+'px';cv.style.height=VH+'px';ZOOM=clamp(Math.sqrt(VW*VH/43200),2,6)}
+function distSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=clamp(t,0,1);const x=ax+dx*t-px,y=ay+dy*t-py;return Math.sqrt(x*x+y*y)}
+function distPoly(px,py,pts){let m=1e9;for(let i=0;i<pts.length-1;i++)m=Math.min(m,distSeg(px,py,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1]));return m}
+const DIRS={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
+
+function buildWorld(li,cur){
+  const D=LEVELS[li],th=THEMES[D.theme],w=D.w,h=D.h,N=w*h,R=mulberry32(D.seed*7919+1);
+  const T=new Uint8Array(N),clear=new Uint8Array(N),solid=new Uint8Array(N),forced=new Uint8Array(N),gap=new Uint8Array(N),occ=new Int32Array(N).fill(-1);
+  const I=(x,y)=>y*w+x,inb=(x,y)=>x>=0&&y>=0&&x<w&&y<h;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=I(x,y);
+    for(const s of D.streams)if(distPoly(x,y,s)<.95)T[i]=2;
+    for(const p of D.ponds){const dx=(x-p[0])/p[2],dy=(y-p[1])/p[3];if(dx*dx+dy*dy<=1)T[i]=2}}
+  for(const c of D.cliffs)for(let y=c.y;y<c.y+c.h;y++)for(let x=c.x0;x<=c.x1;x++)if(inb(x,y))T[I(x,y)]=4;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=I(x,y);
+    for(const p of D.paths){const d=distPoly(x,y,p);if(d<.75){if(T[i]===2)T[i]=3;else if(T[i]===0||T[i]===5)T[i]=1}if(d<1.9)clear[i]=1}
+    for(const tr of D.trails){const d=distPoly(x,y,tr);if(d<.6&&T[i]===0)T[i]=5;if(d<1.4)clear[i]=1}
+    for(const c of D.clearings.concat(D.tallGrass,D.gardens))if(Math.hypot(x-c[0],y-c[1])<c[2])clear[i]=1;
+    for(const s of D.secrets){const d=Math.hypot(x-s.x,y-s.y);if(d<s.r-.45){clear[i]=1;if(T[i]===2)T[i]=0}else if(Math.abs(d-s.r)<.6&&T[i]===0)forced[i]=1}}
+  for(const s of D.secrets){const dd=DIRS[s.gap];s.gx=s.x+dd[0]*Math.round(s.r);s.gy=s.y+dd[1]*Math.round(s.r);const i=I(s.gx,s.gy);forced[i]=0;gap[i]=1;clear[i]=1;if(T[i]!==0&&T[i]!==5)T[i]=0}
+  const keys=[[D.start,2.2,1],[D.ring,3.2,1]];
+  for(const c of D.chars)keys.push([[c.x,c.y],1.6,1]);
+  for(const g of D.gems)keys.push([[g.x,g.y],1.5,1]);
+  for(const it of D.items)keys.push([[it.x,it.y],1.5,1]);
+  for(const o of D.objects)keys.push([[o.x,o.y],o.type==='bigtree'?3.6:1.6,0]);
+  for(const[[kx,ky],r,fix]of keys){for(let y=Math.floor(ky-r);y<=ky+r;y++)for(let x=Math.floor(kx-r);x<=kx+r;x++)if(inb(x,y)&&Math.hypot(x-kx,y-ky)<=r)clear[I(x,y)]=1;
+    if(fix&&inb(kx,ky)){const i=I(kx,ky);if(T[i]===2||T[i]===4)T[i]=0;forced[i]=0}}
+  for(let i=0;i<N;i++)if(T[i]===2||T[i]===4)solid[i]=1;
+  // entities
+  const ents=[];const add=e=>{ents.push(e);return ents.length-1};
+  const tS=[];th.trees.forEach((c,k)=>{tS.push(treeSpr(c,D.seed+k*11));tS.push(treeSpr(c,D.seed+k*11+5))});
+  const pS=th.trees.map(c=>pineSpr(c));
+  const bushS=bushSpr(th.trees[0]),bushB=bushSpr(th.trees[0],D.theme==='rainbow'?'#b58cff':'#ff6fb1'),rockS=rockSpr(false);
+  for(const o of D.objects){
+    if(o.type==='stone'){const i=I(o.x,o.y);occ[i]=add({k:'stone',x:(o.x+.5)*TS,y:(o.y+1)*TS-2,spr:stoneSpr()});solid[i]=1}
+    else if(o.type==='bigtree'){const id=add({k:'bigtree',x:(o.x+.5)*TS,y:(o.y+1)*TS-1,spr:bigTreeSpr()});for(let dx=-1;dx<=1;dx++){const i=I(o.x+dx,o.y);solid[i]=1;occ[i]=id}}
+  }
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=I(x,y);
+    if(occ[i]>=0||solid[i])continue;
+    const border=x<2||y<2||x>=w-2||y>=h-2;
+    if(gap[i]){add({k:'tree',secret:true,x:(x+.5)*TS,y:(y+1)*TS-1,spr:tS[0]});continue}
+    if(T[i]!==0)continue;
+    if(forced[i]||border||(!clear[i]&&R()<D.density)){
+      const pine=R()<th.pine;const spr=pine?pS[R()*pS.length|0]:tS[R()*tS.length|0];
+      occ[i]=add({k:'tree',x:(x+.5)*TS+(R()*6-3|0),y:(y+1)*TS-1+(R()*3|0),spr,forced:!!(forced[i]||border)});solid[i]=1}
+    else if(!clear[i]&&R()<D.bushRate){occ[i]=add({k:'bush',x:(x+.5)*TS,y:(y+1)*TS-2,spr:R()<.4?bushB:bushS});solid[i]=1}
+    else if(!clear[i]&&R()<D.rockRate){occ[i]=add({k:'rock',x:(x+.5)*TS,y:(y+1)*TS-3,spr:rockS});solid[i]=1}
+  }
+  // connectivity repair
+  const INF=1e9,dist=new Float64Array(N).fill(INF),par=new Int32Array(N).fill(-1),sI=I(D.start[0],D.start[1]);
+  const cost=j=>{if(!solid[j])return 0;const o=occ[j];if(o>=0){const e=ents[o];if((e.k==='tree'&&!e.forced)||e.k==='bush'||e.k==='rock')return 1;return INF}if(T[j]===2)return 6;return INF};
+  const bk=[[sI]];dist[sI]=0;
+  for(let c=0;c<bk.length;c++){const b=bk[c];if(!b)continue;for(let k=0;k<b.length;k++){const i=b[k];if(dist[i]!==c)continue;const x=i%w,y=(i/w)|0;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(!inb(nx,ny))continue;const j=I(nx,ny),cc=cost(j);if(cc>=INF)continue;const nd=c+cc;if(nd<dist[j]){dist[j]=nd;par[j]=i;(bk[nd]||(bk[nd]=[])).push(j)}}}}
+  const targets=[D.ring].concat(D.gems.map(g=>[g.x,g.y]),D.chars.map(c=>[c.x,c.y]),D.items.map(t=>[t.x,t.y]));
+  for(const[tx,ty]of targets){let j=I(tx,ty);if(dist[j]>=INF||dist[j]===0)continue;
+    while(j!==sI&&j>=0){if(solid[j]){if(occ[j]>=0){ents[occ[j]].dead=true;occ[j]=-1}if(T[j]===2)T[j]=3;solid[j]=0}j=par[j]}}
+  const E=ents.filter(e=>!e.dead);
+  // decor
+  const tuftS=tuftSpr(),mushS=smallMush(false),gmushS=smallMush(true);
+  const free=(x,y)=>inb(x,y)&&T[I(x,y)]===0&&!solid[I(x,y)];
+  const circleTiles=(cx,cy,r,fn)=>{for(let y=Math.floor(cy-r);y<=cy+r;y++)for(let x=Math.floor(cx-r);x<=cx+r;x++)if(Math.hypot(x-cx,y-cy)<r&&free(x,y))fn(x,y)};
+  const gemTile=new Set(D.gems.map(g=>g.x+','+g.y));
+  for(const[cx,cy,r]of D.tallGrass)circleTiles(cx,cy,r,(x,y)=>{for(let k=0;k<3;k++)E.push({k:'tuft',x:x*TS+2+R()*12,y:y*TS+6+R()*10,spr:tuftS,ph:R()*6})});
+  const gfCache={};const gf=c=>gfCache[c]||(gfCache[c]=gFlowerSpr(c));
+  for(const[x,y,c]of D.giantFlowers)E.push({k:'gflower',x:(x+.5)*TS,y:(y+1)*TS-2,spr:gf(c),ph:R()*6});
+  const flw=(x,y)=>E.push({k:'flower',x:x*TS+2+R()*12|0,y:y*TS+5+R()*10|0,c:th.flowers[R()*th.flowers.length|0],ph:R()*6});
+  for(const[cx,cy,r]of D.gardens)circleTiles(cx,cy,r,(x,y)=>{if(!gemTile.has(x+','+y)){flw(x,y);flw(x,y);flw(x,y)}});
+  for(const s of D.secrets)circleTiles(s.x,s.y,s.r-.4,(x,y)=>{if(!gemTile.has(x+','+y)){flw(x,y);flw(x,y)}});
+  for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++)if(free(x,y)&&clear[I(x,y)]&&R()<.07&&!gemTile.has(x+','+y))flw(x,y);
+  for(const[cx,cy,r]of D.mushroomRings)for(let k=0;k<10;k++){const a=k/10*Math.PI*2;E.push({k:'mush',x:(cx+.5+Math.cos(a)*r)*TS,y:(cy+.5+Math.sin(a)*r)*TS+4,spr:mushS})}
+  for(const[cx,cy,r]of D.glowMush)for(let k=0;k<18;k++){const a=R()*Math.PI*2,d=R()*r;const x=cx+.5+Math.cos(a)*d,y=cy+.5+Math.sin(a)*d;if(free(x|0,y|0))E.push({k:'mush',glow:true,x:x*TS,y:y*TS+4,spr:gmushS})}
+  for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++)if(free(x,y)&&!clear[I(x,y)]&&R()<.03)E.push({k:'mush',glow:D.theme==='rainbow',x:x*TS+4+R()*8,y:y*TS+10,spr:D.theme==='rainbow'?gmushS:mushS});
+  // world object
+  const Wd={li,def:D,th,w,h,T,solid,ents:E,t:0,spin:0,portal:0,celebT:0,placeQ:[],placeT:0,pending:0,fly:[],parts:[],near:null,
+    discT:0,birdT:3,waterT:0,glow:0};
+  Wd.chars=D.chars.map(c=>Object.assign({},c,{tx:c.x,ty:c.y,x:(c.x+.5)*TS,y:(c.y+.5)*TS+6,ph:R()*6,heartT:0,flip:false}));
+  Wd.items=D.items.map(t=>Object.assign({},t,{x:(t.x+.5)*TS,y:(t.y+.5)*TS+5,got:cur.items.includes(t.id),spr:SPR[t.kind]}));
+  Wd.ring={x:(D.ring[0]+.5)*TS,y:(D.ring[1]+.5)*TS+4};
+  const rockM=rockSpr(true),bm=bigMush(D.theme==='rainbow');
+  Wd.hides=[];
+  Wd.gems=D.gems.map(g=>{const o=Object.assign({},g,{x:(g.x+.5)*TS,y:(g.y+.5)*TS+5,ph:R()*6});
+    if(cur.found.includes(g.id))o.state='got';
+    else if(g.hide==='open')o.state='shown';
+    else if(g.hide==='talk'||g.hide==='task')o.state='char';
+    else{o.state='hidden';const hd={k:'hide',kind:g.hide,gem:o,x:o.x,y:(g.y+1)*TS-3,opened:false,ph:R()*10,wig:0};
+      if(g.hide==='flower')hd.spr=gf(g.flower);else if(g.hide==='bush')hd.spr=bushS;else if(g.hide==='rock')hd.spr=rockM;else if(g.hide==='mushroom')hd.spr=bm;
+      if(g.hide==='cave')hd.y=g.y*TS+2;
+      Wd.hides.push(hd)}
+    for(const hd of Wd.hides)if(hd.gem===o&&cur.opened.includes(g.id)){hd.opened=true;o.state='shown'}
+    return o});
+  // butterflies & fireflies
+  const bcol=['#ff6fb1','#ffd23f','#b58cff','#4fb4ff','#ff9a3c','#ffffff'];
+  const clearTiles=[];for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++)if(free(x,y)&&clear[I(x,y)])clearTiles.push([x,y]);
+  const mkB=(hx,hy,trail)=>({x:hx,y:hy,hx,hy,tx:hx,ty:hy,t:0,c:bcol[R()*bcol.length|0],ph:R()*6,trail});
+  Wd.bfs=[];for(let k=0;k<(D.butterflies||0)&&clearTiles.length;k++){const[x,y]=clearTiles[R()*clearTiles.length|0];Wd.bfs.push(mkB((x+.5)*TS,(y+.5)*TS-8))}
+  for(const tr of D.butterflyTrails)for(const[x,y]of tr)for(let k=0;k<2;k++)Wd.bfs.push(mkB((x+.5)*TS,(y+.5)*TS-6,true));
+  Wd.ffs=[];for(let k=0;k<(D.fireflies||0)&&clearTiles.length;k++){const[x,y]=clearTiles[R()*clearTiles.length|0];Wd.ffs.push({x:(x+.5)*TS,y:(y+.5)*TS-10,hx:(x+.5)*TS,hy:(y+.5)*TS-10,ph:R()*6,tr:false})}
+  for(const tr of D.fireflyTrails)for(const[x,y]of tr)for(let k=0;k<2;k++)Wd.ffs.push({x:(x+.5)*TS,y:(y+.5)*TS-8,hx:(x+.5)*TS,hy:(y+.5)*TS-8,ph:R()*6,tr:true});
+  Wd.clouds=[0,1,2,3].map(k=>({x:R()*w*TS,y:R()*h*TS,rx:60+R()*60,ry:26+R()*20}));
+  Wd.leaves=[];
+  Wd.ground=buildGround(Wd,R,clear,gemTile);
+  Wd.far=buildFar(th);
+  return Wd;
+}
+function buildGround(Wd,R,clear,gemTile){
+  const{w,h,T,th,solid}=Wd,c=mk(w*TS,h*TS),g=c.getContext('2d');
+  const px=(col,x,y,ww,hh)=>{g.fillStyle=col;g.fillRect(x,y,ww||1,hh||1)};
+  const t=(x,y)=>(x<0||y<0||x>=w||y>=h)?0:T[y*w+x];
+  const isW=v=>v===2||v===3,isP=v=>v===1||v===3;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const v=T[y*w+x],X=x*TS,Y=y*TS;
+    if(v===0||v===5){px(th.grass,X,Y,16,16);for(let k=0;k<8;k++)px(R()<.5?th.g2:th.g3,X+(R()*16|0),Y+(R()*16|0),1,R()<.35?2:1)}
+    if(v===5){for(const[sx,sy]of[[2,7],[9,2],[10,10]]){px('#b9b0c9',X+sx,Y+sy,5,4);px('#ddd6e8',X+sx+1,Y+sy,3,1);px('#8e84a3',X+sx,Y+sy+3,5,1)}}
+    else if(v===1){px(th.path,X,Y,16,16);for(let k=0;k<5;k++)px(th.p2,X+(R()*15|0),Y+(R()*15|0),2,1);if(Wd.def.sparklePaths)px('#fff',X+(R()*15|0),Y+(R()*15|0),1,1)}
+    else if(v===2||v===3){px(th.water,X,Y,16,16);
+      for(const[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){if(isW(t(x+dx,y+dy)))continue;
+        if(dy===-1){px(th.w2,X,Y,16,2);px('#3c7f52',X,Y,16,1)}if(dy===1){px(th.w2,X,Y+14,16,2)}if(dx===-1){px(th.w2,X,Y,2,16);px('#3c7f52',X,Y,1,16)}if(dx===1){px(th.w2,X+14,Y,2,16);px('#3c7f52',X+15,Y,1,16)}}
+      if(v===3){const horiz=isP(t(x-1,y))||isP(t(x+1,y))||!isW(t(x-1,y))||!isW(t(x+1,y));
+        if(horiz){for(let k=0;k<16;k+=3){px('#b07a4a',X+k,Y+2,2,12);px('#7a4f30',X+k+2,Y+2,1,12)}px('#6b4430',X,Y+1,16,2);px('#6b4430',X,Y+13,16,2)}
+        else{for(let k=0;k<16;k+=3){px('#b07a4a',X+2,Y+k,12,2);px('#7a4f30',X+2,Y+k+2,12,1)}px('#6b4430',X+1,Y,2,16);px('#6b4430',X+13,Y,2,16)}}}
+    else if(v===4){px('#a4927f',X,Y,16,16);px('#85735f',X,Y+5,16,1);px('#85735f',X,Y+11,16,1);px('#85735f',X+((x+y)%2?4:10),Y,1,5);px('#85735f',X+((x+y)%2?11:3),Y+6,1,5);px('#85735f',X+((x+y)%2?6:13),Y+12,1,4);px('#c2b19c',X+1,Y+1,3,1);px('#c2b19c',X+8,Y+7,3,1);
+      if(t(x,y-1)!==4){px(th.grass,X,Y,16,4);px(th.g2,X,Y+4,16,1);for(let k=0;k<4;k++)px(th.g2,X+(R()*15|0),Y+5,1,1+(R()*3|0))}
+      if(t(x,y+1)!==4)px('#6d5d4c',X,Y+14,16,2)}
+  }
+  // soft path edges
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const v=T[y*w+x],X=x*TS,Y=y*TS;if(v!==1)continue;
+    const G0=(dx,dy)=>{const n=t(x+dx,y+dy);return n===0||n===5};
+    for(const[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]])if(G0(dx,dy))for(let k=0;k<16;k++){if(R()<.5){const ex=dx===0?X+k:(dx<0?X:X+15),ey=dy===0?Y+k:(dy<0?Y:Y+15);px(th.grass,ex,ey,1,1)}}
+    const cut=(cx,cy,sx,sy)=>{for(let a=0;a<4;a++)for(let b=0;b<4-a;b++)px(th.grass,cx+sx*a,cy+sy*b,1,1)};
+    if(G0(0,-1)&&G0(-1,0))cut(X,Y,1,1);if(G0(0,-1)&&G0(1,0))cut(X+15,Y,-1,1);if(G0(0,1)&&G0(-1,0))cut(X,Y+15,1,-1);if(G0(0,1)&&G0(1,0))cut(X+15,Y+15,-1,-1)}
+  // caves
+  for(const cl of Wd.def.cliffs)if(cl.cave!=null){const X=cl.cave*TS,Y=(cl.y+cl.h-1)*TS;px('#3a2640',X+1,Y-6,14,22);px('#241631',X+4,Y-8,8,2);px('#241631',X+3,Y-6,10,2);px('#241631',X+2,Y-4,12,20);px('#150c1e',X+4,Y+2,8,14);px('#6d5d4c',X+1,Y-4,1,20);px('#6d5d4c',X+14,Y-4,1,20)}
+  // baked flowers & tufts
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(T[i]!==0||solid[i]||gemTile.has(x+','+y))continue;const X=x*TS,Y=y*TS;
+    const rate=Wd.def.flowerRate*(clear[i]?1:.35);
+    if(R()<rate){const n=1+(R()*2|0);for(let k=0;k<n;k++){const fx=X+2+(R()*11|0),fy=Y+3+(R()*10|0),c=th.flowers[R()*th.flowers.length|0];px('#3f9e3a',fx+1,fy+2,1,2);px(c,fx,fy,3,1);px(c,fx+1,fy-1,1,3);px('#ffd23f',fx+1,fy,1,1)}}
+    if(R()<.25){const fx=X+(R()*12|0),fy=Y+(R()*12|0);px(th.g2,fx,fy+1,1,3);px(th.g2,fx+2,fy,1,4);px(th.g2,fx+4,fy+1,1,3)}}
+  return c;
+}
+function buildFar(th){const c=mk(48,40),g=c.getContext('2d');g.fillStyle=th.bg2;g.fillRect(0,0,48,40);
+  const d=(col,cx,cy,r)=>{g.fillStyle=col;for(let y=-r;y<=r;y++){const hw=Math.round(Math.sqrt(r*r-y*y));g.fillRect(cx-hw,cy+y,hw*2,1)}};
+  d(th.bg,12,12,11);d(th.bg,36,30,11);d(th.bg,40,4,8);d(th.bg,2,34,8);g.fillStyle=th.bg2;g.fillRect(11,20,3,8);g.fillRect(35,38,3,2);return c}
+
+/* ================= SAVE ================= */
+const SAVE_KEY='maisie-gem-adventure-v1';
+const blankCur=()=>({found:[],placed:[],talked:[],opened:[],items:[],delivered:[]});
+const newSave=()=>({level:0,completed:[false,false,false,false,false],totals:{pink:0,blue:0,purple:0,green:0,yellow:0,rainbow:0},friends:[],disc:[],cur:blankCur()});
+function loadSave(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s&&s.cur&&typeof s.level==='number')return s}catch(e){}return null}
+function save(){if(!S)return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}}
+
+/* ================= HELPERS ================= */
+let lastProgress=0,hintSteps={},hintArrow=null,DQ=null;
+const carriedIds=()=>S.cur.found.filter(id=>!S.cur.placed.includes(id)).slice(W.pending);
+function progress(){lastProgress=G.t;$('hintBtn').classList.add('hidden')}
+function burst(x,y,n,cols,sp,life){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=(sp||40)*rnd(.4,1);W.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-10,l:life||rnd(.5,1),m:life||1,c:cols[i%cols.length],g:30})}}
+function sparkle(x,y,c){W.parts.push({x,y,vx:rnd(-6,6),vy:rnd(-14,-4),l:.7,m:.7,c:c||'#fff',g:0,star:true})}
+let toastTO=0;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.remove('hidden');t.style.animation='none';void t.offsetWidth;t.style.animation='';clearTimeout(toastTO);toastTO=setTimeout(()=>t.classList.add('hidden'),2200)}
+function portraitDraw(spr){const c=$('portrait'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.imageSmoothingEnabled=false;const sc=Math.floor(Math.min(88/spr.width,88/spr.height));g.drawImage(spr,(c.width-spr.width*sc)/2,(c.height-spr.height*sc)/2,spr.width*sc,spr.height*sc)}
+function openDialog(name,spr,lines,onDone){DQ={name,spr,lines,i:0,onDone};$('dialog').classList.remove('hidden');$('dName').textContent=name;portraitDraw(spr);showLine();SFX.talk()}
+function showLine(){$('dLine').textContent=DQ.lines[DQ.i];$('dMore').textContent=DQ.i<DQ.lines.length-1?'Tap to continue ▶':'Tap to close ✓'}
+function advanceDialog(){if(!DQ)return;DQ.i++;if(DQ.i>=DQ.lines.length){const cb=DQ.onDone;DQ=null;$('dialog').classList.add('hidden');if(cb)cb()}else{showLine();SFX.talk()}}
+const modalOpen=()=>!$('modal').classList.contains('hidden');
+function showModal(html,bind){$('mbox').innerHTML=html;$('modal').classList.remove('hidden');if(bind)bind();const b=$('mbox').querySelector('button');if(b&&!isTouch)b.focus()}
+function closeModal(){$('modal').classList.add('hidden')}
+function fadeTo(fn){$('fade').style.opacity=1;setTimeout(()=>{fn();$('fade').style.opacity=0},480)}
+
+/* ================= GAME FLOW ================= */
+function loadLevel(li){
+  W=buildWorld(li,S.cur);
+  P.x=(W.def.start[0]+.5)*TS;P.y=(W.def.start[1]+.5)*TS+6;P.vx=P.vy=0;P.face=1;
+  cam.x=P.x;cam.y=P.y-14;clampCam();
+  mode='play';hintSteps={};hintArrow=null;lastProgress=G.t;
+  $('title').classList.add('hidden');$('hud').classList.remove('hidden');
+  if(isTouch){$('pad').classList.remove('hidden');$('act').classList.remove('hidden')}
+  const b=$('banner');$('bNum').textContent='Level '+(li+1);$('bName').textContent=W.def.name;b.classList.remove('hidden');b.style.animation='none';void b.offsetWidth;b.style.animation='';setTimeout(()=>b.classList.add('hidden'),3300);
+  musicStart(li);updateHUD();updateTip();
+  setTimeout(()=>checkComplete(),900);
+}
+function titleScene(){
+  W=buildWorld(0,blankCur());mode='title';
+  P.x=9.5*TS;P.y=12*TS;P.face=1;cam.x=P.x;cam.y=P.y;
+  $('title').classList.remove('hidden');$('hud').classList.add('hidden');$('pad').classList.add('hidden');$('act').classList.add('hidden');$('tip').classList.add('hidden');$('hintBtn').classList.add('hidden');
+  $('bCont').classList.toggle('hidden',!loadSave());
+}
+function collectGem(g){
+  g.state='got';if(!S.cur.found.includes(g.id)){S.cur.found.push(g.id);S.totals[g.color]=(S.totals[g.color]||0)+1}
+  P.hopT=.45;SFX.chime();burst(P.x,P.y-18,16,g.color==='rainbow'?['#ff6fb1','#ffd23f','#4fb4ff','#46d36b','#a066ff']:[GEMCOL[g.color][0],GEMCOL[g.color][1],'#fff'],50);
+  toast(`💎 ${GEMNAME[g.color]} gem!`);progress();save();updateHUD();updateTip();
+}
+function flyGem(g,fx,fy,dur,arc){g.state='fly';g.fx=fx;g.fy=fy;g.ft=0;g.fd=dur;g.arc=arc;g.cx=fx;g.cy=fy}
+function openHide(h){
+  h.opened=true;S.cur.opened.push(h.gem.id);
+  if(h.kind==='bush'){SFX.rustle();burst(h.x,h.y-8,12,W.th.trees[0],40)}
+  else if(h.kind==='buried'){SFX.dig();burst(h.x,h.y-2,14,['#a0724a','#c49a6c','#7a5230'],45)}
+  else if(h.kind==='flower'){SFX.rustle();burst(h.x,h.y-16,14,[h.gem.flower||'#fff','#fff','#ffd23f'],45)}
+  else {SFX.rustle();burst(h.x,h.y-6,10,['#fff','#ffd23f'],35)}
+  h.wig=.5;SFX.pop();flyGem(h.gem,h.x,h.y-10,1,34);save();
+}
+function giveGemFrom(c){const g=W.gems.find(x=>x.id===c.gives);if(g&&g.state==='char'){SFX.pop();flyGem(g,c.x,c.y-16,1,30)}}
+function talkTo(c){
+  const first=!S.cur.talked.includes(c.id);let lines,after=null;
+  if(c.x<P.x)c.flip=false;else c.flip=true;
+  if(c.task){const has=S.cur.items.includes(c.task.item),done=S.cur.delivered.includes(c.id);
+    if(done){lines=c.task.after;const g=W.gems.find(x=>x.id===c.gives);if(g&&g.state==='char')after=()=>giveGemFrom(c)}
+    else if(has){lines=first?[c.lines[0]].concat(c.task.thanks):c.task.thanks;after=()=>{S.cur.delivered.push(c.id);giveGemFrom(c);updateHUD()}}
+    else lines=first?c.lines:c.task.waiting}
+  else{lines=first?c.lines:(c.again||c.lines.slice(-1));
+    if(c.gives){const g=W.gems.find(x=>x.id===c.gives);if(g&&g.state==='char')after=()=>giveGemFrom(c)}}
+  openDialog(c.name,SPR.char[c.kind][0],lines,()=>{
+    if(first){S.cur.talked.push(c.id);if(!S.friends.some(f=>f.name===c.name))S.friends.push({kind:c.kind,name:c.name});c.heartT=1.6;SFX.item();progress()}
+    if(after)after();save();updateHUD();updateTip();checkComplete();
+  });
+}
+function useRing(){
+  const car=carriedIds();
+  if(car.length){W.placeQ.push(...car);W.pending+=car.length;W.placeT=0;return}
+  const left=W.gems.length-S.cur.placed.length;
+  if(left>0)openDialog('The Stone Ring',SPR.ringBase,[`The ring is waiting for gems. ${left} more to find!`,'Explore, and ask your friends for help.']);
+  else if(S.cur.talked.length<W.chars.length)openDialog('The Stone Ring',SPR.ringBase,['The ring is full of gems!','Say hello to every friend in the forest to wake it up.']);
+}
+function checkComplete(){
+  if(mode!=='play'||!W||W.placeQ.length||W.fly.length)return;
+  if(S.cur.placed.length===W.gems.length&&S.cur.talked.length===W.chars.length){
+    mode='celebrate';W.celebT=0;cam.fx=W.ring.x;cam.fy=W.ring.y-30;cam.fT=99;SFX.activate();$('hintBtn').classList.add('hidden');$('tip').classList.add('hidden');W.near=null;
+    setTimeout(()=>SFX.portal(),1700);
+  }
+}
+function showComplete(){
+  const li=W.li;S.completed[li]=true;save();
+  const last=li===LEVELS.length-1;
+  showModal(`<h2>LEVEL COMPLETE!</h2><p>You found every gemstone!</p><p>${W.gems.map(g=>`<img src="${SPR.gemURL[g.color]}" style="width:40px;image-rendering:pixelated;margin:2px">`).join('')}</p><div class="mbtns"><button class="btn gold" id="mNext">${last?'FINISH THE ADVENTURE':'ENTER THE NEXT LEVEL'}</button></div>`,
+  ()=>{$('mNext').onclick=()=>{closeModal();if(last)finale();else{S.level=li+1;S.cur=blankCur();save();fadeTo(()=>loadLevel(S.level))}}});
+}
+function finale(){
+  S.level=LEVELS.length-1;save();
+  showModal(`<h2>You did it, Maisie!</h2><p>You explored all five magical forests, found every gemstone, and made so many friends.</p><p style="font-size:44px">🦄💎🌈</p><div class="mbtns"><button class="btn alt" id="mJ">See my journal</button><button class="btn gold" id="mAgain">Play again</button></div>`,
+  ()=>{$('mJ').onclick=()=>openJournal(finale);$('mAgain').onclick=()=>{closeModal();const keep={totals:S.totals,friends:S.friends,disc:S.disc};S=newSave();Object.assign(S,keep);save();fadeTo(()=>loadLevel(0))}});
+}
+function interact(){
+  audioInit();
+  if(DQ){advanceDialog();return}
+  if(mode!=='play'||modalOpen())return;
+  const n=W.near;if(!n){sparkle(P.x+P.face*10,P.y-28,'#ffd23f');return}
+  if(n.type==='char')talkTo(n.o);else if(n.type==='hide')openHide(n.o);else if(n.type==='ring')useRing();
+}
+function nearestInteract(){
+  let best=null,bd=1e9;
+  for(const c of W.chars){const d=Math.hypot(c.x-P.x,c.y-P.y);if(d<30&&d<bd){bd=d;best={type:'char',o:c}}}
+  for(const h of W.hides){if(h.opened)continue;const d=Math.hypot(h.x-P.x,(h.kind==='cave'?h.y+14:h.y)-P.y);if(d<26&&d<bd){bd=d;best={type:'hide',o:h}}}
+  const d=Math.hypot(W.ring.x-P.x,(W.ring.y-P.y)*1.5);if(d<42&&d<bd&&!W.placeQ.length){const car=carriedIds().length;if(car||S.cur.placed.length<W.gems.length||S.cur.talked.length<W.chars.length)best={type:'ring',o:W.ring}}
+  return best;
+}
+function hintTarget(){
+  for(const g of W.gems){if(g.state==='got'||g.state==='fly')continue;
+    let x=g.x,y=g.y;
+    if(g.hide==='task'){const c=W.chars.find(c=>c.gives===g.id),it=c&&W.items.find(t=>t.id===c.task.item);if(it&&!it.got){x=it.x;y=it.y}else if(c){x=c.x;y=c.y}}
+    else if(g.hide==='talk'){const c=W.chars.find(c=>c.gives===g.id);if(c){x=c.x;y=c.y}}
+    return{key:g.id,hints:g.hints,x,y}}
+  if(carriedIds().length)return{key:'ring',hints:['You have gems for the stone ring!','The stone ring is in the middle of the forest.','Walk to the stone ring and press ✨.'],x:W.ring.x,y:W.ring.y};
+  const c=W.chars.find(c=>!S.cur.talked.includes(c.id));
+  if(c)return{key:c.id,hints:['Someone is still waiting to say hello!',`Look for ${c.name}.`,`${c.name} is waiting for you. Follow the arrow!`],x:c.x,y:c.y};
+  return null;
+}
+function giveHint(){
+  audioInit();const t=hintTarget();if(!t)return;const s=Math.min(3,(hintSteps[t.key]||0)+1);hintSteps[t.key]=s;SFX.hint();
+  if(s>=3)hintArrow={x:t.x,y:t.y,until:G.t+14};
+  $('hintBtn').classList.add('hidden');lastProgress=G.t-W.def.hintDelay+14;
+  openDialog('A little hint',SPR.gem.rainbow,[t.hints[s-1]]);
+}
+function updateHUD(){
+  if(!W||!S)return;const nf=S.cur.talked.length,NF=W.chars.length,ng=S.cur.found.length,NG=W.gems.length,np=S.cur.placed.length;
+  $('lvName').textContent=`Level ${W.li+1}: ${W.def.name}`;
+  $('cF').textContent=`${nf} / ${NF}`;$('cG').textContent=`${ng} / ${NG}`;$('cR').textContent=`${np} / ${NG}`;
+  $('rowF').classList.toggle('done',nf===NF);$('rowG').classList.toggle('done',ng===NG);$('rowR').classList.toggle('done',np===NG);
+  const car=S.cur.found.filter(id=>!S.cur.placed.includes(id));let html=car.map(id=>{const g=W.gems.find(x=>x.id===id);return g?`<img src="${SPR.gemURL[g.color]}" alt="${GEMNAME[g.color]} gem">`:''}).join('');
+  for(const it of W.items)if(it.got&&!W.chars.some(c=>c.task&&c.task.item===it.id&&S.cur.delivered.includes(c.id)))html+=`<span style="font-size:24px">${it.kind==='ladybug'?'🐞':'👑'}</span>`;
+  $('carry').innerHTML=html;
+}
+function updateTip(){
+  const tip=$('tip');if(mode!=='play'||!W){tip.classList.add('hidden');return}
+  const key=isTouch?'✨':'Space';let msg='';
+  const ng=S.cur.found.length,NG=W.gems.length,car=S.cur.found.length-S.cur.placed.length;
+  if(W.li===0){
+    if(!S.cur.talked.includes('rosie'))msg=`Walk to Rosie the Rabbit and press ${key} to say hi`;
+    else if(ng===0)msg='Walk over the pink gem to pick it up';
+    else if(ng<NG&&S.cur.placed.length===0&&ng<2)msg=`Find all ${NG} gems. Your friends will help!`;
+  }
+  if(!msg&&ng===NG&&car>0)msg=`Bring your gems to the stone ring and press ${key}`;
+  else if(!msg&&S.cur.placed.length===NG&&S.cur.talked.length<W.chars.length)msg='Say hello to every friend to wake the ring!';
+  tip.textContent=msg;tip.classList.toggle('hidden',!msg);
+}
+function checkDiscoveries(){
+  const list=W.def.landmarks.map(l=>({name:l.name,x:(l.x+.5)*TS,y:(l.y+.5)*TS,r:l.r*TS})).concat(W.def.secrets.map(s=>({name:s.name,x:(s.x+.5)*TS,y:(s.y+.5)*TS+6,r:(s.r-.6)*TS,secret:true})));
+  for(const l of list){if(S.disc.some(d=>d.name===l.name))continue;if(Math.hypot(P.x-l.x,P.y-l.y)<l.r){S.disc.push({name:l.name,level:W.li,secret:!!l.secret});save();toast((l.secret?'🌟 Secret found: ':'✨ Discovered: ')+l.name);SFX.discover();progress();if(l.secret)burst(P.x,P.y-20,24,['#ffd23f','#fff','#ff6fb1'],60)}}
+}
+function openJournal(back){
+  audioInit();
+  const gems=GEMLIST.map(c=>`<div class="cell ${S.totals[c]?'':'dim'}"><img src="${SPR.gemURL[c]}" width="48" alt="">${GEMNAME[c]}<br><b>× ${S.totals[c]||0}</b></div>`).join('');
+  const fr=S.friends.length?S.friends.map((f,i)=>`<div class="cell"><canvas data-k="${f.kind}" width="72" height="72"></canvas>${f.name}</div>`).join(''):'<p>Say hello to someone to add them here!</p>';
+  const dc=S.disc.length?S.disc.map(d=>`<div class="disc">${d.secret?'🌟':'✨'} ${d.name} <span style="opacity:.6">(Level ${d.level+1})</span></div>`).join(''):'<p>Explore to make discoveries!</p>';
+  showModal(`<h2>Maisie's Journal</h2><h3>💎 Gemstones</h3><div class="grid">${gems}</div><h3>💛 Friends</h3><div class="grid">${fr}</div><h3>🗺️ Discoveries</h3>${dc}<div class="mbtns"><button class="btn gold" id="mClose">Close</button></div>`,()=>{
+    $('mbox').querySelectorAll('canvas[data-k]').forEach(c=>{const s=SPR.char[c.dataset.k][0],g=c.getContext('2d');g.imageSmoothingEnabled=false;const sc=Math.floor(64/Math.max(s.width,s.height));g.drawImage(s,(72-s.width*sc)/2,(72-s.height*sc)/2,s.width*sc,s.height*sc)});
+    $('mClose').onclick=()=>{closeModal();if(typeof back==='function')back()}});
+}
+function openHow(){
+  showModal(`<h2>How to Play</h2><div class="how">
+  <div>🦄 <b>Walk:</b> arrow keys or WASD, the big round pad, or hold your finger on the grass.</div>
+  <div>✨ <b>Magic button:</b> press Space or tap ✨ to talk to friends, peek into flowers, nudge bushes and dig.</div>
+  <div>💎 <b>Collect gems:</b> some are easy to see. Others hide! Look for wiggles and twinkles.</div>
+  <div>💬 <b>Make friends:</b> say hello to everyone. They give great clues.</div>
+  <div>⭕ <b>Stone ring:</b> bring your gems to the ring to open the way to the next forest.</div>
+  <div>💡 <b>Stuck?</b> A hint button will appear to help you.</div></div>
+  <div class="mbtns"><button class="btn gold" id="mClose">Let's go!</button></div>`,()=>{$('mClose').onclick=closeModal});
+}
+
+/* ================= UPDATE ================= */
+const K={l:0,r:0,u:0,d:0};
+const Joy={active:false,x:0,y:0,id:null};
+const Steer={active:false,sx:0,sy:0,id:null};
+function inputVec(){let x=K.r-K.l,y=K.d-K.u;
+  if(Joy.active){x+=Joy.x;y+=Joy.y}
+  if(Steer.active){const wx=cam.x+(Steer.sx-VW/2)/ZOOM,wy=cam.y+(Steer.sy-VH/2)/ZOOM,dx=wx-P.x,dy=wy-(P.y-10),d=Math.hypot(dx,dy);if(d>8){const m=Math.min(1,d/30);x+=dx/d*m;y+=dy/d*m}}
+  const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}return[x,y]}
+function solidAt(px,py){const tx=Math.floor(px/TS),ty=Math.floor(py/TS);if(tx<0||ty<0||tx>=W.w||ty>=W.h)return true;return W.solid[ty*W.w+tx]===1}
+function blocked(x,y){return solidAt(x-5,y-5)||solidAt(x+5,y-5)||solidAt(x-5,y-1)||solidAt(x+5,y-1)}
+function tileAt(x,y){const tx=Math.floor(x/TS),ty=Math.floor(y/TS);if(tx<0||ty<0||tx>=W.w||ty>=W.h)return 0;return W.T[ty*W.w+tx]}
+function clampCam(){const vw=VW/ZOOM,vh=VH/ZOOM,mw=W.w*TS,mh=W.h*TS;
+  cam.x=mw>vw-16?clamp(cam.x,vw/2-8,mw-vw/2+8):mw/2;cam.y=mh>vh-16?clamp(cam.y,vh/2-8,mh-vh/2+8):mh/2}
+function update(dt){
+  G.t+=dt;if(!W)return;W.t+=dt;
+  const canMove=mode==='play'&&!DQ&&!modalOpen();
+  if(canMove){const[ix,iy]=inputVec(),k=1-Math.exp(-dt*12);P.vx=lerp(P.vx,ix*62,k);P.vy=lerp(P.vy,iy*62,k);
+    if(blocked(P.x,P.y)){P.x+=P.vx*dt;P.y+=P.vy*dt}else{const nx=P.x+P.vx*dt;if(!blocked(nx,P.y))P.x=nx;else P.vx=0;const ny=P.y+P.vy*dt;if(!blocked(P.x,ny))P.y=ny;else P.vy=0}
+    if(Math.abs(ix)>.15)P.face=ix>0?1:-1}
+  else{P.vx*=.8;P.vy*=.8}
+  const sp=Math.hypot(P.vx,P.vy);P.moving=sp>10&&canMove;
+  if(P.moving){P.anim+=dt*sp/62;P.stepT-=dt;if(P.stepT<=0){P.stepT=.27;const t=tileAt(P.x,P.y-2);SFX.step(t===3?'bridge':t===1?'path':'grass')}
+    P.sparkT-=dt;if(P.sparkT<=0){P.sparkT=.18;sparkle(P.x+P.face*rnd(4,12),P.y-rnd(6,26),['#ffb3d6','#d8c0ff','#b8e6ff','#fff3a8'][Math.random()*4|0])}}
+  P.blinkT-=dt;if(P.blinkT<-.14)P.blinkT=rnd(2,5);if(P.hopT>0)P.hopT-=dt;
+  if(mode==='play'){
+    for(const g of W.gems)if(g.state==='shown'&&Math.hypot(g.x-P.x,g.y-P.y)<14){SFX.pop();flyGem(g,g.x,g.y-6,.35,10)}
+    for(const it of W.items)if(!it.got&&Math.hypot(it.x-P.x,it.y-P.y)<14){it.got=true;S.cur.items.push(it.id);save();SFX.item();toast(`You found ${it.name}!`);burst(it.x,it.y-6,14,['#ffd23f','#fff','#ff6fb1'],40);progress();updateHUD()}
+    W.near=DQ?null:nearestInteract();
+    W.discT-=dt;if(W.discT<=0){W.discT=.4;checkDiscoveries()}
+    if(!DQ&&!modalOpen()&&G.t-lastProgress>W.def.hintDelay&&hintTarget())$('hintBtn').classList.remove('hidden');
+  }
+  $('act').classList.toggle('ready',!!W.near||!!DQ);
+  if(W.near){$('act').textContent=W.near.type==='char'?'💬':W.near.type==='ring'?'💎':'✨'}else $('act').textContent='✨';
+  for(const g of W.gems)if(g.state==='fly'){g.ft+=dt;const e=Math.min(1,g.ft/g.fd),q=e<.5?2*e*e:1-2*(1-e)*(1-e);g.cx=lerp(g.fx,P.x,q);g.cy=lerp(g.fy,P.y-16,q)-Math.sin(Math.PI*e)*g.arc;if(Math.random()<.5)sparkle(g.cx,g.cy,'#fff');if(e>=1)collectGem(g)}
+  // placing gems into the ring
+  if(W.placeQ.length){W.placeT-=dt;if(W.placeT<=0){W.placeT=.45;const id=W.placeQ.shift(),g=W.gems.find(x=>x.id===id);W.fly.push({id,color:g.color,fx:P.x,fy:P.y-18,t:0,d:.7,sock:S.cur.placed.length+W.fly.length});SFX.pop()}}
+  for(let i=W.fly.length-1;i>=0;i--){const f=W.fly[i];f.t+=dt;const e=Math.min(1,f.t/f.d),[sx,sy]=sockPos(f.sock);f.x=lerp(f.fx,sx,e);f.y=lerp(f.fy,sy-4,e)-Math.sin(Math.PI*e)*26;sparkle(f.x,f.y,'#fff');
+    if(e>=1){W.fly.splice(i,1);W.pending--;S.cur.placed.push(f.id);SFX.ring(S.cur.placed.length-1);burst(sx,sy-4,14,f.color==='rainbow'?['#ff6fb1','#ffd23f','#4fb4ff']:[GEMCOL[f.color][0],'#fff'],40);progress();save();updateHUD();updateTip();
+      if(!W.fly.length&&!W.placeQ.length){checkComplete();if(mode==='play'&&S.cur.placed.length===W.gems.length)toast('Now say hello to all your friends!')}}}
+  if(mode==='celebrate'){W.celebT+=dt;W.spin+=dt*(.6+W.celebT*1.4);W.glow=Math.min(1,W.celebT/2);if(W.celebT>1.6)W.portal=Math.min(1,W.portal+dt*.8);
+    if(Math.random()<.6)burst(W.ring.x+rnd(-20,20),W.ring.y-rnd(0,10),2,['#ff6fb1','#ffd23f','#4fb4ff','#46d36b','#a066ff','#fff'],70,1.2);
+    if(W.celebT>5.2){mode='done';showComplete()}}
+  else if(mode==='done'){W.spin+=dt*1.5}
+  else W.spin+=dt*.15;
+  // butterflies
+  for(const b of W.bfs){b.t-=dt;if(b.t<=0){const r=b.trail?10:26;b.tx=b.hx+rnd(-r,r);b.ty=b.hy+rnd(-r*.7,r*.7);b.t=rnd(.8,2.2)}
+    const dp=Math.hypot(b.x-P.x,b.y-P.y+14);if(dp<22&&!b.trail){b.tx=b.x+(b.x-P.x)*1.5;b.ty=b.y-20}
+    b.x+=(b.tx-b.x)*dt*1.4+Math.sin(G.t*3+b.ph)*.25;b.y+=(b.ty-b.y)*dt*1.4+Math.cos(G.t*4.2+b.ph)*.25}
+  for(const f of W.ffs){f.x=f.hx+Math.sin(G.t*.7+f.ph)*(f.tr?6:18);f.y=f.hy+Math.sin(G.t*.9+f.ph*2)*(f.tr?4:10)}
+  // leaves
+  const vw=VW/ZOOM,vh=VH/ZOOM;
+  if(!REDUCED&&W.leaves.length<10&&Math.random()<dt*2)W.leaves.push({x:cam.x+rnd(-vw/2,vw/2),y:cam.y-vh/2-10,ph:Math.random()*6,c:W.th.trees[Math.random()*W.th.trees.length|0][Math.random()<.5?0:2],vy:rnd(7,13)});
+  for(let i=W.leaves.length-1;i>=0;i--){const l=W.leaves[i];l.y+=l.vy*dt;l.x+=Math.sin(G.t*1.5+l.ph)*12*dt+4*dt;if(l.y>cam.y+vh/2+10)W.leaves.splice(i,1)}
+  for(const c of W.clouds){c.x+=5*dt;if(c.x-c.rx>W.w*TS)c.x=-c.rx}
+  for(let i=W.parts.length-1;i>=0;i--){const p=W.parts[i];p.l-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=p.g*dt;p.vx*=.97;if(p.l<=0)W.parts.splice(i,1)}
+  for(const c of W.chars)if(c.heartT>0)c.heartT-=dt;
+  for(const h of W.hides)if(h.wig>0)h.wig-=dt;
+  // ambience
+  if(Snd.ac&&(mode==='play'||mode==='title')){
+    W.birdT-=dt;if(W.birdT<=0){W.birdT=rnd(4,9);if(W.def.theme==='rainbow')SFX.twinkle();else SFX.bird()}
+    W.waterT-=dt;if(W.waterT<=0){W.waterT=.3;let md=9;const tx=Math.floor(P.x/TS),ty=Math.floor(P.y/TS);for(let y=ty-6;y<=ty+6;y++)for(let x=tx-6;x<=tx+6;x++){if(x<0||y<0||x>=W.w||y>=W.h)continue;const v=W.T[y*W.w+x];if(v===2||v===3)md=Math.min(md,Math.hypot(x-tx,y-ty))}
+      const cl=W.def.cliffs.some(c=>c.waterfall!=null&&Math.hypot(c.waterfall-tx,c.y+c.h-ty)<8)?1.8:1;
+      if(Snd.water)Snd.water.gain.setTargetAtTime(Math.max(0,.05*cl*(1-md/7)),Snd.ac.currentTime,.3)}}
+  // camera
+  if(mode==='title'){cam.x=P.x+30+Math.sin(G.t*.12)*70;cam.y=P.y-10+Math.cos(G.t*.09)*30}
+  else{let tx=P.x+P.face*8,ty=P.y-14;if(cam.fT>0){cam.fT-=dt;tx=cam.fx;ty=cam.fy}const k=1-Math.exp(-dt*4);cam.x=lerp(cam.x,tx,k);cam.y=lerp(cam.y,ty,k)}
+  clampCam();
+}
+function sockPos(i){const n=W.gems.length,a=-Math.PI/2+i*Math.PI*2/n+W.spin;return[W.ring.x+Math.cos(a)*17,W.ring.y+Math.sin(a)*8]}
+
+/* ================= RENDER ================= */
+function drawSpr(s,x,y,flip,alpha){const X=Math.round(x),Y=Math.round(y);if(alpha!=null&&alpha<1)ctx.globalAlpha=alpha;
+  if(flip){ctx.save();ctx.translate(X,0);ctx.scale(-1,1);ctx.drawImage(s,-(s.width>>1),Y-s.height);ctx.restore()}else ctx.drawImage(s,X-(s.width>>1),Y-s.height);
+  ctx.globalAlpha=1}
+function shadow(x,y,w){ctx.fillStyle='rgba(30,40,40,.22)';const X=Math.round(x),Y=Math.round(y);ctx.fillRect(X-w/2|0,Y-2,w,3);ctx.fillRect(X-w/2+2|0,Y-3,w-4,5)}
+function star(x,y,s,c){const X=Math.round(x),Y=Math.round(y);ctx.fillStyle=c||'#fff';ctx.fillRect(X,Y-s,1,s*2+1);ctx.fillRect(X-s,Y,s*2+1,1);if(s>1){ctx.fillRect(X-1,Y-1,3,3)}}
+function glint(x,y,ph,rate){const per=2.6/rate,m=(G.t+ph)%per;if(m<.45){const s=m<.15||m>.3?1:2;star(x,y,s,'#fff');ctx.fillStyle='#ffd23f';ctx.fillRect(Math.round(x),Math.round(y),1,1)}}
+function render(){
+  ctx.setTransform(1,0,0,1,0,0);ctx.imageSmoothingEnabled=false;
+  if(!W){ctx.fillStyle='#1d3b24';ctx.fillRect(0,0,cv.width,cv.height);return}
+  const s=DPR*ZOOM,cw=cv.width,ch=cv.height;
+  // far forest parallax
+  const pat=ctx.createPattern(W.far,'repeat');const pox=Math.round(-cam.x*.6*s),poy=Math.round(-cam.y*.6*s);
+  ctx.setTransform(s,0,0,s,pox,poy);ctx.fillStyle=pat;ctx.fillRect(-pox/s-2,-poy/s-2,cw/s+4,ch/s+4);
+  const ox=Math.round(cw/2-cam.x*s),oy=Math.round(ch/2-cam.y*s);ctx.setTransform(s,0,0,s,ox,oy);
+  const vx0=cam.x-VW/ZOOM/2,vy0=cam.y-VH/ZOOM/2,vx1=cam.x+VW/ZOOM/2,vy1=cam.y+VH/ZOOM/2;
+  const gx=Math.max(0,Math.floor(vx0)),gy=Math.max(0,Math.floor(vy0)),gw=Math.min(W.ground.width,Math.ceil(vx1))-gx,gh=Math.min(W.ground.height,Math.ceil(vy1))-gy;
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(-4,-4,W.w*TS+8,W.h*TS+8);
+  if(gw>0&&gh>0)ctx.drawImage(W.ground,gx,gy,gw,gh,gx,gy,gw,gh);
+  // water & sparkle paths
+  const tx0=Math.max(0,Math.floor(vx0/TS)),ty0=Math.max(0,Math.floor(vy0/TS)),tx1=Math.min(W.w-1,Math.floor(vx1/TS)),ty1=Math.min(W.h-1,Math.floor(vy1/TS));
+  for(let y=ty0;y<=ty1;y++)for(let x=tx0;x<=tx1;x++){const v=W.T[y*W.w+x];
+    if(v===2){const p=(W.t*5+x*7+y*13)%16;ctx.fillStyle=W.th.w2;ctx.fillRect(x*TS+(p|0)%13+1,y*TS+5,3,1);ctx.fillRect(x*TS+((p+8)|0)%12+2,y*TS+11,2,1)}
+    else if(v===1&&W.def.sparklePaths){const h=(x*31+y*17)%23;if(((W.t*1.3+h*.37)%4)<.25)star(x*TS+h%14+1,y*TS+(h*3)%14+1,1,'#fff')}}
+  for(const c of W.def.cliffs)if(c.waterfall!=null){const X=c.waterfall*TS,Y0=c.y*TS,H=c.h*TS;ctx.fillStyle=W.th.water;ctx.fillRect(X+1,Y0+2,14,H);ctx.fillStyle=W.th.w2;
+    for(let k=0;k<7;k++){const yy=(W.t*50+k*9)%H;ctx.fillRect(X+2+(k*5)%11,Y0+2+yy,1,Math.min(5,H-yy))}
+    ctx.fillStyle='#fff';for(let k=0;k<6;k++)ctx.fillRect(X+1+((k*7+(W.t*20|0))%14),Y0+H+1+((k*3+(W.t*9|0))%4),2,1);
+    if(Math.random()<.3)W.parts.push({x:X+rnd(0,16),y:Y0+H+4,vx:rnd(-8,8),vy:rnd(-12,-4),l:.8,m:.8,c:'#e6f8ff',g:0})}
+  // ground-level hides
+  const cl=W.def.clue;
+  for(const h of W.hides){if(h.x<vx0-20||h.x>vx1+20||h.y<vy0-30||h.y>vy1+30)continue;
+    if(h.kind==='buried'){const X=Math.round(h.x),Y=Math.round(h.y);if(h.opened){ctx.fillStyle='#6b4a2e';ctx.fillRect(X-5,Y-4,10,4);ctx.fillStyle='#4a3020';ctx.fillRect(X-4,Y-3,8,2)}
+      else{ctx.fillStyle='#a0724a';ctx.fillRect(X-6,Y-4,12,3);ctx.fillRect(X-4,Y-5,8,1);ctx.fillStyle='#c49a6c';ctx.fillRect(X-4,Y-4,3,1);glint(X+2,Y-6,h.ph,cl*1.3);glint(X-3,Y-3,h.ph+1.1,cl*1.3)}}
+    else if(h.kind==='cave'&&!h.opened)glint(h.x,h.y+2,h.ph,cl*1.2)}
+  // ring
+  const R=W.ring;const fill=S?S.cur.placed.length/W.gems.length:0;
+  if(mode!=='title'){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.25+fill*.4+W.glow*.35;ctx.drawImage(SPR.glowC.gold,R.x-40,R.y-26,80,48);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+  drawSpr(SPR.ringBase,R.x,R.y+14);
+  for(let i=0;i<W.gems.length;i++){const[sx,sy]=sockPos(i);const id=S&&mode!=='title'?S.cur.placed[i]:null;
+    if(id){const g=W.gems.find(x=>x.id===id);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5;ctx.drawImage(SPR.glowC.pink,sx-10,sy-14,20,20);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';drawSpr(SPR.gem[g.color],sx,sy+1+Math.round(Math.sin(G.t*3+i)))}
+    else{ctx.fillStyle='#6d5f82';ctx.fillRect(Math.round(sx)-2,Math.round(sy)-1,5,3)}}
+  if(W.portal>0){const pr=W.portal;ctx.save();ctx.globalCompositeOperation='lighter';for(let k=0;k<6;k++){ctx.globalAlpha=.35*pr;ctx.drawImage(SPR.glowC[['pink','gold','cyan','lilac','pink','gold'][k]],R.x-16*pr+Math.cos(G.t*3+k)*4,R.y-48*pr+Math.sin(G.t*2+k)*6,32*pr,48*pr)}ctx.restore()}
+  // sortable list
+  const L=[];
+  for(const e of W.ents)if(e.x>vx0-40&&e.x<vx1+40&&e.y>vy0-10&&e.y<vy1+100)L.push(e);
+  for(const c of W.chars)L.push(c);for(const h of W.hides)if(h.spr)L.push(h);
+  for(const g of W.gems)if(g.state==='shown')L.push(g);for(const it of W.items)if(!it.got)L.push(it);
+  L.push(P);
+  L.sort((a,b)=>a.y-b.y);
+  for(const e of L)drawEnt(e);
+  // flyers & particles
+  for(const g of W.gems)if(g.state==='fly')drawSpr(SPR.gem[g.color],g.cx,g.cy+5);
+  for(const f of W.fly)drawSpr(SPR.gem[f.color],f.x,f.y+5);
+  for(const b of W.bfs){if(b.x<vx0||b.x>vx1||b.y<vy0||b.y>vy1)continue;const fl=Math.abs(Math.sin(G.t*16+b.ph)),ww=fl>.5?3:1,X=Math.round(b.x),Y=Math.round(b.y);ctx.fillStyle=b.c;ctx.fillRect(X-ww,Y-2,ww,3);ctx.fillRect(X+1,Y-2,ww,3);ctx.fillStyle=lighten(b.c==='#ffffff'?'#dddddd':b.c,.4);ctx.fillRect(X-Math.max(1,ww-1),Y+1,Math.max(1,ww-1),2);ctx.fillRect(X+1,Y+1,Math.max(1,ww-1),2);ctx.fillStyle=INK;ctx.fillRect(X,Y-2,1,4)}
+  for(const p of W.parts){const a=Math.max(0,p.l/p.m);ctx.globalAlpha=a;if(p.star)star(p.x,p.y,a>.5?1:0,p.c);else{ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),2,2)}}ctx.globalAlpha=1;
+  if(W.ffs.length){ctx.globalCompositeOperation='lighter';for(const f of W.ffs){if(f.x<vx0-10||f.x>vx1+10||f.y<vy0-10||f.y>vy1+10)continue;const a=.45+.55*Math.sin(G.t*2.5+f.ph*3);if(a<=0)continue;ctx.globalAlpha=a*.8;ctx.drawImage(SPR.glowC.gold,f.x-8,f.y-8,16,16);ctx.globalAlpha=a;ctx.fillStyle='#fff6b0';ctx.fillRect(Math.round(f.x),Math.round(f.y),1,1)}ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+  for(const l of W.leaves){ctx.fillStyle=l.c;const X=Math.round(l.x),Y=Math.round(l.y);ctx.fillRect(X,Y,2,1);ctx.fillRect(X+(Math.sin(G.t*3+l.ph)>0?1:0),Y+1,2,1)}
+  // bubbles
+  if(mode==='play'||mode==='title')for(const c of W.chars){if(c.x<vx0||c.x>vx1)continue;const h=c.spr0h||SPR.char[c.kind][0].height,by=c.y-h-4+Math.round(Math.sin(G.t*4+c.ph)*1.5);
+    const talked=S&&S.cur.talked.includes(c.id);let b=null;
+    if(c.heartT>0)b=SPR.bub.heart;else if(W.near&&W.near.o===c)b=SPR.bub.talk;else if(!talked)b=SPR.bub.ex;
+    else if(c.task&&!S.cur.delivered.includes(c.id))b=S.cur.items.includes(c.task.item)?SPR.bub.ex:SPR.bub.q;
+    if(b&&mode==='play')drawSpr(b,c.x+2,by)}
+  if(mode==='play'&&W.near&&W.near.type!=='char'){const o=W.near.o,yy=(W.near.type==='ring'?o.y-24:(o.kind==='cave'?o.y-2:o.y-(o.spr?o.spr.height:6)-4))+Math.round(Math.sin(G.t*5)*2);drawSpr(SPR.bub.talk,o.x,yy)}
+  // hint arrow (world)
+  if(hintArrow&&G.t<hintArrow.until&&hintArrow.x>vx0+10&&hintArrow.x<vx1-10&&hintArrow.y>vy0+30&&hintArrow.y<vy1){const X=Math.round(hintArrow.x),Y=Math.round(hintArrow.y-36+Math.sin(G.t*6)*3);ctx.fillStyle=INK;ctx.fillRect(X-5,Y-9,11,9);ctx.fillRect(X-8,Y-1,17,2);for(let k=0;k<8;k++)ctx.fillRect(X-8+k,Y+k,17-k*2,1);ctx.fillStyle='#ffd23f';ctx.fillRect(X-3,Y-8,7,8);for(let k=0;k<6;k++)ctx.fillRect(X-6+k,Y+k,13-k*2,1)}
+  // cloud shadows
+  ctx.fillStyle='rgba(30,30,70,.07)';for(const c of W.clouds){ctx.beginPath();ctx.ellipse(c.x,c.y,c.rx,c.ry,0,0,Math.PI*2);ctx.fill()}
+  // celebration beam
+  if(W.glow>0){ctx.globalCompositeOperation='lighter';const a=W.glow*(.5+.2*Math.sin(G.t*6));const gr=ctx.createLinearGradient(0,R.y-400,0,R.y);gr.addColorStop(0,'rgba(255,240,200,0)');gr.addColorStop(1,`rgba(255,230,160,${a})`);ctx.fillStyle=gr;const bw=10+W.glow*8;ctx.fillRect(R.x-bw/2,R.y-400,bw,400);ctx.globalAlpha=W.glow*.5;ctx.drawImage(SPR.glowC.pink,R.x-140,R.y-110,280,200);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+  // screen space
+  ctx.setTransform(1,0,0,1,0,0);
+  if(W.def.theme==='rainbow'||W.glow>0){ctx.globalCompositeOperation='soft-light';ctx.fillStyle=`hsla(${(G.t*20)%360},90%,70%,${.12+W.glow*.2})`;ctx.fillRect(0,0,cw,ch);ctx.globalCompositeOperation='source-over'}
+  const vg=ctx.createRadialGradient(cw/2,ch/2,Math.min(cw,ch)*.35,cw/2,ch/2,Math.max(cw,ch)*.75);vg.addColorStop(0,'rgba(20,10,40,0)');vg.addColorStop(1,'rgba(20,10,40,.35)');ctx.fillStyle=vg;ctx.fillRect(0,0,cw,ch);
+  if(hintArrow&&G.t<hintArrow.until){const sx=(hintArrow.x-cam.x)*ZOOM+VW/2,sy=(hintArrow.y-20-cam.y)*ZOOM+VH/2;const m=70;
+    if(sx<m||sx>VW-m||sy<m||sy>VH-m){const a=Math.atan2(sy-VH/2,sx-VW/2),ex=clamp(sx,m,VW-m),ey=clamp(sy,m,VH-m);ctx.save();ctx.scale(DPR,DPR);ctx.translate(ex,ey);ctx.rotate(a);const p=Math.sin(G.t*6)*5;ctx.beginPath();ctx.moveTo(28+p,0);ctx.lineTo(-14+p,-22);ctx.lineTo(-14+p,22);ctx.closePath();ctx.fillStyle='#ffd23f';ctx.fill();ctx.lineWidth=5;ctx.strokeStyle=INK;ctx.stroke();ctx.restore()}}
+}
+function drawEnt(e){
+  if(e===P){drawPlayer();return}
+  switch(e.k){
+    case 'tree':{let a=1;if(e.secret){const d=Math.hypot(P.x-e.x,P.y-e.y);a=d<26?.3:1;drawSpr(e.spr,e.x,e.y,false,a);if(a===1)glint(e.x-6+(e.x%9),e.y-30,e.x%5,.6);return}
+      if(Math.abs(P.x-e.x)<18&&P.y<e.y-2&&P.y>e.y-46)a=.5;drawSpr(e.spr,e.x,e.y,false,a);return}
+    case 'bigtree':{const a=(Math.abs(P.x-e.x)<34&&P.y<e.y-4&&P.y>e.y-86)?.5:1;drawSpr(e.spr,e.x,e.y,false,a);return}
+    case 'tuft':{const sw=Math.sin(G.t*1.8+e.ph)>.6?1:0;drawSpr(e.spr,e.x+sw,e.y);return}
+    case 'gflower':{const sw=Math.sin(G.t*1.2+e.ph)>.7?1:0;drawSpr(e.spr,e.x+sw,e.y,false,1);if(W.glow>0){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=W.glow*.6;ctx.drawImage(SPR.glowC.pink,e.x-14,e.y-34,28,28);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}return}
+    case 'flower':{const X=Math.round(e.x),Y=Math.round(e.y),sw=Math.round(Math.sin(G.t*1.6+e.ph+e.x*.05)*.8);ctx.fillStyle='#3f9e3a';ctx.fillRect(X,Y-4,1,4);ctx.fillStyle=e.c;ctx.fillRect(X-1+sw,Y-6,3,1);ctx.fillRect(X+sw,Y-7,1,3);ctx.fillStyle='#ffd23f';ctx.fillRect(X+sw,Y-6,1,1);
+      if(W.glow>0&&Math.random()<.02)sparkle(X,Y-6,e.c);return}
+    case 'mush':{if(e.glow){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.35+.2*Math.sin(G.t*2+e.x);ctx.drawImage(SPR.glowC.cyan,e.x-10,e.y-16,20,20);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}drawSpr(e.spr,e.x,e.y);return}
+    case 'hide':{let x=e.x;if(!e.opened&&e.kind==='bush'){const per=3.2/W.def.clue,m=(G.t+e.ph)%per;if(m<.6)x+=Math.round(Math.sin(m*40));if(m<.05&&Math.random()<.5)burst(e.x,e.y-10,3,W.th.trees[0],20,.5)}
+      if(e.wig>0)x+=Math.round(Math.sin(e.wig*50));
+      if(e.kind==='mushroom'&&W.def.theme==='rainbow'){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5;ctx.drawImage(SPR.glowC.cyan,e.x-16,e.y-24,32,32);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+      const sq=e.opened&&e.kind==='mushroom'&&e.wig>0?-Math.round(Math.sin(e.wig*12)*3):0;
+      drawSpr(e.spr,x,e.y+sq);
+      if(!e.opened&&e.kind!=='bush')glint(e.x+(e.kind==='flower'?0:3),e.y-(e.spr.height*.6),e.ph,W.def.clue*(e.kind==='flower'?1.2:1));
+      if(!e.opened&&e.kind==='flower'&&W.def.clue>.9){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.25+.15*Math.sin(G.t*3);ctx.drawImage(SPR.glowC.gold,e.x-12,e.y-30,24,24);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+      return}
+  }
+  if(e.gives!==undefined||e.lines){drawChar(e);return}
+  if(e.hide){ // shown gem
+    const by=Math.round(Math.sin(G.t*3+e.ph)*1.5);shadow(e.x,e.y,8);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.4;ctx.drawImage(SPR.glowC.gold,e.x-10,e.y-20,20,20);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    drawSpr(SPR.gem[e.color],e.x,e.y-3+by);glint(e.x+4,e.y-12+by,e.ph,1.4);return}
+  if(e.spr&&e.kind){shadow(e.x,e.y,8);drawSpr(e.spr,e.x,e.y-2+Math.round(Math.sin(G.t*3)*1));glint(e.x+3,e.y-9,0,1);return}
+  if(e.spr)drawSpr(e.spr,e.x,e.y);
+}
+function drawChar(c){
+  const fr=SPR.char[c.kind][((G.t+c.ph)%4)<.15?1:0];
+  const fly=c.kind==='fairy'||c.kind==='bird'&&false;
+  const bob=c.kind==='fairy'?Math.round(Math.sin(G.t*2.5+c.ph)*2)-4:Math.round(Math.sin(G.t*2+c.ph)*.6);
+  if(W&&mode!=='title'){const d=P.x-c.x;if(Math.abs(d)>6)c.flip=d<0}
+  shadow(c.x,c.y,fr.width*.55|0);
+  if(c.kind==='fairy'){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.45;ctx.drawImage(SPR.glowC.lilac,c.x-16,c.y-30+bob,32,32);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';if(Math.random()<.05)sparkle(c.x+rnd(-6,6),c.y-10+bob,'#fff3a8')}
+  drawSpr(fr,c.x,c.y+bob,c.flip);
+  if(c.task&&c.task.item==='crown'&&S&&S.cur.delivered.includes(c.id))drawSpr(SPR.crown,c.x,c.y+bob-fr.height+6);
+}
+function drawPlayer(){
+  const fr=P.moving?SPR.uniWalk[Math.floor(P.anim*5)%4]:SPR.uniIdle[P.blinkT<0?1:0];
+  const hop=P.hopT>0?-Math.round(Math.sin((1-P.hopT/.45)*Math.PI)*8):0;
+  const bob=P.moving?(Math.floor(P.anim*5)%2?-1:0):(Math.sin(G.t*2.2)>.6?-1:0);
+  shadow(P.x,P.y,20);
+  drawSpr(fr,P.x,P.y+hop+bob,P.face<0);
+  if(mode!=='title'&&S)for(const it of W.items)if(it.got&&!W.chars.some(c=>c.task&&c.task.item===it.id&&S.cur.delivered.includes(c.id))){drawSpr(it.spr,P.x-P.face*6,P.y-30+hop+Math.round(Math.sin(G.t*4)*1.5));break}
+}
+
+/* ================= INPUT ================= */
+const KEYMAP={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
+addEventListener('keydown',e=>{
+  if(KEYMAP[e.code]){K[KEYMAP[e.code]]=1;e.preventDefault();audioInit();return}
+  if(e.code==='Space'||e.code==='Enter'||e.code==='KeyE'){if(DQ){e.preventDefault();advanceDialog();return}if(modalOpen()||mode==='title')return;e.preventDefault();interact()}
+  if(e.code==='KeyJ'&&mode==='play'&&!modalOpen()&&!DQ)openJournal();
+  if(e.code==='Escape'&&modalOpen()&&$('mClose'))$('mClose').click();
+});
+addEventListener('keyup',e=>{if(KEYMAP[e.code])K[KEYMAP[e.code]]=0});
+addEventListener('blur',()=>{K.l=K.r=K.u=K.d=0;Joy.active=false;Steer.active=false});
+function showTouch(){if(isTouch)return;isTouch=true;if(mode==='play'){$('pad').classList.remove('hidden');$('act').classList.remove('hidden')}updateTip()}
+addEventListener('touchstart',showTouch,{passive:true});
+const pad=$('pad'),knob=$('knob');
+function padMove(e){const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=(e.clientX-cx)/(r.width*.4),dy=(e.clientY-cy)/(r.height*.4);const m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m}
+  Joy.x=Math.hypot(dx,dy)<.18?0:dx;Joy.y=Math.hypot(dx,dy)<.18?0:dy;knob.style.transform=`translate(${dx*r.width*.3}px,${dy*r.height*.3}px)`}
+pad.addEventListener('pointerdown',e=>{audioInit();Joy.active=true;Joy.id=e.pointerId;pad.setPointerCapture(e.pointerId);padMove(e);e.preventDefault()});
+pad.addEventListener('pointermove',e=>{if(Joy.active&&e.pointerId===Joy.id)padMove(e)});
+const padUp=e=>{if(e.pointerId!==Joy.id)return;Joy.active=false;Joy.x=Joy.y=0;knob.style.transform=''};
+pad.addEventListener('pointerup',padUp);pad.addEventListener('pointercancel',padUp);
+$('act').addEventListener('pointerdown',e=>{e.preventDefault();interact()});
+$('dialog').addEventListener('pointerdown',e=>{e.preventDefault();audioInit();advanceDialog()});
+cv.addEventListener('pointerdown',e=>{audioInit();if(e.pointerType==='touch')showTouch();
+  if(DQ){advanceDialog();return}if(mode!=='play'||modalOpen())return;
+  const wx=cam.x+(e.clientX-VW/2)/ZOOM,wy=cam.y+(e.clientY-VH/2)/ZOOM;
+  if(W.near){const o=W.near.o,oy=W.near.type==='ring'?o.y:o.y-10;if(Math.hypot(wx-o.x,wy-oy)<26){interact();return}}
+  Steer.active=true;Steer.id=e.pointerId;Steer.sx=e.clientX;Steer.sy=e.clientY;cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(Steer.active&&e.pointerId===Steer.id){Steer.sx=e.clientX;Steer.sy=e.clientY}});
+const stUp=e=>{if(e.pointerId===Steer.id)Steer.active=false};cv.addEventListener('pointerup',stUp);cv.addEventListener('pointercancel',stUp);
+$('hintBtn').onclick=()=>giveHint();
+$('bJournal').onclick=()=>{if(!DQ)openJournal()};
+$('bSound').onclick=()=>{audioInit();setSound(!Snd.on)};
+$('bHow').onclick=()=>{audioInit();openHow()};
+$('bCont').onclick=()=>{audioInit();S=loadSave();if(!S)return;fadeTo(()=>{if(S.completed[S.level]&&S.level===LEVELS.length-1&&S.cur.placed.length===LEVELS[S.level].gems.length){loadLevel(S.level)}else loadLevel(S.level)})};
+$('bStart').onclick=()=>{audioInit();const old=loadSave();
+  const begin=()=>{S=newSave();if(old){S.totals=old.totals;S.friends=old.friends;S.disc=old.disc}save();fadeTo(()=>loadLevel(0))};
+  if(old&&(old.level>0||old.cur.found.length||old.cur.talked.length))showModal(`<h2>Start a new adventure?</h2><p>This starts again from Level 1. Your journal will be kept.</p><div class="mbtns"><button class="btn alt" id="mClose">Go back</button><button class="btn gold" id="mYes">Start again</button></div>`,()=>{$('mClose').onclick=closeModal;$('mYes').onclick=()=>{closeModal();begin()}});
+  else begin()};
+document.addEventListener('visibilitychange',()=>{if(!Snd.ac)return;if(document.hidden)Snd.ac.suspend();else Snd.ac.resume()});
+addEventListener('resize',resize);
+
+/* ================= MAIN ================= */
+let lastT=0;
+function frame(ts){const dt=Math.min(.05,(ts-lastT)/1000||0);lastT=ts;update(dt);render();requestAnimationFrame(frame)}
+resize();initSprites();setSound(Snd.on);titleScene();Mus.lv=0;requestAnimationFrame(frame);
+</script>
+</body>
+</html>
