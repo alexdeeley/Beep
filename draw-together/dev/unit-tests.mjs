@@ -172,7 +172,7 @@ ok(M.raw.every((r) => !r.toLowerCase().includes(word.toLowerCase())), 'secret wo
 // guesser cannot draw / cannot ready
 M.send({ type: 'ready', aspect: 1 }); await sleep(50);
 ok(A.st.phase === 'choosing', 'guesser cannot start the round');
-// word choices: 5 options, cycling forever, wrapping back to the first
+// word choices: 5 options; cycling past the 5th pulls a fresh batch
 const word0 = A.st.word.w;
 A.send({ type: 'swap' }); await sleep(60);
 const word1 = A.st.word.w;
@@ -181,9 +181,8 @@ ok(word1 !== word0, 'swapping shows a different word');
 A.send({ type: 'swap' }); A.send({ type: 'swap' }); A.send({ type: 'swap' }); await sleep(60);
 ok(A.st.choiceIdx === 4, 'cycled to the 5th and last option');
 A.send({ type: 'swap' }); await sleep(60);
-ok(A.st.choiceIdx === 0 && A.st.word.w === word0, 'swapping past the 5th wraps back to the first word');
-A.send({ type: 'swap' }); await sleep(60);
-ok(A.st.choiceIdx === 1 && A.st.word.w === word1, 'cycling is stable - same 5 words every time around');
+ok(A.st.choiceIdx === 0, 'swapping past the 5th pulls a fresh batch (index resets to 0)');
+ok(A.st.word.w !== word0, 'the fresh batch never repeats a word already shown this round');
 const word2 = A.st.word.w;
 A.send({ type: 'ready', aspect: 0.7 }); await sleep(60);
 ok(M.st.phase === 'drawing' && Math.abs(M.st.aspect - 0.7) < 1e-9, 'drawing started with aspect');

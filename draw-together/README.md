@@ -117,7 +117,7 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 
 10 rounds by default (6 or 16 selectable), the drawer role rotates through every seat in join order. The chosen round count is rounded to the nearest multiple of the player count when the game starts, so every player always draws the same number of times - e.g. 3 players + "10 rounds" plays 9 (3 each), not 10 (one player drawing an extra round). Timer 30 / 60 / 90 s or none, with a tick in the last 10 seconds. A correct guess scores 3 points, plus 2 if more than 40 s remain or 1 if more than 20 s remain, with a little victory fanfare. Guess matching ignores case, accents, punctuation, spacing and plurals, accepts listed alternatives ("kitty" for CAT), forgives one typo in words of 5+ letters and two in 9+, and says "So close!" for near misses. Guessers see how many letters are in each word of the answer (one numeral per word, not a row of blanks - those break apart confusingly when the page is pinch-zoomed).
 
-**Word choices.** The drawer is offered 5 words at once and can press "Try another word" as many times as they like - it cycles forward through that fixed batch of 5, wrapping back to the first once it's gone all the way around, so there's always a next option and the same 5 to return to.
+**Word choices.** The drawer is offered 5 words at once and can press "Try another word" as many times as they like - it cycles forward through that batch of 5, and once every one of them has been seen, the next press pulls a genuinely fresh batch of 5 rather than looping back to the same words - a picky drawer always has something new to look at, never stuck re-reading a word they've already said no to.
 
 **Guessing starts.** A lobby setting ("Right away" / "Let the drawer finish first"). On, guessing is held back the moment drawing starts - the timer doesn't run, the letter-count hint stays hidden, and the guess box is disabled - until the drawer presses their own "Let people guess" button, at which point the timer starts fresh at its full duration and guessing opens for everyone at once.
 
@@ -165,7 +165,7 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 28. Every button/chip/swatch press has an audible tap sound.
 29. Guessing while someone draws: a soft pen-movement sound is audible in time with the drawer's strokes, distinct from every other sound cue.
 30. Game over: music pauses (just the chime plays); Play Again brings the music back once the next round starts.
-31. Choosing a word: "Try another word" cycles through 5 options and going past the 5th returns to the 1st, forever.
+31. Choosing a word: "Try another word" cycles through 5 options; going past the 5th pulls a fresh batch of 5 rather than repeating any of the ones just seen.
 32. "Let the drawer finish first" setting: guessers see "Hang tight!" with the guess box disabled and no timer running until the drawer taps "Let people guess"; then the timer starts fresh and guessing opens for everyone at once.
 33. Quick reactions: tapping an emoji shows it on every screen (including the drawer's) and it's gone in about a second - much quicker than a guess bubble.
 34. Guesser doodles: anyone but the drawer can gesture on the drawing with a finger or mouse; the mark shows up faded on everyone's screen, never touches the real drawing, and fades away on its own roughly ten seconds after it's lifted.

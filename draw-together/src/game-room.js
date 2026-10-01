@@ -416,12 +416,11 @@ export class GameRoom {
     await this.scheduleAlarm();
   }
 
-  // Pre-picks a fixed batch of WORD_CHOICES distinct words for the drawer
-  // to cycle through this round (see `swap`), rather than handing out a
-  // fresh random word on every "another word" press. Every candidate in
-  // the batch counts as "used" for future rounds even if the drawer never
-  // actually lands on it - the same cost swapping already had before.
-  chooseWord() {
+  // Picks a fresh batch of WORD_CHOICES distinct words for the drawer to
+  // cycle through (see `swap`). Every candidate in the batch counts as
+  // "used" for future rounds even if the drawer never actually lands on
+  // it - the same cost swapping already had before.
+  newWordBatch() {
     const r = this.room;
     const excluded = new Set(r.used);
     const choices = [];
@@ -432,9 +431,14 @@ export class GameRoom {
       r.used.push(index);
       choices.push(index);
     }
-    r.wordChoices = choices;
+    return choices;
+  }
+
+  chooseWord() {
+    const r = this.room;
+    r.wordChoices = this.newWordBatch();
     r.choiceIdx = 0;
-    r.wordIndex = choices[0];
+    r.wordIndex = r.wordChoices[0];
   }
 
   async endRound(reason, winner) {
@@ -584,9 +588,16 @@ const HANDLERS = {
   async swap(me) {
     const r = this.room;
     if (r.phase !== 'choosing' || me.seat !== r.drawerSeat) return;
-    // Cycles forward through this round's fixed batch of choices, wrapping
-    // back to the first one - never runs out.
-    r.choiceIdx = (r.choiceIdx + 1) % r.wordChoices.length;
+    // Cycles forward through the current batch; once every choice in it
+    // has been seen, pulls a genuinely fresh batch rather than looping
+    // back to the same 5 words forever - a picky drawer always sees
+    // something new, never a word they've already said no to this round.
+    if (r.choiceIdx + 1 >= r.wordChoices.length) {
+      r.wordChoices = this.newWordBatch();
+      r.choiceIdx = 0;
+    } else {
+      r.choiceIdx += 1;
+    }
     r.wordIndex = r.wordChoices[r.choiceIdx];
     this.save();
     this.broadcastState();

@@ -74,7 +74,7 @@ await A.page.waitForSelector('#ov-choose:not([hidden]) #btn-ready');
 await M.page.waitForSelector('#ov-choose:not([hidden])');
 await A.page.screenshot({ path: `${OUT}/05-your-word-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/05-waiting-phone.png` });
-// word choices: 5 cycling options, infinite wraparound (never run out)
+// word choices: 5 cycling options; running past the 5th pulls a fresh batch
 const word0 = await A.page.evaluate(() => window.__dt.S.st.word.w);
 await A.page.click('#btn-swap');
 await sleep(80);
@@ -82,8 +82,13 @@ const word1 = await A.page.evaluate(() => window.__dt.S.st.word.w);
 ok(word1 !== word0, 'trying another word shows a different one');
 ok((await A.page.evaluate(() => window.__dt.S.st.choiceIdx)) === 1, 'choice index advances');
 ok((await A.page.locator('.choice-dots .dot.on').count()) === 1, 'exactly one dot marks the current choice');
-for (let i = 0; i < 4; i++) { await A.page.click('#btn-swap'); await sleep(80); }
-ok((await A.page.evaluate(() => window.__dt.S.st.word.w)) === word0, 'cycling through all 5 options wraps back to the first');
+for (let i = 0; i < 3; i++) { await A.page.click('#btn-swap'); await sleep(80); }
+ok((await A.page.evaluate(() => window.__dt.S.st.choiceIdx)) === 4, 'cycling reaches the last choice in the batch');
+await A.page.click('#btn-swap'); // past the 5th choice
+await sleep(80);
+ok((await A.page.evaluate(() => window.__dt.S.st.choiceIdx)) === 0, 'cycling past the last choice starts a fresh batch (index resets to 0)');
+const wordAfterFreshBatch = await A.page.evaluate(() => window.__dt.S.st.word.w);
+ok(wordAfterFreshBatch !== word0, 'the fresh batch is genuinely new, never looping back to a word already shown this round');
 
 const word = await A.page.evaluate(() => window.__dt.S.st.word.w);
 await A.page.click('#btn-ready');
