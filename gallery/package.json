@@ -1,0 +1,16 @@
+{
+  "name": "gallery",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Type a seed, get a piece of generative art. The seed of a future infinite voxel museum.",
+  "scripts": {
+    "dev": "node dev/serve.mjs",
+    "test": "node dev/unit-tests.mjs",
+    "test:browser": "node dev/browser-test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

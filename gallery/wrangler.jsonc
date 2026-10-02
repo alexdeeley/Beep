@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gallery",
+  "compatibility_date": "2025-06-01",
+
+  // Pure static site: everything in ./public is served as-is.
+  "assets": { "directory": "./public" },
+
+  "observability": { "enabled": true },
+
+  "routes": [{ "pattern": "gallery.deeley.org", "custom_domain": true }]
+}

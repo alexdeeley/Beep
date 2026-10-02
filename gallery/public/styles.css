@@ -1,0 +1,129 @@
+:root {
+  --wall: #e9e7e2;
+  --wall-2: #dedbd4;
+  --ink: #1c1c1e;
+  --ink-soft: #6c6a66;
+  --mat: #f8f6f1;
+  --frame: #17171a;
+  --bar: rgba(255, 255, 255, .78);
+  --bar-line: rgba(0, 0, 0, .09);
+  --focus: #2f6bff;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --wall: #161618;
+    --wall-2: #0f0f11;
+    --ink: #ecebe8;
+    --ink-soft: #9a988f;
+    --mat: #e8e5dd;
+    --frame: #050506;
+    --bar: rgba(34, 34, 38, .8);
+    --bar-line: rgba(255, 255, 255, .1);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(120% 90% at 50% 30%, var(--wall), var(--wall-2));
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.top { padding: max(14px, env(safe-area-inset-top)) 22px 0; }
+.mark { font-size: .78rem; letter-spacing: .32em; text-transform: uppercase; color: var(--ink-soft); }
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 20px 0;
+}
+/* Whatever room is left over once the label has its height: the frame is
+   fitted into this (see fit() in app.js). */
+.wall { flex: 1; min-height: 0; width: 100%; display: grid; place-items: center; }
+
+.frame {
+  margin: 0;
+  background: var(--frame);
+  padding: 9px;
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .25) inset, 0 18px 40px -14px rgba(0, 0, 0, .45), 0 3px 8px rgba(0, 0, 0, .25);
+  transition: opacity .26s ease, transform .26s ease;
+}
+.frame.out { opacity: 0; transform: scale(.985); }
+.mat {
+  background: var(--mat);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12), inset 0 2px 6px rgba(0, 0, 0, .12);
+}
+#art { display: block; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 1px 5px rgba(0, 0, 0, .3); background: #000; }
+
+.plaque { flex: none; text-align: center; max-width: 36rem; transition: opacity .26s ease; }
+.plaque.out { opacity: 0; }
+.plaque h1 { margin: 0; font: 500 clamp(1.2rem, 3.4vw, 1.7rem)/1.15 var(--serif); letter-spacing: .01em; }
+.plaque p { margin: .35em 0 0; font-size: .82rem; color: var(--ink-soft); }
+.plaque .seedline { font-style: italic; font-family: var(--serif); }
+.plaque q { quotes: "“" "”"; color: var(--ink); overflow-wrap: anywhere; }
+
+.bar {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: min(30rem, calc(100% - 28px));
+  margin: 8px 0 max(20px, env(safe-area-inset-bottom));
+  padding: 5px 6px 5px 20px;
+  background: var(--bar);
+  border: 1px solid var(--bar-line);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, .3);
+}
+.bar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 1.05rem/1 var(--sans);   /* 16px+ keeps iOS from zooming in */
+  padding: 12px 4px;
+}
+.bar input::placeholder { color: var(--ink-soft); opacity: .8; }
+.icon {
+  flex: none;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background .15s ease, transform .1s ease;
+}
+.icon:hover { background: rgba(127, 127, 127, .16); }
+.icon:active { transform: scale(.94); }
+.icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.icon svg .f { fill: currentColor; stroke: none; }
+.icon.go { background: var(--ink); color: var(--wall); }
+.icon.go:hover { background: var(--ink); opacity: .85; }
+.sep { width: 1px; height: 22px; background: var(--bar-line); margin: 0 4px; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.bar:focus-within { border-color: color-mix(in srgb, var(--focus) 55%, transparent); }
+.bar input:focus-visible { outline: 0; }
+
+@media (max-height: 560px) { .plaque .meta { display: none; } .stage { gap: 8px; } }
+@media (prefers-reduced-motion: reduce) { .frame, .plaque { transition: none; } }
