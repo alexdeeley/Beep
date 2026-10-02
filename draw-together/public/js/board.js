@@ -15,8 +15,8 @@
 
 import { COORD_MAX } from './shared.js';
 
-const PATH_TOOLS = new Set(['pen', 'marker']);   // drawn as one smooth path
-// crayon / dots / rainbow / pixel / eraser are "stamped" piece by piece as points arrive
+const PATH_TOOLS = new Set(['pen', 'marker', 'neon']);   // drawn as one smooth path
+// crayon / dots / rainbow / pixel / spray / stars / hearts / eraser are "stamped" piece by piece as points arrive
 
 // Fill works on a raster of fixed size (pixels per board unit), not the
 // screen's own, so every device floods the same shape: ~360k pixels whatever
@@ -50,6 +50,10 @@ export class Board {
     this.onLayout = onLayout;
     this.liveQueued = false;
     this.fills = new Map();   // fill op id -> { sig, cw, ch, mask } (see computeFill)
+    // Studio only: my own finished strokes the server hasn't echoed back yet.
+    // They always sit at the tail of `ops`, so other people's strokes that
+    // arrive meanwhile slot in before them - see remoteOp().
+    this.pending = new Set();
     this.ro = new ResizeObserver(() => this.layout());
     this.ro.observe(host);
   }
@@ -97,6 +101,37 @@ export class Board {
   load(ops, active) {
     this.ops = (ops || []).map((o) => ({ ...o, pts: o.pts ? o.pts.slice() : undefined }));
     this.active = active ? { ...active, pts: active.pts.slice() } : null;
+    this.pending.clear();
+    this.rebuild();
+  }
+
+  // ── Shared canvas (free-draw studio) ─────────────────────
+  //
+  // Everyone draws at once, so there is no single "drawer" whose order is
+  // the order. The server's order is the truth: my own strokes are drawn at
+  // once (pending), and anyone else's land before any of mine that haven't
+  // been confirmed yet - which is exactly where the server put them.
+
+  markPending(id, props) {
+    const op = this.ops.find((o) => o.id === id);
+    if (!op) return;
+    Object.assign(op, props);
+    this.pending.add(id);
+  }
+
+  confirm(id) { this.pending.delete(id); }
+
+  remoteOp(op) {
+    if (this.ops.some((o) => o.id === op.id)) return;
+    const o = { ...op, pts: op.pts ? op.pts.slice() : undefined };
+    let at = this.ops.findIndex((x) => this.pending.has(x.id));
+    if (at < 0) at = this.ops.length;
+    if (at === this.ops.length && !this.active && o.type === 'stroke') {
+      if (o.tool === 'fill') this.applyFill(o); else this.renderOp(this.bctx, o);
+      this.ops.push(o);
+      return;
+    }
+    this.ops.splice(at, 0, o);
     this.rebuild();
   }
 
@@ -220,19 +255,34 @@ export class Board {
       c.shadowColor = op.color;
       c.shadowBlur = op.size * 0.35 * scale;
     }
-    if (n === 1) {
-      c.beginPath();
-      c.arc(p[0], p[1], op.size / 2, 0, Math.PI * 2);
-      c.fill();
-    } else {
-      c.beginPath();
-      c.moveTo(p[0], p[1]);
-      for (let i = 1; i < n - 1; i++) {
-        const mx = (p[i * 2] + p[i * 2 + 2]) / 2, my = (p[i * 2 + 1] + p[i * 2 + 3]) / 2;
-        c.quadraticCurveTo(p[i * 2], p[i * 2 + 1], mx, my);
+    const neon = op.tool === 'neon';
+    if (neon) {
+      // A glowing halo in the colour, then a brighter, thinner core on top.
+      c.shadowColor = op.color;
+      c.shadowBlur = op.size * 1.1 * scale;
+    }
+    const trace = () => {
+      if (n === 1) {
+        c.beginPath();
+        c.arc(p[0], p[1], c.lineWidth / 2, 0, Math.PI * 2);
+        c.fill();
+      } else {
+        c.beginPath();
+        c.moveTo(p[0], p[1]);
+        for (let i = 1; i < n - 1; i++) {
+          const mx = (p[i * 2] + p[i * 2 + 2]) / 2, my = (p[i * 2 + 1] + p[i * 2 + 3]) / 2;
+          c.quadraticCurveTo(p[i * 2], p[i * 2 + 1], mx, my);
+        }
+        c.lineTo(p[(n - 1) * 2], p[(n - 1) * 2 + 1]);
+        c.stroke();
       }
-      c.lineTo(p[(n - 1) * 2], p[(n - 1) * 2 + 1]);
-      c.stroke();
+    };
+    trace();
+    if (neon) {
+      c.shadowBlur = 0;
+      c.strokeStyle = c.fillStyle = lighten(op.color, 0.65);
+      c.lineWidth = op.size * 0.4;
+      trace();
     }
     c.restore();
   }
@@ -323,8 +373,8 @@ export class Board {
           f = this.computeFill(o, canon, sig);
           this.fills.set(o.id, f);
         }
-        if (c) this.paintMask(c, f, o.color);
-        if (canon) this.paintMask(canon.ctx, f, o.color);
+        if (c) this.paintMask(c, f, o.color, o.size);
+        if (canon) this.paintMask(canon.ctx, f, o.color, o.size);
       } else {
         if (c) this.renderOp(c, o);
         if (canon) this.renderOp(canon.ctx, o, canon.k);
@@ -341,7 +391,7 @@ export class Board {
     const canon = this.paintOps(null, this.ops, start, end, true);
     const f = this.computeFill(a, canon, this.fillSig(this.ops, start, end));
     this.fills.set(a.id, f);
-    this.paintMask(this.bctx, f, a.color);
+    this.paintMask(this.bctx, f, a.color, a.size);
   }
 
   computeFill(op, canon, sig) {
@@ -361,7 +411,8 @@ export class Board {
   }
 
   // Paints a fill mask in `color` over the whole of `c`, scaled to fit.
-  paintMask(c, f, color) {
+  // `pat` is the fill's size: 1 = solid, 2.. = a pattern (see FILL_PATTERNS).
+  paintMask(c, f, color, pat = 1) {
     const sc = document.createElement('canvas');
     sc.width = f.cw; sc.height = f.ch;
     const sctx = sc.getContext('2d');
@@ -374,6 +425,14 @@ export class Board {
       d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = 255;
     }
     sctx.putImageData(img, 0, 0);
+    if (pat > 1) {
+      // Keep the mask only where the pattern has paint. The tile is sized on
+      // the canon grid, so the pattern is the same on every screen.
+      const T = Math.max(8, 2 * Math.round(f.cw / 76));
+      sctx.globalCompositeOperation = 'destination-in';
+      sctx.fillStyle = sctx.createPattern(patternTile(pat, color, T), 'repeat');
+      sctx.fillRect(0, 0, f.cw, f.ch);
+    }
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = 'source-over';
@@ -434,6 +493,92 @@ function dilate(m, w, h) {
 }
 
 // ── Brushes ───────────────────────────────────────────────
+
+// Mixes a #rrggbb colour toward white by `t` (0..1).
+function lighten(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (v) => Math.round(v + (255 - v) * t);
+  return `rgb(${mix(n >> 16)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+}
+
+// Tiles for pattern fills, in canon pixels (the same fixed grid on every
+// screen), drawn in `color` on transparent so whatever is underneath shows
+// through the gaps.
+const tileCache = new Map();
+function patternTile(pat, color, T) {
+  const key = pat + color + T;
+  let cv = tileCache.get(key);
+  if (cv) return cv;
+  cv = document.createElement('canvas');
+  cv.width = cv.height = T;
+  const x = cv.getContext('2d');
+  x.fillStyle = x.strokeStyle = color;
+  x.lineCap = 'butt';
+  if (pat === 2) {            // diagonal stripes (wrap-around lines keep the tile seamless)
+    x.lineWidth = T * 0.3;
+    x.beginPath();
+    for (const o of [-T / 2, 0, T / 2]) { x.moveTo(o, T + o); x.lineTo(T + o, o); }
+    x.stroke();
+  } else if (pat === 3) {     // polka dots, every other row shifted
+    const r = T * 0.17;
+    for (const [px, py] of [[T / 2, T / 2], [0, 0], [T, 0], [0, T], [T, T]]) {
+      x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    }
+  } else if (pat === 4) {     // checkerboard
+    x.fillRect(0, 0, T / 2, T / 2);
+    x.fillRect(T / 2, T / 2, T / 2, T / 2);
+  } else if (pat === 5) {     // waves
+    x.lineWidth = T * 0.16;
+    x.beginPath();
+    x.moveTo(0, T / 2);
+    x.quadraticCurveTo(T / 4, 0, T / 2, T / 2);
+    x.quadraticCurveTo(T * 0.75, T, T, T / 2);
+    x.stroke();
+  } else if (pat === 6) {     // little stars
+    starPath(x, T / 2, T / 2, T * 0.36, 0);
+    x.fill();
+  }
+  tileCache.set(key, cv);
+  return cv;
+}
+
+// A small preview of fill pattern `pat` (1 = solid) in `color`, for the tray.
+export function drawPatternSwatch(cv, pat, color) {
+  cv.width = cv.height = 72;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#fff';
+  x.fillRect(0, 0, 72, 72);
+  if (pat === 1) { x.fillStyle = color; x.fillRect(0, 0, 72, 72); return; }
+  x.fillStyle = x.createPattern(patternTile(pat, color, 24), 'repeat');
+  x.fillRect(0, 0, 72, 72);
+}
+
+// A five-pointed star centred on (cx, cy), `r` to the tips, turned by `rot`.
+function starPath(c, cx, cy, r, rot) {
+  c.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = rot - Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r * 0.45 : r;
+    const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+    if (i) c.lineTo(px, py); else c.moveTo(px, py);
+  }
+  c.closePath();
+}
+
+// Walks a segment dropping a stamp every `gap` units, carrying the leftover
+// distance in st.acc so the spacing is even across segments.
+function stampAlong(st, x0, y0, x1, y1, gap, drop) {
+  const seg = Math.hypot(x1 - x0, y1 - y0);
+  if (!seg) return;
+  let at = 0;
+  while (st.acc + (seg - at) >= gap) {
+    at += gap - st.acc;
+    st.acc = 0;
+    const t = at / seg;
+    drop(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
+  }
+  st.acc += seg - at;
+}
 
 function seeded(str) {
   let h = 2166136261;
@@ -531,6 +676,61 @@ const BRUSHES = {
         st.acc = 0;
       }
       st.acc += len;
+    },
+  },
+
+  // Studio brushes. Like dots, each drops a stamp every so often along the
+  // line; the seeded rng (stroke id) picks each stamp's turn, so every screen
+  // scatters them identically.
+  stars: {
+    setup(c, op) { c.globalCompositeOperation = 'source-over'; c.fillStyle = op.color; },
+    drop(c, op, st, x, y) {
+      starPath(c, x, y, op.size / 2, (st.rng() - 0.5) * 1.2);
+      c.fill();
+    },
+    start(c, op, st, x, y) { st.acc = 0; this.drop(c, op, st, x, y); },
+    piece(c, op, st, x0, y0, x1, y1) {
+      stampAlong(st, x0, y0, x1, y1, op.size * 1.05, (x, y) => this.drop(c, op, st, x, y));
+    },
+  },
+
+  hearts: {
+    setup(c, op) { c.globalCompositeOperation = 'source-over'; c.fillStyle = op.color; },
+    drop(c, op, st, x, y) {
+      const r = op.size / 2, a = (st.rng() - 0.5) * 0.7;
+      c.save();
+      c.translate(x, y); c.rotate(a);
+      c.beginPath();
+      c.moveTo(0, r * 0.9);
+      c.bezierCurveTo(-r * 1.5, -r * 0.1, -r * 0.7, -r * 1.1, 0, -r * 0.4);
+      c.bezierCurveTo(r * 0.7, -r * 1.1, r * 1.5, -r * 0.1, 0, r * 0.9);
+      c.fill();
+      c.restore();
+    },
+    start(c, op, st, x, y) { st.acc = 0; this.drop(c, op, st, x, y); },
+    piece(c, op, st, x0, y0, x1, y1) {
+      stampAlong(st, x0, y0, x1, y1, op.size * 1.1, (x, y) => this.drop(c, op, st, x, y));
+    },
+  },
+
+  // Airbrush: a soft cloud of tiny round specks.
+  spray: {
+    setup(c, op) { c.globalCompositeOperation = 'source-over'; c.fillStyle = op.color; },
+    puff(c, op, st, x, y) {
+      const r = op.size / 2;
+      const specks = Math.round(op.size * 1.1) + 8;
+      for (let k = 0; k < specks; k++) {
+        const a = st.rng() * Math.PI * 2;
+        const d = Math.sqrt(st.rng()) * r;
+        c.globalAlpha = 0.35 + st.rng() * 0.6;
+        c.beginPath();
+        c.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.6 + st.rng() * 1.0, 0, Math.PI * 2);
+        c.fill();
+      }
+    },
+    start(c, op, st, x, y) { st.acc = 0; this.puff(c, op, st, x, y); },
+    piece(c, op, st, x0, y0, x1, y1) {
+      stampAlong(st, x0, y0, x1, y1, Math.max(2, op.size * 0.18), (x, y) => this.puff(c, op, st, x, y));
     },
   },
 

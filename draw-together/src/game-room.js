@@ -10,11 +10,12 @@
 import { WORDS, pickWord, checkGuess, wordShape } from './words.js';
 import {
   COORD_MAX, TOOLS, PALETTE, TIMER_OPTIONS, ROUND_OPTIONS, DIFFICULTIES, CATEGORIES,
-  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX, REACTIONS,
+  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX, REACTIONS, STUDIO_SHAPES,
 } from '../public/js/shared.js';
 
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;   // idle rooms are wiped after 12 hours
 const MAX_OPS_PER_ROUND = 4000;
+const MAX_STUDIO_OPS = 6000;
 const MAX_INTS_PER_STROKE = 40000;
 const MAX_GUESS_LEN = 40;
 const REACT_COOLDOWN_MS = 500;
@@ -31,6 +32,10 @@ const DEFAULT_SETTINGS = {
   // never receive it: nothing new to keep secret here, just a rendering
   // toggle on data the drawer already has.
   emojiGuide: false,
+  // 'studio' = free-draw mode: one shared canvas everyone draws on at once,
+  // no words, guessing, turns, timer or scores. `shape` is its canvas shape.
+  mode: 'game',
+  shape: 'square',
 };
 
 export class GameRoom {
@@ -40,6 +45,7 @@ export class GameRoom {
     this.room = null;     // persisted game state (without drawing ops)
     this.ops = [];        // completed drawing operations for the current round
     this.active = null;   // stroke currently being drawn (memory only)
+    this.actives = new Map(); // studio: seat -> that artist's stroke in progress (memory only)
     this.guessTimes = new Map();
     this.reactTimes = new Map();
     this.doodleTimes = new Map();
@@ -85,6 +91,7 @@ export class GameRoom {
     for (let i = 0; i < keys.length; i += 128) await this.ctx.storage.delete(keys.slice(i, i + 128));
     this.ops = [];
     this.active = null;
+    this.actives.clear();
     if (this.room) this.room.opKeys = [];
   }
 
@@ -94,6 +101,7 @@ export class GameRoom {
   resetActiveOps() {
     this.ops = [];
     this.active = null;
+    this.actives.clear();
     if (this.room) this.room.opKeys = [];
   }
 
@@ -141,6 +149,7 @@ export class GameRoom {
         entries.push({
           round: g.round, drawerSeat: g.drawerSeat, drawerName: g.drawerName,
           word: g.word, emoji: g.emoji, aspect: g.aspect, ops,
+          studio: !!g.studio, artists: g.artists || null, artistSeats: g.artistSeats || null,
           remixOf: g.remixOf ?? null, remixOfName: g.remixOfName || null,
         });
       }
@@ -218,6 +227,7 @@ export class GameRoom {
     if (this.isConnected(pid, ws)) return;
     // An abandoned stroke is finished so the drawing stays consistent.
     if (this.active && this.room.drawerSeat === this.seatOf(pid)) this.finishActive();
+    this.finishStudioStroke(this.seatOf(pid));
     this.room.lastActive = Date.now();
     this.syncPause(ws);
     this.save();
@@ -368,7 +378,7 @@ export class GameRoom {
     }
 
     if (!me) {
-      if (r.players.length >= MAX_PLAYERS || r.phase !== 'lobby') {
+      if (r.players.length >= MAX_PLAYERS || (r.phase !== 'lobby' && r.phase !== 'studio')) {
         safeSend(ws, JSON.stringify({ type: 'error', code: 'full' }));
         try { ws.close(4409, 'full'); } catch {}
         return;
@@ -485,6 +495,51 @@ export class GameRoom {
     await this.scheduleAlarm();
   }
 
+  // Studio: an artist's stroke is complete (or they dropped off mid-stroke).
+  // Unlike a game stroke it is committed whole and sent to everyone,
+  // including whoever drew it - the server's order is the order.
+  finishStudioStroke(seat, id) {
+    const a = this.actives.get(seat);
+    if (!a || (id && a.id !== id)) return;
+    this.actives.delete(seat);
+    this.pushOp(a);
+    this.relay({ type: 'studioOp', op: a });
+  }
+
+  // Studio: snapshot the canvas into the gallery (the ops stay in storage, as
+  // for a finished round). Nothing new since the last save is a no-op.
+  saveStudio(me) {
+    const r = this.room;
+    const last = this.ops.at(-1);
+    if (!last || r.savedN === last.n) return false;
+    let from = 0;
+    this.ops.forEach((o, i) => { if (o.type === 'clear') from = i + 1; });
+    const inked = this.ops.slice(from).filter((o) => o.type === 'stroke');
+    if (!inked.length) return false;
+    const names = [];
+    const seats = [...new Set(inked.map((o) => o.seat))];
+    for (const seat of seats) {
+      const p = r.players.find((q) => q.seat === seat);
+      if (p) names.push(p.name);
+    }
+    const artists = names.length > 3 ? [...names.slice(0, 3), `+${names.length - 3}`] : names;
+    r.gallery.push({
+      round: null,
+      studio: true,
+      drawerSeat: null,
+      drawerName: artists.join(', ') || me.name,
+      artists: artists.length ? artists : [me.name],
+      artistSeats: seats,
+      word: 'Studio canvas',
+      emoji: '🎨',
+      aspect: r.aspect,
+      opKeys: r.opKeys.slice(),
+    });
+    r.savedN = last.n;
+    this.save();
+    return true;
+  }
+
   finishActive() {
     if (!this.active) return;
     const op = this.active;
@@ -561,6 +616,8 @@ const HANDLERS = {
     if (DIFFICULTIES.includes(s.difficulty)) next.difficulty = s.difficulty;
     if (typeof s.lockGuesses === 'boolean') next.lockGuesses = s.lockGuesses;
     if (typeof s.emojiGuide === 'boolean') next.emojiGuide = s.emojiGuide;
+    if (s.mode === 'game' || s.mode === 'studio') next.mode = s.mode;
+    if (STUDIO_SHAPES[s.shape]) next.shape = s.shape;
     if (Array.isArray(s.categories)) {
       let cats = [...new Set(s.categories.filter((c) => CAT_IDS.has(c)))];
       if (!cats.length || cats.includes('everything')) cats = ['everything'];
@@ -573,7 +630,21 @@ const HANDLERS = {
 
   async start(me) {
     const r = this.room;
-    if (r.phase !== 'lobby' || r.players[0]?.id !== me.id || r.players.length < 2) return;
+    const studio = r.settings.mode === 'studio';
+    if (r.phase !== 'lobby' || r.players[0]?.id !== me.id || r.players.length < (studio ? 1 : 2)) return;
+    if (studio) {
+      this.resetActiveOps();
+      r.gallery = [];
+      r.savedN = 0;
+      r.round = 0;
+      r.aspect = STUDIO_SHAPES[r.settings.shape] || 1;
+      r.phase = 'studio';
+      r.timer = { running: false, endsAt: null, remaining: 0 };
+      this.save();
+      this.relay({ type: 'board', round: 0, ops: [], active: null });
+      this.broadcastState();
+      return;
+    }
     for (const p of r.players) p.score = 0;
     r.round = 1;
     r.drawings = 0;
@@ -639,24 +710,40 @@ const HANDLERS = {
 
   async strokeStart(me, msg, ws) {
     const r = this.room;
-    if (r.phase !== 'drawing' || me.seat !== r.drawerSeat) return;
+    const studio = r.phase === 'studio';
+    if (!studio && (r.phase !== 'drawing' || me.seat !== r.drawerSeat)) return;
     const tool = TOOLS[msg.tool] ? msg.tool : null;
     const id = cleanId(msg.id);
     if (!tool || !id) return;
     if (!TOOLS[tool].sizes.includes(msg.size)) return;
     const color = tool === 'eraser' ? '#ffffff' : (COLORS.has(msg.color) ? msg.color : null);
     if (!color) return;
-    if (this.ops.length >= MAX_OPS_PER_ROUND) return;
-    if (this.active) this.finishActive();
+    if (this.ops.length >= (studio ? MAX_STUDIO_OPS : MAX_OPS_PER_ROUND)) return;
+    if (!studio && this.active) this.finishActive();
     let pts = cleanPoints(msg.pts);
     if (!pts || pts.length < 2) return;
     // A fill is a single tap - one point, nothing more ever accepted.
     if (tool === 'fill') pts = pts.slice(0, 2);
+    if (studio) {
+      // Held back until strokeEnd: everyone draws at once, so a stroke only
+      // joins the shared drawing whole, in the order the server finishes them.
+      this.finishStudioStroke(me.seat);
+      this.actives.set(me.seat, { id, type: 'stroke', tool, color, size: msg.size, pts, seat: me.seat });
+      return;
+    }
     this.active = { id, type: 'stroke', tool, color, size: msg.size, pts };
     this.relay({ type: 'strokeStart', id, tool, color, size: msg.size, pts }, ws);
   },
 
   async strokePoints(me, msg, ws) {
+    if (this.room.phase === 'studio') {
+      const a = this.actives.get(me.seat);
+      if (!a || a.id !== msg.id || a.tool === 'fill') return;
+      const pts = cleanPoints(msg.pts);
+      if (!pts || a.pts.length + pts.length > MAX_INTS_PER_STROKE) return;
+      for (const v of pts) a.pts.push(v);
+      return;
+    }
     const a = this.active;
     if (!a || a.id !== msg.id || me.seat !== this.room.drawerSeat) return;
     if (a.tool === 'fill') return;
@@ -667,6 +754,7 @@ const HANDLERS = {
   },
 
   async strokeEnd(me, msg, ws) {
+    if (this.room.phase === 'studio') { this.finishStudioStroke(me.seat, msg.id); return; }
     const a = this.active;
     if (!a || a.id !== msg.id || me.seat !== this.room.drawerSeat) return;
     this.active = null;
@@ -713,6 +801,20 @@ const HANDLERS = {
 
   async undo(me) {
     const r = this.room;
+    if (r.phase === 'studio') {
+      // Everyone undoes their own most recent stroke (or clear), wherever it
+      // sits in the shared drawing.
+      let i = this.ops.length - 1;
+      while (i >= 0 && this.ops[i].seat !== me.seat) i--;
+      if (i < 0) return;
+      const [op] = this.ops.splice(i, 1);
+      r.opKeys = r.opKeys.filter((n) => n !== op.n);
+      // A saved gallery entry still points at its strokes - leave those be.
+      if (!r.gallery.some((g) => g.opKeys.includes(op.n))) this.ctx.storage.delete('op:' + op.n);
+      this.save();
+      this.relay({ type: 'undo', id: op.id });
+      return;
+    }
     if (r.phase !== 'drawing' || me.seat !== r.drawerSeat || this.active) return;
     const op = this.ops.pop();
     if (!op) return;
@@ -724,6 +826,14 @@ const HANDLERS = {
 
   async clear(me, msg) {
     const r = this.room;
+    if (r.phase === 'studio') {
+      const id = cleanId(msg.id);
+      if (!id || this.ops.length >= MAX_STUDIO_OPS) return;
+      const op = { id, type: 'clear', seat: me.seat };
+      this.pushOp(op);
+      this.relay({ type: 'studioOp', op });
+      return;
+    }
     if (r.phase !== 'drawing' || me.seat !== r.drawerSeat) return;
     const id = cleanId(msg.id);
     if (!id) return;
@@ -789,6 +899,14 @@ const HANDLERS = {
     await this.startRound();
   },
 
+  // Studio: anyone can save the canvas as it stands to the gallery.
+  async save(me) {
+    if (this.room.phase !== 'studio') return;
+    if (this.saveStudio(me)) {
+      this.relay({ type: 'event', kind: 'saved', name: me.name, index: this.room.gallery.length - 1 });
+    }
+  },
+
   async again(me) {
     const r = this.room;
     if (r.phase !== 'over' || r.players.length < 2) return;
@@ -811,8 +929,9 @@ const HANDLERS = {
 
   async leave(me, msg, ws) {
     const r = this.room;
+    this.finishStudioStroke(me.seat);
     r.players = r.players.filter((p) => p.id !== me.id);
-    if (r.phase !== 'lobby') {
+    if (r.phase !== 'lobby' && r.phase !== 'studio') {
       await this.wipeOps();
       this.resetToLobby();
     }
@@ -851,6 +970,7 @@ function newRoom(code) {
     opSeq: 0,
     opKeys: [],
     gallery: [],
+    savedN: 0,   // studio: the last op number already saved to the gallery
   };
 }
 

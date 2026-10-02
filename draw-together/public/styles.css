@@ -199,6 +199,7 @@ h1, h2, h3, p { margin: 0; }
 .settings { display: grid; gap: 14px; width: min(100%, 560px); }
 .settings fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
 .settings legend { font-size: 1.3rem; font-weight: 800; padding: 0 0 4px 4px; }
+.settings:not(.studio) .studio-only, .settings.studio .game-only { display: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   border: 3px solid var(--ink);
@@ -385,6 +386,18 @@ html.a11y-invert #sizes .blob {
   text-align: center; font-weight: 800; font-size: clamp(.8rem, 3.4vw, 1.05rem); line-height: 1.1;
 }
 .acts { display: flex; gap: 7px; flex: 0 0 auto; }
+/* Free-draw studio: three actions, and fills pick a pattern - so the sizes
+   and the actions each get a full row. */
+.game.studio .acts .btn.act { flex: 1; width: auto; }
+.sizes.patterns { flex-wrap: wrap; }
+.sizes.patterns .btn { flex: 1 1 28%; }
+@media (orientation: portrait) {
+  .game.studio .row2 { flex-wrap: wrap; }
+  .game.studio .sizes { flex: 1 1 100%; }
+  .game.studio .acts { flex: 1 1 100%; }
+}
+.sizes canvas { width: 36px; height: 36px; display: block; border-radius: 6px; }
+#btn-hud-gallery { font-size: 1.3rem; }
 .btn.act { min-height: 54px; width: 70px; }
 .btn.act svg { width: 28px; height: 28px; }
 .colors { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px 10px; justify-items: center; }

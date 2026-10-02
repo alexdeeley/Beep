@@ -1,4 +1,4 @@
-import { Board, replay } from './board.js';
+import { Board, replay, drawPatternSwatch } from './board.js';
 import { Net } from './net.js';
 import * as snd from './sound.js';
 import * as music from './music.js';
@@ -25,7 +25,7 @@ const S = {
   st: null,
   clockOffset: 0,
   tool: 'pen',
-  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, pixel: 1, fill: 0, eraser: 0 },
+  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, pixel: 1, fill: 0, eraser: 0, neon: 1, spray: 1, stars: 1, hearts: 1 },
   color: '#000000',
   stroke: null,
   lastPen: 0,
@@ -33,6 +33,7 @@ const S = {
   replayStop: null,
   confirmYes: null,
   everOpen: false,
+  trayMode: null,   // 'game' | 'studio': which tool set the tray was built for
   scribbleCount: 0, // how many pen-movement sound ticks played (test hook)
 };
 
@@ -120,20 +121,23 @@ $('btn-rejoin').addEventListener('click', () => {
   if (last) enter(last.code, last.pid);
 });
 
-$('btn-create').addEventListener('click', async () => {
+async function createRoom(btn, studio) {
   $('home-err').textContent = '';
   if (needName($('home-err'), nameIn)) return;
-  const b = $('btn-create');
+  const b = btn;
   b.disabled = true;
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
     const data = await res.json();
     if (!res.ok || !data.code) throw new Error();
+    S.wantStudio = studio;   // switch the new room's lobby to the studio once we're in it
     enter(data.code, newPid());
   } catch {
     $('home-err').textContent = "We couldn't start a game. Check your internet and try again.";
   } finally { b.disabled = false; }
-});
+}
+$('btn-create').addEventListener('click', () => createRoom($('btn-create'), false));
+$('btn-studio').addEventListener('click', () => createRoom($('btn-studio'), true));
 
 $('btn-join').addEventListener('click', () => {
   $('home-err').textContent = '';
@@ -254,7 +258,11 @@ function onMessage(m) {
     case 'strokeStart': S.board.begin(m); scribbleTick(); break;
     case 'strokePoints': S.board.add(m.id, m.pts); scribbleTick(); break;
     case 'strokeEnd': S.board.end(m.id); updateUndo(); break;
-    case 'undo': S.board.undo(m.id); updateUndo(); break;
+    case 'studioOp':
+      if (S.board.pending.has(m.op.id)) S.board.confirm(m.op.id); else S.board.remoteOp(m.op);
+      updateUndo();
+      break;
+    case 'undo': S.board.confirm(m.id); S.board.undo(m.id); updateUndo(); break;
     case 'clear': S.board.clear(m.id); updateUndo(); break;
     case 'guess': addBubble(m.guess); snd.play(m.guess.verdict === 'close' ? 'close' : 'nope'); break;
     case 'doodleStart': addGhost(m.id, m.seat, m.pts); break;
@@ -265,6 +273,7 @@ function onMessage(m) {
       if (m.kind === 'joined') { snd.play('join'); }
       if (m.kind === 'back') { snd.play('join'); }
       if (m.kind === 'left') { flashBanner(`${m.name} left the game.`); }
+      if (m.kind === 'saved') { snd.play('pop'); flashBanner(`${m.name} saved the drawing to the gallery 🖼️`); }
       break;
   }
 }
@@ -300,6 +309,11 @@ function applyState(st) {
   // so it needs its own transition check alongside the one above.
   if (prev?.phase === 'drawing' && st.phase === 'drawing' && prev.guessesLocked && !st.guessesLocked) {
     snd.play('start');
+  }
+
+  if (S.wantStudio && st.phase === 'lobby' && st.you === st.host) {
+    S.wantStudio = false;
+    if (st.settings.mode !== 'studio') sendSettings({ mode: 'studio' });
   }
 
   if (st.phase === 'lobby') { show('lobby'); renderLobby(); }
@@ -344,11 +358,15 @@ function renderLobby() {
   const st = S.st;
   const isHost = st.you === st.host;
   $('lobby-code').textContent = st.code;
+  const studio = st.settings.mode === 'studio';
   const two = st.players.length >= 2;
   const host = player(st.host);
-  $('lobby-status').textContent = !two
-    ? 'Waiting for your drawing buddy…'
-    : isHost ? 'Ready when you are!' : `Waiting for ${host?.name || 'the host'} to start…`;
+  $('lobby-status').textContent = studio
+    ? (isHost ? 'Open the studio whenever you like - friends can hop in any time with the code!'
+      : `Waiting for ${host?.name || 'the host'} to open the studio…`)
+    : !two
+      ? 'Waiting for your drawing buddy…'
+      : isHost ? 'Ready when you are!' : `Waiting for ${host?.name || 'the host'} to start…`;
 
   const slots = [];
   st.players.forEach((p) => {
@@ -359,7 +377,8 @@ function renderLobby() {
   $('lobby-players').innerHTML = slots.join('');
 
   renderSettings(isHost);
-  $('btn-start').hidden = !(isHost && two);
+  $('btn-start').hidden = !(isHost && (two || studio));
+  $('btn-start').textContent = studio ? 'Open the studio 🎨' : 'Start game';
 }
 
 function chip(label, pressed, onClick, disabled) {
@@ -380,6 +399,15 @@ function sendSettings(patch) {
 function renderSettings(isHost) {
   const s = S.st.settings;
   $('settings').classList.toggle('readonly', !isHost);
+  $('settings').classList.toggle('studio', s.mode === 'studio');
+  const md = $('set-mode'); md.replaceChildren();
+  for (const [id, label] of [['game', 'Guessing game'], ['studio', 'Free-draw studio 🎨']]) {
+    md.append(chip(label, s.mode === id, () => sendSettings({ mode: id }), !isHost));
+  }
+  const sh = $('set-shape'); sh.replaceChildren();
+  for (const [id, label] of [['square', 'Square'], ['wide', 'Wide'], ['tall', 'Tall']]) {
+    sh.append(chip(label, s.shape === id, () => sendSettings({ shape: id }), !isHost));
+  }
   const cats = $('set-cats'); cats.replaceChildren();
   for (const c of CATEGORIES) {
     const on = s.categories.includes(c.id);
@@ -540,8 +568,47 @@ function fitHud(el) {
   });
 }
 
+// The studio screen: the same board and tray as the game, but everyone is a
+// drawer, so there is no word, timer, guess box or turn to show.
+function renderStudio() {
+  const st = S.st;
+  syncTrayMode('studio');
+  gameEl.classList.add('drawer', 'studio');
+  gameEl.classList.remove('guesser', 'blocked');
+  $('tray').hidden = false;
+  $('guessbar').hidden = true;
+  $('word-hint').hidden = true;
+  $('ov-choose').hidden = true;
+  $('ov-reveal').hidden = true;
+  $('reactions').hidden = true;
+  traceEl.hidden = true;
+  $('btn-save').hidden = false;
+  $('btn-hud-gallery').hidden = false;
+  $('hud-round').innerHTML = 'Studio<b>🎨</b>';
+  $('hud-round').setAttribute('aria-label', 'Free-draw studio');
+  const main = $('hud-main');
+  const here = st.players.filter((p) => p.connected).map((p) => p.name);
+  main.innerHTML = `<span class="who">${esc(here.join(' · '))}</span>`;
+  fitHud(main.querySelector('.who'));
+  const t = $('hud-timer'); t.textContent = ''; t.className = 'hud-timer';
+  S.board.setAspect(st.aspect);
+  updateUndo();
+}
+
+function syncTrayMode(mode) {
+  if (S.trayMode === mode) return;
+  S.trayMode = mode;
+  if (mode === 'game' && TOOLS[S.tool].studio) S.tool = 'pen';
+  buildTray();
+}
+
 function renderGame(prev, phaseChanged) {
   const st = S.st;
+  if (st.phase === 'studio') { renderStudio(); return; }
+  syncTrayMode('game');
+  gameEl.classList.remove('studio');
+  $('btn-save').hidden = true;
+  $('btn-hud-gallery').hidden = true;
   const drawer = amDrawer();
   gameEl.classList.toggle('drawer', drawer);
   gameEl.classList.toggle('guesser', !drawer);
@@ -674,12 +741,20 @@ setInterval(updateTimer, 200);
 
 // ── Drawing tools ───────────────────────────────────────────
 
-const ICON = { pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow', pixel: 'i-pixel', fill: 'i-fill', eraser: 'i-eraser' };
+const ICON = {
+  pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow',
+  pixel: 'i-pixel', fill: 'i-fill', eraser: 'i-eraser',
+  neon: 'i-neon', spray: 'i-spray', stars: 'i-stars', hearts: 'i-hearts',
+};
+// The studio tray: all twelve tools, brushes first, in rows of four.
+const STUDIO_ORDER = ['pen', 'marker', 'neon', 'crayon', 'spray', 'dots', 'stars', 'hearts', 'rainbow', 'pixel', 'fill', 'eraser'];
 
 function buildTray() {
   const tools = $('tools');
   tools.replaceChildren();
-  for (const [id, t] of Object.entries(TOOLS)) {
+  const ids = S.trayMode === 'studio' ? STUDIO_ORDER : Object.keys(TOOLS).filter((id) => !TOOLS[id].studio);
+  for (const id of ids) {
+    const t = TOOLS[id];
     const b = document.createElement('button');
     b.className = 'btn tool';
     b.type = 'button';
@@ -720,7 +795,8 @@ function renderTray() {
 
   const sizes = $('sizes');
   sizes.replaceChildren();
-  if (S.tool === 'fill') {
+  sizes.classList.toggle('patterns', S.tool === 'fill');
+  if (S.tool === 'fill' && S.trayMode !== 'studio') {
     // No brush size to choose - say what the tool does instead.
     const hint = document.createElement('p');
     hint.className = 'fill-hint';
@@ -736,18 +812,31 @@ function renderTray() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', S.sizeIdx[S.tool] === i ? 'true' : 'false');
     b.setAttribute('aria-label', SIZE_NAMES[S.tool][i]);
-    const px = [10, 18, 28][list.length === 2 ? i * 2 : i];
-    const bg = S.tool === 'eraser' ? '#fff' : S.color === '#ffffff' ? '#fff' : S.color;
-    b.innerHTML = `<span class="blob${S.tool === 'pixel' ? ' sq' : ''}" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
+    if (S.tool === 'fill') {
+      // In the studio a fill's "size" is its pattern.
+      const cv = document.createElement('canvas');
+      drawPatternSwatch(cv, sz, S.color === '#ffffff' ? '#bbbbbb' : S.color);
+      cv.style.boxShadow = '0 0 0 2.5px #000';
+      b.append(cv);
+    } else {
+      const px = [10, 18, 28][list.length === 2 ? i * 2 : i];
+      const bg = S.tool === 'eraser' ? '#fff' : S.color === '#ffffff' ? '#fff' : S.color;
+      b.innerHTML = `<span class="blob${S.tool === 'pixel' ? ' sq' : ''}" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
+    }
     b.addEventListener('click', () => { S.sizeIdx[S.tool] = i; renderTray(); });
     sizes.append(b);
   });
 }
 
 function updateUndo() {
-  const canAct = S.st?.phase === 'drawing' && amDrawer();
-  $('btn-undo').disabled = !canAct || S.board.ops.length === 0;
+  const st = S.st;
+  const studio = st?.phase === 'studio';
+  const canAct = studio || (st?.phase === 'drawing' && amDrawer());
+  // In the studio you undo your own strokes only, so check for one of yours.
+  const anything = studio ? S.board.ops.some((o) => o.seat === st.you) : S.board.ops.length > 0;
+  $('btn-undo').disabled = !canAct || !anything;
   $('btn-clear').disabled = !canAct || !S.board.hasInk();
+  $('btn-save').disabled = !studio || !S.board.hasInk();
 }
 
 $('btn-undo').addEventListener('click', () => {
@@ -755,15 +844,17 @@ $('btn-undo').addEventListener('click', () => {
   S.net?.send({ type: 'undo' });
 });
 $('btn-clear').addEventListener('click', () => {
-  confirmBox('Clear drawing?', () => S.net?.send({ type: 'clear', id: rid() }));
+  const studio = S.st?.phase === 'studio';
+  confirmBox(studio ? 'Clear the canvas for everyone?' : 'Clear drawing?', () => S.net?.send({ type: 'clear', id: rid() }));
 });
+$('btn-save').addEventListener('click', () => S.net?.send({ type: 'save' }));
 
 buildTray();
 
 // ── Pointer input (finger, Apple Pencil, stylus, mouse) ─────
 
 const sheet = S.board.sheet;
-const canDraw = () => S.st?.phase === 'drawing' && amDrawer() && S.net?.isOpen;
+const canDraw = () => S.net?.isOpen && ((S.st?.phase === 'drawing' && amDrawer()) || S.st?.phase === 'studio');
 // Anyone who ISN'T the drawer can doodle instead - a separate, ephemeral
 // mark (see the ghost-doodle block above), never the real drawing.
 const canDoodle = () => S.st?.phase === 'drawing' && !amDrawer() && S.net?.isOpen;
@@ -788,6 +879,7 @@ sheet.addEventListener('pointerdown', (e) => {
       S.board.end(id);
       S.net.send({ type: 'strokeStart', id, tool, color, size, pts: [x, y] });
       S.net.send({ type: 'strokeEnd', id });
+      if (S.st.phase === 'studio') S.board.markPending(id, { seat: S.st.you });
       updateUndo();
       return;
     }
@@ -845,6 +937,7 @@ function endStroke(e) {
     flush(s);
     S.board.end(s.id);
     S.net?.send({ type: 'strokeEnd', id: s.id });
+    if (S.st?.phase === 'studio') S.board.markPending(s.id, { seat: S.st.you });
     S.stroke = null;
     updateUndo();
     return;
@@ -1000,12 +1093,14 @@ function renderOver() {
 }
 $('btn-again').addEventListener('click', () => S.net?.send({ type: 'again' }));
 $('btn-newgame').addEventListener('click', () => S.net?.send({ type: 'lobby' }));
-$('btn-gallery').addEventListener('click', () => {
+function openGallery() {
   const me = S.st.players.find((p) => p.seat === S.st.you);
   const params = new URLSearchParams({ code: S.st.code, you: S.st.you });
   if (me?.name) params.set('name', me.name);
   window.open(`gallery.html?${params}`, '_blank', 'noopener');
-});
+}
+$('btn-gallery').addEventListener('click', openGallery);
+$('btn-hud-gallery').addEventListener('click', openGallery);
 
 // ── Header buttons ──────────────────────────────────────────
 

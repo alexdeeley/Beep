@@ -13,6 +13,8 @@ fs.mkdirSync(OUT, { recursive: true });
 let pass = 0, fail = 0;
 const ok = (c, l) => { if (c) { pass++; console.log('  ✓ ' + l); } else { fail++; console.log('  ✗ ' + l); } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Whole-word match, so a short secret word ("Cat") isn't "found" inside ordinary protocol text ("categories").
+const leaks = (text, w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text);
 
 const srv = spawn('node', [path.join(ROOT, 'dev/local-server.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((r) => srv.stdout.once('data', r));
@@ -282,7 +284,7 @@ ok(diff(sA, sM2) < 6, 'drawing reconstructed after reload');
 ok(await M.page.evaluate(() => window.__dt.S.st.players.length === 2), 'no duplicate after reconnect');
 
 // guessing
-ok(M.page.frames_.every((f) => !f.toLowerCase().includes(word.toLowerCase())), 'secret word never reached the guesser');
+ok(M.page.frames_.every((f) => !leaks(f, word)), 'secret word never reached the guesser');
 await M.page.fill('#in-guess', 'banana boat');
 await M.page.keyboard.press('Enter');
 await M.page.waitForSelector('.bubble');
@@ -486,6 +488,90 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   ok((await eDr.page.textContent('.layer.trace')) === traceEmoji, "the guide shows the round's actual emoji");
   ok(!(await eGu.page.isVisible('.layer.trace')), "the guesser's tracing guide layer stays hidden - it never learns the emoji");
   ok((await eGu.page.evaluate(() => document.querySelector('.layer.trace')?.textContent || '')) === '', "the guesser's DOM never even holds the emoji text, hidden or not");
+}
+
+// Free-draw studio: one shared canvas, everyone draws at once, no guessing
+{
+  const T1 = await player('Tess', { viewport: { width: 1180, height: 820 }, deviceScaleFactor: 2 });
+  const T2 = await player('Theo', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+  await T1.page.fill('#in-name', 'Tess');
+  await T1.page.click('#btn-studio');
+  await T1.page.waitForSelector('#scr-lobby:not([hidden])');
+  const studioCode = (await T1.page.textContent('#lobby-code')).trim();
+  await T1.page.waitForFunction(() => window.__dt.S.st?.settings.mode === 'studio');
+  ok(await T1.page.isVisible('#set-shape') && !(await T1.page.isVisible('#set-diff')), 'the studio lobby offers a canvas shape, not words and timers');
+  ok(await T1.page.isVisible('#btn-start'), 'a studio can be opened with just the host in it');
+  await T1.page.screenshot({ path: `${OUT}/20-studio-lobby.png` });
+  await T2.page.fill('#in-name', 'Theo');
+  await T2.page.click('#btn-join');
+  await T2.page.fill('#in-code', studioCode);
+  await T2.page.click('#btn-join-go');
+  await T2.page.waitForSelector('#scr-lobby:not([hidden])');
+  await T1.page.click('#btn-start');
+  await T1.page.waitForFunction(() => window.__dt.S.st?.phase === 'studio');
+  await T2.page.waitForFunction(() => window.__dt.S.st?.phase === 'studio');
+  await sleep(300);
+  for (const [who, P] of [['host', T1], ['friend', T2]]) {
+    ok((await P.page.locator('#tools .tool').count()) === 12, `${who} gets the full studio tray (12 tools)`);
+    ok(!(await P.page.isVisible('#guessbar')) && !(await P.page.isVisible('#reactions')), `${who} sees no guess box or reactions`);
+    ok(await P.page.isVisible('#btn-save') && !(await P.page.evaluate(() => document.getElementById('tray').hidden)), `${who} can draw and save`);
+  }
+
+  // concurrent strokes: Tess is mid-stroke while Theo draws and finishes his
+  const tb = await T1.page.locator('.board-host .sheet').boundingBox();
+  const at = (b, fx, fy) => [b.x + b.width * fx, b.y + b.height * fy];
+  await T1.page.click('#tools [data-tool="neon"]');
+  await T1.page.click('#colors [aria-label="Blue"]');
+  await T1.page.mouse.move(...at(tb, 0.1, 0.5));
+  await T1.page.mouse.down();
+  await T1.page.mouse.move(...at(tb, 0.3, 0.3), { steps: 6 });
+  await stroke(T2.page, [[0.2, 0.8], [0.5, 0.75], [0.8, 0.8]], 'stars', 'Orange', 1);
+  await T1.page.mouse.move(...at(tb, 0.6, 0.6), { steps: 6 });
+  await T1.page.mouse.move(...at(tb, 0.9, 0.3), { steps: 6 });
+  await T1.page.mouse.up();
+  await sleep(300);
+  ok((await inkCount(T2.page)) > 50 && (await inkCount(T1.page)) > 50, 'strokes drawn at the same time all show up');
+  const dS1 = diff(await snapshot(T1.page), await snapshot(T2.page));
+  ok(dS1 < 6, `both screens show the same picture after overlapping strokes (mean diff ${dS1.toFixed(2)})`);
+
+  // a patterned fill inside a shape drawn on the phone
+  await stroke(T2.page, [[0.35, 0.1], [0.65, 0.1], [0.65, 0.22], [0.35, 0.22], [0.35, 0.1]], 'pen', 'Black', 1);
+  await sleep(200);
+  const beforeFill = await inkCount(T2.page);
+  await T1.page.click('#tools [data-tool="fill"]');
+  ok((await T1.page.locator('#sizes .btn').count()) === 6, 'the fill tool offers six patterns in the studio');
+  await T1.page.click('#colors [aria-label="Pink"]');
+  await T1.page.click('#sizes .btn >> nth=1');
+  const fb = await T1.page.locator('.board-host .sheet').boundingBox();
+  await T1.page.mouse.click(...at(fb, 0.5, 0.16));
+  await sleep(700);
+  ok((await inkCount(T2.page)) > beforeFill, 'a striped fill appears on the other screen');
+  const dFillS = diff(await snapshot(T1.page), await snapshot(T2.page));
+  ok(dFillS < 6, `both screens agree after a patterned fill (mean diff ${dFillS.toFixed(2)})`);
+  await T1.page.screenshot({ path: `${OUT}/21-studio-tablet.png` });
+  await T2.page.screenshot({ path: `${OUT}/21-studio-phone.png` });
+
+  // each person undoes only their own strokes
+  const opsOf = (P) => P.page.evaluate(() => window.__dt.S.board.ops.map((o) => o.id + ':' + o.seat));
+  const before = (await opsOf(T1)).length;
+  await T2.page.click('#btn-undo'); await sleep(300);
+  const afterUndoT1 = await opsOf(T1), afterUndoT2 = await opsOf(T2);
+  ok(afterUndoT1.length === before - 1 && afterUndoT2.length === before - 1, 'undo removes one stroke on both screens');
+  const theoSeat = await T2.page.evaluate(() => window.__dt.S.st.you);
+  ok(afterUndoT1.filter((o) => o.endsWith(':' + theoSeat)).length === 1, "undo took Theo's own newest stroke, nobody else's");
+  ok(diff(await snapshot(T1.page), await snapshot(T2.page)) < 6, 'screens still agree after an undo');
+
+  // save to the gallery
+  await T1.page.click('#btn-save');
+  await T2.page.waitForFunction(() => document.getElementById('banner').textContent.includes('saved the drawing'));
+  ok(true, 'saving tells the other artist');
+  const gal = await (await fetch(`${URL0}api/rooms/${studioCode}/gallery`)).json();
+  ok(gal.entries.length === 1 && gal.entries[0].studio, 'the saved canvas is in the gallery');
+  await T1.page.click('#btn-hud-gallery', { trial: true });
+  ok(true, 'a gallery button is on hand');
+  // clear is for everyone
+  await T2.page.click('#btn-clear'); await T2.page.click('#btn-yes'); await sleep(300);
+  ok((await inkCount(T1.page)) === 0, 'clearing the canvas clears it for everyone');
 }
 
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));

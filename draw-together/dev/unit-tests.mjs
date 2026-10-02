@@ -11,6 +11,8 @@ const PORT = 8799;
 let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) pass++; else { fail++; console.log('  ✗ ' + label); } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Whole-word match, so a short secret word ("Cat") isn't "found" inside ordinary protocol text ("categories").
+const leaks = (text, w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text);
 
 // ── Word bank ────────────────────────────────────────────────
 const cats = new Set(CATEGORIES.map((c) => c.id));
@@ -167,7 +169,7 @@ A.send({ type: 'start' }); await sleep(100);
 ok(A.st.phase === 'choosing' && A.st.drawerSeat === A.st.you, 'round 1: Alex draws');
 const word = A.st.word.w;
 ok(!!word && M.st.word === null, 'drawer has word, guesser does not');
-ok(M.raw.every((r) => !r.toLowerCase().includes(word.toLowerCase())), 'secret word never sent to guesser');
+ok(M.raw.every((r) => !leaks(r, word)), 'secret word never sent to guesser');
 
 // guesser cannot draw / cannot ready
 M.send({ type: 'ready', aspect: 1 }); await sleep(50);
@@ -193,7 +195,7 @@ ok(A.st.wordShape === null, 'drawer gets no word shape (already has the word)');
 const word2Tokens = word2.split(' ').filter(Boolean);
 ok(Array.isArray(M.st.wordShape) && M.st.wordShape.length === word2Tokens.length, 'guesser sees one number per word');
 ok(M.st.wordShape.every((n, i) => n === word2Tokens[i].length), 'each number is that word\'s letter count');
-ok(M.raw.every((r) => !r.toLowerCase().includes(word2.toLowerCase())), 'word shape never spells out the secret word');
+ok(M.raw.every((r) => !leaks(r, word2)), 'word shape never spells out the secret word');
 
 M.send({ type: 'strokeStart', id: 'hack0001', tool: 'pen', color: '#000000', size: 12, pts: [1, 1] }); await sleep(40);
 ok(A.of('strokeStart').length === 0, 'guesser strokes rejected');
@@ -254,7 +256,7 @@ const board = M2.of('board').at(-1);
 ok(board && board.ops.length === 1 && board.ops[0].id === 'strk0001' && board.active?.id === 'strk0002', 'drawing restored on reconnect (incl. stroke in progress)');
 ok(M2.st.players.length === 2, 'no duplicate player on reconnect');
 ok(A.st.timer.running === true, 'timer resumes');
-ok(M2.raw.every((r) => !r.toLowerCase().includes(word2.toLowerCase())), 'word still secret after reconnect');
+ok(M2.raw.every((r) => !leaks(r, word2)), 'word still secret after reconnect');
 A.send({ type: 'strokeEnd', id: 'strk0002' });
 
 // drawer can't guess; guesser guesses
@@ -502,6 +504,107 @@ A.close(); M2.close();
   ok(Gu.of('doodleStart').length === 2, 'a new doodle starts fine once the cooldown passes');
 
   P.close(); Q.close();
+}
+
+// ── Free-draw studio ────────────────────────────────────────
+{
+  const { code: sc } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const X = new Client(sc, 'studio-x01', 'Xia');
+  const Y = new Client(sc, 'studio-y01', 'Yuri');
+  await X.open(); await sleep(80);
+  X.send({ type: 'settings', settings: { mode: 'studio', shape: 'wide' } }); await sleep(60);
+  ok(X.st.settings.mode === 'studio' && X.st.settings.shape === 'wide', 'host can switch the room to the studio and pick a canvas shape');
+  X.send({ type: 'settings', settings: { mode: 'nonsense', shape: 'huge' } }); await sleep(60);
+  ok(X.st.settings.mode === 'studio' && X.st.settings.shape === 'wide', 'junk mode / shape values are ignored');
+  await Y.open(); await sleep(80);
+  Y.send({ type: 'settings', settings: { mode: 'game' } }); await sleep(60);
+  ok(X.st.settings.mode === 'studio', 'only the host changes the mode');
+  Y.send({ type: 'start' }); await sleep(60);
+  ok(X.st.phase === 'lobby', 'only the host opens the studio');
+  X.send({ type: 'start' }); await sleep(80);
+  ok(X.st.phase === 'studio' && Y.st.phase === 'studio', 'host opens the studio: no words, no turns');
+  ok(X.st.aspect === 1.4 && X.st.word === null && X.st.drawerSeat === null, 'the studio uses the chosen canvas shape and has no word or drawer');
+
+  // everyone can draw, at once; strokes join the drawing whole, at stroke end
+  const stroke = (c, id, tool, color, size, pts) => {
+    c.send({ type: 'strokeStart', id, tool, color, size, pts: pts.slice(0, 2) });
+    if (pts.length > 2) c.send({ type: 'strokePoints', id, pts: pts.slice(2) });
+  };
+  stroke(X, 'sx000001', 'pen', '#000000', 12, [100, 100, 200, 200, 300, 150]);
+  stroke(Y, 'sy000001', 'stars', '#ffd400', 26, [500, 500, 600, 600]);
+  await sleep(60);
+  ok(X.of('studioOp').length === 0 && Y.of('studioOp').length === 0, 'a studio stroke is not shown to others until it is finished');
+  Y.send({ type: 'strokeEnd', id: 'sy000001' });
+  X.send({ type: 'strokeEnd', id: 'sx000001' });
+  await sleep(80);
+  const opsX = X.of('studioOp').map((m) => m.op), opsY = Y.of('studioOp').map((m) => m.op);
+  ok(opsX.length === 2 && opsY.length === 2, 'finished studio strokes reach everyone, including the artist');
+  ok(opsX.map((o) => o.id).join() === opsY.map((o) => o.id).join(), 'everyone sees the same order');
+  ok(opsX.find((o) => o.id === 'sx000001').seat === X.st.you && opsX.find((o) => o.id === 'sy000001').seat === Y.st.you, 'each stroke is stamped with its artist\'s seat');
+  ok(opsX.find((o) => o.id === 'sx000001').pts.length === 6, 'the whole stroke arrives, every point');
+
+  // new tools and patterned fills are valid; junk is not
+  stroke(X, 'sx000002', 'neon', '#1f5bff', 18, [10, 10, 40, 40]); X.send({ type: 'strokeEnd', id: 'sx000002' });
+  stroke(Y, 'sy000002', 'fill', '#ff5fb0', 4, [700, 700, 800, 800]); Y.send({ type: 'strokeEnd', id: 'sy000002' });
+  stroke(X, 'sx000003', 'fill', '#ff5fb0', 7, [700, 700]); X.send({ type: 'strokeEnd', id: 'sx000003' });
+  stroke(X, 'sx000004', 'spray', '#000000', 25, [10, 10, 20, 20]); X.send({ type: 'strokeEnd', id: 'sx000004' });
+  await sleep(80);
+  const ids = Y.of('studioOp').map((m) => m.op.id);
+  ok(ids.includes('sx000002') && ids.includes('sy000002'), 'neon strokes and a patterned fill are accepted');
+  ok(Y.of('studioOp').find((m) => m.op.id === 'sy000002').op.pts.length === 2, 'a fill still keeps just its one point');
+  ok(!ids.includes('sx000003') && !ids.includes('sx000004'), 'a fill pattern or brush size that does not exist is rejected');
+
+  // a late joiner is welcome and gets the whole canvas
+  const Z = new Client(sc, 'studio-z01', 'Zed');
+  await Z.open(); await sleep(100);
+  ok(Z.st.phase === 'studio' && Z.st.players.length === 3, 'friends can join a studio that is already open');
+  ok(Z.of('board').at(-1).ops.length === 4, 'a late joiner receives everything drawn so far');
+
+  // per-artist undo: each person undoes their own last stroke, wherever it sits
+  X.send({ type: 'undo' }); await sleep(80);
+  ok(Z.of('undo').at(-1)?.id === 'sx000002', 'undo removes my own latest stroke - not the newest stroke in the room');
+  X.send({ type: 'undo' }); X.send({ type: 'undo' }); await sleep(80);
+  const undoneIds = Z.of('undo').map((m) => m.id);
+  ok(undoneIds.join() === 'sx000002,sx000001', 'undo keeps going back through only my own strokes, then stops');
+  Z.send({ type: 'undo' }); await sleep(60);
+  ok(Z.of('undo').length === 2, 'someone who has drawn nothing has nothing to undo');
+
+  // clear is shared and undoable by whoever pressed it
+  Y.send({ type: 'clear', id: 'clr0y001' }); await sleep(60);
+  ok(X.of('studioOp').some((m) => m.op.type === 'clear' && m.op.seat === Y.st.you), 'anyone can clear the canvas, and it reaches everyone');
+  Y.send({ type: 'undo' }); await sleep(60);
+  ok(X.of('undo').at(-1)?.id === 'clr0y001', 'the person who cleared can undo the clear');
+
+  // saving to the gallery
+  // Anyone can save, whoever drew what: the entry credits whoever's strokes are on it.
+  X.send({ type: 'save' }); await sleep(80);
+  ok(Y.of('event').some((m) => m.kind === 'saved' && m.name === 'Xia'), 'saving tells everyone who saved');
+  const gal = await (await fetch(base + `/api/rooms/${sc}/gallery`)).json();
+  ok(gal.entries.length === 1 && gal.entries[0].studio === true, 'a saved studio canvas becomes a gallery entry');
+  ok(gal.entries[0].aspect === 1.4 && gal.entries[0].ops.length >= 2, 'the entry keeps the canvas shape and its strokes');
+  ok(gal.entries[0].drawerName.includes('Yuri') && Array.isArray(gal.entries[0].artistSeats), 'it credits the artists');
+  Y.send({ type: 'save' }); await sleep(60);
+  ok((await (await fetch(base + `/api/rooms/${sc}/gallery`)).json()).entries.length === 1, 'saving again with nothing new does not duplicate it');
+
+  // undoing a stroke that a saved gallery entry uses must not damage the entry
+  Y.send({ type: 'undo' }); await sleep(60);
+  const gal2 = await (await fetch(base + `/api/rooms/${sc}/gallery`)).json();
+  ok(JSON.stringify(gal2.entries[0].ops) === JSON.stringify(gal.entries[0].ops), 'undo never changes an already-saved gallery entry');
+
+  // leaving a studio does not end it for everyone else
+  Z.send({ type: 'leave' }); await sleep(120);
+  ok(X.st.phase === 'studio' && X.st.players.length === 2, 'a friend leaving does not end the studio');
+
+  // reconnect keeps the canvas
+  X.close(); await sleep(100);
+  const X2 = new Client(sc, 'studio-x01', 'Xia');
+  await X2.open(); await sleep(100);
+  ok(X2.st.phase === 'studio' && X2.of('board').at(-1).ops.length >= 1, 'reconnecting to a studio restores the canvas');
+
+  // the guessing game's behaviours are untouched outside the studio
+  X2.send({ type: 'guess', text: 'cat' }); X2.send({ type: 'giveup' }); X2.send({ type: 'react', i: 0 }); await sleep(60);
+  ok(!Y.of('guess').length && !Y.of('react').length, 'no guessing or reactions in the studio');
+  X2.close(); Y.close(); Z.close();
 }
 
 srv.kill();

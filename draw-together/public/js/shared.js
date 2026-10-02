@@ -17,11 +17,23 @@ export const TOOLS = {
   pixel:   { label: 'Pixel',   sizes: [16, 28, 48] },
   // Fill: a one-point "stroke" (the tap) that the board resolves against a
   // fixed-size raster of the drawing underneath it - see board.js. It has no
-  // brush size, so it carries a single placeholder size to satisfy the same
-  // tool/size validation every other stroke goes through.
-  fill:    { label: 'Fill',    sizes: [1] },
+  // brush size; its "size" picks a pattern (see FILL_PATTERNS) and goes
+  // through the same tool/size validation every other stroke does.
+  fill:    { label: 'Fill',    sizes: [1, 2, 3, 4, 5, 6] },
   eraser:  { label: 'Eraser',  sizes: [30, 80] },
+  // The tools below are extras for the free-draw studio (`studio: true`):
+  // the guessing game's tray leaves them out, but the server accepts them
+  // anywhere, and a finished studio drawing can be remixed with all of them.
+  neon:    { label: 'Neon',    sizes: [10, 18, 30], studio: true },
+  spray:   { label: 'Spray',   sizes: [24, 40, 64], studio: true },
+  stars:   { label: 'Stars',   sizes: [16, 26, 40], studio: true },
+  hearts:  { label: 'Hearts',  sizes: [16, 26, 40], studio: true },
 };
+
+// A fill's "size" is its pattern (index + 1). 1 = solid, which is all the
+// guessing game ever uses - and what every fill drawn before patterns existed
+// already says. The patterns are painted by board.js.
+export const FILL_PATTERNS = ['Solid', 'Stripes', 'Dots', 'Checks', 'Waves', 'Stars'];
 
 export const SIZE_NAMES = {
   pen: ['Thin', 'Medium', 'Thick'],
@@ -30,7 +42,11 @@ export const SIZE_NAMES = {
   dots: ['Small', 'Medium', 'Large'],
   rainbow: ['Small', 'Medium', 'Large'],
   pixel: ['Fine', 'Medium', 'Chunky'],
-  fill: ['Fill'],
+  fill: ['Solid', 'Stripes', 'Dots', 'Checks', 'Waves', 'Stars'],
+  neon: ['Thin', 'Medium', 'Thick'],
+  spray: ['Small', 'Medium', 'Large'],
+  stars: ['Small', 'Medium', 'Large'],
+  hearts: ['Small', 'Medium', 'Large'],
   eraser: ['Small eraser', 'Large eraser'],
 };
 
@@ -74,6 +90,9 @@ export const CATEGORIES = [
 ];
 
 export const MAX_PLAYERS = 16;
+
+// Free-draw studio: the canvas shape the host picks in the lobby (width / height).
+export const STUDIO_SHAPES = { square: 1, wide: 1.4, tall: 0.72 };
 
 // One distinct color per seat, in join order. Bright and high-saturation to
 // match the sticker-book palette; the first two match --p1/--p2 in

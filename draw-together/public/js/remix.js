@@ -2,12 +2,13 @@
 // (yours or someone else's) and add more strokes on top of it, saving the
 // result as a brand-new gallery entry. The original is never touched -
 // see submitRemix() in src/game-room.js.
-import { Board } from './board.js';
+import { Board, drawPatternSwatch } from './board.js';
 import { TOOLS, SIZE_NAMES, PALETTE, MAX_NAME } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-const ICON = { pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow', pixel: 'i-pixel', fill: 'i-fill', eraser: 'i-eraser' };
+const ICON = { pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow', pixel: 'i-pixel', fill: 'i-fill', eraser: 'i-eraser',
+  neon: 'i-neon', spray: 'i-spray', stars: 'i-stars', hearts: 'i-hearts' };
 
 const params = new URLSearchParams(location.search);
 const code = (params.get('code') || '').trim().toUpperCase();
@@ -16,7 +17,7 @@ const you = params.get('you') != null && params.get('you') !== '' ? Number(param
 
 const S = {
   tool: 'pen',
-  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, pixel: 1, fill: 0, eraser: 0 },
+  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, pixel: 1, fill: 0, eraser: 0, neon: 1, spray: 1, stars: 1, hearts: 1 },
   color: '#000000',
   stroke: null,
   lastPen: 0,
@@ -122,15 +123,7 @@ function renderTray() {
 
   const sizes = $('sizes');
   sizes.replaceChildren();
-  if (S.tool === 'fill') {
-    // No brush size to choose - say what the tool does instead.
-    const hint = document.createElement('p');
-    hint.className = 'fill-hint';
-    hint.textContent = 'Tap inside a shape to fill it';
-    sizes.append(hint);
-    updateActs();
-    return;
-  }
+  sizes.classList.toggle('patterns', S.tool === 'fill');
   const list = TOOLS[S.tool].sizes;
   list.forEach((sz, i) => {
     const b = document.createElement('button');
@@ -139,9 +132,17 @@ function renderTray() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', S.sizeIdx[S.tool] === i ? 'true' : 'false');
     b.setAttribute('aria-label', SIZE_NAMES[S.tool][i]);
-    const px = [10, 18, 28][list.length === 2 ? i * 2 : i];
-    const bg = S.tool === 'eraser' ? '#fff' : S.color === '#ffffff' ? '#fff' : S.color;
-    b.innerHTML = `<span class="blob${S.tool === 'pixel' ? ' sq' : ''}" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
+    if (S.tool === 'fill') {
+      // A fill's "size" is its pattern.
+      const cv = document.createElement('canvas');
+      drawPatternSwatch(cv, sz, S.color === '#ffffff' ? '#bbbbbb' : S.color);
+      cv.style.boxShadow = '0 0 0 2.5px #000';
+      b.append(cv);
+    } else {
+      const px = [10, 18, 28][list.length === 2 ? i * 2 : i];
+      const bg = S.tool === 'eraser' ? '#fff' : S.color === '#ffffff' ? '#fff' : S.color;
+      b.innerHTML = `<span class="blob${S.tool === 'pixel' ? ' sq' : ''}" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
+    }
     b.addEventListener('click', () => { S.sizeIdx[S.tool] = i; renderTray(); });
     sizes.append(b);
   });

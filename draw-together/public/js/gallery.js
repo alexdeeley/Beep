@@ -14,6 +14,8 @@ const you = params.get('you') != null && params.get('you') !== '' ? Number(param
 const myName = params.get('name') || '';
 let onlyMine = false;
 let allEntries = [];
+// Mine = I drew it, or (free-draw studio) I drew on it.
+const mine = (e) => e.drawerSeat === you || !!e.artistSeats?.includes(you);
 
 function setState(text) { $('g-state').textContent = text; }
 
@@ -46,7 +48,7 @@ async function main() {
   }
   setState('');
   allEntries = data.entries;
-  if (you != null && allEntries.some((e) => e.drawerSeat === you)) wireMineFilter();
+  if (you != null && allEntries.some(mine)) wireMineFilter();
   renderGrid();
 }
 
@@ -62,7 +64,7 @@ function renderGrid() {
   grid.replaceChildren();
   $('btn-filter-all')?.classList.toggle('active', !onlyMine);
   $('btn-filter-mine')?.classList.toggle('active', onlyMine);
-  const entries = onlyMine ? allEntries.filter((e) => e.drawerSeat === you) : allEntries;
+  const entries = onlyMine ? allEntries.filter(mine) : allEntries;
   if (!entries.length) {
     grid.innerHTML = '<p class="gstate">No drawings of yours in this game yet.</p>';
     return;
@@ -80,7 +82,9 @@ function renderGrid() {
     meta.className = 'meta';
     const who = entry.remixOf != null
       ? `Remix by ${esc(entry.drawerName)} · started from ${esc(entry.remixOfName)}'s drawing`
-      : `Round ${entry.round} · drawn by ${esc(entry.drawerName)}`;
+      : entry.studio
+        ? `Studio · drawn by ${esc(entry.drawerName)}`
+        : `Round ${entry.round} · drawn by ${esc(entry.drawerName)}`;
     meta.innerHTML = `<div class="word">${esc(entry.word)} ${esc(entry.emoji)}</div><div class="who">${who}</div>`;
     card.appendChild(meta);
 
