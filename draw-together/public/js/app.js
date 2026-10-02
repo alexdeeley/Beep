@@ -25,7 +25,7 @@ const S = {
   st: null,
   clockOffset: 0,
   tool: 'pen',
-  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, eraser: 0 },
+  sizeIdx: { pen: 1, marker: 1, crayon: 1, dots: 1, rainbow: 1, pixel: 1, fill: 0, eraser: 0 },
   color: '#000000',
   stroke: null,
   lastPen: 0,
@@ -674,7 +674,7 @@ setInterval(updateTimer, 200);
 
 // ── Drawing tools ───────────────────────────────────────────
 
-const ICON = { pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow', eraser: 'i-eraser' };
+const ICON = { pen: 'i-pen', marker: 'i-marker', crayon: 'i-crayon', dots: 'i-dots', rainbow: 'i-rainbow', pixel: 'i-pixel', fill: 'i-fill', eraser: 'i-eraser' };
 
 function buildTray() {
   const tools = $('tools');
@@ -720,6 +720,14 @@ function renderTray() {
 
   const sizes = $('sizes');
   sizes.replaceChildren();
+  if (S.tool === 'fill') {
+    // No brush size to choose - say what the tool does instead.
+    const hint = document.createElement('p');
+    hint.className = 'fill-hint';
+    hint.textContent = 'Tap inside a shape to fill it';
+    sizes.append(hint);
+    return;
+  }
   const list = TOOLS[S.tool].sizes;
   list.forEach((sz, i) => {
     const b = document.createElement('button');
@@ -730,7 +738,7 @@ function renderTray() {
     b.setAttribute('aria-label', SIZE_NAMES[S.tool][i]);
     const px = [10, 18, 28][list.length === 2 ? i * 2 : i];
     const bg = S.tool === 'eraser' ? '#fff' : S.color === '#ffffff' ? '#fff' : S.color;
-    b.innerHTML = `<span class="blob" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
+    b.innerHTML = `<span class="blob${S.tool === 'pixel' ? ' sq' : ''}" style="width:${px}px;height:${px}px;background:${bg};box-shadow:0 0 0 2.5px #000"></span>`;
     b.addEventListener('click', () => { S.sizeIdx[S.tool] = i; renderTray(); });
     sizes.append(b);
   });
@@ -774,6 +782,15 @@ sheet.addEventListener('pointerdown', (e) => {
     const size = TOOLS[tool].sizes[S.sizeIdx[tool]];
     const color = tool === 'eraser' ? '#ffffff' : S.color;
     const id = rid();
+    if (tool === 'fill') {
+      // A fill is just the tap: start and finish it together, nothing to drag.
+      S.board.begin({ id, tool, color, size, pts: [x, y] });
+      S.board.end(id);
+      S.net.send({ type: 'strokeStart', id, tool, color, size, pts: [x, y] });
+      S.net.send({ type: 'strokeEnd', id });
+      updateUndo();
+      return;
+    }
     S.stroke = { id, pointerId: e.pointerId, lx: x, ly: y, pending: [], raf: 0 };
     S.board.begin({ id, tool, color, size, pts: [x, y] });
     S.net.send({ type: 'strokeStart', id, tool, color, size, pts: [x, y] });

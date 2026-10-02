@@ -46,7 +46,7 @@ npm test                                   # word bank, guess matching, full ser
 node dev/browser-test.mjs                  # two real browsers play a full game (needs Playwright + Chromium)
 ```
 
-The browser test pairs a 1180×820 tablet with a 390×844 touch phone, checks mid-stroke live sync, that both devices render the same picture at different sizes and pixel densities, eraser/undo/clear sync, reload reconstruction, that the secret word never appears in any frame the guesser receives, guessing and scoring, the reveal replay, disconnect/timer pause, landscape layouts, a full 10-round game and Play Again. Screenshots land in `/tmp/shots` (override with `SHOTS=`).
+The browser test pairs a 1180×820 tablet with a 390×844 touch phone, checks mid-stroke live sync, that both devices render the same picture at different sizes and pixel densities, pixel and fill sync, eraser/undo/clear sync, reload reconstruction, that the secret word never appears in any frame the guesser receives, guessing and scoring, the reveal replay, disconnect/timer pause, landscape layouts, a full 10-round game and Play Again. Screenshots land in `/tmp/shots` (override with `SHOTS=`).
 
 ## Project layout
 
@@ -111,6 +111,8 @@ Client → server (JSON):
 
 The spec's separate "erase" events are simply strokes with `tool: 'eraser'`, which keeps undo and live sync uniform.
 
+**Pixel and Fill tools.** *Pixel* is an ordinary stamped brush: each point snaps to a grid cell (16 / 28 / 48 board units) and the cell is filled solid, so it looks identical on every screen. *Fill* is stored as a one-point stroke (`tool: 'fill'`, the server keeps only the first point), so undo, live relay, the gallery and remix all work with no protocol changes. Each device resolves the fill itself: it rasterises every op before the fill onto a fixed-size canvas (`FILL_K` px per board unit, about 360k px whatever the aspect), flood-fills from the tapped point with a per-channel tolerance (`FILL_TOL`), grows the region 1px so the paint tucks under anti-aliased edges, and paints that mask onto the real canvas. Because the work happens on the same fixed grid everywhere, every device fills the same region. Masks are cached per fill and recomputed when an earlier stroke is undone. The eraser can erase fills. Known limitation: an outline with a gap lets paint leak out, as in any flood fill.
+
 Server → client: `state` (tailored per player; only the drawer's copy contains `word`), `board` (full operation list on join/reconnect), `strokeStart` / `strokePoints` / `strokeEnd` / `undo` / `clear` (live relay), `guess` (`result: correct | close | wrong`), `react` (`seat, i`), `doodleStart` / `doodlePoints` / `doodleEnd` (`seat, id, pts`), `event` (`joined`, `back`, `left`), and `error` (`notfound`, `full`, `replaced`).
 
 ## Game rules
@@ -171,3 +173,5 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 34. Guesser doodles: anyone but the drawer can gesture on the drawing with a finger or mouse; the mark shows up faded on everyone's screen, never touches the real drawing, and fades away on its own roughly ten seconds after it's lifted.
 35. Chaos mode never offers a clue that overflows the word-choice card - the longest prompts (over `MAX_CLUE_LEN`) are simply never picked.
 36. Emoji tracing guide on: the drawer sees a faint emoji centered on their canvas, drawable over; the guesser's screen shows nothing extra and never receives the emoji at all.
+37. Pixel brush: strokes snap to a chunky grid with no seams or gaps, and look the same on both devices at all three sizes.
+38. Fill tool: tapping inside a drawn closed shape fills just that shape on every screen; tapping empty paper fills the background; undo removes the fill, and undoing an earlier line re-fits later fills; the eraser can scrub paint out of a fill.

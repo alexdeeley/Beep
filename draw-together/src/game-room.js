@@ -648,8 +648,10 @@ const HANDLERS = {
     if (!color) return;
     if (this.ops.length >= MAX_OPS_PER_ROUND) return;
     if (this.active) this.finishActive();
-    const pts = cleanPoints(msg.pts);
+    let pts = cleanPoints(msg.pts);
     if (!pts || pts.length < 2) return;
+    // A fill is a single tap - one point, nothing more ever accepted.
+    if (tool === 'fill') pts = pts.slice(0, 2);
     this.active = { id, type: 'stroke', tool, color, size: msg.size, pts };
     this.relay({ type: 'strokeStart', id, tool, color, size: msg.size, pts }, ws);
   },
@@ -657,6 +659,7 @@ const HANDLERS = {
   async strokePoints(me, msg, ws) {
     const a = this.active;
     if (!a || a.id !== msg.id || me.seat !== this.room.drawerSeat) return;
+    if (a.tool === 'fill') return;
     const pts = cleanPoints(msg.pts);
     if (!pts || a.pts.length + pts.length > MAX_INTS_PER_STROKE) return;
     for (const v of pts) a.pts.push(v);
@@ -886,5 +889,5 @@ function validateOp(op) {
   const pts = op.pts;
   if (!Array.isArray(pts) || pts.length % 2 || pts.length < 2 || pts.length > MAX_INTS_PER_STROKE) return null;
   for (const v of pts) if (!Number.isInteger(v) || v < 0 || v > COORD_MAX) return null;
-  return { id, type: 'stroke', tool, color, size: op.size, pts: pts.slice() };
+  return { id, type: 'stroke', tool, color, size: op.size, pts: pts.slice(0, tool === 'fill' ? 2 : pts.length) };
 }

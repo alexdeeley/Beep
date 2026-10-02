@@ -359,7 +359,7 @@ html.a11y-invert #sizes .blob {
   gap: 8px;
   padding: 4px 12px calc(var(--sb) + 10px);
 }
-.tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .btn.tool {
   min-height: 62px; padding: 3px 0 1px;
   display: grid; justify-items: center; align-content: center; gap: 0;
@@ -379,6 +379,11 @@ html.a11y-invert #sizes .blob {
 .sizes .btn { flex: 1; min-height: 54px; padding: 0; display: grid; place-items: center; box-shadow: 0 4px 0 var(--ink); }
 .sizes .btn[aria-checked="true"] { background: var(--sun); transform: translateY(4px); box-shadow: inset 0 -5px 0 var(--ink); }
 .sizes .blob { border-radius: 50%; background: var(--ink); display: block; }
+.sizes .blob.sq { border-radius: 2px; }
+.fill-hint {
+  flex: 1; margin: 0; min-height: 54px; display: grid; place-items: center;
+  text-align: center; font-weight: 800; font-size: clamp(.8rem, 3.4vw, 1.05rem); line-height: 1.1;
+}
 .acts { display: flex; gap: 7px; flex: 0 0 auto; }
 .btn.act { min-height: 54px; width: 70px; }
 .btn.act svg { width: 28px; height: 28px; }
@@ -518,6 +523,7 @@ html.a11y-invert #sizes .blob {
 
 @media (min-width: 700px) and (orientation: portrait) {
   .colors { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .tools { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .tools .btn.tool { min-height: 72px; font-size: 1rem; }
   .btn.tool svg { width: 40px; height: 40px; }
   .tray, .guessbar { padding-left: 24px; padding-right: 24px; }

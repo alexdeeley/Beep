@@ -13,6 +13,13 @@ export const TOOLS = {
   crayon:  { label: 'Crayon',  sizes: [12, 20, 32] },
   dots:    { label: 'Dots',    sizes: [7, 12, 19] },
   rainbow: { label: 'Rainbow', sizes: [8, 14, 24] },
+  // Pixel: the size is the grid cell, in board units - points snap to that grid.
+  pixel:   { label: 'Pixel',   sizes: [16, 28, 48] },
+  // Fill: a one-point "stroke" (the tap) that the board resolves against a
+  // fixed-size raster of the drawing underneath it - see board.js. It has no
+  // brush size, so it carries a single placeholder size to satisfy the same
+  // tool/size validation every other stroke goes through.
+  fill:    { label: 'Fill',    sizes: [1] },
   eraser:  { label: 'Eraser',  sizes: [30, 80] },
 };
 
@@ -22,6 +29,8 @@ export const SIZE_NAMES = {
   crayon: ['Small', 'Medium', 'Large'],
   dots: ['Small', 'Medium', 'Large'],
   rainbow: ['Small', 'Medium', 'Large'],
+  pixel: ['Fine', 'Medium', 'Chunky'],
+  fill: ['Fill'],
   eraser: ['Small eraser', 'Large eraser'],
 };
 

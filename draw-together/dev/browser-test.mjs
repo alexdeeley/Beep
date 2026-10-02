@@ -235,6 +235,44 @@ ok((await inkCount(M.page)) === 0, 'clear synced');
 await A.page.click('#btn-undo'); await sleep(250);
 ok((await inkCount(M.page)) > 50, 'clear undone');
 
+// pixel brush and fill tool: both devices must show the same picture, and
+// both are ordinary undoable ops
+{
+  const nOps = () => A.page.evaluate(() => window.__dt.S.board.ops.length);
+  const opsBefore = await nOps();
+  const inkBeforePix = await inkCount(M.page);
+  await stroke(A.page, [[0.05, 0.3], [0.2, 0.34]], 'pixel', 'Black', 1);
+  await sleep(200);
+  ok((await nOps()) === opsBefore + 1, 'pixel stroke adds one op');
+  ok((await inkCount(M.page)) > inkBeforePix, 'pixel stroke appears on the guesser\'s screen');
+  ok(await A.page.isVisible('#sizes .blob.sq'), 'pixel sizes show square swatches');
+
+  const inkBeforeFill = await inkCount(M.page);
+  await stroke(A.page, [[0.5, 0.45]], 'fill', 'Pink');
+  await sleep(500);
+  ok((await nOps()) === opsBefore + 2, 'fill adds one op');
+  ok(await A.page.isVisible('.fill-hint'), 'fill tool shows its hint instead of sizes');
+  const inkAfterFill = await inkCount(M.page);
+  ok(inkAfterFill > inkBeforeFill + 500, `fill paints the enclosed shape on the guesser's screen (${inkBeforeFill} → ${inkAfterFill})`);
+  const dFill = diff(await snapshot(A.page), await snapshot(M.page));
+  ok(dFill < 6, `drawer and guesser agree after a fill (mean diff ${dFill.toFixed(2)})`);
+  await A.page.screenshot({ path: `${OUT}/06b-fill-tablet.png` });
+  await M.page.screenshot({ path: `${OUT}/06b-fill-phone.png` });
+
+  // an eraser stroke across the fill removes paint from it
+  await stroke(A.page, [[0.35, 0.45], [0.65, 0.45]], 'eraser', null, 1);
+  await sleep(300);
+  ok((await inkCount(M.page)) < inkAfterFill, 'eraser removes paint from a filled area');
+  await A.page.click('#btn-undo'); await sleep(250);
+
+  await A.page.click('#btn-undo'); await sleep(400); // undo the fill
+  const inkUndoFill = await inkCount(M.page);
+  ok(inkUndoFill < inkAfterFill - 500, 'undo removes the fill on both devices');
+  await A.page.click('#btn-undo'); await sleep(250); // undo the pixel stroke
+  ok((await nOps()) === opsBefore, 'pixel and fill undo cleanly back to the earlier drawing');
+  ok(diff(await snapshot(A.page), await snapshot(M.page)) < 6, 'both devices agree after undoing them');
+}
+
 // reconnect: reload Maisie's page mid-round
 await M.page.reload();
 await M.page.waitForFunction(() => window.__dt.S.st?.phase === 'drawing');

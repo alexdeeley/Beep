@@ -219,6 +219,28 @@ ok(M.of('clear').length === 1, 'clear synced');
 A.send({ type: 'undo' }); await sleep(40);
 ok(M.of('undo')[1]?.id === 'clr00001', 'clear can be undone');
 
+// pixel + fill tools: validated like any other, fill is capped at one point
+{
+  const startsBefore = M.of('strokeStart').length;
+  A.send({ type: 'strokeStart', id: 'pixl0001', tool: 'pixel', color: '#000000', size: 28, pts: [400, 400] });
+  A.send({ type: 'strokePoints', id: 'pixl0001', pts: [500, 400] });
+  A.send({ type: 'strokeEnd', id: 'pixl0001' });
+  A.send({ type: 'strokeStart', id: 'pixl0002', tool: 'pixel', color: '#000000', size: 30, pts: [1, 1] }); // not a pixel size
+  A.send({ type: 'strokeStart', id: 'fill0001', tool: 'fill', color: '#1fb84a', size: 1, pts: [700, 700, 800, 800, 900, 900] });
+  A.send({ type: 'strokePoints', id: 'fill0001', pts: [950, 950] });
+  A.send({ type: 'strokeEnd', id: 'fill0001' });
+  A.send({ type: 'strokeStart', id: 'fill0002', tool: 'fill', color: '#1fb84a', size: 12, pts: [1, 1] }); // wrong placeholder size
+  await sleep(80);
+  const starts = M.of('strokeStart').slice(startsBefore);
+  ok(starts.some((m) => m.id === 'pixl0001') && starts.some((m) => m.id === 'fill0001'), 'pixel and fill strokes are accepted and relayed');
+  ok(!starts.some((m) => m.id === 'pixl0002' || m.id === 'fill0002'), 'pixel/fill with a size outside the tool\'s list are rejected');
+  ok(M.of('strokeStart').find((m) => m.id === 'fill0001').pts.length === 2, 'a fill keeps just its first point');
+  ok(!M.of('strokePoints').some((m) => m.id === 'fill0001'), 'extra points sent for a fill are ignored');
+  A.send({ type: 'undo' }); A.send({ type: 'undo' }); await sleep(60);
+  const ids = M.of('undo').map((m) => m.id);
+  ok(ids.at(-2) === 'fill0001' && ids.at(-1) === 'pixl0001', 'fill and pixel strokes undo like any other stroke');
+}
+
 // reconnect in the middle of a stroke
 A.send({ type: 'strokeStart', id: 'strk0002', tool: 'crayon', color: '#e8202a', size: 20, pts: [500, 500] });
 A.send({ type: 'strokePoints', id: 'strk0002', pts: [600, 600] });
@@ -320,12 +342,21 @@ let galleryBefore;
   const secondRes = await post({
     sourceIndex: 0,
     name: 'Second Artist',
-    ops: [{ id: 'rmx00005', type: 'stroke', tool: 'pen', color: '#e8202a', size: 6, pts: [50, 50, 60, 60] }],
+    ops: [
+      { id: 'rmx00005', type: 'stroke', tool: 'pen', color: '#e8202a', size: 6, pts: [50, 50, 60, 60] },
+      { id: 'rmx00006', type: 'stroke', tool: 'pixel', color: '#000000', size: 16, pts: [300, 300, 340, 300] },
+      { id: 'rmx00007', type: 'stroke', tool: 'fill', color: '#ffd400', size: 1, pts: [500, 500, 600, 600, 700, 700] },
+    ],
   });
   ok(secondRes.status === 200, 'remix: a second remix of the same source is independently accepted');
   const g3 = await (await fetch(base + `/api/rooms/${code}/gallery`)).json();
   ok(g3.entries.length === 8 && g3.entries[7].remixOf === 0, 'remix: multiple people can remix the same original independently');
   ok(g3.entries[6].ops.length === galleryBefore.entries[0].ops.length + 1, 'remix: the first remix is unaffected by the second');
+  const second = g3.entries[7].ops;
+  ok(second.length === galleryBefore.entries[0].ops.length + 3, 'remix: pixel and fill ops are accepted');
+  ok(second.at(-1).tool === 'fill' && second.at(-1).pts.length === 2, 'remix: a fill is trimmed to its single point');
+  const badFillSize = await post({ sourceIndex: 0, name: 'Rex', ops: [{ id: 'rmx00008', type: 'stroke', tool: 'fill', color: '#000000', size: 12, pts: [1, 1] }] });
+  ok(badFillSize.status === 400, 'remix: a fill with a size outside its list is rejected');
 }
 
 A.send({ type: 'again' }); await sleep(80);
