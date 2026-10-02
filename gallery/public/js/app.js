@@ -1,4 +1,5 @@
 import { createPiece, normalizeSeed, SETTLE_SECONDS } from './art/index.js';
+import { randomSeed } from './seeds.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('art'), ctx = canvas.getContext('2d');
@@ -16,12 +17,6 @@ let lastDraw = 0;
 
 // ── Seeds ────────────────────────────────────────────────────
 
-const WORDS_A = ['quiet', 'amber', 'velvet', 'hollow', 'gentle', 'electric', 'paper', 'silver', 'wild', 'slow', 'bright', 'secret', 'drifting', 'golden', 'lunar', 'mossy', 'salty', 'sleepy', 'tiny', 'violet'];
-const WORDS_B = ['harbor', 'orchard', 'comet', 'lantern', 'meadow', 'echo', 'canyon', 'ribbon', 'garden', 'tide', 'engine', 'island', 'museum', 'thunder', 'window', 'forest', 'planet', 'river', 'carousel', 'cloud'];
-const randomSeed = () => {
-  const r = () => Math.floor(Math.random() * 1e9);
-  return `${WORDS_A[r() % WORDS_A.length]} ${WORDS_B[r() % WORDS_B.length]} ${1 + (r() % 99)}`;
-};
 const seedFromUrl = () => { try { return normalizeSeed(decodeURIComponent(location.hash.slice(1))); } catch { return ''; } };
 
 // ── Drawing ──────────────────────────────────────────────────

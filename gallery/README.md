@@ -9,7 +9,7 @@ It is a small static site: no server, no accounts, no dependencies.
 ```
 npm run dev            # http://localhost:8788
 npm test               # generator checks (Node, no browser)
-npm run test:browser   # the page in a real browser (needs Playwright + Chromium)
+npm run test:browser   # the pages in a real browser (needs Playwright + Chromium)
 node dev/sheet.mjs     # a contact sheet of every style, to look at
 npm run deploy         # wrangler: static assets on gallery.deeley.org
 ```
@@ -45,28 +45,47 @@ where `make({ rng, pal, noise, A })` does its random choices once and returns
 and 1 tall, whatever its pixel size). Adding a style = one file plus one line
 in `index.js`.
 
-## Toward the museum
+## The museum
 
-The plan is an endless voxel walkthrough museum, with this generator as the
-art. Nothing here needs to change to get there - `createPiece` touches only the
-canvas it is handed, so it can paint a texture as easily as a web page:
+`museum.html` is a first-person walk through an endless building of rooms,
+mazes and halls whose walls are hung with the same generated art. Same museum
+seed, same museum - the link carries it (`museum.html#my seed`).
 
-- **The world is a function of a seed too.** A museum seed picks everything:
-  the layout of a region (rooms, turns, big open halls, labyrinths of walls) is
-  derived from hashes of grid coordinates (`hash01(x, y, salt)` in `rng.js` is
-  made for this), so any place can be generated on demand with no map stored,
-  and the museum is infinite and the same for everyone.
-- **Every wall slot is a seed.** `createPiece(`${worldSeed}:${x},${z}:${slot}`)`
-  gives that spot's artwork; pieces are drawn to textures when you come near
-  and dropped when you leave. A piece's `aspect` says which frame fits it.
-- **Voxel look.** The same piece can be drawn at, say, 48 px high and shown
-  with nearest-neighbour sampling, or turned into a relief of cubes - the draw
-  function doesn't care how big the canvas is.
-- **Dynamic.** Pieces keep animating when `t` is advanced per frame, so the
-  walls of the museum are alive; distant ones can be frozen at their finished
-  state to save time.
-- **Tech.** Three.js (instanced boxes for the walls, a canvas texture per
-  frame) in a module next to `public/js/art/`, reusing it unchanged.
+- **Walk:** W A S D / arrows, Shift to run, mouse to look (click to start).
+  On a phone: drag the left half to walk, the right half to look.
+  **E** (or tap the label) opens the picture you are facing in the gallery.
+  **M** map, **Q** chunky / sharp look, **Esc** menu (where you can change the
+  museum seed).
+- **The floor plan is a function of the seed** (`js/museum/world.js`, pure and
+  tested in Node). Blocks make cells of 4x4 (3x3 of floor), cells make regions
+  of 10x10, and each region is one of four kinds - a **maze** of art walls, a run
+  of **rooms**, a big open **hall** with columns and free-standing walls, or a
+  long **winding** gallery. A region only decides which of its cell walls are
+  open; wall blocks, pillars and paintings follow from that. Every region is
+  connected inside and every region border has a doorway, so everywhere is
+  reachable, forever, with no map stored. The home hall has a wall ahead of you
+  carrying your own seed's piece.
+- **Voxel look** (`mesh.js`): each region is one mesh of unit cubes - walls
+  stacked from blocks, checkered floors, ceiling lamps - flat-coloured with a
+  little variation per block and with the lamps' light baked into the vertex
+  colours, so drawing is cheap. The "chunky" look renders at ~500 px tall and
+  scales up with hard pixels.
+- **Paintings** (`paintings.js`) hang on both faces of every closed wall
+  strip. Each is a flat panel until you are near; then it gets a small texture,
+  and a big one up close, drawn by the same `createPiece(...).draw(...)` as the
+  gallery page (frame and mat included). The nearest few in front of you are
+  redrawn live, so the walls near you move; further ones are frozen at their
+  finished state. A painting's seed is `${museumSeed}|${cell}:${wall}${side}`.
+- **Streaming** (`main.js`): the 3x3 regions around you are built (one a frame)
+  and the rest dropped as you walk, and paintings come and go with distance.
+- Three.js is vendored in `js/vendor/` (no CDN, no build step).
+
+### Ideas for later
+
+Rooms with their own themes of art (all one style, or a retrospective of one
+seed's neighbours), plazas with sculptures built from the voxel shapes, stairs
+and upper floors, a name plate you can edit for your own corner, sound that
+changes by region, and a way to hang a chosen seed on the home hall's walls.
 
 ## Notes
 

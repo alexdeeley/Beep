@@ -57,7 +57,10 @@ export function createPiece(seedText) {
   const pal = makePalette(fork(seed, 'palette'));
   const title = makeTitle(fork(seed, 'title'), pal, style.words);
   const number = 1000 + Math.floor(fork(seed, 'number').float() * 9000);
-  const paint = style.make({ rng: fork(seed, 'style'), pal, noise: makeNoise(fork(seed, 'noise')), A: aspect });
+  // The style's own parameters (the costly part) are worked out the first time
+  // the piece is drawn, so asking about a piece's title and shape stays cheap -
+  // a museum can know about thousands of pieces and only paint the near ones.
+  let paint = null;
 
   return {
     seed, title, number, aspect,
@@ -70,6 +73,7 @@ export function createPiece(seedText) {
     draw(ctx, w, h, t = 0) {
       ctx.save();
       ctx.scale(h, h);
+      if (!paint) paint = style.make({ rng: fork(seed, 'style'), pal, noise: makeNoise(fork(seed, 'noise')), A: aspect });
       paint(ctx, w / h, t);
       ctx.restore();
       // A whisper of paper grain on top, in pixel space.

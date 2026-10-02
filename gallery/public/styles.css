@@ -37,7 +37,9 @@ body {
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.top { padding: max(14px, env(safe-area-inset-top)) 22px 0; }
+.top { display: flex; justify-content: space-between; align-items: baseline; padding: max(14px, env(safe-area-inset-top)) 22px 0; }
+.museum-link { font-size: .8rem; letter-spacing: .04em; color: var(--ink-soft); text-decoration: none; padding: 4px 0; }
+.museum-link:hover { color: var(--ink); }
 .mark { font-size: .78rem; letter-spacing: .32em; text-transform: uppercase; color: var(--ink-soft); }
 
 .stage {
