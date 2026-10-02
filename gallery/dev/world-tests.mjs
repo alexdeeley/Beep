@@ -1,5 +1,6 @@
 // The museum floor plan, checked in Node.   node dev/world-tests.mjs
-import { createWorld, CELL, REGION, WALL_H } from '../public/js/museum/world.js';
+import { createWorld, MUSEUM_SEED, CELL, REGION, WALL_H } from '../public/js/museum/world.js';
+import { createPiece } from '../public/js/art/index.js';
 
 let pass = 0, fail = 0;
 const ok = (c, l) => { if (c) pass++; else { fail++; console.log('  ✗ ' + l); } };
@@ -83,6 +84,26 @@ for (const seed of SEEDS) {
   let diff = 0;
   for (let x = 0; x < 160; x++) for (let z = 0; z < 160; z++) if (a.solid(x, z) !== b.solid(x, z)) diff++;
   ok(diff > 2000, `different seeds give different floor plans (${diff} blocks differ)`);
+}
+
+// ── The one museum must never change ────────────────────────
+// Everyone walks the same building, so these fingerprints are a promise: if a
+// code change alters the floor plan or what hangs where, this fails. Only
+// update the numbers on purpose - doing so reshuffles the museum for everyone.
+{
+  const fnv = (str, h = 2166136261) => { for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; };
+  const w = createWorld(MUSEUM_SEED);
+  let plan = '';
+  for (let z = -2 * REGION; z < 3 * REGION; z++) { let row = ''; for (let x = -2 * REGION; x < 3 * REGION; x++) row += w.solid(x, z) ? '1' : '0'; plan += row + '\n'; }
+  const art = [];
+  for (let rz = -1; rz <= 1; rz++) for (let rx = -1; rx <= 1; rx++) for (const p of w.paintings(rx, rz)) art.push(`${p.id}|${p.seed}|${p.aspect}|${createPiece(p.seed).title}`);
+  const far = createWorld(MUSEUM_SEED);
+  let farPlan = '';
+  for (let z = 100000; z < 100000 + 120; z++) for (let x = -777777; x < -777777 + 120; x++) farPlan += far.solid(x, z) ? '1' : '0';
+  const got = { plan: fnv(plan), art: fnv(art.join('\n')), count: art.length, far: fnv(farPlan) };
+  const want = { plan: 108403424, art: 1154008385, count: 901, far: 2384428015 };
+  ok(JSON.stringify(got) === JSON.stringify(want), `the museum is exactly as it always was ${JSON.stringify(got)}${JSON.stringify(got) === JSON.stringify(want) ? '' : ' (expected ' + JSON.stringify(want) + ')'}`);
+  ok(MUSEUM_SEED === 'the museum', 'the museum seed has not been changed');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

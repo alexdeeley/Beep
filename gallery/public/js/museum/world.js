@@ -15,6 +15,11 @@
 import { makeRng, fork, normalizeSeed, hash01 } from '../art/rng.js';
 import { createPiece } from '../art/index.js';
 
+// The one museum. Every visitor walks the same building: nothing about it
+// depends on who you are, when you come, or a random number - so a place is
+// always exactly the same, and there is far more of it than anyone has seen.
+export const MUSEUM_SEED = 'the museum';
+
 export const CELL = 4;
 export const REGION_CELLS = 10;
 export const REGION = CELL * REGION_CELLS;   // blocks per region side

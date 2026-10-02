@@ -3,12 +3,10 @@
 // worked out and paintings.js for the art.
 
 import * as THREE from 'three';
-import { createWorld, REGION } from './world.js';
+import { createWorld, MUSEUM_SEED, REGION } from './world.js';
 import { buildRegionMesh } from './mesh.js';
 import { Paintings } from './paintings.js';
 import { Controls } from './controls.js';
-import { normalizeSeed } from '../art/rng.js';
-import { randomSeed } from '../seeds.js';
 import { createPiece } from '../art/index.js';
 
 const $ = (id) => document.getElementById(id);
@@ -43,7 +41,6 @@ addEventListener('resize', resize);
 let world = null, paintings = null;
 const loaded = new Map();     // "rx,rz" -> mesh
 const player = { x: 0, z: 0, walked: 0 };
-let seed = '';
 
 function regionKey(rx, rz) { return rx + ',' + rz; }
 function loadRegion(rx, rz) {
@@ -78,19 +75,38 @@ function streamRegions(all = false) {
   }
 }
 
-function openMuseum(seedText) {
-  seed = normalizeSeed(seedText) || randomSeed();
+// There is one museum, the same for everyone: its floor plan, its art and
+// its seeds all follow from MUSEUM_SEED. Where you are is the only thing that
+// is yours - and it can be shared as a link (see `locationHash`).
+function openMuseum(spot) {
   for (const key of [...loaded.keys()]) { const [rx, rz] = key.split(',').map(Number); unloadRegion(rx, rz); }
   paintings?.clear();
-  world = createWorld(seed);
+  world = createWorld(MUSEUM_SEED);
   paintings = new Paintings(scene);
-  player.x = world.spawn.x; player.z = world.spawn.z; player.walked = 0;
-  controls.yaw = world.spawn.yaw; controls.pitch = 0;
+  const at = spot || { x: world.spawn.x, z: world.spawn.z, yaw: world.spawn.yaw };
+  player.x = at.x; player.z = at.z; player.walked = 0;
+  controls.yaw = at.yaw; controls.pitch = 0;
+  // A shared link could point inside a wall; never start there.
+  if (blocked(player.x, player.z)) { player.x = world.spawn.x; player.z = world.spawn.z; }
   streamRegions(true);
-  $('seed').value = seed;
-  document.title = `Museum · ${seed}`;
-  history.replaceState(null, '', '#' + encodeURIComponent(seed));
-  $('seedtext').textContent = seed;
+  document.title = 'Museum';
+}
+
+// "#x,z,turn": where you are, to the nearest block and 5 degrees.
+const locationHash = () => `#${Math.round(player.x * 10) / 10},${Math.round(player.z * 10) / 10},${Math.round((controls.yaw % (Math.PI * 2)) * 36 / Math.PI) * 5}`;
+function spotFromHash() {
+  const m = /^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(-?\d+(?:\.\d+)?))?$/.exec(location.hash);
+  if (!m) return null;
+  const x = Number(m[1]), z = Number(m[2]);
+  if (Math.abs(x) > 1e7 || Math.abs(z) > 1e7) return null;
+  return { x, z, yaw: m[3] != null ? Number(m[3]) * Math.PI / 180 : 0 };
+}
+let lastHash = 0;
+function syncHash(now) {
+  if (now - lastHash < 1000) return;
+  lastHash = now;
+  history.replaceState(null, '', locationHash());
+  $('where').textContent = `x ${Math.round(player.x)} · z ${Math.round(player.z)}`;
 }
 
 // ── Walking ──────────────────────────────────────────────────
@@ -188,12 +204,14 @@ $('enter').addEventListener('click', () => {
 canvas.addEventListener('click', () => { if (!playing) $('enter').click(); });
 $('menu').addEventListener('click', () => { document.exitPointerLock?.(); setPlaying(false); });
 $('quality').addEventListener('click', () => setQuality(quality === 'chunky' ? 'sharp' : 'chunky'));
-$('seedform').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const s = normalizeSeed($('seed').value);
-  if (s) openMuseum(s);
+$('home').addEventListener('click', () => { openMuseum(null); });
+$('share').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + locationHash();
+  history.replaceState(null, '', locationHash());
+  try { await navigator.clipboard.writeText(url); $('share').textContent = 'Link copied ✓'; }
+  catch { $('share').textContent = 'Copy it from the address bar'; }
+  setTimeout(() => { $('share').textContent = 'Copy a link to this spot'; }, 2200);
 });
-$('dice').addEventListener('click', () => openMuseum(randomSeed()));
 $('help-touch').hidden = !matchMedia('(pointer: coarse)').matches;
 $('help-desk').hidden = matchMedia('(pointer: coarse)').matches;
 $('enter').textContent = matchMedia('(pointer: coarse)').matches ? 'Start walking' : 'Click to walk';
@@ -221,6 +239,7 @@ function frame(now) {
   last = now;
   update(dt, now);
   drawMap(now);
+  syncHash(now);
   renderer.render(scene, camera);
 }
 const infoCache = new Map();
@@ -240,14 +259,13 @@ window.museum = {
   // Advance the museum by `seconds` of walking and housekeeping without
   // drawing anything (tests use this; so can a console).
   step(seconds, fps = 30) { const n = Math.max(1, Math.round(seconds * fps)); for (let i = 0; i < n; i++) update(1 / fps, performance.now()); },
+  locationHash, spotFromHash,
   stats: () => ({ regions: loaded.size, paintings: paintings.items.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, textures: renderer.info.memory.textures }),
 };
 
 // ── Go ───────────────────────────────────────────────────────
 resize();
-{
-  let s = '';
-  try { s = normalizeSeed(decodeURIComponent(location.hash.slice(1))); } catch {}
-  openMuseum(s);
-}
+openMuseum(spotFromHash());
+$('where').textContent = `x ${Math.round(player.x)} · z ${Math.round(player.z)}`;
+addEventListener('hashchange', () => { const at = spotFromHash(); if (at && Math.hypot(at.x - player.x, at.z - player.z) > 1) openMuseum(at); });
 requestAnimationFrame(frame);

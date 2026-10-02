@@ -59,3 +59,7 @@ input::placeholder { color: var(--soft); }
   .seedline { margin-top: 6px; }
   .quality { margin-top: 6px; }
 }
+
+.where { position: absolute; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 144px); font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--soft); letter-spacing: .04em; text-shadow: 0 1px 3px #000; }
+.rowbtns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+.rowbtns .quality { margin-top: 0; }

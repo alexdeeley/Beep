@@ -42,6 +42,7 @@ const text = (page, id) => page.textContent('#' + id);
   const { page } = await open({ viewport: { width: 1280, height: 800 } });
   ok((await text(page, 'title')).length > 3, 'a piece appears on load, with a title');
   const first = await page.inputValue('#seed');
+  ok(first === 'the museum', 'everyone starts on the same piece (no random first seed)');
   ok(first.length > 0 && (await page.url()).includes('#'), 'a first seed is chosen and shown in the box and the address');
   await sleep(2500);
   ok((await colours(page)) > 6, 'the artwork is actually drawn');

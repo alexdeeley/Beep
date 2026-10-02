@@ -1,6 +1,8 @@
 import { createPiece, normalizeSeed, SETTLE_SECONDS } from './art/index.js';
 import { randomSeed } from './seeds.js';
 
+const START_SEED = 'the museum';
+
 const $ = (id) => document.getElementById(id);
 const canvas = $('art'), ctx = canvas.getContext('2d');
 const frame = $('frame'), plaque = $('plaque'), wall = $('wall'), mat = $('mat');
@@ -149,7 +151,8 @@ window.gallery = { createPiece };
 // ── Start ───────────────────────────────────────────────────
 
 {
-  const seed = seedFromUrl() || randomSeed();
+  // Everyone who arrives without a link starts at the same piece.
+  const seed = seedFromUrl() || START_SEED;
   if (!seedFromUrl()) history.replaceState(null, '', '#' + encodeURIComponent(seed));
   show(seed, { first: true });
 }

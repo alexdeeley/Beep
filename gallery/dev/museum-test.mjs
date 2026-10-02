@@ -20,7 +20,7 @@ const browser = await chromium.launch({
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 });
 const errors = [];
-async function open(opts = {}, hash = '#test museum') {
+async function open(opts = {}, hash = '') {
   const ctx = await browser.newContext(opts);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
@@ -37,7 +37,7 @@ async function open(opts = {}, hash = '#test museum') {
   ok(st.regions === 9 && st.paintings > 100, `the museum opens: ${st.regions} regions, ${st.paintings} paintings hung nearby`);
   ok(st.calls < 400, `drawing stays cheap (${st.calls} draw calls)`);
   ok(!(await page.evaluate(() => document.getElementById('overlay').classList.contains('hidden'))) && (await page.textContent('#enter')).includes('walk'), 'a start card with a way in is shown first');
-  ok((await page.inputValue('#seed')) === 'test museum' && page.url().endsWith('#test%20museum'), 'the museum seed is in the box and the address');
+  ok((await page.evaluate(() => window.museum.world.seed)) === 'the museum' && !(await page.$('#seed')), 'there is one museum - no seed to choose');
 
   await page.evaluate(() => window.museum.enter());
   ok(await page.evaluate(() => document.getElementById('overlay').classList.contains('hidden')), 'starting hides the card');
@@ -60,13 +60,13 @@ async function open(opts = {}, hash = '#test museum') {
   // The picture in front of you is named.
   await page.evaluate(() => window.museum.step(1));
   const cap = await page.evaluate(() => ({ on: document.getElementById('caption').classList.contains('on'), title: document.getElementById('c-title').textContent, seed: document.getElementById('c-seed').textContent }));
-  ok(cap.on && cap.title.length > 3 && cap.seed === 'test museum', `facing the entrance wall names the founder's piece (“${cap.title}”)`);
+  ok(cap.on && cap.title.length > 3 && cap.seed === 'the museum', `facing the entrance wall names the founder's piece (“${cap.title}”)`);
   ok((await page.evaluate(() => window.museum.stats().textures)) >= 1, 'nearby paintings get real textures');
 
   // Press E: it opens that seed in the gallery.
   const [popup] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('KeyE')]);
   await popup.waitForLoadState();
-  ok(popup.url().includes('#test%20museum') && !popup.url().includes('museum.html'), 'E opens the picture’s seed in the gallery page');
+  ok(popup.url().includes('#the%20museum') && !popup.url().includes('museum.html'), 'E opens the picture’s seed in the gallery page');
   await popup.close();
 
   // Turning around, the caption goes away.
@@ -87,17 +87,21 @@ async function open(opts = {}, hash = '#test museum') {
   const far = await page.evaluate(() => ({ s: window.museum.stats(), solid: window.museum.world.solid(Math.floor(window.museum.player.x), Math.floor(window.museum.player.z)) }));
   ok(far.s.regions === 9 && far.s.paintings > 50 && !far.solid, `teleporting far away: still ${far.s.regions} regions loaded, ${far.s.paintings} paintings, standing in open space`);
 
-  // A new seed is a new museum.
-  await page.click('#menu');          // ☰ brings the start card (and its seed box) back
-  ok(await page.isVisible('#seed') && !(await page.evaluate(() => document.getElementById('overlay').classList.contains('hidden'))), 'the menu button brings the card back');
-  const before = await page.evaluate(() => { const w = window.museum.world; let n = 0; for (let x = 0; x < 80; x++) for (let z = 0; z < 80; z++) if (w.solid(x, z)) n++; return n; });
-  await page.fill('#seed', 'a different museum');
-  await page.press('#seed', 'Enter');
-  await page.waitForFunction(() => window.museum.world.seed === 'a different museum');
-  const after = await page.evaluate(() => { const w = window.museum.world; let n = 0; for (let x = 0; x < 80; x++) for (let z = 0; z < 80; z++) if (w.solid(x, z)) n++; return { n, p: { ...window.museum.player } }; });
-  ok(after.n !== before, 'a different seed builds a different museum');
-  ok(Math.abs(after.p.x - 22.5) < 0.01 && Math.abs(after.p.z - 26.5) < 0.01, '... and puts you back at its entrance');
-  ok(page.url().endsWith('#a%20different%20museum'), '... and updates the shareable address');
+  // Where you are is shareable; the museum itself is the same for everyone.
+  await page.evaluate(() => { window.museum.teleport(40 * 57 + 22.5, -40 * 31 + 22.5, 1); window.museum.step(0.2); });
+  await sleep(1200);
+  const link = await page.evaluate(() => window.museum.locationHash());
+  ok(/^#\d+\.\d+,-\d+\.\d+,\d+$/.test(link), `the address can carry your place (${link})`);
+  const wallsHere = await page.evaluate(() => { const w = window.museum.world, p = window.museum.player; let s = ''; for (let x = -10; x < 10; x++) for (let z = -10; z < 10; z++) s += w.solid(Math.floor(p.x) + x, Math.floor(p.z) + z) ? 1 : 0; return s; });
+  const { page: friend, ctx: fctx } = await open({ viewport: { width: 640, height: 400 } }, link);
+  const there = await friend.evaluate(() => ({ ...window.museum.player, s: (() => { const w = window.museum.world, p = window.museum.player; let s = ''; for (let x = -10; x < 10; x++) for (let z = -10; z < 10; z++) s += w.solid(Math.floor(p.x) + x, Math.floor(p.z) + z) ? 1 : 0; return s; })() }));
+  ok(Math.abs(there.x - (40 * 57 + 22.5)) < 0.2 && Math.abs(there.z - (-40 * 31 + 22.5)) < 0.2, 'a friend opening the link lands in the same spot');
+  ok(there.s === wallsHere, '... and sees exactly the same walls there');
+  await fctx.close();
+  await page.click('#menu');
+  await page.click('#home');
+  const home = await page.evaluate(() => ({ ...window.museum.player }));
+  ok(Math.abs(home.x - 22.5) < 0.01 && Math.abs(home.z - 26.5) < 0.01, 'the menu can take you back to the entrance');
 
   // The look toggle.
   await page.click('#quality');
@@ -106,11 +110,11 @@ async function open(opts = {}, hash = '#test museum') {
 
 // ── A shared link opens the same museum ──────────────────────
 {
-  const { page, ctx } = await open({ viewport: { width: 800, height: 500 } }, '#test museum');
+  const { page, ctx } = await open({ viewport: { width: 800, height: 500 } });
   const sig = await page.evaluate(() => { const w = window.museum.world; let s = ''; for (let x = 0; x < 60; x++) s += w.solid(x, 21) ? 1 : 0; return s; });
-  const { page: p2 } = await open({ viewport: { width: 800, height: 500 } }, '#test museum');
+  const { page: p2 } = await open({ viewport: { width: 800, height: 500 } });
   const sig2 = await p2.evaluate(() => { const w = window.museum.world; let s = ''; for (let x = 0; x < 60; x++) s += w.solid(x, 21) ? 1 : 0; return s; });
-  ok(sig === sig2 && sig.includes('1'), 'two visitors with the same link get the same walls');
+  ok(sig === sig2 && sig.includes('1'), 'two visitors get exactly the same walls');
   await ctx.close();
 }
 
