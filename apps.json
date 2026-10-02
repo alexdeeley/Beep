@@ -1539,5 +1539,23 @@
     "path": "EmojiPop.html",
     "added": "2026-10-02T00:00:00+00:00",
     "thumbnail": "thumbnails/emoji-pop.jpg"
+  },
+  {
+    "id": "gallery",
+    "name": "Gallery",
+    "description": "Type a seed and watch a unique, animated piece of generative art appear in a frame. The same seed always makes the same art - share the link.",
+    "category": "Art",
+    "path": "https://gallery.deeley.org",
+    "added": "2026-10-02T00:00:00+00:00",
+    "thumbnail": "thumbnails/gallery.jpg"
+  },
+  {
+    "id": "museum",
+    "name": "Museum",
+    "description": "Walk an endless, blocky museum of rooms, mazes and halls hung with generated art. One museum, the same for everyone - go far enough and you'll be somewhere nobody has been.",
+    "category": "Art",
+    "path": "https://gallery.deeley.org/museum",
+    "added": "2026-10-02T00:00:00+00:00",
+    "thumbnail": "thumbnails/museum.jpg"
   }
 ]
