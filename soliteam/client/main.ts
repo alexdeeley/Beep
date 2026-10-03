@@ -126,6 +126,8 @@ function render(): void {
   let dealIndex = 0;
   for (let c = 0; c < 52; c++) {
     const p = pos[c], el = cardEls[c];
+    if (!p) { el.hidden = true; continue; }          // a card that is nowhere (never in a real deal; keeps a test table from crashing the page)
+    el.hidden = false;
     el.classList.toggle('down', !p.up);
     el.classList.toggle('stock-top', p.where.p === 's' && p.playable);
     el.style.zIndex = String(p.z + (p.where.p === 't' ? 10 : 0));

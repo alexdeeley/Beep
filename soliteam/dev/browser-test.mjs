@@ -20,13 +20,16 @@ spawn('node', [path.join(ROOT, 'build.mjs')], { stdio: 'inherit' });
 await sleep(1500);
 const srv = spawn('node', ['--no-warnings', path.join(ROOT, 'dev/local-server.mjs')], { env: { ...process.env, PORT: String(PORT), QUIET: '1', TIMESCALE: '4', STATE_FILE: stateFile }, stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((r) => srv.stdout.once('data', r));
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { srv.kill(); process.exit(1); });
+process.on('exit', () => srv.kill());
+process.on('unhandledRejection', (e) => { console.log('  ✗ crashed: ' + (e && e.message || e)); srv.kill(); process.exit(1); });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const errors = [];
 async function visitor(name, opts) {
   const ctx = await browser.newContext(opts);
   const page = await ctx.newPage();
-  page.on('pageerror', (e) => errors.push(name + ': ' + e.message));
+  page.on('pageerror', (e) => errors.push(name + ': ' + e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join(' <- ')));
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404|sw\.js/.test(m.text())) errors.push(name + ': ' + m.text()); });
   await page.goto(BASE + '/');
   await page.waitForFunction(() => window.__soliteam?.state, null, { timeout: 15000 });
@@ -51,7 +54,7 @@ ok(await A.page.evaluate(() => { const r = document.querySelector('.card').getBo
 ok(await A.page.evaluate(() => document.querySelector('#status').textContent === 'LIVE'), 'the connection says LIVE');
 await A.page.screenshot({ path: `${OUT}/01-phone-arrival.png` });
 await B.page.screenshot({ path: `${OUT}/02-desktop-arrival.png` });
-ok((await feed(B.page)).includes('SOMEONE HAS ARRIVED.'), 'the desktop was told someone arrived');
+ok((await feed(A.page)).includes('SOMEONE HAS ARRIVED.'), 'the phone was told someone arrived');
 
 // ── Drawing ──────────────────────────────────────────────────
 const s0 = await st(A.page);
@@ -61,6 +64,7 @@ await B.page.waitForFunction((seq) => window.__soliteam.seq > seq, s0.seq);
 ok((await st(A.page)).waste === 1 && (await st(B.page)).waste === 1, 'tapping the stock turns a card for everyone');
 ok((await feed(B.page)).some((t) => t.includes('DREW FROM THE STOCK')), 'the desktop is told someone drew');
 ok(!(await feed(A.page)).some((t) => t.includes('DREW FROM THE STOCK')), 'the phone is not told about itself');
+await B.page.waitForFunction(() => !!document.querySelector('.card.other'), null, { timeout: 2000 }).catch(() => {});
 ok(await B.page.evaluate(() => !!document.querySelector('.card.other')), 'the moved card is marked as someone else\'s on the desktop');
 
 // ── A column move, by tap-then-tap on the phone ─────────────
@@ -79,7 +83,8 @@ if (move) {
   const after = await st(B.page);
   ok(after.tab[move.j][1] === before.tab[move.j][1] + 1, `tapping the destination moves ${await A.page.evaluate((c) => window.__soliteam.cardText(c), move.card)} - and the desktop sees it`);
   ok(await A.page.evaluate(() => !window.__soliteam.selected), 'the selection clears');
-  ok(await B.page.evaluate(() => document.querySelector('#ghost').classList.contains('on')), 'a SOMEONE label floats over it on the desktop');
+  await B.page.waitForFunction(() => document.querySelector('#ghost').classList.contains('on'), null, { timeout: 2000 }).catch(() => {});
+ok(await B.page.evaluate(() => document.querySelector('#ghost').classList.contains('on')), 'a SOMEONE label floats over it on the desktop');
   await B.page.screenshot({ path: `${OUT}/03-desktop-someone-moved.png` });
 } else ok(true, '(no simple column move in this deal - skipped)');
 
@@ -94,7 +99,7 @@ if (move) {
     ok((await st(B.page)).seq === before.seq, 'tapping an impossible destination changes nothing');
   }
   // and a forged message is ignored by the server
-  await B.page.evaluate(() => window.__soliteam.send({ t: 'move', from: { p: 'w' }, n: 1, to: { p: 't', i: 0 } }));
+  await B.page.evaluate(() => window.__soliteam.send({ t: 'move', from: { p: 'f', i: 0 }, n: 1, to: { p: 't', i: 0 } }));   // from an empty foundation: never legal
   await sleep(400);
   ok((await st(A.page)).seq === before.seq, 'a forged impossible move is ignored by the table');
 }
@@ -122,7 +127,7 @@ await fetch(`${BASE}/dev/set`, { method: 'POST', body: JSON.stringify(stuck) });
 await A.page.waitForFunction(() => !document.getElementById('curtain').hidden, null, { timeout: 10000 });
 const seen = new Set();
 const t0 = Date.now();
-while (Date.now() - t0 < 12000) { seen.add(await A.page.textContent('#curtain-text')); if ((await st(A.page)).game > g1.game && document !== undefined) { /* keep sampling a moment */ } if (seen.size >= 5) break; await sleep(60); }
+while (Date.now() - t0 < 12000) { seen.add(await A.page.textContent('#curtain-text')); if (seen.size >= 5) break; await sleep(60); }
 await A.page.waitForFunction((g) => window.__soliteam.game > g, g1.game, { timeout: 15000 });
 ok(seen.has('GAME OVER'), 'GAME OVER');
 ok(seen.has('THERE ARE NO MORE MOVES.'), 'THERE ARE NO MORE MOVES.');

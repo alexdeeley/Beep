@@ -112,9 +112,10 @@ export function apply(s: State, m: Move): Applied | null {
   if (!isLegal(s, m)) return null;
   const next = clone(s);
   if (m.t === 'draw') {
-    if (next.stock.length) next.waste.push(next.stock.pop()!);
+    let moved: Card[] = [];
+    if (next.stock.length) { const c = next.stock.pop()!; next.waste.push(c); moved = [c]; }
     else { next.stock = next.waste.reverse(); next.waste = []; next.passes++; }
-    return { state: next, moved: [], flipped: null, completedSuit: null, toFoundation: false };
+    return { state: next, moved, flipped: null, completedSuit: null, toFoundation: false };
   }
   let run: Card[];
   let flipped: Card | null = null;
