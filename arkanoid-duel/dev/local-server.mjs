@@ -35,9 +35,9 @@ const env = {
         const url = new URL(input instanceof Request ? input.url : input);
         if (url.pathname === '/init') {
           if (rooms.has(name)) return Response.json({ error: 'taken' }, { status: 409 });
-          const { code, passHash, pid } = JSON.parse(init.body);
+          const { code, passHash, pid, solo } = JSON.parse(init.body);
           rooms.set(name, new Room({
-            code, passHash, creatorPid: pid, now: clock,
+            code, passHash, creatorPid: pid, solo, now: clock,
             onIdle: () => { rooms.get(name)?.dispose(); rooms.delete(name); },
             log: QUIET ? undefined : (event, detail) => console.log(JSON.stringify({ room: code, event, ...detail })),
           }));

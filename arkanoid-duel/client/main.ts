@@ -62,6 +62,8 @@ const app = {
   lastSentAt: 0,
   matchSoundDone: false,
   hadOpen: false,
+  solo: '' as '' | 'easy' | 'normal' | 'hard',   // set when the other player is the computer
+  autoReady: false,         // a game against the computer starts as soon as you are in
 };
 
 const input = new Input(canvas, {
@@ -76,7 +78,7 @@ const input = new Input(canvas, {
 
 // ── Screens ──────────────────────────────────────────────────
 
-const SCREENS = ['landing', 'create', 'join', 'lobby', 'end', 'disc'] as const;
+const SCREENS = ['landing', 'solo', 'create', 'join', 'lobby', 'end', 'disc'] as const;
 type ScreenId = (typeof SCREENS)[number] | null;
 let screen: ScreenId = 'landing';
 function show(id: ScreenId): void {
@@ -108,12 +110,19 @@ function applySettings(): void {
 function randomPass(): string { return String(1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000)); }
 
 let createSpeed = 1;
+let soloSpeed = 1;
+let soloLevel: 'easy' | 'normal' | 'hard' = (['easy', 'normal', 'hard'] as const).find((l) => l === (() => { try { return localStorage.getItem('duel.level'); } catch { return null; } })()) ?? 'normal';
 function bindSpeed(box: HTMLElement, current: () => number, set: (v: number) => void): void {
   const paint = () => box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-checked', String(Number((b as HTMLElement).dataset.v) === current())));
   box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { audio.tap(); set(Number((b as HTMLElement).dataset.v)); paint(); }));
   paint();
 }
 
+$('btn-solo').addEventListener('click', () => {
+  $<HTMLInputElement>('o-name').value = localStorage.getItem('duel.name') || '';
+  $('o-err').textContent = '';
+  show('solo');
+});
 $('btn-create').addEventListener('click', () => {
   $<HTMLInputElement>('c-pass').value = randomPass();
   $<HTMLInputElement>('c-name').value = localStorage.getItem('duel.name') || '';
@@ -129,6 +138,13 @@ $('btn-settings').addEventListener('click', () => openSettings());
 document.querySelectorAll('.back').forEach((b) => b.addEventListener('click', () => show('landing')));
 $('c-rand').addEventListener('click', () => { $<HTMLInputElement>('c-pass').value = randomPass(); });
 bindSpeed($('c-speed'), () => createSpeed, (v) => { createSpeed = v; });
+bindSpeed($('o-speed'), () => soloSpeed, (v) => { soloSpeed = v; });
+{
+  const box = $('o-level');
+  const paint = () => box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-checked', String((b as HTMLElement).dataset.v === soloLevel)));
+  box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { audio.tap(); soloLevel = (b as HTMLElement).dataset.v as typeof soloLevel; paint(); }));
+  paint();
+}
 
 const saveName = (n: string) => { try { localStorage.setItem('duel.name', n); } catch { /* private mode */ } };
 const cleanName = (n: string) => n.replace(/[<>]/g, '').trim().slice(0, 12);
@@ -154,6 +170,33 @@ $('form-create').addEventListener('submit', async (e) => {
     err.textContent = 'SERVER UNAVAILABLE. Check your connection.';
   } finally {
     $<HTMLButtonElement>('c-go').disabled = false;
+  }
+});
+
+// A game against the computer: the passcode is made up and kept for you (it only
+// matters for getting back in after a reload), and the computer takes the other seat.
+$('form-solo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  audio.unlock();
+  const name = cleanName($<HTMLInputElement>('o-name').value);
+  const err = $('o-err');
+  saveName(name);
+  try { localStorage.setItem('duel.level', soloLevel); } catch { /* private mode */ }
+  $<HTMLButtonElement>('o-go').disabled = true;
+  err.textContent = '';
+  try {
+    const pass = rand(16);
+    const res = await fetch(`${API}/api/rooms`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pass, pid, solo: soloLevel }) });
+    const body = (await res.json().catch(() => ({}))) as { code?: string; say?: string };
+    if (!res.ok || !body.code) { err.textContent = body.say || 'Could not start a game. Try again.'; return; }
+    app.speed = soloSpeed;
+    app.autoReady = true;
+    const r = await enter({ code: body.code, pass, pid, name });
+    if (!r.ok) err.textContent = r.say;
+  } catch {
+    err.textContent = 'SERVER UNAVAILABLE. Check your connection.';
+  } finally {
+    $<HTMLButtonElement>('o-go').disabled = false;
   }
 });
 
@@ -201,6 +244,7 @@ async function enter(s: Session): Promise<{ ok: true } | { ok: false; say: strin
   show('lobby');
   applySettings();
   if (net.you === 1 && app.speed !== 1) net.send({ t: 'speed', v: app.speed });
+  if (app.autoReady) { app.autoReady = false; net.send({ t: 'ready' }); }   // against the computer, straight into the game
   return { ok: true };
 }
 
@@ -209,6 +253,8 @@ function leaveGame(message = ''): void {
   saveSession(null);
   app.active = false;
   app.me = 0;
+  app.solo = '';
+  app.autoReady = false;
   world.reset();
   audio.setMode('off');
   show('landing');
@@ -242,7 +288,7 @@ function syncUi(): void {
   const s = world.latest;
   if (!s || !app.active) return;
   const remain = s.ph === 'DISCONNECTED' ? Math.max(0, Math.ceil(s.pt - (net.serverNow() - s.st) / 1000)) : 0;
-  const key = [s.ph, s.cn.join(), s.rd.join(), s.sp, app.names.join('|'), app.me, remain, s.mw].join('/');
+  const key = [s.ph, s.cn.join(), s.rd.join(), s.sp, app.names.join('|'), app.me, remain, s.mw, app.solo].join('/');
   if (key === uiKey) return;
   uiKey = key;
 
@@ -253,12 +299,13 @@ function syncUi(): void {
 
   if (lobbyPhase) {
     $('l-code').textContent = app.code;
+    for (const id of ['l-codebox', 'l-passline', 'l-copy']) $(id).hidden = !!app.solo;     // nobody to invite
     const passEl = $('l-pass');
     if (passEl.dataset.shown !== '1') passEl.textContent = '•'.repeat(app.pass.length);
     for (const p of [1, 2] as const) {
       const li = $(`slot${p}`);
       const here = s.cn[p - 1];
-      li.textContent = `${name(p)} ${here ? (s.ph === 'READY' && s.rd[p - 1] ? '· READY ✓' : '· CONNECTED') : '· WAITING…'}${app.me === p ? '  (YOU)' : ''}`;
+      li.textContent = `${name(p)}${app.solo && p === 2 ? ` (${app.solo.toUpperCase()})` : ''} ${here ? (s.ph === 'READY' && s.rd[p - 1] ? '· READY ✓' : '· CONNECTED') : '· WAITING…'}${app.me === p ? '  (YOU)' : ''}`;
       li.classList.toggle('off', !here);
     }
     $('l-speed').hidden = false;
@@ -269,8 +316,8 @@ function syncUi(): void {
     const ready = $<HTMLButtonElement>('l-ready');
     ready.hidden = s.ph !== 'READY';
     ready.disabled = !!s.rd[app.me - 1];
-    ready.textContent = s.rd[app.me - 1] ? 'WAITING FOR OPPONENT…' : 'READY';
-    $('l-status').textContent = s.ph === 'WAITING_FOR_PLAYER' ? 'SHARE THE CODE AND PASSCODE WITH YOUR OPPONENT' : s.rd[app.me - 1] ? 'GET READY…' : 'BOTH PLAYERS PRESS READY TO BEGIN';
+    ready.textContent = s.rd[app.me - 1] ? (app.solo ? 'STARTING…' : 'WAITING FOR OPPONENT…') : 'READY';
+    $('l-status').textContent = s.ph === 'WAITING_FOR_PLAYER' ? 'SHARE THE CODE AND PASSCODE WITH YOUR OPPONENT' : s.rd[app.me - 1] ? 'GET READY…' : app.solo ? 'PRESS READY WHEN YOU ARE' : 'BOTH PLAYERS PRESS READY TO BEGIN';
   }
   if (target === 'end') {
     const w = s.mw as 1 | 2;
@@ -304,7 +351,7 @@ function syncAudio(): void {
 
 net.onMessage = (m: ServerMsg) => {
   switch (m.t) {
-    case 'welcome': app.me = m.you; app.names = m.names; world.reset(); uiKey = ''; break;
+    case 'welcome': app.me = m.you; app.names = m.names; app.solo = m.solo ?? ''; world.reset(); uiKey = ''; break;
     case 'level': world.pushLevel(m); break;
     case 's': world.push(m as unknown as Snap); break;
     case 'names': app.names = m.names; uiKey = ''; break;

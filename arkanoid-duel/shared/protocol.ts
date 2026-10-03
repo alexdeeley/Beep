@@ -3,6 +3,7 @@
 
 import { NET, W } from './constants.ts';
 import type { LevelMessage, Snapshot } from './sim.ts';
+import type { Difficulty } from './ai.ts';
 
 export type ClientMsg =
   | { t: 'hello'; code: string; pass: string; pid: string; name: string }
@@ -20,7 +21,7 @@ export type ErrorCode =
   | 'bad_request' | 'bad_passcode' | 'locked' | 'full' | 'not_found' | 'replaced' | 'rate' | 'timeout';
 
 export type ServerMsg =
-  | { t: 'welcome'; you: 1 | 2; code: string; st: number; names: [string, string] }
+  | { t: 'welcome'; you: 1 | 2; code: string; st: number; names: [string, string]; solo?: Difficulty }
   | ({ t: 'level' } & LevelMessage)
   | ({ t: 's'; st: number } & Snapshot)
   | { t: 'pong'; c: number; st: number }

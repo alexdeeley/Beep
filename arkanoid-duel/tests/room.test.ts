@@ -264,3 +264,111 @@ test('game speed can be chosen by Player 1 before the match', async () => {
   assert.equal(room.match.speedSetting, 0.8);
   room.dispose();
 });
+
+// ── Against the computer ─────────────────────────────────────
+
+async function makeSolo(difficulty: 'easy' | 'normal' | 'hard' = 'normal') {
+  const clock = { t: 1_000_000 };
+  const room = new Room({ code: CODE, passHash: await hashPass(CODE, PASS), creatorPid: 'creator-pid-1', solo: difficulty, now: () => clock.t });
+  return { room, clock };
+}
+
+test('solo: the person is Player 1, the computer is already in the other seat, and nobody else can take it', async () => {
+  const { room } = await makeSolo('hard');
+  const a = await join(room, 'creator-pid-1', PASS, 'Alex');
+  const w = a.conn.last('welcome');
+  assert.equal(w.you, 1);
+  assert.equal(w.solo, 'hard');
+  assert.deepEqual(w.names, ['Alex', 'COMPUTER']);
+  assert.deepEqual(a.conn.last('s').cn, [true, true]);
+  assert.equal(room.match.phase, 'READY', 'ready to start as soon as you are');
+  const b = await join(room, 'friend-pid-0001');
+  assert.equal(b.conn.last('err').code, 'full');
+  const sneaky = await join(room, 'computer');                     // pretending to be the computer
+  assert.equal(sneaky.conn.last('err').code, 'full');
+  assert.equal(room.isFull, true);
+  room.dispose();
+});
+
+test('solo: pressing READY starts the match; the computer does the rest of the lobby on its own', async () => {
+  const { room, clock } = await makeSolo('normal');
+  const a = await join(room, 'creator-pid-1');
+  await say(room, a.client, { t: 'ready' });
+  assert.equal(room.match.phase, 'READY', 'the computer has not quite got round to it');
+  advance(room, clock, 3);
+  assert.ok(['COUNTDOWN', 'SERVE'].includes(room.match.phase), room.match.phase);
+  room.dispose();
+});
+
+test('solo: the computer serves when it is its turn, without being asked, and moves its paddle', async () => {
+  const { room, clock } = await makeSolo('hard');
+  const a = await join(room, 'creator-pid-1');
+  await say(room, a.client, { t: 'ready' });
+  advance(room, clock, TIMING.countdown + TIMING.go + 3);
+  assert.equal(room.match.phase, 'SERVE');
+  assert.equal(room.match.servePlayer, 1);
+  await say(room, a.client, { t: 'serve' });
+  assert.equal(room.match.phase, 'PLAYING');
+  // The person never moves, so the rally is lost - then it is the computer's serve.
+  const before = room.match.paddles[1].x;
+  let moved = false, sawComputerServe = false;
+  for (let i = 0; i < 60 * 60 && !sawComputerServe; i++) {
+    advance(room, clock, 1 / 60);
+    if (Math.abs(room.match.paddles[1].x - before) > 30) moved = true;
+    if (room.match.phase === 'SERVE' && (room.match.servePlayer as number) === 2) {
+      advance(room, clock, 3);
+      sawComputerServe = room.match.phase === 'PLAYING' && room.match.lastHit === 2;
+      if (!sawComputerServe) assert.equal(room.match.phase, 'PLAYING', 'it launched its own serve');
+    }
+  }
+  assert.ok(moved, 'the computer moved its paddle');
+  assert.ok(sawComputerServe, 'the computer served on its turn');
+  room.dispose();
+});
+
+test('solo: if the person drops mid-match the game waits, and they can come back to the same seat', async () => {
+  const { room, clock } = await makeSolo('normal');
+  const a = await join(room, 'creator-pid-1');
+  await say(room, a.client, { t: 'ready' });
+  advance(room, clock, TIMING.countdown + TIMING.go + 3);
+  await say(room, a.client, { t: 'serve' });
+  room.detach(a.client);
+  advance(room, clock, 1);
+  assert.equal(room.match.phase, 'DISCONNECTED');
+  const again = await join(room, 'creator-pid-1');
+  assert.equal(again.conn.last('welcome').you, 1);
+  advance(room, clock, 0.2);
+  assert.ok(['COUNTDOWN', 'SERVE'].includes(room.match.phase));
+  room.dispose();
+});
+
+test('solo: leaving from the lobby and coming back works, and the computer never leaves its seat', async () => {
+  const { room } = await makeSolo();
+  const a = await join(room, 'creator-pid-1');
+  room.detach(a.client);
+  assert.equal(room.match.phase, 'WAITING_FOR_PLAYER');
+  assert.equal(room.match.connected[1], true);
+  const b = await join(room, 'creator-pid-1', PASS, 'Alex again');
+  assert.equal(b.conn.last('welcome').names[1], 'COMPUTER');
+  assert.equal(room.match.phase, 'READY');
+  room.dispose();
+});
+
+test('solo: after a match the computer takes a rematch as soon as you ask', async () => {
+  const { room, clock } = await makeSolo('hard');
+  const a = await join(room, 'creator-pid-1');
+  const m = room.match;
+  await say(room, a.client, { t: 'ready' });
+  // Play it out with the person's paddle parked: the computer wins, and asks for a rematch itself.
+  let guard = 0;
+  while (m.phase !== 'MATCH_WON' && m.phase !== 'REMATCH' && guard++ < 60 * 60 * 40) {
+    advance(room, clock, 1 / 60);
+    if (m.phase === 'SERVE' && m.servePlayer === 1) await say(room, a.client, { t: 'serve' });
+  }
+  assert.ok(m.phase === 'MATCH_WON' || m.phase === 'REMATCH', m.phase);
+  await say(room, a.client, { t: 'rematch' });
+  advance(room, clock, 4);
+  assert.ok(['COUNTDOWN', 'SERVE', 'PLAYING'].includes(m.phase), `rematch should have started, got ${m.phase}`);
+  assert.deepEqual(m.levelWins, [0, 0]);
+  room.dispose();
+});

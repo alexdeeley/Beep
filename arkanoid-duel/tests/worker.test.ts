@@ -129,3 +129,17 @@ test('passcode hashing is salted per room and compared safely', async () => {
   assert.equal(sameHash(a, await hashPass('Q7K9', 'Rosebud')), false, 'case matters');
   assert.equal(sameHash(a, a.slice(1)), false);
 });
+
+test('a game against the computer: the level is checked and passed on to the room', async () => {
+  const { env, calls } = fakeEnv();
+  const post = (body: unknown) => worker.fetch(req('/api/rooms', { method: 'POST', body: JSON.stringify(body), headers: { 'cf-connecting-ip': '8.8.8.' + Math.floor(Math.random() * 250) } }), env);
+  assert.equal((await post({ pass: 'rosebud', pid: 'creator-pid-0002', solo: 'impossible' })).status, 400, 'unknown level');
+  assert.equal((await post({ pass: 'rosebud', pid: 'creator-pid-0002', solo: 7 })).status, 400);
+  assert.equal(calls.filter((c) => c.path === '/init').length, 0, 'nothing was created');
+  for (const level of ['easy', 'normal', 'hard']) {
+    assert.equal((await post({ pass: 'rosebud', pid: 'creator-pid-0002', solo: level })).status, 200);
+    assert.equal(calls.filter((c) => c.path === '/init').at(-1)!.body.solo, level);
+  }
+  assert.equal((await post({ pass: 'rosebud', pid: 'creator-pid-0002' })).status, 200);
+  assert.equal(calls.filter((c) => c.path === '/init').at(-1)!.body.solo, undefined, 'an ordinary game has no computer');
+});

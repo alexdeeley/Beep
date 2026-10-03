@@ -1,7 +1,8 @@
 // ARKANOID // DUEL — Cloudflare Worker entry point.
 //
 //   GET  /health                  → { ok: true }
-//   POST /api/rooms               → { pass, pid }  creates a game, returns { code }
+//   POST /api/rooms               → { pass, pid, solo? }  creates a game, returns { code }
+//                                    (solo: "easy" | "normal" | "hard" makes Player 2 the computer)
 //   GET  /api/rooms/:code         → { exists, full }
 //   GET  /api/rooms/:code/ws      → WebSocket into that game's Durable Object
 //
@@ -13,6 +14,8 @@
 // serverless function can't do.
 
 import { Room } from './room.ts';
+import { isDifficulty } from '../shared/ai.ts';
+import type { Difficulty } from '../shared/ai.ts';
 import { cleanCode, hashPass, validCode, validPass } from '../shared/protocol.ts';
 
 export interface Env {
@@ -75,9 +78,9 @@ export class DuelRoom {
 
     if (url.pathname === '/init' && request.method === 'POST') {
       if (this.room) return json({ error: 'taken' }, 409);
-      const { code, passHash, pid } = (await request.json()) as { code: string; passHash: string; pid: string };
+      const { code, passHash, pid, solo } = (await request.json()) as { code: string; passHash: string; pid: string; solo?: Difficulty };
       this.room = new Room({
-        code, passHash, creatorPid: pid,
+        code, passHash, creatorPid: pid, solo: isDifficulty(solo) ? solo : undefined,
         onIdle: () => { this.room?.dispose(); this.room = null; },
         log: (event, detail) => console.info(JSON.stringify({ room: code, event, ...detail })),
       });
@@ -124,17 +127,18 @@ export default {
     if (parts.length === 2 && request.method === 'POST') {
       const ip = request.headers.get('cf-connecting-ip') || 'local';
       if (!allowCreate(ip, Date.now(), Number(env.CREATE_LIMIT) || 20)) return json({ error: 'rate', say: 'You\'ve made a lot of games. Try again in a few minutes.' }, 429);
-      let body: { pass?: unknown; pid?: unknown };
+      let body: { pass?: unknown; pid?: unknown; solo?: unknown };
       try { body = (await request.json()) as typeof body; } catch { return json({ error: 'bad_request' }, 400); }
       if (!validPass(body.pass) || typeof body.pid !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(body.pid)) {
         return json({ error: 'bad_request', say: 'A passcode of 3 to 24 characters is needed.' }, 400);
       }
+      if (body.solo !== undefined && !isDifficulty(body.solo)) return json({ error: 'bad_request', say: 'Pick easy, normal or hard.' }, 400);
       for (let i = 0; i < 12; i++) {
         const code = randomCode();
         const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
         const res = await stub.fetch('https://room/init', {
           method: 'POST',
-          body: JSON.stringify({ code, passHash: await hashPass(code, body.pass), pid: body.pid }),
+          body: JSON.stringify({ code, passHash: await hashPass(code, body.pass), pid: body.pid, solo: body.solo }),
         });
         if (res.ok) return json({ code });
       }

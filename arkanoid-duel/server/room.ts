@@ -6,6 +6,8 @@
 
 import { DT, NET, SNAPSHOT_EVERY, TIMING } from '../shared/constants.ts';
 import { Match } from '../shared/sim.ts';
+import { Ai } from '../shared/ai.ts';
+import type { Difficulty } from '../shared/ai.ts';
 import { cleanCode, hashPass, parseClient, sameHash, validCode } from '../shared/protocol.ts';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../shared/protocol.ts';
 import type { PlayerNo } from '../shared/types.ts';
@@ -31,6 +33,7 @@ export interface RoomOptions {
   code: string;
   passHash: string;
   creatorPid: string;
+  solo?: Difficulty;         // a game against the computer: it takes the Player 2 seat
   now?: () => number;
   seed?: number;
   onIdle?: () => void;
@@ -38,10 +41,13 @@ export interface RoomOptions {
 }
 
 const MAX_SOCKETS = 8;
+const COMPUTER = 'computer';                 // not a valid player id, so no browser can claim the seat
 
 export class Room {
   readonly code: string;
   readonly match: Match;
+  readonly solo: Difficulty | null;
+  private ai: Ai | null = null;
   readonly clients = new Set<Client>();
   private seats: [Client | null, Client | null] = [null, null];
   private pids: [string | null, string | null];
@@ -78,6 +84,13 @@ export class Room {
     let seed = 0;
     for (const ch of opts.code) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
     this.match = new Match(opts.seed ?? seed);
+    this.solo = opts.solo ?? null;
+    if (this.solo) {
+      this.pids[1] = COMPUTER;
+      this.names[1] = 'COMPUTER';
+      this.ai = new Ai(this.match, 2, this.solo, seed);
+      this.match.setConnected(2, true);        // the computer is always there
+    }
   }
 
   // ── Connections ──────────────────────────────────────────
@@ -115,7 +128,10 @@ export class Room {
   // match gives up on them (or at once if no match was running).
   private releaseSeats(): void {
     if (this.match.phase === 'DISCONNECTED') return;
-    for (const s of [0, 1] as const) if (!this.seats[s]) { this.pids[s] = null; this.names[s] = ''; }
+    for (const s of [0, 1] as const) {
+      if (this.solo && s === 1) continue;       // the computer's seat is never given up
+      if (!this.seats[s]) { this.pids[s] = null; this.names[s] = ''; }
+    }
   }
 
   private send(c: Client, m: ServerMsg): void {
@@ -184,8 +200,9 @@ export class Room {
 
     // Whose seat is this? Their own if they have been here, else the free one (the creator is Player 1).
     let seat: 0 | PlayerNo = 0;
-    for (const s of [0, 1] as const) if (this.pids[s] === m.pid) seat = (s + 1) as PlayerNo;
-    if (!seat) for (const s of [0, 1] as const) if (this.pids[s] === null && !this.seats[s]) { seat = (s + 1) as PlayerNo; break; }
+    const open = this.solo ? [0] as const : [0, 1] as const;      // against the computer there is only one seat for a person
+    for (const s of open) if (this.pids[s] === m.pid) seat = (s + 1) as PlayerNo;
+    if (!seat) for (const s of open) if (this.pids[s] === null && !this.seats[s]) { seat = (s + 1) as PlayerNo; break; }
     if (!seat) { this.fail(c, 'full', 'This game is full.', 4409); return; }
 
     const old = this.seats[seat - 1];
@@ -204,7 +221,7 @@ export class Room {
     this.match.setConnected(seat, true);
     this.log('joined', { seat, phase: this.match.phase });
 
-    this.send(c, { t: 'welcome', you: seat, code: this.code, st: this.now(), names: [...this.names] as [string, string] });
+    this.send(c, { t: 'welcome', you: seat, code: this.code, st: this.now(), names: [...this.names] as [string, string], ...(this.solo ? { solo: this.solo } : {}) });
     this.send(c, { t: 'level', ...this.match.levelMessage() });
     this.sendSnapshot(c);
     this.sendNames();
@@ -269,6 +286,7 @@ export class Room {
     this.acc += Math.min(elapsed, 250) / 1000;
     while (this.acc >= DT) {
       this.acc -= DT;
+      this.ai?.update(DT);
       this.match.step(DT);
       this.ticks++;
       this.releaseSeats();
@@ -287,12 +305,13 @@ export class Room {
 
   // ── Introspection ────────────────────────────────────────
 
-  get seated(): number { return this.seats.filter(Boolean).length; }
+  get seated(): number { return this.seats.filter(Boolean).length + (this.solo ? 1 : 0); }
   get isFull(): boolean { return this.pids[0] !== null && this.pids[1] !== null; }
 
   stats() {
     return {
       code: this.code,
+      solo: this.solo,
       phase: this.match.phase,
       connections: this.clients.size,
       players: this.seated,

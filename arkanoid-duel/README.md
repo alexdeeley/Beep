@@ -9,7 +9,8 @@ blocks in the middle. Every block you break scores. Win three levels to win the
 match.
 
 Games are private: you create one, get a four-character **game code** and a
-**passcode**, and share both with a friend.
+**passcode**, and share both with a friend. No friend handy? Tap **PLAY THE
+COMPUTER** and play on your own against an AI at easy, normal or hard.
 
 ---
 
@@ -21,6 +22,23 @@ Games are private: you create one, get a four-character **game code** and a
 2. The other player taps **JOIN GAME** and enters the code and passcode (or opens the invite link, which fills the code in).
 3. Both tap **READY**. A 3-2-1-GO countdown runs on the server's clock.
 4. The player whose serve it is taps / presses Space to launch. Play.
+
+### Playing the computer
+
+**PLAY THE COMPUTER** on the landing screen asks for your name, a difficulty and a
+game speed, then drops you straight into a match as Player 1 (bottom) with the
+computer as Player 2 (top). There is no code or passcode to deal with, and the
+computer readies up, serves on its turn and accepts rematches by itself.
+
+- **Easy** — slow to react, imprecise, doesn't aim, ignores power-ups. Good for learning.
+- **Normal** — reacts quickly, aims some of its shots, fetches power-ups.
+- **Hard** — near-instant reactions and a fast paddle. It works out every shot: it traces where the ball would go off the walls for each part of its paddle and picks the one that breaks the most useful block — above all the last blocks of a level, which decide who wins it.
+
+The computer is not a cheat and not a shortcut: it runs on the server, inside the same
+simulation as everyone else, and does only what a person can — move its paddle (at a
+limited speed) and press READY / SERVE / REMATCH. It reacts a beat late and aims with
+some error. Same rules, same serve order, same scoring. (`shared/ai.ts`; the tests play
+computer against computer to check each level really is stronger than the one below.)
 
 ## 2. Run it locally
 
@@ -109,6 +127,8 @@ rules that run.
 
 ### Messages
 
+The create request takes an optional `solo` (`easy` / `normal` / `hard`) which seats the computer as Player 2.
+
 Client → server: `hello` (code, passcode, player id, name) · `in` (paddle x) · `ready` · `serve` · `rematch` · `lobby` · `wait` · `leave` · `speed` · `ping`.
 Server → client: `welcome` · `level` · `s` (snapshot) · `pong` · `names` · `err`. See `shared/protocol.ts`.
 
@@ -117,7 +137,7 @@ Server → client: `welcome` · `level` · `s` (snapshot) · `pong` · `names` �
 - A game is created with a passcode (you choose one, or accept the generated one). To join you need **both** the code and the passcode.
 - The server stores only a salted SHA-256 hash of the passcode, never the passcode itself, and compares in constant time.
 - 5 wrong passcodes lock that game's join attempts for a minute (so a four-letter code can't be brute-forced).
-- A game holds exactly two players. A third visitor gets **GAME FULL**.
+- A game holds exactly two players. A third visitor gets **GAME FULL**. In a game against the computer the second seat belongs to the computer for good, so nobody can join it.
 - WebSocket upgrades are **origin-checked** — other websites can't open sockets into your games. Extra allowed origins can be added with `ALLOWED_ORIGINS`.
 - Messages are size-limited and rate-limited; a flooding client is cut off. Creating games is rate-limited per address.
 - Each browser tab gets a random player id (kept in session storage). That's how you can reload or lose signal and slide back in as the same player. Your seat can't be taken by someone who doesn't know the passcode, and a different tab is a different player.
@@ -161,7 +181,7 @@ Copy `.env.example`. None of these are secret.
 | `npm start` | run the local server |
 | `npm run typecheck` | TypeScript, client and server |
 | `npm run lint` | repo-specific checks (determinism of `shared/`, no stray `console.log`, no secrets…) |
-| `npm test` | fast unit / room / worker tests (≈ 50 tests, seconds) |
+| `npm test` | fast unit / AI / room / worker tests (≈ 80 tests, under a minute) |
 | `npm run test:integration` | bots play a whole match over real WebSockets, ~100 s |
 | `npm run test:browser` | two real Chromium browsers (a phone and a desktop) play each other; needs `playwright` |
 | `npm run loadtest` | N simultaneous games; see below |
@@ -172,6 +192,7 @@ CI (`.github/workflows/arkanoid-duel.yml`) runs lint, typecheck, tests, the buil
 ## 12. Testing
 
 - **Sim tests** exercise the rules directly: serve alternation, combo reset, credit for the last paddle touch, level and match results, swept collisions, speed caps, disconnect and rematch.
+- **AI tests** play computer against computer through whole matches: serve order, difficulty ladder (hard > normal > easy over many seeds), paddle speed limits, determinism, and that it can never serve out of turn.
 - **Room tests** drive the server logic with fake connections: seating, passcodes, lockout, a third player, replaced connections, flooding, reconnect during every phase.
 - **Integration**: two bot clients play a full match through the real HTTP + WebSocket path, including rematch and a dropped-then-returning player.
 - **Browser**: phone-size touch and desktop browsers play each other and check the screens, serve order, settings and disconnect overlay (screenshots saved for review).

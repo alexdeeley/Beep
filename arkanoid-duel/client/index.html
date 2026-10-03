@@ -26,11 +26,36 @@
     <p class="tag">TWO PLAYERS.<br>ONE BALL.<br>ONE WALL.</p>
     <p class="tag2">BREAK IT BEFORE THEY DO.</p>
     <div class="stack">
+      <button id="btn-solo" class="btn big green" type="button">PLAY THE COMPUTER</button>
       <button id="btn-create" class="btn big p1" type="button">CREATE GAME</button>
       <button id="btn-join" class="btn big p2" type="button">JOIN GAME</button>
       <button id="btn-settings" class="btn small ghost" type="button">SETTINGS</button>
     </div>
     <p class="fine">Move your paddle · Serve · Bounce · Break the wall</p>
+  </section>
+
+  <section id="solo" class="screen" hidden>
+    <h2>PLAY THE COMPUTER</h2>
+    <form id="form-solo" class="stack" autocomplete="off">
+      <label class="field"><span>YOUR NAME</span><input id="o-name" maxlength="12" placeholder="PLAYER 1" autocapitalize="characters" spellcheck="false"></label>
+      <fieldset class="field"><legend>DIFFICULTY</legend>
+        <div class="seg" id="o-level" role="radiogroup" aria-label="Computer difficulty">
+          <button type="button" role="radio" data-v="easy" aria-checked="false">EASY</button>
+          <button type="button" role="radio" data-v="normal" aria-checked="true">NORMAL</button>
+          <button type="button" role="radio" data-v="hard" aria-checked="false">HARD</button>
+        </div>
+      </fieldset>
+      <fieldset class="field"><legend>GAME SPEED</legend>
+        <div class="seg" id="o-speed" role="radiogroup" aria-label="Game speed">
+          <button type="button" role="radio" data-v="0.8" aria-checked="false">SLOW</button>
+          <button type="button" role="radio" data-v="1" aria-checked="true">NORMAL</button>
+          <button type="button" role="radio" data-v="1.25" aria-checked="false">FAST</button>
+        </div>
+      </fieldset>
+      <p id="o-err" class="err" role="alert"></p>
+      <button id="o-go" class="btn big green" type="submit">START</button>
+      <button class="btn small ghost back" type="button">BACK</button>
+    </form>
   </section>
 
   <section id="create" class="screen" hidden>
@@ -66,8 +91,8 @@
   </section>
 
   <section id="lobby" class="screen overlay" hidden>
-    <div class="codebox"><span>GAME CODE</span><b id="l-code">----</b></div>
-    <div class="passline"><span>PASSCODE</span> <b id="l-pass">••••</b> <button id="l-show" class="btn tiny" type="button">SHOW</button></div>
+    <div id="l-codebox" class="codebox"><span>GAME CODE</span><b id="l-code">----</b></div>
+    <div id="l-passline" class="passline"><span>PASSCODE</span> <b id="l-pass">••••</b> <button id="l-show" class="btn tiny" type="button">SHOW</button></div>
     <button id="l-copy" class="btn small" type="button">COPY INVITE</button>
     <ul class="slots">
       <li id="slot1" class="slot p1"></li>

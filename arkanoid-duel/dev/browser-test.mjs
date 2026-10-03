@@ -181,6 +181,47 @@ await sleep(300);
 ok(await visible(A.page, 'end') && (await A.page.textContent('#e-title')).includes('YOU WIN'), 'the end screen says who won');
 await A.page.screenshot({ path: `${OUT}/13-end-phone.png` });
 
+// ── Playing the computer, on a phone, with nobody else ──────
+{
+  const C = await player('Solo', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  ok(await C.page.evaluate(() => !document.getElementById('btn-solo').hidden && document.getElementById('btn-solo').textContent.includes('COMPUTER')), 'the landing screen offers PLAY THE COMPUTER');
+  await C.page.tap('#btn-solo');
+  ok(await visible(C.page, 'solo'), 'it opens the one-player screen');
+  ok(await C.page.evaluate(() => document.querySelectorAll('#o-level button').length === 3), 'with easy, normal and hard');
+  await C.page.fill('#o-name', 'Sam');
+  await C.page.tap('#o-level button[data-v="hard"]');
+  ok(await C.page.evaluate(() => document.querySelector('#o-level button[data-v="hard"]').getAttribute('aria-checked') === 'true'), 'hard can be chosen');
+  await C.page.screenshot({ path: `${OUT}/14-solo-setup-phone.png` });
+  await C.page.tap('#o-go');
+  await C.page.waitForFunction(() => window.__duel.app.active && window.__duel.world.latest, null, { timeout: 10000 });
+  ok(await C.page.evaluate(() => window.__duel.app.solo === 'hard' && window.__duel.app.me === 1), 'you are Player 1 against a HARD computer');
+  await C.page.screenshot({ path: `${OUT}/15-solo-lobby-phone.png` }).catch(() => {});
+  await C.page.waitForFunction(() => ['COUNTDOWN', 'SERVE'].includes(window.__duel.world.latest?.ph), null, { timeout: 15000 });
+  ok(true, 'the match starts by itself - no code, passcode or READY needed');
+  ok(await C.page.evaluate(() => window.__duel.app.names[1] === 'COMPUTER' && window.__duel.world.latest.cn.every(Boolean)), 'the computer is seated and named');
+  await waitPhase(C.page, 'SERVE', 15000);
+  await C.page.tap('#game');
+  await waitPhase(C.page, 'PLAYING', 5000);
+  ok(true, 'you serve with a tap');
+  // The computer moves; with no one steering Sam's paddle the rally is lost, and then the computer serves itself.
+  const xs = new Set();
+  const t0 = Date.now();
+  let computerServed = false;
+  while (Date.now() - t0 < 60000 && !computerServed) {
+    const st = await state(C.page);
+    if (st) xs.add(Math.round(st.p[1] / 60));
+    if (st && st.ph === 'PLAYING' && st.sv === 2) computerServed = true;
+    await sleep(120);
+  }
+  ok(xs.size >= 3, `the computer moves its paddle (${xs.size} different positions seen)`);
+  ok(computerServed, 'when it is the computer\'s serve it launches the ball itself');
+  await C.page.screenshot({ path: `${OUT}/16-solo-playing-phone.png` });
+  await C.page.reload();
+  await C.page.waitForFunction(() => window.__duel.app.active && window.__duel.world.latest, null, { timeout: 15000 });
+  ok(await C.page.evaluate(() => window.__duel.app.solo === 'hard' && window.__duel.app.me === 1), 'reloading puts you straight back in the same game');
+  await C.ctx.close();
+}
+
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();
 srv.kill();
