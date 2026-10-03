@@ -229,7 +229,7 @@
   }
   .soli-banner:hover, .soli-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 12px 28px rgba(0, 0, 0, 0.6); }
   .soli-banner .sb-mini { flex: 0 0 auto; width: 132px; height: auto; border-radius: 6px; background: #0b4a30; box-shadow: 0 0 0 2px #000; }
-  @media (max-width: 420px) { .soli-banner .sb-mini { width: 112px; } }
+  @media (max-width: 560px) { .soli-banner { flex-direction: column; align-items: stretch; gap: 12px; } .soli-banner .sb-mini { width: 100%; } }
   .soli-banner .sb-text { min-width: 0; flex: 1 1 auto; }
   .soli-banner .sb-live { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.8rem; letter-spacing: 0.08em; color: #fff; font-variant-numeric: tabular-nums; }
   .soli-banner .sb-sub { font-size: 0.82rem; color: #cfdcd4; letter-spacing: 0.02em; font-weight: 600; }
@@ -405,7 +405,7 @@
       </span>
     </a>
     <a class="soli-banner" id="soliBoard" href="https://soliteam.deeley.org" target="_blank" rel="noopener noreferrer" aria-label="SOLITEAM, the Solitaire game that never ends. Live view of the shared table.">
-      <svg class="sb-mini" id="soliMini" viewBox="0 0 300 236" aria-hidden="true"></svg>
+      <svg class="sb-mini" id="soliMini" viewBox="0 0 312 236" aria-hidden="true"></svg>
       <span class="sb-text">
         <h2>SOLITEAM</h2>
         <p class="sb-live" id="soliMeta">THE SOLITAIRE GAME THAT NEVER ENDS.</p>
@@ -504,7 +504,7 @@ async function loadSoliBoard() {
     const t = await (await fetch(SOLI_API, { cache: "no-store" })).json();
     drawSoliBoard(t);
     const n = t.players;
-    meta.textContent = `GAME #${String(t.game).padStart(11, "0")} \u00b7 ${t.moves.toLocaleString("en-US")} MOVES \u00b7 ${t.resetting ? "RESETTING\u2026" : n === 0 ? "NOBODY IS PLAYING RIGHT NOW" : n === 1 ? "1 PERSON IS PLAYING" : `${n} PEOPLE ARE PLAYING`}`;
+    meta.textContent = `GAME #${String(t.game).padStart(11, "0")} \u00b7 ${t.moves.toLocaleString("en-US")} ${t.moves === 1 ? "MOVE" : "MOVES"} \u00b7 ${t.resetting ? "RESETTING\u2026" : n === 0 ? "NOBODY IS PLAYING RIGHT NOW" : n === 1 ? "1 PERSON IS PLAYING" : `${n} PEOPLE ARE PLAYING`}`;
   } catch (e) {
     meta.textContent = "THE GAME CONTINUES. (THE BOARD COULD NOT BE REACHED.)";
   }
