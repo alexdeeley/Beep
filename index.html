@@ -53,6 +53,12 @@
   #appSearch:focus { border-color: #6b6b78; }
 
   /* ── Banners: the multiplayer / shared things, first on the page ── */
+  /* Every banner icon is the same thing: a crisp 96px SVG, white on black,
+     thick strokes, white rim - high contrast, sharp at any size, and not
+     dependent on whichever emoji font the phone happens to have. */
+  .b-icon { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 16px; background: #000; border: 4px solid #fff; box-shadow: 0 0 0 2px #000; }
+  .b-icon svg { display: block; width: 100%; height: 100%; }
+  @media (max-width: 420px) { .b-icon { width: 80px; height: 80px; } }
   .banner-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 6px 0 30px; }
   @media (min-width: 700px) { .banner-grid { grid-template-columns: 1fr 1fr; } }
   .banner-grid > a { margin: 0 !important; }
@@ -85,12 +91,6 @@
   .draw-banner::before { transform: rotate(0.7deg) scale(1.008); opacity: 0.55; }
   .draw-banner::after { transform: rotate(-0.4deg); }
   .draw-banner:hover, .draw-banner:active { transform: rotate(-0.6deg) scale(0.98); }
-  .draw-banner .db-emoji {
-    flex: 0 0 auto;
-    font-size: 2.6rem;
-    line-height: 1;
-    transform: rotate(-8deg);
-  }
   .draw-banner .db-text { min-width: 0; flex: 1 1 auto; }
   .draw-banner h2 {
     margin: 0;
@@ -142,12 +142,6 @@
     transform: translate(3px, 3px);
     box-shadow: 3px 3px 0 #0c0c10;
   }
-  .play-lb-banner .plb-trophy {
-    flex: 0 0 auto;
-    font-size: 2.6rem;
-    line-height: 1;
-    filter: drop-shadow(2px 2px 0 #0c0c10);
-  }
   .play-lb-banner .plb-text { min-width: 0; flex: 1 1 auto; }
   .play-lb-banner h2 {
     margin: 0;
@@ -188,8 +182,6 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .museum-banner:hover, .museum-banner:active { transform: translateY(-2px); box-shadow: inset 0 0 0 3px #7a5314, 0 0 0 2px #000, 0 12px 30px rgba(217, 164, 65, 0.35); }
-  .museum-banner .mb-frame { flex: 0 0 auto; width: 96px; height: 96px; border: 5px solid #d9a441; box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #7a5314; background: #000; overflow: hidden; }
-  .museum-banner .mb-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .museum-banner .mb-text { min-width: 0; flex: 1 1 auto; }
   .museum-banner h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: clamp(1.45rem, 6vw, 1.9rem); color: #ffe9b0; line-height: 1.05; }
   .museum-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #eadfc4; line-height: 1.35; font-weight: 500; }
@@ -203,14 +195,6 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .duel-banner:hover, .duel-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 1px #000, 0 0 26px rgba(24, 212, 232, 0.85), inset 0 0 22px rgba(255, 79, 176, 0.35); }
-  .duel-banner .db-arena { flex: 0 0 auto; position: relative; width: 66px; height: 96px; border: 2px solid #39407a; border-radius: 6px; background: #05061a; }
-  .db-arena i { position: absolute; display: block; }
-  .db-arena .p2 { top: 7px; left: 18px; width: 30px; height: 6px; border-radius: 3px; background: #ff4fb0; box-shadow: 0 0 8px #ff4fb0; }
-  .db-arena .p1 { bottom: 7px; left: 26px; width: 30px; height: 6px; border-radius: 3px; background: #18d4e8; box-shadow: 0 0 8px #18d4e8; }
-  .db-arena .w1, .db-arena .w2 { left: 6px; right: 6px; height: 7px; }
-  .db-arena .w1 { top: 34px; background: repeating-linear-gradient(90deg, #ff4fb0 0 8px, transparent 8px 10px); }
-  .db-arena .w2 { top: 44px; background: repeating-linear-gradient(90deg, #18d4e8 0 8px, transparent 8px 10px); }
-  .db-arena .ball { left: 36px; top: 62px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #fff; }
   .duel-banner .dl-text { min-width: 0; flex: 1 1 auto; }
   .duel-banner h2 { margin: 0; font-weight: 800; font-size: clamp(1.25rem, 5.4vw, 1.7rem); letter-spacing: 0.04em; line-height: 1.05; text-shadow: 0 0 12px rgba(24, 212, 232, 0.6); }
   .duel-banner h2 i { font-style: normal; color: #ff4fb0; }
@@ -361,7 +345,7 @@
 
   <div id="banners" class="banner-grid">
     <a class="draw-banner" href="https://draw.deeley.org" target="_blank" rel="noopener noreferrer">
-      <span class="db-emoji" aria-hidden="true">✏️</span>
+      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 74 L62 34 L72 44 L32 84 L18 88 Z"/><path d="M62 34 L70 26 L80 36 L72 44"/><path d="M18 88 L22 74 L32 84"/></g><path d="M24 70 L30 76" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg></span>
       <span class="db-text">
         <h2>Draw Together</h2>
         <p>Sketch a secret word live and guess together &mdash; up to 16 players, one link.</p>
@@ -369,7 +353,7 @@
       </span>
     </a>
     <a class="museum-banner" href="https://gallery.deeley.org" target="_blank" rel="noopener noreferrer">
-      <span class="mb-frame"><img src="./thumbnails/museum.jpg" alt="" loading="lazy" /></span>
+      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="14" width="68" height="68" rx="3"/><rect x="26" y="26" width="44" height="44"/><path d="M30 64 L44 48 L54 58 L60 52 L66 60"/></g><circle cx="58" cy="38" r="5" fill="#fff"/></svg></span>
       <span class="mb-text">
         <h2>The Museum</h2>
         <p>Walk an endless voxel museum &mdash; the same for everyone. Sign the visitor&rsquo;s book.</p>
@@ -377,7 +361,7 @@
       </span>
     </a>
     <a class="duel-banner" href="https://duel.deeley.org" target="_blank" rel="noopener noreferrer">
-      <span class="db-arena" aria-hidden="true"><i class="p2"></i><i class="w1"></i><i class="w2"></i><i class="ball"></i><i class="p1"></i></span>
+      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="#fff"><rect x="34" y="10" width="28" height="7" rx="3.5"/><rect x="34" y="79" width="28" height="7" rx="3.5"/><rect x="14" y="38" width="14" height="9" rx="2"/><rect x="32" y="38" width="14" height="9" rx="2"/><rect x="50" y="38" width="14" height="9" rx="2"/><rect x="68" y="38" width="14" height="9" rx="2"/><rect x="14" y="50" width="14" height="9" rx="2"/><rect x="50" y="50" width="14" height="9" rx="2"/><rect x="68" y="50" width="14" height="9" rx="2"/><circle cx="48" cy="67" r="6"/></g></svg></span>
       <span class="dl-text">
         <h2>ARKANOID <i>//</i> DUEL</h2>
         <p>Two players. One ball. One wall. Play a friend with a passcode &mdash; or the computer.</p>
@@ -385,7 +369,7 @@
       </span>
     </a>
     <a class="play-lb-banner" href="https://play.deeley.org/leaderboard" target="_blank" rel="noopener noreferrer">
-      <span class="plb-trophy" aria-hidden="true">&#127942;</span>
+      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M30 16 H66 V40 A18 18 0 0 1 30 40 Z"/><path d="M30 24 H18 A10 10 0 0 0 30 40"/><path d="M66 24 H78 A10 10 0 0 1 66 40"/><path d="M48 58 V70"/><path d="M34 78 H62"/><path d="M40 70 H56 V78 H40 Z"/></g></svg></span>
       <span class="plb-text">
         <h2>HIGH SCORES</h2>
         <p>Every mini-game on Play feeds one shared leaderboard. Beat it, put your name on it.</p>
