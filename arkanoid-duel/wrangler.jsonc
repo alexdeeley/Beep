@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "arkanoid-duel",
+  "main": "server/worker.ts",
+  "compatibility_date": "2025-06-01",
+
+  // Bundle the browser code into ./public before every deploy / dev run.
+  "build": { "command": "node build.mjs --prod" },
+
+  // The page is static; only the API, the health check and game sockets run the Worker.
+  "assets": { "directory": "./public", "run_worker_first": ["/api/*", "/health"] },
+
+  // One Durable Object per game. It owns the match and runs the 60 Hz simulation.
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }],
+
+  "vars": { "ENVIRONMENT": "production" },
+  "observability": { "enabled": true },
+
+  "routes": [{ "pattern": "duel.deeley.org", "custom_domain": true }],
+
+  // Staging: `wrangler deploy --env staging` gives a separate workers.dev copy with its own rooms.
+  "env": {
+    "staging": {
+      "name": "arkanoid-duel-staging",
+      "vars": { "ENVIRONMENT": "staging" },
+      "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }],
+      "routes": []
+    }
+  }
+}

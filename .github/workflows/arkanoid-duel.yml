@@ -1,0 +1,34 @@
+name: Arkanoid Duel CI
+
+# Lint, typecheck, test and bundle the game on every change to it. Deploying
+# is a separate, deliberate step (`npm run deploy` in arkanoid-duel/).
+on:
+  push:
+    paths: ["arkanoid-duel/**", ".github/workflows/arkanoid-duel.yml"]
+  pull_request:
+    paths: ["arkanoid-duel/**", ".github/workflows/arkanoid-duel.yml"]
+
+defaults:
+  run:
+    working-directory: arkanoid-duel
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: arkanoid-duel/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Worker bundles for Cloudflare (dry run, no account needed)
+        run: npm run build:server
+      - name: Whole bot-vs-bot match over real WebSockets
+        run: npm run test:integration

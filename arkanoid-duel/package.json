@@ -1,0 +1,31 @@
+{
+  "name": "arkanoid-duel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Two players, one ball, one wall. A real-time multiplayer Arkanoid duel on Cloudflare Workers + Durable Objects.",
+  "scripts": {
+    "dev": "node build.mjs && node dev/local-server.mjs",
+    "dev:client": "node build.mjs --watch",
+    "dev:server": "node dev/local-server.mjs",
+    "dev:cf": "wrangler dev",
+    "build": "node build.mjs",
+    "build:server": "wrangler deploy --dry-run --outdir dist",
+    "start": "node dev/local-server.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.server.json",
+    "lint": "node dev/lint.mjs",
+    "test": "node --no-warnings --test --test-timeout=60000 tests/sim.test.ts tests/room.test.ts tests/worker.test.ts",
+    "test:browser": "node dev/browser-test.mjs",
+    "loadtest": "node dev/load-test.mjs",
+    "deploy": "wrangler deploy",
+    "test:integration": "node --no-warnings --test --test-timeout=240000 tests/integration.test.ts",
+    "test:all": "npm test && npm run test:integration"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

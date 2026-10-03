@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ARKANOID // DUEL</title>
+<meta name="description" content="Two players. One ball. One wall. Break it before they do. A real-time multiplayer arcade duel.">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/__CSS__">
+</head>
+<body>
+<canvas id="game" aria-label="The arena: two paddles, one ball and a wall of blocks"></canvas>
+
+<div id="net" class="net" hidden></div>
+<button id="gear" class="gear" type="button" aria-label="Settings" hidden>⚙</button>
+<div id="banner" class="banner" role="status" aria-live="polite"></div>
+
+<main>
+  <section id="landing" class="screen">
+    <h1 class="logo">ARKANOID <i>//</i> DUEL</h1>
+    <p class="tag">TWO PLAYERS.<br>ONE BALL.<br>ONE WALL.</p>
+    <p class="tag2">BREAK IT BEFORE THEY DO.</p>
+    <div class="stack">
+      <button id="btn-create" class="btn big p1" type="button">CREATE GAME</button>
+      <button id="btn-join" class="btn big p2" type="button">JOIN GAME</button>
+      <button id="btn-settings" class="btn small ghost" type="button">SETTINGS</button>
+    </div>
+    <p class="fine">Move your paddle · Serve · Bounce · Break the wall</p>
+  </section>
+
+  <section id="create" class="screen" hidden>
+    <h2>CREATE GAME</h2>
+    <form id="form-create" class="stack" autocomplete="off">
+      <label class="field"><span>YOUR NAME</span><input id="c-name" maxlength="12" placeholder="PLAYER 1" autocapitalize="characters" spellcheck="false"></label>
+      <label class="field"><span>PASSCODE <small>(share it with your opponent)</small></span>
+        <div class="row"><input id="c-pass" maxlength="24" autocapitalize="off" spellcheck="false" inputmode="text"><button id="c-rand" class="btn small" type="button" aria-label="New random passcode">↻</button></div>
+      </label>
+      <fieldset class="field"><legend>GAME SPEED</legend>
+        <div class="seg" id="c-speed" role="radiogroup" aria-label="Game speed">
+          <button type="button" role="radio" data-v="0.8" aria-checked="false">SLOW</button>
+          <button type="button" role="radio" data-v="1" aria-checked="true">NORMAL</button>
+          <button type="button" role="radio" data-v="1.25" aria-checked="false">FAST</button>
+        </div>
+      </fieldset>
+      <p id="c-err" class="err" role="alert"></p>
+      <button id="c-go" class="btn big p1" type="submit">CREATE</button>
+      <button class="btn small ghost back" type="button">BACK</button>
+    </form>
+  </section>
+
+  <section id="join" class="screen" hidden>
+    <h2>JOIN GAME</h2>
+    <form id="form-join" class="stack" autocomplete="off">
+      <label class="field"><span>GAME CODE</span><input id="j-code" class="code" maxlength="4" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Q7K9"></label>
+      <label class="field"><span>PASSCODE</span><input id="j-pass" maxlength="24" autocapitalize="off" spellcheck="false" placeholder="from your opponent"></label>
+      <label class="field"><span>YOUR NAME</span><input id="j-name" maxlength="12" placeholder="PLAYER 2" autocapitalize="characters" spellcheck="false"></label>
+      <p id="j-err" class="err" role="alert"></p>
+      <button id="j-go" class="btn big p2" type="submit">JOIN</button>
+      <button class="btn small ghost back" type="button">BACK</button>
+    </form>
+  </section>
+
+  <section id="lobby" class="screen overlay" hidden>
+    <div class="codebox"><span>GAME CODE</span><b id="l-code">----</b></div>
+    <div class="passline"><span>PASSCODE</span> <b id="l-pass">••••</b> <button id="l-show" class="btn tiny" type="button">SHOW</button></div>
+    <button id="l-copy" class="btn small" type="button">COPY INVITE</button>
+    <ul class="slots">
+      <li id="slot1" class="slot p1"></li>
+      <li id="slot2" class="slot p2"></li>
+    </ul>
+    <div id="l-speed" class="seg" role="radiogroup" aria-label="Game speed" hidden>
+      <button type="button" role="radio" data-v="0.8" aria-checked="false">SLOW</button>
+      <button type="button" role="radio" data-v="1" aria-checked="true">NORMAL</button>
+      <button type="button" role="radio" data-v="1.25" aria-checked="false">FAST</button>
+    </div>
+    <p id="l-status" class="status" aria-live="polite"></p>
+    <button id="l-ready" class="btn big green" type="button" hidden>READY</button>
+    <button id="l-leave" class="btn small ghost" type="button">LEAVE GAME</button>
+  </section>
+
+  <section id="end" class="screen overlay" hidden>
+    <h2 id="e-title">PLAYER 1 WINS</h2>
+    <p id="e-sub" class="status"></p>
+    <button id="e-rematch" class="btn big green" type="button">REMATCH</button>
+    <button id="e-lobby" class="btn small ghost" type="button">RETURN TO LOBBY</button>
+  </section>
+
+  <section id="disc" class="screen overlay" hidden>
+    <h2>OPPONENT DISCONNECTED</h2>
+    <p id="d-sub" class="status"></p>
+    <button id="d-wait" class="btn big" type="button">WAIT</button>
+    <button id="d-leave" class="btn small ghost" type="button">RETURN TO LOBBY</button>
+  </section>
+</main>
+
+<aside id="settings" class="sheet" hidden aria-label="Settings">
+  <h2>SETTINGS</h2>
+  <label class="toggle"><input id="s-music" type="checkbox"><span>MUSIC</span></label>
+  <label class="toggle"><input id="s-sfx" type="checkbox"><span>SOUND EFFECTS</span></label>
+  <label class="toggle"><input id="s-vib" type="checkbox"><span>VIBRATION</span></label>
+  <label class="toggle"><input id="s-hc" type="checkbox"><span>HIGH CONTRAST</span></label>
+  <label class="toggle"><input id="s-flip" type="checkbox"><span>FLIP VIEW (ME AT THE BOTTOM)</span></label>
+  <label class="toggle"><input id="s-net" type="checkbox"><span>SHOW CONNECTION</span></label>
+  <button id="s-close" class="btn big" type="button">CLOSE</button>
+</aside>
+
+<script type="module" src="/__JS__"></script>
+</body>
+</html>
