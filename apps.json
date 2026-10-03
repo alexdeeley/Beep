@@ -1545,7 +1545,7 @@
     "name": "Gallery",
     "description": "Type a seed and watch a unique, animated piece of generative art appear in a frame. The same seed always makes the same art - share the link.",
     "category": "Art",
-    "path": "https://gallery.deeley.org",
+    "path": "https://gallery.deeley.org/art",
     "added": "2026-10-02T00:00:00+00:00",
     "thumbnail": "thumbnails/gallery.jpg"
   },
@@ -1554,8 +1554,17 @@
     "name": "Museum",
     "description": "Walk an endless, blocky museum of rooms, mazes and halls hung with generated art. One museum, the same for everyone - go far enough and you'll be somewhere nobody has been.",
     "category": "Art",
-    "path": "https://gallery.deeley.org/museum",
+    "path": "https://gallery.deeley.org",
     "added": "2026-10-02T00:00:00+00:00",
     "thumbnail": "thumbnails/museum.jpg"
+  },
+  {
+    "id": "arkanoid-duel",
+    "name": "Arkanoid Duel",
+    "description": "Two players, one ball, one wall. Break it before they do - play a friend with a passcode, or the computer.",
+    "category": "Games",
+    "path": "https://duel.deeley.org",
+    "added": "2026-10-03T05:00:00+00:00",
+    "thumbnail": "thumbnails/arkanoid-duel.jpg"
   }
 ]
