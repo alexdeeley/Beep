@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = await import(process.env.PW || 'playwright');
-const PORT = 8790, URL0 = `http://localhost:${PORT}/`;
+const PORT = 8790, URL0 = `http://localhost:${PORT}/art`;
 const OUT = process.env.SHOTS || '/tmp/gallery-shots';
 fs.mkdirSync(OUT, { recursive: true });
 let pass = 0, fail = 0;

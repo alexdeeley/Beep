@@ -1,10 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "gallery",
+  "main": "src/worker.js",
   "compatibility_date": "2025-06-01",
 
-  // Pure static site: everything in ./public is served as-is.
-  "assets": { "directory": "./public" },
+  // The pages are static files in ./public; only /api/* runs the Worker
+  // (the visitor's book - see src/worker.js).
+  "assets": { "directory": "./public", "run_worker_first": ["/api/*"] },
+
+  // One Durable Object holds the whole visitor's book.
+  "durable_objects": { "bindings": [{ "name": "BOOK", "class_name": "VisitorBook" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VisitorBook"] }],
+
+  // Optional secret for removing notes:  wrangler secret put ADMIN_KEY
 
   "observability": { "enabled": true },
 

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Art · Gallery</title>
+<meta name="description" content="Type a seed and watch a unique piece of generative art appear - the same seed always makes the same art.">
+<meta name="theme-color" content="#e9e7e2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='3' fill='%23161618'/%3E%3Ccircle cx='12' cy='13' r='5' fill='%23ff7a45'/%3E%3Cpath d='M5 26l9-8 5 4 8-7v11z' fill='%2345b8ac'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <span class="mark">gallery</span>
+    <a class="museum-link" href="./">Walk the museum <span aria-hidden="true">→</span></a>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="wall" id="wall">
+      <figure class="frame" id="frame">
+        <div class="mat" id="mat">
+          <canvas id="art" role="img" aria-label="Generated artwork"></canvas>
+        </div>
+      </figure>
+
+    </div>
+    <div class="plaque" id="plaque" aria-live="polite">
+      <h1 id="title">&nbsp;</h1>
+      <p class="meta"><span id="medium"></span><span class="dot"> · </span><span>No. <span id="num"></span></span></p>
+      <p class="seedline">Seed <q id="seedtext"></q></p>
+    </div>
+  </main>
+
+  <form class="bar" id="seedform" autocomplete="off">
+    <label class="sr-only" for="seed">Seed</label>
+    <input id="seed" type="text" maxlength="80" placeholder="Type a seed…" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button class="icon go" type="submit" aria-label="Make art from this seed">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12.5 6l6 6-6 6"/></svg>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="icon" type="button" id="shuffle" aria-label="Surprise me with a random seed" title="Surprise me">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" class="f"/><circle cx="15" cy="15" r="1.1" class="f"/><circle cx="15" cy="9" r="1.1" class="f"/><circle cx="9" cy="15" r="1.1" class="f"/></svg>
+    </button>
+    <button class="icon" type="button" id="save" aria-label="Save this piece as an image" title="Save as image">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/></svg>
+    </button>
+  </form>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

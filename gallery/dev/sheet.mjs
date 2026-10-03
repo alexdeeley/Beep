@@ -15,7 +15,7 @@ await new Promise((r) => srv.stdout.once('data', r));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const page = await (await browser.newContext({ viewport: { width: 900, height: 700 } })).newPage();
 page.on('pageerror', (e) => console.log('pageerror', e.message));
-await page.goto(`http://localhost:${PORT}/`);
+await page.goto(`http://localhost:${PORT}/art`);
 await page.waitForFunction(() => window.gallery);
 const styles = await page.evaluate(() => import('./js/art/index.js').then((m) => m.STYLES.map((s) => s.id)));
 for (const id of styles) {

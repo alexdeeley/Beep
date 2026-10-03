@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = await import(process.env.PW || 'playwright');
-const PORT = 8789, URL0 = `http://localhost:${PORT}/museum.html`;
+const PORT = 8789, URL0 = `http://localhost:${PORT}/`;
 const OUT = process.env.SHOTS || '/tmp/museum-shots';
 fs.mkdirSync(OUT, { recursive: true });
 let pass = 0, fail = 0;
@@ -66,7 +66,7 @@ async function open(opts = {}, hash = '') {
   // Press E: it opens that seed in the gallery.
   const [popup] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('KeyE')]);
   await popup.waitForLoadState();
-  ok(popup.url().includes('#the%20museum') && !popup.url().includes('museum.html'), 'E opens the picture’s seed in the gallery page');
+  ok(popup.url().includes('/art#the%20museum'), 'E opens the picture’s seed in the art viewer');
   await popup.close();
 
   // Turning around, the caption goes away.
@@ -103,6 +103,44 @@ async function open(opts = {}, hash = '') {
   const home = await page.evaluate(() => ({ ...window.museum.player }));
   ok(Math.abs(home.x - 22.5) < 0.01 && Math.abs(home.z - 26.5) < 0.01, 'the menu can take you back to the entrance');
 
+  // ── The visitor's book ──────────────────────────────────────
+  await page.click('#enter');
+  await page.waitForFunction(() => !document.getElementById('overlay') || document.getElementById('overlay').classList.contains('hidden'));
+  await page.evaluate(() => { window.museum.pause(true); window.museum.teleport(40 * 4 + 2.5, 6 * 4 + 2.5, 0); window.museum.step(0.3); });
+  ok(await page.isVisible('#signbtn'), 'there is a visitor’s book button on screen');
+  await page.keyboard.press('KeyB');       // while the mouse is captured, B opens the book
+  await page.waitForFunction(() => window.museum.bookIsOpen());
+  ok(await page.evaluate(() => window.museum.bookIsOpen()) && await page.isVisible('#bp-msg'), 'it opens a note panel');
+  ok((await page.textContent('#bp-where')).includes('blocks from the entrance'), '... that says where you are');
+  await page.fill('#bp-name', 'Tester');
+  await page.fill('#bp-msg', 'see www.spam.example for deals');
+  await page.click('#bp-send');
+  await page.waitForFunction(() => document.getElementById('bp-err').textContent.length > 0);
+  ok((await page.textContent('#bp-err')).includes('links'), 'a note with a link is refused, with the reason shown');
+  await page.fill('#bp-msg', 'The blue wall is my favourite.');
+  await page.press('#bp-msg', 'Control+Enter').catch(() => {});
+  await page.click('#bp-send');
+  await page.waitForFunction(() => !window.museum.bookIsOpen(), null, { timeout: 15000 });
+  ok(await page.evaluate(() => document.getElementById('toast').classList.contains('on')), 'signing closes the panel and says thanks');
+  ok(await page.evaluate(() => window.museum.signs.items.size >= 1), 'your sign stands where you wrote it');
+
+  // Walk away a little and look back at it: its note is shown.
+  await page.evaluate(() => { const m = window.museum; m.player.x = 40 * 4 + 2.5; m.player.z = 6 * 4 + 2.5 + 2.2; m.controls.yaw = 0; m.step(1); });
+  const read = await page.evaluate(() => ({ on: document.getElementById('caption').classList.contains('note'), title: document.getElementById('c-title').textContent, line: document.getElementById('c-line').textContent }));
+  ok(read.on && read.title === 'Tester' && read.line.includes('The blue wall is my favourite.'), `looking at the sign shows who wrote it and what (“${read.line}”)`);
+  await page.screenshot({ path: `${OUT}/sign.png`, timeout: 120000 });
+
+  // Another visitor, in another browser, finds it there - and on the board.
+  const { page: other, ctx: octx } = await open({ viewport: { width: 640, height: 400 } }, '#162.5,26.5,0');
+  await other.waitForFunction(() => window.museum.notes().length >= 1, null, { timeout: 15000 });
+  ok(await other.evaluate(() => window.museum.signs.items.size >= 1 && window.museum.notes()[0].name === 'Tester'), 'another visitor finds the same note standing at that spot');
+  await other.waitForFunction(() => !document.getElementById('explorers').hidden, null, { timeout: 15000 });
+  ok((await other.textContent('#explorers-list')).includes('Tester'), 'the farthest-explorers board lists who has been that far');
+  await other.click('#explorers-list button');
+  const visited = await other.evaluate(() => ({ x: window.museum.player.x, z: window.museum.player.z }));
+  ok(Math.abs(visited.x - 162.5) < 1 && Math.abs(visited.z - 26.5) < 1.5, '“Go there” takes you to where they signed');
+  await octx.close();
+
   // The look toggle.
   await page.click('#quality');
   ok((await page.textContent('#quality')).includes('sharp') && !(await page.evaluate(() => document.getElementById('view').classList.contains('chunky'))), 'the look button switches between chunky and sharp');
@@ -127,6 +165,11 @@ async function open(opts = {}, hash = '') {
   await page.screenshot({ path: `${OUT}/phone-card.png`, timeout: 120000 });
   await page.tap('#enter');
   await sleep(400);
+  await page.tap('#signbtn');
+  ok(await page.evaluate(() => window.museum.bookIsOpen()) && await page.isVisible('#bp-msg'), 'phone: the book button opens the note panel');
+  await page.screenshot({ path: `${OUT}/phone-book.png`, timeout: 120000 });
+  await page.tap('#bp-cancel');
+  ok(!(await page.evaluate(() => window.museum.bookIsOpen())), 'phone: Cancel closes it');
   ok(await page.evaluate(() => document.getElementById('overlay').classList.contains('hidden')), 'phone: tapping Start begins');
   await page.evaluate(() => { window.museum.pause(true); window.museum.step(3); window.museum.render(); });
   await sleep(1500);

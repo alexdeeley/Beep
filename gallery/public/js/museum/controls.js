@@ -13,12 +13,13 @@ export class Controls {
     this.stick = null; this.look = null;
 
     addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target.closest?.('input, textarea')) return;
       const k = e.code;
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(k)) { this.keys.add(k); e.preventDefault(); }
       if (k === 'KeyE') hooks.interact?.();
       if (k === 'KeyM') hooks.toggleMap?.();
       if (k === 'KeyQ') hooks.toggleQuality?.();
+      if (k === 'KeyB') { e.preventDefault(); hooks.toggleBook?.(); }
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());

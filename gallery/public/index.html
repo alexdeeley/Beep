@@ -2,51 +2,72 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gallery</title>
-<meta name="description" content="Type a seed and watch a unique piece of generative art appear - the same seed always makes the same art.">
-<meta name="theme-color" content="#e9e7e2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='3' fill='%23161618'/%3E%3Ccircle cx='12' cy='13' r='5' fill='%23ff7a45'/%3E%3Cpath d='M5 26l9-8 5 4 8-7v11z' fill='%2345b8ac'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Museum</title>
+<meta name="description" content="Walk an endless museum of rooms, mazes and halls, hung with generative art.">
+<meta name="theme-color" content="#0d0d10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='3' fill='%23161618'/%3E%3Cpath d='M8 24V12l8-6 8 6v12z' fill='%23ff7a45'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="museum.css">
+<script type="importmap">{ "imports": { "three": "./js/vendor/three.module.min.js" } }</script>
 </head>
 <body>
-  <header class="top">
-    <span class="mark">gallery</span>
-    <a class="museum-link" href="museum.html">Walk the museum <span aria-hidden="true">→</span></a>
-  </header>
+  <canvas id="view" aria-label="The museum, first-person view"></canvas>
 
-  <main class="stage" id="stage">
-    <div class="wall" id="wall">
-      <figure class="frame" id="frame">
-        <div class="mat" id="mat">
-          <canvas id="art" role="img" aria-label="Generated artwork"></canvas>
-        </div>
-      </figure>
-
+  <div id="hud" aria-hidden="false">
+    <div class="cross" aria-hidden="true"></div>
+    <button class="menu" id="menu" type="button" aria-label="Menu">☰</button>
+    <canvas id="minimap" aria-label="Map"></canvas>
+    <div class="where" id="where"></div>
+    <div class="caption" id="caption" role="button" tabindex="-1" aria-live="polite">
+      <div class="c-title" id="c-title"></div>
+      <div class="c-line" id="c-line"><span id="c-medium"></span> · seed “<span id="c-seed"></span>”</div>
+      <div class="c-act"><span class="key">E</span><span class="tap"> / tap</span> to open</div>
     </div>
-    <div class="plaque" id="plaque" aria-live="polite">
-      <h1 id="title">&nbsp;</h1>
-      <p class="meta"><span id="medium"></span><span class="dot"> · </span><span>No. <span id="num"></span></span></p>
-      <p class="seedline">Seed <q id="seedtext"></q></p>
+    <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+    <button class="signbtn" id="signbtn" type="button" aria-label="Leave a note in the visitor’s book" title="Visitor’s book (B)"><span aria-hidden="true">✎</span> Visitor’s book</button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="panel hidden" id="bookpanel" role="dialog" aria-modal="true" aria-labelledby="bp-title">
+    <form class="bp-card" id="bookform" autocomplete="off">
+      <h2 id="bp-title">Visitor’s book</h2>
+      <p class="bp-where" id="bp-where"></p>
+      <label class="bp-field"><span>Your name</span><input id="bp-name" maxlength="20" placeholder="Anonymous" autocapitalize="words" spellcheck="false"></label>
+      <label class="bp-field"><span>Leave a note here</span><textarea id="bp-msg" maxlength="140" rows="3" placeholder="I was here…"></textarea></label>
+      <div class="bp-count" id="bp-count">0 / 140</div>
+      <p class="bp-err" id="bp-err" role="alert"></p>
+      <div class="bp-row"><button type="button" class="bp-cancel" id="bp-cancel">Cancel</button><button type="submit" class="bp-send" id="bp-send">Leave my mark</button></div>
+      <p class="bp-fine">Everyone who walks to this spot will find your note, and it stays. Keep it friendly — no links or contact details.</p>
+    </form>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <a class="back" href="art">One piece at a time →</a>
+      <h1>Museum</h1>
+      <p class="lede">An endless building of rooms, mazes and halls. Every wall is hung with art made from a seed.</p>
+      <p class="seedline">One museum, the same for everyone. It has no end — go far enough and you’ll be somewhere nobody has seen.</p>
+      <button class="enter" id="enter" type="button">Click to walk</button>
+      <ul class="help" id="help-desk">
+        <li><b>W A S D</b> or arrows walk · <b>Shift</b> run · mouse looks</li>
+        <li><b>E</b> opens the picture you’re facing · <b>B</b> visitor’s book · <b>M</b> map · <b>Q</b> look · <b>Esc</b> menu</li>
+      </ul>
+      <ul class="help" id="help-touch" hidden>
+        <li>Drag on the <b>left</b> to walk, on the <b>right</b> to look</li>
+        <li>Tap a picture’s label to open it</li>
+      </ul>
+      <button class="quality" id="quality" type="button"></button>
+      <section class="explorers" id="explorers" hidden>
+        <h2>Farthest explorers</h2>
+        <ol id="explorers-list"></ol>
+      </section>
+      <div class="rowbtns">
+        <button class="quality" id="share" type="button">Copy a link to this spot</button>
+        <button class="quality" id="home" type="button">Back to the entrance</button>
+      </div>
     </div>
-  </main>
+  </div>
 
-  <form class="bar" id="seedform" autocomplete="off">
-    <label class="sr-only" for="seed">Seed</label>
-    <input id="seed" type="text" maxlength="80" placeholder="Type a seed…" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false">
-    <button class="icon go" type="submit" aria-label="Make art from this seed">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12.5 6l6 6-6 6"/></svg>
-    </button>
-    <span class="sep" aria-hidden="true"></span>
-    <button class="icon" type="button" id="shuffle" aria-label="Surprise me with a random seed" title="Surprise me">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" class="f"/><circle cx="15" cy="15" r="1.1" class="f"/><circle cx="15" cy="9" r="1.1" class="f"/><circle cx="9" cy="15" r="1.1" class="f"/></svg>
-    </button>
-    <button class="icon" type="button" id="save" aria-label="Save this piece as an image" title="Save as image">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/></svg>
-    </button>
-  </form>
-
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/museum/main.js"></script>
 </body>
 </html>

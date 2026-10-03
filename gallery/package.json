@@ -6,7 +6,7 @@
   "description": "Type a seed, get a piece of generative art. The seed of a future infinite voxel museum.",
   "scripts": {
     "dev": "node dev/serve.mjs",
-    "test": "node dev/unit-tests.mjs && node dev/world-tests.mjs",
+    "test": "node dev/unit-tests.mjs && node dev/world-tests.mjs && node --no-warnings dev/book-tests.mjs",
     "test:browser": "node dev/browser-test.mjs && node dev/museum-test.mjs",
     "deploy": "wrangler deploy"
   },

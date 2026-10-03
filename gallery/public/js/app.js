@@ -86,7 +86,7 @@ function show(seedText, { first = false } = {}) {
     $('num').textContent = piece.number;
     $('seedtext').textContent = piece.seed;
     canvas.setAttribute('aria-label', `${piece.title}. ${piece.medium}, generated from the seed “${piece.seed}”.`);
-    document.title = `${piece.title} · Gallery`;
+    document.title = `${piece.title} · Art`;
     fit();
     startLoop();
     frame.classList.remove('out');

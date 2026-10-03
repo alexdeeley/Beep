@@ -1,54 +1,6 @@
 <!doctype html>
-<html lang="en">
-<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Museum</title>
-<meta name="description" content="Walk an endless museum of rooms, mazes and halls, hung with generative art.">
-<meta name="theme-color" content="#0d0d10">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='3' fill='%23161618'/%3E%3Cpath d='M8 24V12l8-6 8 6v12z' fill='%23ff7a45'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="museum.css">
-<script type="importmap">{ "imports": { "three": "./js/vendor/three.module.min.js" } }</script>
-</head>
-<body>
-  <canvas id="view" aria-label="The museum, first-person view"></canvas>
-
-  <div id="hud" aria-hidden="false">
-    <div class="cross" aria-hidden="true"></div>
-    <button class="menu" id="menu" type="button" aria-label="Menu">☰</button>
-    <canvas id="minimap" aria-label="Map"></canvas>
-    <div class="where" id="where"></div>
-    <div class="caption" id="caption" role="button" tabindex="-1" aria-live="polite">
-      <div class="c-title" id="c-title"></div>
-      <div class="c-line"><span id="c-medium"></span> · seed “<span id="c-seed"></span>”</div>
-      <div class="c-act"><span class="key">E</span><span class="tap"> / tap</span> to open</div>
-    </div>
-    <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
-  </div>
-
-  <div class="overlay" id="overlay">
-    <div class="card">
-      <a class="back" href="./">← Gallery</a>
-      <h1>Museum</h1>
-      <p class="lede">An endless building of rooms, mazes and halls. Every wall is hung with art made from a seed.</p>
-      <p class="seedline">One museum, the same for everyone. It has no end — go far enough and you’ll be somewhere nobody has seen.</p>
-      <button class="enter" id="enter" type="button">Click to walk</button>
-      <ul class="help" id="help-desk">
-        <li><b>W A S D</b> or arrows walk · <b>Shift</b> run · mouse looks</li>
-        <li><b>E</b> opens the picture you’re facing · <b>M</b> map · <b>Q</b> look · <b>Esc</b> menu (copy a link to where you are)</li>
-      </ul>
-      <ul class="help" id="help-touch" hidden>
-        <li>Drag on the <b>left</b> to walk, on the <b>right</b> to look</li>
-        <li>Tap a picture’s label to open it</li>
-      </ul>
-      <button class="quality" id="quality" type="button"></button>
-      <div class="rowbtns">
-        <button class="quality" id="share" type="button">Copy a link to this spot</button>
-        <button class="quality" id="home" type="button">Back to the entrance</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="js/museum/main.js"></script>
-</body>
-</html>
+<meta http-equiv="refresh" content="0; url=./">
+<script>location.replace('./' + location.hash);</script>
+<p>The museum has moved to <a href="./">the front page</a>.</p>
