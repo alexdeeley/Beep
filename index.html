@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>deeley.org</title>
-<meta name="description" content="A small gallery of self-contained apps — games and art." />
+<meta name="description" content="Games, art and music experiments by Alex Deeley - made to be played in the browser." />
 <meta name="theme-color" content="#000000" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="./manifest.json" />
@@ -19,6 +19,8 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
   html, body {
     margin: 0;
     min-height: 100%;
@@ -26,273 +28,35 @@
     color: #f2f2f5;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-  main {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 20px 24px 100px;
-  }
-  .topbar {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #1c1c20;
-  }
-  h1 {
-    font-family: Helvetica, Arial, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    font-size: clamp(0.95rem, 4.2vw, 2rem);
-    color: #f2f2f5;
-    margin: 0;
-    flex: 0 0 auto;
-  }
-  .section-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 20px 0 4px;
-  }
-  .list-heading {
-    color: #6b6b78;
-    font-weight: 800;
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-  .sort-btn {
-    appearance: none;
-    background: none;
-    border: 1px solid #2a2a30;
-    color: #6b6b78;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 0.62rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 4px 9px;
-    border-radius: 999px;
-    cursor: pointer;
-    margin-left: auto;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .sort-btn:hover, .sort-btn:active {
-    color: #f2f2f5;
-    border-color: #4a4a54;
-  }
-  #tabs {
-    display: flex;
-    gap: 4px;
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-x: auto;
-  }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 20px 90px; }
+  .hidden { display: none !important; }
+
+  /* ── Top bar and tabs ─────────────────────────────── */
+  .topbar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #1c1c20; }
+  h1 { font-family: Helvetica, Arial, sans-serif; font-weight: 700; letter-spacing: -0.03em; font-size: clamp(0.95rem, 4.2vw, 2rem); color: #f2f2f5; margin: 0; flex: 0 0 auto; }
+  #tabs { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; }
   .tab {
-    appearance: none;
-    background: none;
-    border: 0;
-    color: #4a4a54;
-    font-family: inherit;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    font-size: clamp(0.8rem, 3.6vw, 1.8rem);
-    text-transform: lowercase;
-    white-space: nowrap;
-    padding: 6px 4px 10px;
-    margin-right: 12px;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
+    appearance: none; background: none; border: 0; color: #4a4a54;
+    font-family: inherit; font-weight: 800; letter-spacing: -0.02em;
+    font-size: clamp(0.8rem, 3.6vw, 1.8rem); text-transform: lowercase; white-space: nowrap;
+    padding: 6px 4px 10px; margin-right: 12px; cursor: pointer;
+    border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s;
   }
-  .tab.active {
-    color: #fff;
-    border-bottom-color: #fff;
-  }
+  .tab.active { color: #fff; border-bottom-color: #fff; }
   .tab:hover { color: #b8b8c2; }
-  .search-bar { margin-bottom: 14px; }
+  .search-bar { margin-bottom: 18px; }
   #appSearch {
-    width: 100%;
-    background: #0c0c0e;
-    border: 1px solid #2a2a30;
-    color: #f2f2f5;
-    font-family: inherit;
-    font-size: 0.9rem;
-    padding: 10px 14px;
-    border-radius: 8px;
-    outline: none;
-    transition: border-color 0.15s;
+    width: 100%; background: #0c0c0e; border: 1px solid #2a2a30; color: #f2f2f5;
+    font-family: inherit; font-size: 0.9rem; padding: 10px 14px; border-radius: 8px; outline: none; transition: border-color 0.15s;
   }
   #appSearch::placeholder { color: #5c5c68; }
   #appSearch:focus { border-color: #6b6b78; }
-  #appList {
-    display: flex;
-    flex-direction: column;
-  }
-  a.app-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    text-decoration: none;
-    color: #f2f2f5;
-    padding: 12px 0;
-    border-bottom: 1px solid #141416;
-    transition: color 0.15s, padding-left 0.15s;
-  }
-  a.app-item:last-child { border-bottom: 0; }
-  a.app-item:hover, a.app-item:active {
-    color: #fff;
-    padding-left: 12px;
-  }
-  a.app-item .app-text { min-width: 0; flex: 1 1 auto; }
-  a.app-item .app-thumb {
-    flex: 0 0 auto;
-    width: 84px;
-    height: 56px;
-    object-fit: cover;
-    border-radius: 8px;
-    background: #141418;
-    border: 1px solid #1c1c20;
-  }
-  a.app-item h2 {
-    margin: 0;
-    font-weight: 800;
-    font-size: clamp(1.6rem, 6vw, 2.3rem);
-    text-transform: lowercase;
-    letter-spacing: -0.02em;
-    line-height: 1.08;
-  }
-  a.app-item p {
-    margin: 3px 0 0;
-    color: #5c5c68;
-    font-size: 0.66rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-weight: 700;
-    line-height: 1.4;
-    transition: color 0.15s;
-  }
-  a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
 
-  /* Big image-forward cards instead of the compact row list - easier to
-     see at a glance, and a much bigger tap target. Scoped to
-     #newSection/#appList while Games, Maisie's Arcade, or Art is active. */
-  .card-view a.app-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: 0 0 16px;
-    margin-bottom: 18px;
-    border: 2px solid #2a2a30;
-    border-radius: 18px;
-    overflow: hidden;
-    background: #101014;
-  }
-  .card-view a.app-item:last-child { margin-bottom: 0; }
-  .card-view a.app-item:hover, .card-view a.app-item:active {
-    padding-left: 0;
-    border-color: #4a4a54;
-  }
-  .card-view a.app-item .app-thumb {
-    order: -1;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 3 / 2;
-    border-radius: 0;
-    border: 0;
-    border-bottom: 2px solid #2a2a30;
-  }
-  .card-view a.app-item .app-text { padding: 14px 18px 0; }
-  .card-view a.app-item h2 {
-    font-size: clamp(1.7rem, 7vw, 2.3rem);
-    text-transform: none;
-  }
-  .card-view a.app-item p {
-    font-size: 0.85rem;
-    letter-spacing: 0.01em;
-    text-transform: none;
-    font-weight: 600;
-    color: #9a9aa4;
-    line-height: 1.45;
-  }
-  .card-view a.app-item:hover p, .card-view a.app-item:active p { color: #b8b8c2; }
-
-  /* Maisie's Arcade gets a fully different, vivid pink-and-purple unicorn
-     theme instead of the site's usual black - it's Maisie's own space, and
-     it should look and feel unmistakably different the moment you land on
-     it. Scoped to body so the swap covers the whole page - topbar, search,
-     section headings, cards - not just the app list. Fixed attachment so
-     the gradient stays a full, punchy band behind the content at any
-     scroll depth instead of stretching thin over a long page. */
-  body.maisie-theme {
-    background: linear-gradient(165deg, #2a0845 0%, #6a0dad 30%, #c724b1 62%, #ff5fa8 100%);
-    background-attachment: fixed;
-  }
-  .maisie-theme .list-heading { color: #fff; text-shadow: 0 1px 4px rgba(42,8,69,0.5); }
-  .maisie-theme .sort-btn {
-    background: rgba(255,255,255,0.92);
-    color: #7209b7;
-    border-color: transparent;
-  }
-  .maisie-theme .sort-btn:hover, .maisie-theme .sort-btn:active { color: #c724b1; }
-  .maisie-theme #appSearch {
-    background: rgba(255,255,255,0.92);
-    border-color: transparent;
-    color: #4a0d6b;
-  }
-  .maisie-theme #appSearch::placeholder { color: #a35fc9; }
-  .maisie-theme .tab { color: rgba(255,255,255,0.55); }
-  .maisie-theme .tab.active { color: #fff; border-bottom-color: #fff; }
-  .maisie-theme .empty { color: #ffe3f5; }
-
-  .maisie-theme .card-view a.app-item {
-    background: #fff8fd;
-    border-color: #ff5fa8;
-    border-width: 3px;
-  }
-  .maisie-theme .card-view a.app-item:hover,
-  .maisie-theme .card-view a.app-item:active { border-color: #ffd23f; }
-  .maisie-theme .card-view a.app-item .app-thumb { border-bottom-color: #ff5fa8; }
-  .maisie-theme .card-view a.app-item h2 { color: #5b0e8c; }
-  .maisie-theme .card-view a.app-item p { color: #9147b0; }
-  .maisie-theme .card-view a.app-item:hover p,
-  .maisie-theme .card-view a.app-item:active p { color: #c724b1; }
-
-  .maisie-intro {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 4px 0 18px;
-  }
-  .maisie-intro .mi-emoji {
-    font-size: 2.6rem;
-    line-height: 1;
-    filter: drop-shadow(0 2px 6px rgba(42,8,69,0.5));
-  }
-  .maisie-intro h2 {
-    margin: 0;
-    font-family: "Kalam", "Comic Sans MS", cursive;
-    font-weight: 700;
-    font-size: clamp(1.6rem, 7vw, 2.3rem);
-    color: #fff;
-    text-shadow: 0 2px 8px rgba(107,14,140,0.6);
-    line-height: 1.05;
-  }
-  .maisie-intro p {
-    margin: 4px 0 0;
-    color: #ffe3f5;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-
-  .empty {
-    color: #46464f;
-    font-size: 0.85rem;
-  }
-  .hidden { display: none !important; }
-
+  /* ── Banners: the multiplayer / shared things, first on the page ── */
+  .banner-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 6px 0 30px; }
+  @media (min-width: 700px) { .banner-grid { grid-template-columns: 1fr 1fr; } }
+  .banner-grid > a { margin: 0 !important; }
+  .banner-grid > a.draw-banner { align-self: stretch; }
   /* A deliberately different, light "sketched" look for the Draw Together
      banner - the rest of the site is dark and clean, this is meant to
      look hand-drawn on paper so it stands out as a special pick, not
@@ -414,78 +178,105 @@
     border-radius: 3px;
     border: 2px solid #0c0c10;
   }
-  .blurb {
-    color: #9a9aa4;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    margin: 4px 0 8px;
+
+  /* The Museum: a gold picture frame on a dark gallery wall. */
+  .museum-banner {
+    display: flex; align-items: center; gap: 16px; padding: 16px 18px; text-decoration: none; color: #fff7e6;
+    background: linear-gradient(180deg, #1b1530 0%, #2a1f4a 100%);
+    border: 6px solid #d9a441; border-radius: 6px;
+    box-shadow: inset 0 0 0 3px #7a5314, 0 0 0 2px #000, 0 8px 26px rgba(217, 164, 65, 0.2);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .blurb + .blurb { margin-top: 14px; }
-  a.link-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    text-decoration: none;
-    color: #f2f2f5;
-    padding: 16px 0;
-    border-bottom: 1px solid #141416;
-    transition: color 0.15s, padding-left 0.15s;
+  .museum-banner:hover, .museum-banner:active { transform: translateY(-2px); box-shadow: inset 0 0 0 3px #7a5314, 0 0 0 2px #000, 0 12px 30px rgba(217, 164, 65, 0.35); }
+  .museum-banner .mb-frame { flex: 0 0 auto; width: 96px; height: 96px; border: 5px solid #d9a441; box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #7a5314; background: #000; overflow: hidden; }
+  .museum-banner .mb-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .museum-banner .mb-text { min-width: 0; flex: 1 1 auto; }
+  .museum-banner h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: clamp(1.45rem, 6vw, 1.9rem); color: #ffe9b0; line-height: 1.05; }
+  .museum-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #eadfc4; line-height: 1.35; font-weight: 500; }
+  .museum-banner .mb-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #ffe9b0; border-bottom: 2.5px solid #d9a441; }
+
+  /* ARKANOID // DUEL: neon on black, with a tiny arena drawn in CSS. */
+  .duel-banner {
+    display: flex; align-items: center; gap: 16px; padding: 16px 18px; text-decoration: none; color: #fff;
+    background: #000; border: 3px solid #18d4e8; border-radius: 14px;
+    box-shadow: 0 0 0 1px #000, 0 0 18px rgba(24, 212, 232, 0.55), inset 0 0 22px rgba(255, 79, 176, 0.22);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  a.link-item:last-child { border-bottom: 0; }
-  a.link-item:hover, a.link-item:active {
-    color: #fff;
-    padding-left: 12px;
+  .duel-banner:hover, .duel-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 1px #000, 0 0 26px rgba(24, 212, 232, 0.85), inset 0 0 22px rgba(255, 79, 176, 0.35); }
+  .duel-banner .db-arena { flex: 0 0 auto; position: relative; width: 66px; height: 96px; border: 2px solid #39407a; border-radius: 6px; background: #05061a; }
+  .db-arena i { position: absolute; display: block; }
+  .db-arena .p2 { top: 7px; left: 18px; width: 30px; height: 6px; border-radius: 3px; background: #ff4fb0; box-shadow: 0 0 8px #ff4fb0; }
+  .db-arena .p1 { bottom: 7px; left: 26px; width: 30px; height: 6px; border-radius: 3px; background: #18d4e8; box-shadow: 0 0 8px #18d4e8; }
+  .db-arena .w1, .db-arena .w2 { left: 6px; right: 6px; height: 7px; }
+  .db-arena .w1 { top: 34px; background: repeating-linear-gradient(90deg, #ff4fb0 0 8px, transparent 8px 10px); }
+  .db-arena .w2 { top: 44px; background: repeating-linear-gradient(90deg, #18d4e8 0 8px, transparent 8px 10px); }
+  .db-arena .ball { left: 36px; top: 62px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #fff; }
+  .duel-banner .dl-text { min-width: 0; flex: 1 1 auto; }
+  .duel-banner h2 { margin: 0; font-weight: 800; font-size: clamp(1.25rem, 5.4vw, 1.7rem); letter-spacing: 0.04em; line-height: 1.05; text-shadow: 0 0 12px rgba(24, 212, 232, 0.6); }
+  .duel-banner h2 i { font-style: normal; color: #ff4fb0; }
+  .duel-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #cfeaff; line-height: 1.35; font-weight: 500; }
+  .duel-banner .dl-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #18d4e8; border: 2px solid #18d4e8; border-radius: 3px; padding: 1px 8px; }
+
+  /* ── Section headings ─────────────────────────────── */
+  .section-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
+  .list-heading { color: #8c8c9a; font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .jump {
+    font-weight: 800; font-size: 0.74rem; letter-spacing: 0.04em; text-decoration: none; color: #fff;
+    background: linear-gradient(135deg, #6a0dad, #c724b1); padding: 6px 12px; border-radius: 999px;
   }
-  a.link-item h2 {
-    margin: 0;
-    font-weight: 800;
-    font-size: clamp(1.4rem, 5.5vw, 1.9rem);
-    letter-spacing: -0.02em;
-    line-height: 1.08;
+  .jump:hover, .jump:active { filter: brightness(1.15); }
+
+  /* ── The tiles: bold colour, big names, newest first ── */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  a.tile {
+    position: relative; display: flex; flex-direction: column; aspect-ratio: 1 / 1; overflow: hidden;
+    text-decoration: none; color: var(--ink); background: var(--c);
+    border: 3px solid var(--c); border-radius: 20px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
-  a.link-item p {
-    margin: 3px 0 0;
-    color: #5c5c68;
-    font-size: 0.66rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-weight: 700;
-    line-height: 1.4;
-    transition: color 0.15s;
+  a.tile:hover, a.tile:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); }
+  a.tile:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  a.tile .tile-img { display: block; flex: 1 1 0; min-height: 0; width: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
+  a.tile .tile-name { flex: 0 0 auto; padding: 9px 11px 11px; }
+  a.tile .tile-name span {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    font-weight: 800; letter-spacing: -0.01em; font-size: clamp(0.95rem, 3.9vw, 1.2rem); line-height: 1.12;
   }
-  a.link-item:hover p, a.link-item:active p { color: #8c8c9a; }
-  a.link-item .arrow {
-    flex: 0 0 auto;
-    color: #46464f;
-    font-size: 1.4rem;
-    transition: color 0.15s;
+  a.tile .new {
+    position: absolute; top: 8px; left: 8px; background: #000; color: #ffd43b; font-weight: 800;
+    font-size: 0.64rem; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 999px; border: 2px solid #ffd43b;
   }
-  a.link-item:hover .arrow, a.link-item:active .arrow { color: #8c8c9a; }
-  .site-footer {
-    margin-top: 36px;
-    padding-top: 16px;
-    border-top: 1px solid #1c1c20;
-    color: #46464f;
-    font-size: 0.72rem;
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+  .empty { color: #6b6b78; font-size: 0.9rem; }
+
+  /* Maisie's Arcade: a chunk of Games, in its own pink-and-purple space. */
+  .maisie-chunk {
+    margin-top: 40px; padding: 20px 18px 22px; border-radius: 28px; scroll-margin-top: 12px;
+    background: linear-gradient(165deg, #2a0845 0%, #6a0dad 32%, #c724b1 68%, #ff5fa8 100%);
   }
+  .maisie-chunk .mc-head { display: flex; align-items: center; gap: 14px; margin: 0 0 16px; }
+  .maisie-chunk .mc-emoji { font-size: 2.6rem; line-height: 1; filter: drop-shadow(0 2px 6px rgba(42, 8, 69, 0.5)); }
+  .maisie-chunk h2 { margin: 0; font-family: "Kalam", "Comic Sans MS", cursive; font-weight: 700; font-size: clamp(1.6rem, 7vw, 2.3rem); color: #fff; text-shadow: 0 2px 8px rgba(107, 14, 140, 0.6); line-height: 1.05; }
+  .maisie-chunk p { margin: 4px 0 0; color: #ffe3f5; font-size: 0.9rem; font-weight: 600; }
+  .maisie-chunk a.tile { border-color: #fff8fd; }
+
+  /* ── Search results stay a compact list ── */
+  #appList { display: flex; flex-direction: column; }
+  a.app-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: #f2f2f5; padding: 12px 0; border-bottom: 1px solid #141416; transition: color 0.15s, padding-left 0.15s; }
+  a.app-item:last-child { border-bottom: 0; }
+  a.app-item:hover, a.app-item:active { color: #fff; padding-left: 12px; }
+  a.app-item .app-text { min-width: 0; flex: 1 1 auto; }
+  a.app-item .app-thumb { flex: 0 0 auto; width: 84px; height: 56px; object-fit: cover; border-radius: 8px; background: #141418; border: 1px solid #1c1c20; }
+  a.app-item h2 { margin: 0; font-weight: 800; font-size: clamp(1.4rem, 5.5vw, 1.9rem); text-transform: lowercase; letter-spacing: -0.02em; line-height: 1.08; }
+  a.app-item p { margin: 3px 0 0; color: #5c5c68; font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; line-height: 1.4; }
+  a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
+
+  /* ── Footer ── */
+  .notice { margin: 36px 0 0; padding: 12px 14px; border-left: 3px solid #6b4a1a; background: #16130d; color: #c9a877; border-radius: 4px; font-size: 0.82rem; line-height: 1.5; }
+  .notice a { color: #e6c690; }
+  .site-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid #1c1c20; color: #46464f; font-size: 0.72rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .site-footer img { display: block; opacity: 0.75; }
-  .a11y-note {
-    border-left: 3px solid #6b4a1a;
-    background: #16130d;
-    color: #c9a877;
-    padding: 12px 14px;
-    border-radius: 4px;
-    font-size: 0.82rem;
-    line-height: 1.55;
-    margin: 0 0 20px;
-  }
   .a2hs-banner {
+    margin-top: 28px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -556,117 +347,6 @@
     letter-spacing: 0.04em;
     cursor: pointer;
   }
-  .essay-heading {
-    color: #f2f2f5;
-    font-weight: 800;
-    font-size: 1.05rem;
-    letter-spacing: -0.01em;
-    margin: 28px 0 10px;
-  }
-  .step-heading {
-    color: #f2f2f5;
-    font-weight: 700;
-    font-size: 0.92rem;
-    margin: 16px 0 4px;
-  }
-  .hero-row {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-  .hero-row .hero-emoji { flex: 0 0 40%; max-width: 40%; }
-  .hero-row .a11y-note { flex: 1 1 0; margin: 0; }
-  .hero-emoji { line-height: 1; }
-  .hero-emoji svg { display: block; width: 100%; max-width: 130px; height: auto; }
-  .art-strip {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin: 10px 0 20px;
-  }
-  .art-strip a {
-    display: block;
-    text-decoration: none;
-    border: 1px solid #1c1c20;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: border-color 0.15s;
-  }
-  .art-strip a:hover, .art-strip a:active { border-color: #4a4a54; }
-  .art-strip img {
-    display: block;
-    width: 100%;
-    height: 110px;
-    object-fit: cover;
-    background: #141418;
-  }
-  .art-strip span {
-    display: block;
-    padding: 6px 8px;
-    color: #9a9aa4;
-    font-size: 0.66rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-  /* Home-page "Latest" widget: a small Games/Art tab switcher showing the
-     3 most recently added items from whichever category is picked, so the
-     front page always points at current work without needing manual edits. */
-  .latest-widget { margin: 16px 0 24px; }
-  .latest-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .latest-tab {
-    appearance: none;
-    background: none;
-    border: 1px solid #2a2a30;
-    color: #6b6b78;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 0.7rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 6px 14px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-  }
-  .latest-tab:hover { color: #f2f2f5; border-color: #4a4a54; }
-  .latest-tab.active {
-    color: #000;
-    background: #f2f2f5;
-    border-color: #f2f2f5;
-  }
-  .latest-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .latest-grid a {
-    display: block;
-    text-decoration: none;
-    border: 1px solid #1c1c20;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: border-color 0.15s;
-  }
-  .latest-grid a:hover, .latest-grid a:active { border-color: #4a4a54; }
-  .latest-grid img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 3 / 2;
-    object-fit: cover;
-    background: #141418;
-  }
-  .latest-grid span {
-    display: block;
-    padding: 5px 6px;
-    color: #9a9aa4;
-    font-size: 0.6rem;
-    letter-spacing: 0.02em;
-    font-weight: 700;
-    line-height: 1.3;
-  }
 </style>
 </head>
 <body>
@@ -678,8 +358,46 @@
   <div class="search-bar">
     <input type="search" id="appSearch" placeholder="Search apps by name or keyword&hellip;" autocomplete="off" />
   </div>
-  <div id="homeContent" class="hidden">
-      <div id="a2hsBanner" class="a2hs-banner hidden">
+
+  <div id="banners" class="banner-grid">
+    <a class="draw-banner" href="https://draw.deeley.org" target="_blank" rel="noopener noreferrer">
+      <span class="db-emoji" aria-hidden="true">✏️</span>
+      <span class="db-text">
+        <h2>Draw Together</h2>
+        <p>Sketch a secret word live and guess together &mdash; up to 16 players, one link.</p>
+        <span class="db-cta">draw.deeley.org &#8599;</span>
+      </span>
+    </a>
+    <a class="museum-banner" href="https://gallery.deeley.org/museum" target="_blank" rel="noopener noreferrer">
+      <span class="mb-frame"><img src="./thumbnails/museum.jpg" alt="" loading="lazy" /></span>
+      <span class="mb-text">
+        <h2>The Museum</h2>
+        <p>Walk an endless voxel museum &mdash; the same for everyone. Sign the visitor&rsquo;s book.</p>
+        <span class="mb-cta">gallery.deeley.org &#8599;</span>
+      </span>
+    </a>
+    <a class="duel-banner" href="https://duel.deeley.org" target="_blank" rel="noopener noreferrer">
+      <span class="db-arena" aria-hidden="true"><i class="p2"></i><i class="w1"></i><i class="w2"></i><i class="ball"></i><i class="p1"></i></span>
+      <span class="dl-text">
+        <h2>ARKANOID <i>//</i> DUEL</h2>
+        <p>Two players. One ball. One wall. Play a friend with a passcode &mdash; or the computer.</p>
+        <span class="dl-cta">duel.deeley.org &#8599;</span>
+      </span>
+    </a>
+    <a class="play-lb-banner" href="https://play.deeley.org/leaderboard" target="_blank" rel="noopener noreferrer">
+      <span class="plb-trophy" aria-hidden="true">&#127942;</span>
+      <span class="plb-text">
+        <h2>HIGH SCORES</h2>
+        <p>Every mini-game on Play feeds one shared leaderboard. Beat it, put your name on it.</p>
+        <span class="plb-cta">play.deeley.org/leaderboard &#8599;</span>
+      </span>
+    </a>
+  </div>
+
+  <div id="content"></div>
+  <div id="appList" class="hidden"></div>
+
+  <div id="a2hsBanner" class="a2hs-banner hidden">
         <span class="icon">&#128241;</span>
         <div class="text">
           <strong>Add to Home Screen</strong>
@@ -701,266 +419,72 @@
           <button id="a2hsCloseBtn">Got it</button>
         </div>
       </div>
-      <div class="hero-row">
-        <div class="hero-emoji" role="img" aria-label="Illustration of Alex: a man with brown hair, a beard, and glasses, wearing a plaid shirt, blue jeans, and AirPods, holding a white cane">
-          <svg viewBox="0 0 100 150" aria-hidden="true" focusable="false">
-            <line x1="74" y1="92" x2="87" y2="147" stroke="#e7e7ea" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="87" cy="147" r="2.5" fill="#c9c9d0"/>
 
-            <rect x="38" y="98" width="12" height="40" rx="4" fill="#39547a"/>
-            <rect x="52" y="98" width="12" height="40" rx="4" fill="#2f4666"/>
-            <line x1="44" y1="100" x2="44" y2="136" stroke="#24344c" stroke-width="1"/>
-            <line x1="58" y1="100" x2="58" y2="136" stroke="#1c2940" stroke-width="1"/>
-            <rect x="36" y="136" width="16" height="7" rx="3" fill="#1c1c20"/>
-            <rect x="50" y="136" width="16" height="7" rx="3" fill="#141418"/>
-
-            <rect x="23" y="59" width="10" height="34" rx="5" fill="#7a2c2c"/>
-            <circle cx="28" cy="95" r="5.5" fill="#dba179"/>
-            <rect x="69" y="59" width="10" height="34" rx="5" fill="#7a2c2c"/>
-            <circle cx="74" cy="95" r="5.5" fill="#dba179"/>
-
-            <rect x="32" y="58" width="40" height="42" rx="6" fill="#8a3232"/>
-            <g stroke="#2a2020" stroke-width="1.4" opacity="0.55">
-              <line x1="32" y1="70" x2="72" y2="70"/>
-              <line x1="32" y1="82" x2="72" y2="82"/>
-              <line x1="32" y1="94" x2="72" y2="94"/>
-              <line x1="44" y1="58" x2="44" y2="100"/>
-              <line x1="60" y1="58" x2="60" y2="100"/>
-            </g>
-            <g stroke="#c98f6b" stroke-width="0.8" opacity="0.5">
-              <line x1="32" y1="64" x2="72" y2="64"/>
-              <line x1="32" y1="88" x2="72" y2="88"/>
-              <line x1="38" y1="58" x2="38" y2="100"/>
-              <line x1="66" y1="58" x2="66" y2="100"/>
-            </g>
-
-            <rect x="45" y="48" width="10" height="10" fill="#dba179"/>
-            <circle cx="34" cy="35" r="3" fill="#dba179"/>
-            <circle cx="66" cy="35" r="3" fill="#dba179"/>
-
-            <ellipse cx="50" cy="41" rx="17" ry="17" fill="#5b3a29"/>
-            <circle cx="50" cy="34" r="16" fill="#e0ac82"/>
-            <path d="M34,26 Q34,10 50,9 Q66,10 66,26 Q66,17 50,15 Q34,17 34,26 Z" fill="#5b3a29"/>
-
-            <circle cx="43" cy="33" r="6.5" fill="rgba(255,255,255,0.08)" stroke="#1a1a1a" stroke-width="2"/>
-            <circle cx="57" cy="33" r="6.5" fill="rgba(255,255,255,0.08)" stroke="#1a1a1a" stroke-width="2"/>
-            <line x1="49.5" y1="33" x2="50.5" y2="33" stroke="#1a1a1a" stroke-width="2"/>
-            <line x1="36.5" y1="31" x2="32" y2="30" stroke="#1a1a1a" stroke-width="2"/>
-            <line x1="63.5" y1="31" x2="68" y2="30" stroke="#1a1a1a" stroke-width="2"/>
-
-            <g fill="#f2f2f5">
-              <ellipse cx="32" cy="37" rx="2.4" ry="3.6"/>
-              <rect x="30.5" y="39" width="1.6" height="6" rx="0.8" transform="rotate(-10 31.3 42)"/>
-              <ellipse cx="68" cy="37" rx="2.4" ry="3.6"/>
-              <rect x="67.9" y="39" width="1.6" height="6" rx="0.8" transform="rotate(10 68.7 42)"/>
-            </g>
-          </svg>
-        </div>
-        <p class="a11y-note"><strong>Accessibility note:</strong> This site includes flashing and strobing light effects. If you are sensitive to these effects, please do not continue. Individual project pages may also include additional content warnings where needed.</p>
-      </div>
-
-        <p class="blurb">Thank you for visiting. My name is Alex Deeley. I am a legally blind artist based in the Pacific Northwest.</p>
-        <p class="blurb">I have retinitis pigmentosa, and my vision shapes the way I work. Much of what I create relies on contrast, saturation, movement, and visual intensity. My work often explores what remains visible, what breaks apart, and what demands attention when sight is partial, unstable, or changing.</p>
-        <p class="blurb">This site is an active workspace as much as a portfolio. Some projects are complete, some are still developing, and some may not work as intended. I&rsquo;ve left that visible on purpose. Experimentation, revision, and failure are all part of the process.</p>
-        <p class="blurb">Projects are organized by category in the menu above. Most of the apps and interactive pieces here are designed to work on both mobile phones and desktop computers.</p>
-
-        <div class="latest-widget">
-          <div class="latest-tabs">
-            <button type="button" class="latest-tab" id="latestTabGames">Latest games</button>
-            <button type="button" class="latest-tab" id="latestTabMaisie">Latest Maisie</button>
-            <button type="button" class="latest-tab" id="latestTabArt">Latest art</button>
-          </div>
-          <div class="latest-grid" id="latestGrid"></div>
-        </div>
-
-        <div class="essay-heading">My creative process</div>
-
-        <div class="step-heading">1. Idea phase</div>
-        <p class="blurb">This usually takes the longest. Inspiration can come from another artist&rsquo;s work, from natural forms like water or weather, or from ordinary visual patterns such as passing traffic, reflected light, repetition, or motion. I&rsquo;m often interested in translating these experiences into something more graphic, exaggerated, or immersive.</p>
-
-        <div class="step-heading">2. Planning phase</div>
-        <p class="blurb">Once I know the direction I want to explore, I choose the tools that best fit the project. For many recent works, that process begins with AI-assisted prompt writing. I use ChatGPT to help me structure ideas into detailed prompts that reflect my visual style and accessibility needs, including a preference for bold contrast, strong separation, and other features that work with my eyesight rather than against it.</p>
-        <p class="blurb">I then use those prompts in Claude to generate prototypes, code experiments, or interactive pieces. This allows me to move quickly from concept to testable draft.</p>
-
-        <div class="step-heading">3. Refinement phase</div>
-        <p class="blurb">This is where the real work begins. I treat generated outputs as raw material, not finished pieces. My role is to direct, edit, test, and push the work until it becomes more specific, more intentional, and more fully mine. I often try to find the limits of a tool, system, or visual idea to see what happens when it starts to strain or fail.</p>
-
-        <div class="step-heading">4. Deployment phase</div>
-        <p class="blurb">Once a piece is close to what I want&mdash;or has taken an unexpected turn worth keeping&mdash;I save and move it into the environment where I publish and maintain my work. This site also houses several of my other AI-based experiments.</p>
-
-        <div class="step-heading">5. Recording / production phase</div>
-        <p class="blurb">This part changes depending on the project. For music visualizers and video-based work, I often choose sound after the visual concept is already underway. I listen widely until I find something that fits the structure, movement, or mood of the piece.</p>
-        <p class="blurb">That might mean fast, nervous electronic percussion for work built around rigid forms and sharp motion, or a quieter and more restrained sound for something slower, softer, or less defined. I usually do not begin with music first; I build toward it.</p>
-
-        <div class="essay-heading">My process for visual art</div>
-        <p class="blurb">I typically use an iPad and Apple Pencil for graphical work. My main tools include SketchClub, Procreate, and several custom-built apps that help me generate or repeat specific forms, patterns, and visual behaviors. Some of those tools are available on this site under the Art section.</p>
-
-        <div class="art-strip">
-          <a href="./SmoothWaveField.html">
-            <img src="./thumbnails/smooth-wave-field.jpg" alt="Wave Field — a bold orange and black triangle wave pattern" loading="lazy">
-            <span>Wave Field</span>
-          </a>
-          <a href="./HighContrastKaleidoscope.html">
-            <img src="./thumbnails/neo-high-contrast-kaleidoscope.jpg" alt="Contrast Kaleidoscope — stark black-and-white kaleidoscope" loading="lazy">
-            <span>Contrast Kaleidoscope</span>
-          </a>
-          <a href="./OrbitalDots.html">
-            <img src="./thumbnails/neo-orbital-dots.jpg" alt="Orbital Dots — a grid of glowing dots on a dark violet field" loading="lazy">
-            <span>Orbital Dots</span>
-          </a>
-          <a href="./SwipeStretchLines.html">
-            <img src="./thumbnails/neo-swipe-stretch-lines.jpg" alt="Stretch Lines — high-contrast vertical white lines on black" loading="lazy">
-            <span>Stretch Lines</span>
-          </a>
-        </div>
-
-        <div class="essay-heading">My process for music</div>
-        <p class="blurb">I&rsquo;ve been making music as a hobby since I was a teenager. I&rsquo;m not committed to one genre and prefer to move between different approaches to rhythm, melody, structure, and texture.</p>
-        <p class="blurb">Depending on the kind of piece I&rsquo;m making, I begin in different places. For more traditional song-based work, I often start in GarageBand and export through DistroKid.</p>
-        <p class="blurb">I also use Suno AI as part of my process. As with app development, I use AI tools to help translate rough ideas into structured prompts, which can lead to results that are unpredictable, strange, or unexpectedly useful.</p>
-        <p class="blurb">I also build my own instruments, synthesizers, drum machines, and looping tools.</p>
-
-        <p class="blurb" style="margin-top: 28px;">Thank you for spending time here.</p>
-        <p class="blurb">I hope the work on this site offers a clearer sense of how I make art, how I use technology, and how disability informs the way I see, choose, and build.</p>
-        <p class="blurb">&mdash; Alex</p>
-
-        <div class="list-heading" style="margin-top: 28px;">Elsewhere</div>
-        <a class="link-item" href="https://alexdeeley.substack.com" target="_blank" rel="noopener noreferrer">
-          <div>
-            <h2>Substack</h2>
-            <p>@alexdeeley</p>
-          </div>
-          <span class="arrow">&#8599;</span>
-        </a>
-        <a class="link-item" href="https://www.instagram.com/_alexs_art_alt_/" target="_blank" rel="noopener noreferrer">
-          <div>
-            <h2>Instagram</h2>
-            <p>@_alexs_art_alt_</p>
-          </div>
-          <span class="arrow">&#8599;</span>
-        </a>
-
-        <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
-  </div>
-  <div id="maisieIntro" class="maisie-intro hidden">
-    <span class="mi-emoji" aria-hidden="true">🦄</span>
-    <div class="mi-text">
-      <h2>Maisie's Arcade</h2>
-      <p>Big, bright, easy-to-see games &mdash; made just for Maisie. &#10024;</p>
-    </div>
-  </div>
-  <a id="drawBanner" class="draw-banner hidden" href="https://draw.deeley.org" target="_blank" rel="noopener noreferrer">
-    <span class="db-emoji" aria-hidden="true">✏️</span>
-    <span class="db-text">
-      <h2>Draw Together</h2>
-      <p>Sketch a secret word live and guess together &mdash; up to 16 players, one link.</p>
-      <span class="db-cta">draw.deeley.org &#8599;</span>
-    </span>
-  </a>
-  <a id="playLeaderboardBanner" class="play-lb-banner hidden" href="https://play.deeley.org/leaderboard" target="_blank" rel="noopener noreferrer">
-    <span class="plb-trophy" aria-hidden="true">&#127942;</span>
-    <span class="plb-text">
-      <h2>HIGH SCORES</h2>
-      <p>Every mini-game on Play feeds one shared leaderboard. Beat it, put your name on it.</p>
-      <span class="plb-cta">play.deeley.org/leaderboard &#8599;</span>
-    </span>
-  </a>
-  <div id="newSection"></div>
-  <div id="appList"></div>
+  <p class="notice"><strong>Heads up:</strong> some pieces here use flashing and strobing light. If that affects you, please take care. <a href="About.html">More on the About page.</a></p>
+  <p class="site-footer">&copy; 2026 Alex Deeley <img src="https://hits.sh/deeley.org-home.svg?style=flat-square&label=visitors&color=1c1c20&labelColor=000000" alt="visitor count" width="68" height="20" loading="lazy"></p>
 </main>
 
 <script>
-const TABS = ["Home", "Games", "Maisie's Arcade", "Art", "Sound"];
-const TAB_FOR_CATEGORY = { Games: "Games", "Maisie's Arcade": "Maisie's Arcade", Art: "Art" };
+// Games and Art are in-page; Sound and About are their own pages.
+const TABS = ["Games", "Art", "Sound", "About"];
+const LINKS = { Sound: "Instruments.html", About: "About.html" };
+const IN_PAGE = ["Games", "Art"];
+const CATEGORIES = { Games: ["Games"], Art: ["Art"] };
+
+// Things that already have a banner at the top, so they don't also get a tile
+// in the Games grid.
+const BANNER_HOSTS = new Set(["draw.deeley.org", "duel.deeley.org", "play.deeley.org"]);
+
+// Bold, saturated tile colours, each with the text colour that reads best on it.
+const PALETTE = [
+  ["#ff3d5a", "#000"], ["#ffd43b", "#000"], ["#2bd97a", "#000"], ["#2f5bff", "#fff"],
+  ["#ff8a1f", "#000"], ["#b24bff", "#000"], ["#18d4e8", "#000"], ["#ff4fb0", "#000"],
+];
+const MAISIE_PALETTE = [
+  ["#ff5fa8", "#000"], ["#ffd23f", "#000"], ["#7b2ff7", "#fff"], ["#ff9ad5", "#000"],
+  ["#c724b1", "#fff"], ["#a78bfa", "#000"],
+];
+const NEW_DAYS = 10;
 
 let apps = [];
-let activeTab = "Home";
+let activeTab = "Games";
 let searchQuery = "";
-// Per-section sort mode ("default" or "age"), keyed by "<tab>:<section>" so
-// toggling one section's sort doesn't affect others or survive a tab switch
-// into an unrelated section that happens to share a heading name.
-let sectionSortMode = {};
-
-const NEW_COUNT = 3;
-let newestApps = [];
-let latestCategory = "Games";
-
 const LAST_STATE_KEY = "deeley_last_state";
 
 async function main() {
   restoreLastTab();
-
   const res = await fetch("./apps.json");
   apps = await res.json();
-
-  if (apps.length === 0) {
-    document.getElementById("appList").innerHTML = '<p class="empty">Nothing here yet.</p>';
-    return;
-  }
-
-  newestApps = [...apps]
-    .sort((a, b) => new Date(b.added) - new Date(a.added))
-    .slice(0, NEW_COUNT);
-
   buildTabs();
   render();
   restoreScroll();
   initAddToHomeScreen();
-  renderLatestWidget();
-
   document.getElementById("appSearch").addEventListener("input", (e) => {
     searchQuery = e.target.value;
     render();
   });
-  document.getElementById("latestTabGames").addEventListener("click", () => {
-    latestCategory = "Games";
-    renderLatestWidget();
-  });
-  document.getElementById("latestTabMaisie").addEventListener("click", () => {
-    latestCategory = "Maisie's Arcade";
-    renderLatestWidget();
-  });
-  document.getElementById("latestTabArt").addEventListener("click", () => {
-    latestCategory = "Art";
-    renderLatestWidget();
-  });
-
   window.addEventListener("pagehide", saveLastState);
 }
 
-// Search takes over the content area regardless of which tab is active -
-// it searches across every app, not just the current tab's category - and
-// hands back to the normal tab view the moment the query is cleared.
+const newestFirst = (a, b) => new Date(b.added) - new Date(a.added) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+const hostOf = (app) => { try { return new URL(app.path, location.href).hostname; } catch (e) { return ""; } };
+
 function render() {
-  if (searchQuery.trim()) {
-    renderSearchResults();
-  } else {
-    renderActiveTab();
-  }
+  const searching = !!searchQuery.trim();
+  document.getElementById("banners").classList.toggle("hidden", searching || activeTab !== "Games");
+  document.getElementById("content").classList.toggle("hidden", searching);
+  document.getElementById("appList").classList.toggle("hidden", !searching);
+  if (searching) renderSearchResults();
+  else renderTab();
 }
 
 function renderSearchResults() {
-  document.getElementById("homeContent").classList.add("hidden");
-  document.getElementById("maisieIntro").classList.add("hidden");
-  document.getElementById("drawBanner").classList.add("hidden");
-  document.getElementById("playLeaderboardBanner").classList.add("hidden");
-  document.body.classList.remove("maisie-theme");
-  const newSectionEl = document.getElementById("newSection");
-  newSectionEl.classList.add("hidden");
-  newSectionEl.innerHTML = "";
-
   const listEl = document.getElementById("appList");
-  listEl.classList.remove("hidden");
-  // Search spans every category, so results always use the compact list
-  // regardless of which tab's big-card style was active before searching.
-  listEl.classList.remove("card-view");
   listEl.innerHTML = "";
-
   const q = searchQuery.trim().toLowerCase();
   const matches = apps
     .filter((app) => `${app.name} ${app.description} ${app.category}`.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-
   if (matches.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty";
@@ -968,8 +492,130 @@ function renderSearchResults() {
     listEl.appendChild(empty);
     return;
   }
+  for (const app of matches) listEl.appendChild(buildRow(app));
+}
 
-  for (const app of matches) listEl.appendChild(buildItem(app));
+function renderTab() {
+  const el = document.getElementById("content");
+  el.innerHTML = "";
+  const inTab = (app) => CATEGORIES[activeTab].includes(app.category);
+  let main = apps.filter(inTab).sort(newestFirst);
+  if (activeTab === "Games") main = main.filter((app) => !BANNER_HOSTS.has(hostOf(app)));
+  const maisie = activeTab === "Games" ? apps.filter((app) => app.category === "Maisie's Arcade").sort(newestFirst) : [];
+
+  if (main.length === 0 && maisie.length === 0) {
+    el.innerHTML = '<p class="empty">Nothing here yet.</p>';
+    return;
+  }
+
+  const bar = document.createElement("div");
+  bar.className = "section-bar";
+  const heading = document.createElement("span");
+  heading.className = "list-heading";
+  heading.textContent = `${activeTab} \u00b7 newest first`;
+  bar.appendChild(heading);
+  if (maisie.length) {
+    const jump = document.createElement("a");
+    jump.className = "jump";
+    jump.href = "#maisie";
+    jump.textContent = "\ud83e\udd84 Maisie\u2019s Arcade \u2193";
+    bar.appendChild(jump);
+  }
+  el.appendChild(bar);
+  el.appendChild(buildTiles(main, PALETTE));
+
+  if (maisie.length) {
+    const chunk = document.createElement("section");
+    chunk.className = "maisie-chunk";
+    chunk.id = "maisie";
+    chunk.innerHTML = '<div class="mc-head"><span class="mc-emoji" aria-hidden="true">\ud83e\udd84</span><div><h2>Maisie\u2019s Arcade</h2><p>Big, bright, easy-to-see games \u2014 made just for Maisie. \u2728</p></div></div>';
+    chunk.appendChild(buildTiles(maisie, MAISIE_PALETTE));
+    el.appendChild(chunk);
+  }
+}
+
+function buildTiles(list, palette) {
+  const grid = document.createElement("div");
+  grid.className = "tiles";
+  const now = Date.now();
+  list.forEach((app, i) => {
+    const [bg, ink] = palette[i % palette.length];
+    const a = document.createElement("a");
+    a.className = "tile";
+    a.href = app.path;
+    a.title = app.description;
+    a.style.setProperty("--c", bg);
+    a.style.setProperty("--ink", ink);
+    if (app.thumbnail) {
+      const img = document.createElement("img");
+      img.className = "tile-img";
+      img.src = app.thumbnail;
+      img.alt = "";
+      img.loading = "lazy";
+      img.addEventListener("error", () => img.remove());
+      a.appendChild(img);
+    }
+    const name = document.createElement("div");
+    name.className = "tile-name";
+    const label = document.createElement("span");
+    label.textContent = app.name;
+    name.appendChild(label);
+    a.appendChild(name);
+    if ((now - new Date(app.added)) / 86400000 <= NEW_DAYS) {
+      const pill = document.createElement("span");
+      pill.className = "new";
+      pill.textContent = "NEW";
+      a.appendChild(pill);
+    }
+    grid.appendChild(a);
+  });
+  return grid;
+}
+
+// Same-window navigation (no target="_blank") so tapping an app stays inside
+// the installed standalone PWA instead of kicking out to a browser tab.
+function buildRow(app) {
+  const item = document.createElement("a");
+  item.className = "app-item";
+  item.href = app.path;
+  const text = document.createElement("div");
+  text.className = "app-text";
+  const title = document.createElement("h2");
+  title.textContent = app.name;
+  const desc = document.createElement("p");
+  desc.textContent = app.description;
+  text.appendChild(title);
+  text.appendChild(desc);
+  item.appendChild(text);
+  if (app.thumbnail) {
+    const thumb = document.createElement("img");
+    thumb.className = "app-thumb";
+    thumb.src = app.thumbnail;
+    thumb.loading = "lazy";
+    thumb.alt = "";
+    thumb.addEventListener("error", () => thumb.remove());
+    item.appendChild(thumb);
+  }
+  return item;
+}
+
+function buildTabs() {
+  const tabsEl = document.getElementById("tabs");
+  for (const tab of TABS) {
+    const btn = document.createElement("button");
+    btn.className = "tab" + (tab === activeTab ? " active" : "");
+    btn.textContent = tab;
+    btn.dataset.tab = tab;
+    btn.addEventListener("click", () => {
+      if (LINKS[tab]) { window.location.href = LINKS[tab]; return; }
+      activeTab = tab;
+      searchQuery = "";
+      document.getElementById("appSearch").value = "";
+      [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
+      render();
+    });
+    tabsEl.appendChild(btn);
+  }
 }
 
 const A2HS_DISMISSED_KEY = "deeley_a2hs_dismissed";
@@ -1008,222 +654,23 @@ function initAddToHomeScreen() {
 function restoreLastTab() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(LAST_STATE_KEY) || "null");
-    // "Sound" is a link out (see buildTabs), never an activeTab value - so a
-    // stale saved "Sound" tab should just fall back to whatever came before it.
-    if (saved && saved.tab !== "Sound" && TABS.includes(saved.tab)) activeTab = saved.tab;
+    // Sound and About are links out, never an activeTab - and a stale saved
+    // "Home" or "Maisie's Arcade" (from before the refresh) falls back to Games.
+    if (saved && IN_PAGE.includes(saved.tab)) activeTab = saved.tab;
   } catch (e) {}
 }
 
 function restoreScroll() {
   try {
     const saved = JSON.parse(sessionStorage.getItem(LAST_STATE_KEY) || "null");
-    if (saved && typeof saved.scroll === "number") {
-      requestAnimationFrame(() => window.scrollTo(0, saved.scroll));
-    }
+    if (saved && typeof saved.scroll === "number") requestAnimationFrame(() => window.scrollTo(0, saved.scroll));
   } catch (e) {}
 }
 
-// Runs right before navigating to an app (or closing the tab) so the back
-// button - which just links to index.html - lands back on the same tab and
-// scroll position, instead of always resetting to Games at the top.
+// So the back button (which just links to index.html) lands on the same tab
+// and scroll position.
 function saveLastState() {
-  try {
-    sessionStorage.setItem(LAST_STATE_KEY, JSON.stringify({ tab: activeTab, scroll: window.scrollY }));
-  } catch (e) {}
-}
-
-function renderNewSection() {
-  const el = document.getElementById("newSection");
-  el.innerHTML = "";
-  const tabNewest = newestApps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab);
-  if (tabNewest.length === 0) return;
-
-  const bar = document.createElement("div");
-  bar.className = "section-bar";
-  const heading = document.createElement("span");
-  heading.className = "list-heading";
-  heading.textContent = "New";
-  bar.appendChild(heading);
-  el.appendChild(bar);
-
-  for (const app of tabNewest) {
-    el.appendChild(buildItem(app));
-  }
-}
-
-function buildTabs() {
-  const tabsEl = document.getElementById("tabs");
-  for (const tab of TABS) {
-    const btn = document.createElement("button");
-    btn.className = "tab" + (tab === activeTab ? " active" : "");
-    btn.textContent = tab;
-    btn.dataset.tab = tab;
-    btn.addEventListener("click", () => {
-      // Sound isn't an in-page section - it's a link out to the standalone
-      // Instruments app (its own audio engine/workspace/pages), so this is
-      // a real navigation rather than an activeTab switch + render().
-      if (tab === "Sound") {
-        window.location.href = "Instruments.html";
-        return;
-      }
-      activeTab = tab;
-      searchQuery = "";
-      document.getElementById("appSearch").value = "";
-      [...tabsEl.children].forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-      render();
-    });
-    tabsEl.appendChild(btn);
-  }
-}
-
-function renderActiveTab() {
-  const isHome = activeTab === "Home";
-  const isGames = activeTab === "Games";
-  const isMaisie = activeTab === "Maisie's Arcade";
-  const isCardView = isGames || activeTab === "Art" || isMaisie;
-  document.body.classList.toggle("maisie-theme", isMaisie);
-  document.getElementById("homeContent").classList.toggle("hidden", !isHome);
-  document.getElementById("newSection").classList.toggle("hidden", isHome);
-  document.getElementById("newSection").classList.toggle("card-view", isCardView);
-  document.getElementById("appList").classList.toggle("hidden", isHome);
-  document.getElementById("appList").classList.toggle("card-view", isCardView);
-  document.getElementById("maisieIntro").classList.toggle("hidden", !isMaisie);
-  // Draw Together lives under Maisie's Arcade now, but it's still worth a
-  // direct link from Games too, since that's where people look for it by
-  // habit - shown on both tabs, styled the same either way.
-  document.getElementById("drawBanner").classList.toggle("hidden", !(isGames || isMaisie));
-  // The high-score banner is Games-only - it's arcade-style bragging
-  // rights, not a Maisie's Arcade thing.
-  document.getElementById("playLeaderboardBanner").classList.toggle("hidden", !isGames);
-  if (isHome) return;
-  renderNewSection();
-  renderList();
-}
-
-function renderList() {
-  const listEl = document.getElementById("appList");
-  listEl.innerHTML = "";
-
-  const newIds = new Set(newestApps.map((app) => app.id));
-  const filtered = apps.filter((app) => TAB_FOR_CATEGORY[app.category] === activeTab && !newIds.has(app.id));
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<p class="empty">Nothing here yet.</p>';
-    return;
-  }
-
-  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-  const byFeaturedOrder = (a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0);
-
-  const featured = filtered.filter((app) => app.featured);
-  const rest = filtered.filter((app) => !app.featured);
-
-  if (featured.length > 0) {
-    appendSection(listEl, "Featured", featured, `${activeTab}:featured`, byFeaturedOrder);
-  }
-
-  appendSection(listEl, null, rest, `${activeTab}:all`, byName);
-}
-
-function appendSection(listEl, heading, appsInSection, sectionKey, defaultSort, extraClass) {
-  if (appsInSection.length === 0) return;
-
-  const byAge = (a, b) => new Date(a.added) - new Date(b.added);
-  const mode = sectionSortMode[sectionKey] || "default";
-  const sorted = [...appsInSection].sort(mode === "age" ? byAge : defaultSort);
-
-  const barEl = document.createElement("div");
-  barEl.className = "section-bar";
-  if (heading) {
-    const headingEl = document.createElement("span");
-    headingEl.className = "list-heading";
-    headingEl.textContent = heading;
-    barEl.appendChild(headingEl);
-  }
-  const sortBtn = document.createElement("button");
-  sortBtn.className = "sort-btn";
-  sortBtn.textContent = mode === "age" ? "Default order" : "Oldest first";
-  sortBtn.addEventListener("click", () => {
-    sectionSortMode[sectionKey] = mode === "age" ? "default" : "age";
-    renderList();
-  });
-  barEl.appendChild(sortBtn);
-  listEl.appendChild(barEl);
-
-  for (const app of sorted) {
-    listEl.appendChild(buildItem(app, extraClass));
-  }
-}
-
-function buildItem(app, extraClass) {
-  const item = document.createElement("a");
-  item.className = "app-item" + (extraClass ? " " + extraClass : "");
-  item.href = app.path;
-  // Same-window navigation (no target="_blank") so tapping an app stays
-  // inside the installed standalone PWA instead of kicking out to a new
-  // browser tab, which would show Safari/Chrome chrome again.
-
-  const text = document.createElement("div");
-  text.className = "app-text";
-
-  const title = document.createElement("h2");
-  title.textContent = app.name;
-
-  const desc = document.createElement("p");
-  desc.textContent = app.description;
-
-  text.appendChild(title);
-  text.appendChild(desc);
-  item.appendChild(text);
-
-  if (app.thumbnail) {
-    const thumb = document.createElement("img");
-    thumb.className = "app-thumb";
-    thumb.src = app.thumbnail;
-    thumb.loading = "lazy";
-    thumb.alt = "";
-    thumb.addEventListener("error", () => thumb.remove());
-    item.appendChild(thumb);
-  }
-
-  return item;
-}
-
-// Home-page "Latest" widget - a small Games/Art switcher showing the 3
-// most recently added apps in whichever category is picked, so the front
-// page always points at current work without needing manual edits.
-function buildLatestItem(app) {
-  const a = document.createElement("a");
-  a.href = app.path;
-
-  if (app.thumbnail) {
-    const img = document.createElement("img");
-    img.src = app.thumbnail;
-    img.loading = "lazy";
-    img.alt = "";
-    a.appendChild(img);
-  }
-
-  const span = document.createElement("span");
-  span.textContent = app.name;
-  a.appendChild(span);
-
-  return a;
-}
-
-function renderLatestWidget() {
-  const grid = document.getElementById("latestGrid");
-  grid.innerHTML = "";
-
-  const items = apps
-    .filter((app) => app.category === latestCategory)
-    .sort((a, b) => new Date(b.added) - new Date(a.added))
-    .slice(0, 3);
-  items.forEach((app) => grid.appendChild(buildLatestItem(app)));
-
-  document.getElementById("latestTabGames").classList.toggle("active", latestCategory === "Games");
-  document.getElementById("latestTabMaisie").classList.toggle("active", latestCategory === "Maisie's Arcade");
-  document.getElementById("latestTabArt").classList.toggle("active", latestCategory === "Art");
+  try { sessionStorage.setItem(LAST_STATE_KEY, JSON.stringify({ tab: activeTab, scroll: window.scrollY })); } catch (e) {}
 }
 
 main();
