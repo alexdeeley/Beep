@@ -88,7 +88,11 @@ export default {
     if (!url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
 
     const stub = env.TABLE.get(env.TABLE.idFromName('the-game'));     // there is only one
-    if (url.pathname === '/api/table') return stub.fetch('https://table/table');
+    if (url.pathname === '/api/table') {
+      // public, read-only: the main site's live board reads it from another origin
+      const r = await stub.fetch('https://table/table');
+      return new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
+    }
     if (url.pathname === '/api/ws') {
       if (!originAllowed(request.headers.get('Origin'), url.host, env)) return new Response('Forbidden origin', { status: 403 });
       return stub.fetch(new Request('https://table/ws', request));

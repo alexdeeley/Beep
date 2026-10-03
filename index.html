@@ -228,7 +228,11 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .soli-banner:hover, .soli-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 12px 28px rgba(0, 0, 0, 0.6); }
+  .soli-banner .sb-mini { flex: 0 0 auto; width: 132px; height: auto; border-radius: 6px; background: #0b4a30; box-shadow: 0 0 0 2px #000; }
+  @media (max-width: 420px) { .soli-banner .sb-mini { width: 112px; } }
   .soli-banner .sb-text { min-width: 0; flex: 1 1 auto; }
+  .soli-banner .sb-live { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.8rem; letter-spacing: 0.08em; color: #fff; font-variant-numeric: tabular-nums; }
+  .soli-banner .sb-sub { font-size: 0.82rem; color: #cfdcd4; letter-spacing: 0.02em; font-weight: 600; }
   .soli-banner h2 { margin: 0; font-weight: 800; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.14em; line-height: 1.05; color: #fff; }
   .soli-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #dfe9e2; line-height: 1.35; font-weight: 600; letter-spacing: 0.04em; }
   .soli-banner .sb-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #fffdf6; padding: 2px 8px; border-radius: 3px; }
@@ -400,20 +404,13 @@
         <span class="dl-cta">duel.deeley.org &#8599;</span>
       </span>
     </a>
-    <a class="soli-banner" href="https://soliteam.deeley.org" target="_blank" rel="noopener noreferrer">
-      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="22" width="40" height="56" rx="5" transform="rotate(-12 32 50)"/><rect x="40" y="18" width="40" height="56" rx="5" fill="#000"/></g><text x="60" y="56" font-family="Helvetica,Arial,sans-serif" font-size="26" font-weight="800" text-anchor="middle" fill="#fff">∞</text></svg></span>
+    <a class="soli-banner" id="soliBoard" href="https://soliteam.deeley.org" target="_blank" rel="noopener noreferrer" aria-label="SOLITEAM, the Solitaire game that never ends. Live view of the shared table.">
+      <svg class="sb-mini" id="soliMini" viewBox="0 0 300 236" aria-hidden="true"></svg>
       <span class="sb-text">
         <h2>SOLITEAM</h2>
-        <p>The Solitaire game that never ends. One game. Everyone. Forever. Walk in, move a card, walk out.</p>
+        <p class="sb-live" id="soliMeta">THE SOLITAIRE GAME THAT NEVER ENDS.</p>
+        <p class="sb-sub">One game. Everyone. Forever. This is the actual table, right now.</p>
         <span class="sb-cta">soliteam.deeley.org &#8599;</span>
-      </span>
-    </a>
-    <a class="play-lb-banner" href="https://play.deeley.org/leaderboard" target="_blank" rel="noopener noreferrer">
-      <span class="b-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M30 16 H66 V40 A18 18 0 0 1 30 40 Z"/><path d="M30 24 H18 A10 10 0 0 0 30 40"/><path d="M66 24 H78 A10 10 0 0 1 66 40"/><path d="M48 58 V70"/><path d="M34 78 H62"/><path d="M40 70 H56 V78 H40 Z"/></g></svg></span>
-      <span class="plb-text">
-        <h2>HIGH SCORES</h2>
-        <p>Every mini-game on Play feeds one shared leaderboard. Beat it, put your name on it.</p>
-        <span class="plb-cta">play.deeley.org/leaderboard &#8599;</span>
       </span>
     </a>
   </div>
@@ -457,7 +454,7 @@ const CATEGORIES = { Games: ["Games"], Art: ["Art"] };
 
 // Things that already have a banner at the top, so they don't also get a tile
 // in the Games grid.
-const BANNER_HOSTS = new Set(["draw.deeley.org", "duel.deeley.org", "soliteam.deeley.org", "play.deeley.org"]);
+const BANNER_HOSTS = new Set(["draw.deeley.org", "duel.deeley.org", "soliteam.deeley.org"]);
 
 // Bold, saturated tile colours, each with the text colour that reads best on it.
 const PALETTE = [
@@ -475,8 +472,52 @@ let activeTab = "Games";
 let searchQuery = "";
 const LAST_STATE_KEY = "deeley_last_state";
 
+// The SOLITEAM board: a small, true picture of the shared table, refreshed
+// while the page is open. Reads the game's public /api/table.
+const SOLI_API = "https://soliteam.deeley.org/api/table";
+function drawSoliBoard(t) {
+  const svg = document.getElementById("soliMini");
+  const s = t.state;
+  const W = 300, w = 36, h = 50, g = 8, x0 = 6;
+  const red = (c) => { const su = Math.floor(c / 13); return su === 1 || su === 2; };
+  const RANK = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"], SUIT = ["\u2663","\u2666","\u2665","\u2660"];
+  const face = (x, y, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#fffdf6" stroke="#111" stroke-width="1.5"/><text x="${x + 4}" y="${y + 15}" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="800" fill="${red(c) ? "#c8102e" : "#111"}">${RANK[c % 13]}${SUIT[Math.floor(c / 13)]}</text>`;
+  const back = (x, y) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#1b2a4a" stroke="#111" stroke-width="1.5"/><rect x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" rx="2" fill="none" stroke="#f4efe2" stroke-width="1.2" opacity=".8"/>`;
+  const slot = (x, y, t2) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="rgba(0,0,0,.15)" stroke="rgba(244,239,226,.5)" stroke-width="1.5" stroke-dasharray="3 3"/>${t2 ? `<text x="${x + w / 2}" y="${y + h / 2 + 6}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="16" fill="rgba(244,239,226,.55)">${t2}</text>` : ""}`;
+  let out = "";
+  const col = (i) => x0 + i * (w + g);
+  out += s.stock.length ? back(col(0), 6) : slot(col(0), 6, "\u21bb");
+  out += s.waste.length ? face(col(1), 6, s.waste[s.waste.length - 1]) : "";
+  s.found.forEach((f, i) => { out += f.length ? face(col(3 + i), 6, f[f.length - 1]) : slot(col(3 + i), 6, SUIT[i]); });
+  const top = 6 + h + 12;
+  s.tab.forEach((c, i) => {
+    let y = top;
+    if (!c.down.length && !c.up.length) { out += slot(col(i), y, "K"); return; }
+    for (let k = 0; k < c.down.length; k++) { out += back(col(i), y); y += 7; }
+    c.up.forEach((card) => { out += face(col(i), y, card); y += 17; });
+  });
+  svg.innerHTML = out;
+}
+async function loadSoliBoard() {
+  const meta = document.getElementById("soliMeta");
+  try {
+    const t = await (await fetch(SOLI_API, { cache: "no-store" })).json();
+    drawSoliBoard(t);
+    const n = t.players;
+    meta.textContent = `GAME #${String(t.game).padStart(11, "0")} \u00b7 ${t.moves.toLocaleString("en-US")} MOVES \u00b7 ${t.resetting ? "RESETTING\u2026" : n === 0 ? "NOBODY IS PLAYING RIGHT NOW" : n === 1 ? "1 PERSON IS PLAYING" : `${n} PEOPLE ARE PLAYING`}`;
+  } catch (e) {
+    meta.textContent = "THE GAME CONTINUES. (THE BOARD COULD NOT BE REACHED.)";
+  }
+}
+function startSoliBoard() {
+  loadSoliBoard();
+  setInterval(() => { if (document.visibilityState === "visible" && !document.getElementById("banners").classList.contains("hidden")) loadSoliBoard(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") loadSoliBoard(); });
+}
+
 async function main() {
   restoreLastTab();
+  startSoliBoard();
   const res = await fetch("./apps.json");
   apps = await res.json();
   buildTabs();
