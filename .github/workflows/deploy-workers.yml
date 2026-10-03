@@ -1,0 +1,75 @@
+name: Deploy Cloudflare Workers
+
+# Manual: Actions → "Deploy Cloudflare Workers" → Run workflow → pick an app.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   an API token from the "Edit Cloudflare Workers" template,
+#                          limited to the deeley.org zone
+#   CLOUDFLARE_ACCOUNT_ID  optional if the token can see only one account
+# The token stays in GitHub; nothing in the repo or in any chat ever holds it.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Which app to deploy
+        type: choice
+        options: [arkanoid-duel, gallery, both]
+        default: arkanoid-duel
+
+concurrency:
+  group: deploy-workers
+  cancel-in-progress: false
+
+jobs:
+  arkanoid-duel:
+    if: inputs.app == 'arkanoid-duel' || inputs.app == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: arkanoid-duel
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: arkanoid-duel/package-lock.json
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret first"; exit 1; }
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test
+      - name: Deploy
+        run: npx wrangler deploy
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5 6; do
+            curl -fsS https://duel.deeley.org/health && exit 0
+            sleep 10
+          done
+          echo "::warning::Deployed, but https://duel.deeley.org/health did not answer yet (a new custom domain can take a few minutes)"
+
+  gallery:
+    if: inputs.app == 'gallery' || inputs.app == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: gallery
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret first"; exit 1; }
+      - run: npm install
+      - run: npm test
+      - name: Deploy
+        run: npx wrangler deploy
