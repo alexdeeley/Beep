@@ -1,0 +1,10 @@
+{
+  "name": "SOLITEAM",
+  "short_name": "SOLITEAM",
+  "description": "The Solitaire game that never ends. One game. Everyone. Forever.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

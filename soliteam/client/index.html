@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SOLITEAM</title>
+<meta name="description" content="The Solitaire game that never ends. One game. Everyone. Forever.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/__CSS__">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <h1>SOLITEAM</h1>
+    <p class="tag">THE SOLITAIRE GAME THAT NEVER ENDS</p>
+  </div>
+  <dl class="meta" aria-label="The state of the game">
+    <div><dt>GAME</dt><dd id="game">#&#8203;</dd></div>
+    <div><dt>TOTAL MOVES</dt><dd id="moves">&#8203;</dd></div>
+    <div><dt>PLAYING NOW</dt><dd id="players">&#8203;</dd></div>
+  </dl>
+</header>
+
+<main id="table" aria-label="The shared Solitaire table. One game, for everyone, forever.">
+  <div id="slots"></div>
+  <div id="cards"></div>
+  <div id="ghost" class="ghost" aria-hidden="true">SOMEONE</div>
+</main>
+
+<aside id="feed" class="feed" aria-label="What is happening"></aside>
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<div id="curtain" class="curtain" hidden>
+  <p id="curtain-text"></p>
+  <p id="curtain-sub"></p>
+</div>
+
+<footer class="foot">
+  <span class="motto">ONE GAME. EVERYONE. FOREVER.</span>
+  <span id="status" class="status" role="status">CONNECTING…</span>
+  <span class="help">TAP A CARD, THEN TAP WHERE IT GOES. TAP THE STOCK TO DRAW. DOUBLE-TAP SENDS A CARD HOME.</span>
+</footer>
+
+<script type="module" src="/__JS__"></script>
+</body>
+</html>

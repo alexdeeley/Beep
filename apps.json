@@ -1566,5 +1566,14 @@
     "path": "https://duel.deeley.org",
     "added": "2026-10-03T05:00:00+00:00",
     "thumbnail": "thumbnails/arkanoid-duel.jpg"
+  },
+  {
+    "id": "soliteam",
+    "name": "SOLITEAM",
+    "description": "The Solitaire game that never ends. One shared game for everyone, forever - no accounts, no new-game button. When humanity gets stuck, it resets itself.",
+    "category": "Games",
+    "path": "https://soliteam.deeley.org",
+    "added": "2026-10-03T06:00:00+00:00",
+    "thumbnail": "thumbnails/soliteam.jpg"
   }
 ]

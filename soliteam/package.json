@@ -1,0 +1,27 @@
+{
+  "name": "soliteam",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Solitaire game that never ends. One game. Everyone. Forever.",
+  "scripts": {
+    "dev": "node build.mjs && node dev/local-server.mjs",
+    "dev:client": "node build.mjs --watch",
+    "dev:server": "node dev/local-server.mjs",
+    "dev:cf": "wrangler dev",
+    "build": "node build.mjs",
+    "build:server": "wrangler deploy --dry-run --outdir dist",
+    "start": "node dev/local-server.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.server.json",
+    "test": "node --no-warnings --test --test-timeout=60000 tests/rules.test.ts tests/table.test.ts tests/worker.test.ts",
+    "test:browser": "node dev/browser-test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

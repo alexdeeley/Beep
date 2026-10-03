@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "soliteam",
+  "main": "server/worker.ts",
+  "compatibility_date": "2025-06-01",
+
+  // Bundle the browser code into ./public before every deploy / dev run.
+  "build": { "command": "node build.mjs --prod" },
+
+  // The page is static; only the API, the health check and the game socket run the Worker.
+  "assets": { "directory": "./public", "run_worker_first": ["/api/*", "/health"] },
+
+  // ONE Durable Object holds THE GAME. Its storage keeps the cards forever.
+  "durable_objects": { "bindings": [{ "name": "TABLE", "class_name": "SoliteamTable" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SoliteamTable"] }],
+
+  // GAME_OFFSET / MOVE_OFFSET: added to the displayed counters (see README). Default 0: honest numbers.
+  "vars": { "ENVIRONMENT": "production" },
+  "observability": { "enabled": true },
+
+  "routes": [{ "pattern": "soliteam.deeley.org", "custom_domain": true }]
+}
