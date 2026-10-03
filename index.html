@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>deeley.org</title>
 <meta name="description" content="Games, art and music experiments by Alex Deeley - made to be played in the browser." />
-<meta name="theme-color" content="#000000" />
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -17,40 +18,58 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="deeley.org" />
 <style>
-  :root { color-scheme: dark; }
+  /* The page chrome follows the system's light/dark setting. The banners,
+     tiles and Maisie's block keep their own colours in both - they are
+     built for contrast either way - only the page around them changes. */
+  :root {
+    color-scheme: dark;
+    --bg: #000; --ink: #f2f2f5; --ink-2: #b8b8c2; --muted: #8c8c9a; --faint: #5c5c68;
+    --line: #1c1c20; --line-2: #2a2a30; --panel: #0c0c0e; --panel-2: #141418; --inactive: #4a4a54;
+    --notice-bg: #16130d; --notice-ink: #c9a877; --notice-line: #6b4a1a; --notice-link: #e6c690;
+    --tile-shadow: rgba(0, 0, 0, 0.55); --overlay: rgba(0, 0, 0, 0.86);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #fff; --ink: #0c0c10; --ink-2: #3a3a44; --muted: #4a4a54; --faint: #6b6b78;
+      --line: #e2e2e8; --line-2: #c8c8d2; --panel: #f4f4f7; --panel-2: #e8e8ee; --inactive: #8c8c9a;
+      --notice-bg: #fff6df; --notice-ink: #5a3d08; --notice-line: #c9a24a; --notice-link: #4a2f00;
+      --tile-shadow: rgba(0, 0, 0, 0.25); --overlay: rgba(0, 0, 0, 0.6);
+    }
+  }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
   html, body {
     margin: 0;
     min-height: 100%;
-    background: #000;
-    color: #f2f2f5;
+    background: var(--bg);
+    color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   main { max-width: 960px; margin: 0 auto; padding: 20px 20px 90px; }
   .hidden { display: none !important; }
 
   /* ── Top bar and tabs ─────────────────────────────── */
-  .topbar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #1c1c20; }
-  h1 { font-family: Helvetica, Arial, sans-serif; font-weight: 700; letter-spacing: -0.03em; font-size: clamp(0.95rem, 4.2vw, 2rem); color: #f2f2f5; margin: 0; flex: 0 0 auto; }
+  .topbar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  h1 { font-family: Helvetica, Arial, sans-serif; font-weight: 700; letter-spacing: -0.03em; font-size: clamp(0.95rem, 4.2vw, 2rem); color: var(--ink); margin: 0; flex: 0 0 auto; }
   #tabs { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; }
   .tab {
-    appearance: none; background: none; border: 0; color: #4a4a54;
+    appearance: none; background: none; border: 0; color: var(--inactive);
     font-family: inherit; font-weight: 800; letter-spacing: -0.02em;
     font-size: clamp(0.8rem, 3.6vw, 1.8rem); text-transform: lowercase; white-space: nowrap;
     padding: 6px 4px 10px; margin-right: 12px; cursor: pointer;
     border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s;
   }
-  .tab.active { color: #fff; border-bottom-color: #fff; }
-  .tab:hover { color: #b8b8c2; }
+  .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .tab:hover { color: var(--ink-2); }
   .search-bar { margin-bottom: 18px; }
   #appSearch {
-    width: 100%; background: #0c0c0e; border: 1px solid #2a2a30; color: #f2f2f5;
+    width: 100%; background: var(--panel); border: 1px solid var(--line-2); color: var(--ink);
     font-family: inherit; font-size: 0.9rem; padding: 10px 14px; border-radius: 8px; outline: none; transition: border-color 0.15s;
   }
-  #appSearch::placeholder { color: #5c5c68; }
-  #appSearch:focus { border-color: #6b6b78; }
+  #appSearch::placeholder { color: var(--faint); }
+  #appSearch:focus { border-color: var(--muted); }
 
   /* ── Banners: the multiplayer / shared things, first on the page ── */
   /* Every banner icon is the same thing: a crisp 96px SVG, white on black,
@@ -203,7 +222,7 @@
 
   /* ── Section headings ─────────────────────────────── */
   .section-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
-  .list-heading { color: #8c8c9a; font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .list-heading { color: var(--muted); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
   .jump {
     font-weight: 800; font-size: 0.74rem; letter-spacing: 0.04em; text-decoration: none; color: #fff;
     background: linear-gradient(135deg, #6a0dad, #c724b1); padding: 6px 12px; border-radius: 999px;
@@ -218,8 +237,8 @@
     border: 3px solid var(--c); border-radius: 20px;
     transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
-  a.tile:hover, a.tile:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); }
-  a.tile:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  a.tile:hover, a.tile:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 22px var(--tile-shadow); }
+  a.tile:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
   a.tile .tile-img { display: block; flex: 1 1 0; min-height: 0; width: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
   a.tile .tile-name { flex: 0 0 auto; padding: 9px 11px 11px; }
   a.tile .tile-name span {
@@ -228,9 +247,9 @@
   }
   a.tile .new {
     position: absolute; top: 8px; left: 8px; background: #000; color: #ffd43b; font-weight: 800;
-    font-size: 0.64rem; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 999px; border: 2px solid #ffd43b;
+    font-size: 0.64rem; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 999px; border: 2px solid #ffd43b; box-shadow: 0 0 0 2px #000;
   }
-  .empty { color: #6b6b78; font-size: 0.9rem; }
+  .empty { color: var(--muted); font-size: 0.9rem; }
 
   /* Maisie's Arcade: a chunk of Games, in its own pink-and-purple space. */
   .maisie-chunk {
@@ -245,40 +264,40 @@
 
   /* ── Search results stay a compact list ── */
   #appList { display: flex; flex-direction: column; }
-  a.app-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: #f2f2f5; padding: 12px 0; border-bottom: 1px solid #141416; transition: color 0.15s, padding-left 0.15s; }
+  a.app-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--ink); padding: 12px 0; border-bottom: 1px solid var(--line); transition: color 0.15s, padding-left 0.15s; }
   a.app-item:last-child { border-bottom: 0; }
-  a.app-item:hover, a.app-item:active { color: #fff; padding-left: 12px; }
+  a.app-item:hover, a.app-item:active { color: var(--ink); padding-left: 12px; }
   a.app-item .app-text { min-width: 0; flex: 1 1 auto; }
-  a.app-item .app-thumb { flex: 0 0 auto; width: 84px; height: 56px; object-fit: cover; border-radius: 8px; background: #141418; border: 1px solid #1c1c20; }
+  a.app-item .app-thumb { flex: 0 0 auto; width: 84px; height: 56px; object-fit: cover; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
   a.app-item h2 { margin: 0; font-weight: 800; font-size: clamp(1.4rem, 5.5vw, 1.9rem); text-transform: lowercase; letter-spacing: -0.02em; line-height: 1.08; }
-  a.app-item p { margin: 3px 0 0; color: #5c5c68; font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; line-height: 1.4; }
-  a.app-item:hover p, a.app-item:active p { color: #8c8c9a; }
+  a.app-item p { margin: 3px 0 0; color: var(--faint); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; line-height: 1.4; }
+  a.app-item:hover p, a.app-item:active p { color: var(--muted); }
 
   /* ── Footer ── */
-  .notice { margin: 36px 0 0; padding: 12px 14px; border-left: 3px solid #6b4a1a; background: #16130d; color: #c9a877; border-radius: 4px; font-size: 0.82rem; line-height: 1.5; }
-  .notice a { color: #e6c690; }
-  .site-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid #1c1c20; color: #46464f; font-size: 0.72rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .notice { margin: 36px 0 0; padding: 12px 14px; border-left: 3px solid var(--notice-line); background: var(--notice-bg); color: var(--notice-ink); border-radius: 4px; font-size: 0.82rem; line-height: 1.5; }
+  .notice a { color: var(--notice-link); }
+  .site-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 0.72rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .site-footer img { display: block; opacity: 0.75; }
   .a2hs-banner {
     margin-top: 28px;
     display: flex;
     align-items: center;
     gap: 12px;
-    border: 1px solid #2a2a30;
-    background: #0c0c0e;
+    border: 1px solid var(--line-2);
+    background: var(--panel);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 20px;
   }
   .a2hs-banner .icon { font-size: 1.6rem; flex: 0 0 auto; line-height: 1; }
   .a2hs-banner .text { flex: 1 1 auto; min-width: 0; }
-  .a2hs-banner .text strong { display: block; font-size: 0.85rem; color: #f2f2f5; }
-  .a2hs-banner .text span { display: block; font-size: 0.72rem; color: #6b6b78; margin-top: 2px; }
+  .a2hs-banner .text strong { display: block; font-size: 0.85rem; color: var(--ink); }
+  .a2hs-banner .text span { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
   .a2hs-banner .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
   .a2hs-how {
     appearance: none;
-    background: #f2f2f5;
-    color: #000;
+    background: var(--ink);
+    color: var(--bg);
     border: 0;
     font-family: inherit;
     font-size: 0.7rem;
@@ -292,7 +311,7 @@
     appearance: none;
     background: none;
     border: 0;
-    color: #46464f;
+    color: var(--muted);
     font-size: 1.1rem;
     line-height: 1;
     padding: 6px;
@@ -301,7 +320,7 @@
   .a2hs-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.86);
+    background: var(--overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -310,21 +329,21 @@
   }
   .a2hs-card {
     width: min(90vw, 340px);
-    background: #0c0c0e;
-    border: 1px solid #2a2a30;
+    background: var(--panel);
+    border: 1px solid var(--line-2);
     border-radius: 14px;
     padding: 22px 20px;
   }
   .a2hs-card h3 { margin: 0 0 14px; font-size: 0.95rem; }
-  .a2hs-card ol { margin: 0 0 18px; padding-left: 20px; color: #b8b8c2; font-size: 0.82rem; line-height: 1.8; }
-  .a2hs-card ol .glyph { display: inline-block; padding: 1px 7px; border: 1px solid #4a4a54; border-radius: 5px; font-size: 0.9rem; margin: 0 2px; }
+  .a2hs-card ol { margin: 0 0 18px; padding-left: 20px; color: var(--ink-2); font-size: 0.82rem; line-height: 1.8; }
+  .a2hs-card ol .glyph { display: inline-block; padding: 1px 7px; border: 1px solid var(--muted); border-radius: 5px; font-size: 0.9rem; margin: 0 2px; }
   .a2hs-card button {
     width: 100%;
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #2a2a30;
+    border: 1px solid var(--line-2);
     background: transparent;
-    color: #f2f2f5;
+    color: var(--ink);
     font-family: inherit;
     font-size: 0.78rem;
     font-weight: 700;
