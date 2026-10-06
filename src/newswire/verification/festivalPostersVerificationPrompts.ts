@@ -16,6 +16,7 @@ export function festivalPostersVerificationJsonSchema(sourceTiers: string[]) {
     type: "object",
     properties: {
       blurb: { type: ["string", "null"] },
+      lineupArtists: { type: "array", items: { type: "string" } },
       facts: {
         type: "array",
         items: {
@@ -47,7 +48,7 @@ export function festivalPostersVerificationJsonSchema(sourceTiers: string[]) {
         },
       },
     },
-    required: ["blurb", "facts"],
+    required: ["blurb", "lineupArtists", "facts"],
     additionalProperties: false,
   } as const;
 }
@@ -82,6 +83,11 @@ export function buildFestivalPostersVerificationSystemPrompt(tierList: string[],
     "Set blurb to null (not your best guess) unless the core claim - that this specific major festival has announced",
     "its lineup - is independently confirmed as FACT by sources from at least two distinct domains. When in doubt,",
     "prefer null - a missed item is far better than a wrong or overstated one.",
+    "Separately, report lineupArtists: the actual artist/band names appearing in the lineup, taken only from what",
+    "YOUR OWN sources explicitly list - never invent or guess a name, and never carry forward an artist discovery",
+    "merely claimed without your own corroboration. List them in whatever order your sources present them (usually",
+    "headliners first). Return an empty array if you cannot independently confirm any specific artist names, even if",
+    "the lineup announcement itself is otherwise confirmed.",
   ]
     .filter(Boolean)
     .join(" ");

@@ -44,6 +44,8 @@ export interface VerifiedFestivalPoster {
   eventYear: number | null;
   headline: string;
   blurb: string | null;
+  /** Lineup/headliner artist names verification's own independent search actually confirmed - empty if none could be confirmed. Never discovery's (unverified) claims. */
+  lineupArtists: string[];
   primarySourceUrl: string | null;
   facts: VerifiedFact[];
   meetsSourceBar: boolean;

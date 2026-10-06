@@ -12,17 +12,51 @@ import type { VerifiedFestivalPoster } from "../types.js";
 
 const TAG = "festival-posters";
 
-/** Exported for unit testing. Truncates the blurb (never the header) if the combined text would exceed Bluesky's post limit - real festival lineups can list many headliners. */
+const MAX_LINEUP_NAMES_SHOWN = 6;
+
+/** Turns a festival name into a bare (no "#") PascalCase hashtag token, e.g. "Rock am Ring" -> "RockAmRing". */
+function slugifyForHashtag(name: string): string {
+  return name
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+}
+
+function buildHashtagLine(item: VerifiedFestivalPoster): string {
+  const slug = slugifyForHashtag(item.festivalName);
+  const tags = [slug ? (item.eventYear ? `${slug}${item.eventYear}` : slug) : null, "MusicFestival", "FestivalLineup"].filter(
+    (t): t is string => Boolean(t)
+  );
+  return `\n\n${tags.map((t) => `#${t}`).join(" ")}`;
+}
+
+/** "Lineup: Artist A, Artist B, ..." - capped at a handful of names (real lineups can list dozens) so it never dominates the post on its own. */
+function buildLineupLine(lineupArtists: string[]): string {
+  if (lineupArtists.length === 0) return "";
+  const shown =
+    lineupArtists.length > MAX_LINEUP_NAMES_SHOWN
+      ? [...lineupArtists.slice(0, MAX_LINEUP_NAMES_SHOWN), `+${lineupArtists.length - MAX_LINEUP_NAMES_SHOWN} more`]
+      : lineupArtists;
+  return `\n\nLineup: ${shown.join(", ")}`;
+}
+
+/** Exported for unit testing. Truncates the blurb (never the header, the lineup line, or the hashtags) if the combined text would exceed Bluesky's post limit - real festival lineups can list many headliners. */
 export function buildPostText(item: VerifiedFestivalPoster): string {
   const label = item.eventYear ? `${item.festivalName} ${item.eventYear}` : item.festivalName;
   const header = `FESTIVAL LINEUP: ${label}\n\n`;
+  const lineupLine = buildLineupLine(item.lineupArtists);
+  const hashtagLine = buildHashtagLine(item);
   const blurb = item.blurb!;
-  const full = `${header}${blurb}`;
+
+  const full = `${header}${blurb}${lineupLine}${hashtagLine}`;
   if (countGraphemes(full) <= BLUESKY_MAX_POST_GRAPHEMES) return full;
 
-  const budget = BLUESKY_MAX_POST_GRAPHEMES - countGraphemes(header) - 1; // -1 for the trailing ellipsis char
+  const fixedGraphemes = countGraphemes(header) + countGraphemes(lineupLine) + countGraphemes(hashtagLine);
+  const budget = BLUESKY_MAX_POST_GRAPHEMES - fixedGraphemes - 1; // -1 for the trailing ellipsis char
   const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(blurb)].map((s) => s.segment);
-  return `${header}${graphemes.slice(0, Math.max(0, budget)).join("")}…`;
+  const truncatedBlurb = `${graphemes.slice(0, Math.max(0, budget)).join("")}…`;
+  return `${header}${truncatedBlurb}${lineupLine}${hashtagLine}`;
 }
 
 /**

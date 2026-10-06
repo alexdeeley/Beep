@@ -22,6 +22,11 @@ on:
         required: false
         type: boolean
         default: false
+      confirm_delete_all_posts:
+        description: 'DESTRUCTIVE, IRREVERSIBLE: type exactly "yes-delete-everything" to permanently delete every post on the account instead of running a normal cycle. Leave blank for a normal run.'
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -58,8 +63,11 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
+          CONFIRM_DELETE_ALL_POSTS: ${{ inputs.confirm_delete_all_posts }}
         run: |
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          if [ "${{ inputs.confirm_delete_all_posts }}" = "yes-delete-everything" ]; then
+            CMD="news:delete-all-posts"
+          elif [ "${{ inputs.dry_run }}" = "true" ]; then
             CMD="news:preview"
           else
             CMD="news:publish"

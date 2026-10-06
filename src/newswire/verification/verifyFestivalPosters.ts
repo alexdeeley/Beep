@@ -7,6 +7,7 @@ import { isFreshEnough } from "./itemFreshness.js";
 
 interface RawVerificationResult {
   blurb: string | null;
+  lineupArtists: string[];
   facts: VerifiedFact[];
 }
 
@@ -69,6 +70,7 @@ export async function verifyFestivalPosters(ctx: NewsRunContext, candidates: Fes
         eventYear: candidate.eventYear,
         headline: candidate.headline,
         blurb: response.data.blurb,
+        lineupArtists: response.data.lineupArtists,
         primarySourceUrl: primarySource?.url ?? null,
         facts: response.data.facts,
         meetsSourceBar: sourceBarMet && hasBlurb && fresh,

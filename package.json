@@ -21,6 +21,7 @@
     "news:preview": "tsx src/cli/index.ts news:preview",
     "news:publish": "tsx src/cli/index.ts news:publish",
     "news:status": "tsx src/cli/index.ts news:status",
+    "news:delete-all-posts": "tsx src/cli/index.ts news:delete-all-posts",
     "inspect": "tsx src/cli/index.ts inspect",
     "test": "vitest run",
     "test:watch": "vitest"

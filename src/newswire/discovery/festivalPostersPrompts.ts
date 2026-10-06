@@ -55,8 +55,8 @@ export function buildFestivalPostersDiscoverySystemPrompt(): string {
     "(Australia). Do NOT report a local club night, a regional or niche genre festival, a minor annual event, or a",
     "festival simply confirming its dates without a lineup - the announcement must specifically be the festival",
     "revealing its lineup/poster.",
-    "Only report an announcement from today or the last few days - a festival's lineup announced months ago is not",
-    "current news even if it resurfaces in a search result.",
+    "Only report an announcement from the last 7 days - a festival's lineup announced months ago is not current news",
+    "even if it resurfaces in a search result.",
     "You MUST use the web_search tool and only report what your searches actually returned - never invent a",
     "festival, lineup, or fact, and never answer from memory alone.",
     "headline should be a short, plain, factual statement (e.g. \"Coachella 2027 lineup revealed\").",
@@ -78,8 +78,8 @@ export function buildFestivalPostersDiscoveryUserPrompt(nowIso: string): string 
   return [
     `Current time: ${nowIso}`,
     "",
-    "Find any major, internationally/nationally recognized music festival ANYWHERE IN THE WORLD that has just",
-    "announced its lineup or poster, from today or the last couple of days. Search across multiple regions and",
-    "languages, not just English-language US/UK sources.",
+    "Find any major, internationally/nationally recognized music festival ANYWHERE IN THE WORLD that has",
+    "announced its lineup or poster within the last 7 days. Search across multiple regions and languages, not just",
+    "English-language US/UK sources.",
   ].join("\n");
 }

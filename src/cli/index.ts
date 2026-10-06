@@ -25,6 +25,8 @@ import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
+import { createBlueskySession } from "../bluesky/threadPublish.js";
+import { listAllPosts, deleteAllPosts } from "../bluesky/deleteAllPosts.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -212,6 +214,40 @@ program
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+program
+  .command("news:delete-all-posts")
+  .description(
+    "Permanently deletes every post currently on the configured Bluesky account - irreversible. Writes a backup " +
+      "of every deleted post's URI/CID to runs/news/ before deleting anything. Requires " +
+      "CONFIRM_DELETE_ALL_POSTS=yes-delete-everything as a safety gate against an accidental run."
+  )
+  .action(async () => {
+    if (process.env.CONFIRM_DELETE_ALL_POSTS !== "yes-delete-everything") {
+      console.error(
+        'Refusing to run: this permanently deletes every post on the account. Set CONFIRM_DELETE_ALL_POSTS="yes-delete-everything" to proceed.'
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const { writeFileSync, mkdirSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const runDir = join(config.paths.runsDir, "news", `delete-all-posts-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+    const logger = new RunLogger(runDir);
+
+    const session = await createBlueskySession(config);
+    const posts = await listAllPosts(config, session);
+    console.log(`Found ${posts.length} post(s) on the account.`);
+
+    mkdirSync(runDir, { recursive: true });
+    const backupPath = join(runDir, "deleted-posts-backup.json");
+    writeFileSync(backupPath, JSON.stringify(posts, null, 2));
+    console.log(`Backed up ${posts.length} post URI/CID pair(s) to ${backupPath}`);
+
+    const deleted = await deleteAllPosts(config, logger, session, posts);
+    console.log(`Deleted ${deleted} of ${posts.length} post(s).`);
+    if (deleted !== posts.length) process.exitCode = 1;
   });
 
 program
