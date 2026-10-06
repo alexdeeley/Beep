@@ -543,23 +543,45 @@ Each run of `runNewswireCycle.ts` does, in order:
    **the only part of this pipeline that handles a third party's
    actual copyrighted media, not just facts about it.** This step does
    a plain HTTP fetch of verification's chosen URL and mechanically
-   parses its `og:image`/`twitter:image` meta tag with a regex —
-   deliberately *not* LLM-based. The model never reports an image URL
-   directly, because it can hallucinate one that doesn't exist or
-   doesn't actually point at the poster; only a URL a real,
-   already-verified page genuinely links to is ever fetched. Confirmed
-   live against real pages (Wikipedia, a major music outlet), which
-   caught a real bug: `og:image` content is frequently HTML-entity
-   escaped (`&amp;` instead of `&`) even inside the URL itself — a
-   `decodeHtmlEntities` fix handles this, since a literal `&amp;`
-   happens to be harmless on some sites' cosmetic tracking params but
-   would silently break or mis-fetch a URL where the query string
-   actually matters. Only `image/jpeg`/`image/png` are accepted, and
-   anything over Bluesky's 2,000,000-byte blob limit is rejected. Any
-   failure here (no meta tag, wrong content-type, too large, network
-   error) is logged and the candidate is simply skipped — not recorded
-   as posted, so a later cycle can retry rather than posting nothing or
-   posting something guessed.
+   scans its `<img>`/`<picture><source>` tags — deliberately *not*
+   LLM-based. The model never reports an image URL directly, because
+   it can hallucinate one that doesn't exist or doesn't actually point
+   at the poster; only a URL a real, already-verified page genuinely
+   links to is ever fetched.
+
+   Only an image whose alt text, URL, or surrounding HTML context
+   (e.g. a wrapping `id="poster"` container) signals it's the actual
+   designed poster/flyer/artwork graphic is ever used — confirmed live
+   that the page's generic `og:image`/`twitter:image` social-share
+   meta tag, which this step used to fall back to, is very often just
+   a crowd or stage photo from a past event, not the poster itself (it
+   produced this pipeline's first two real posts, both wrong). There
+   is deliberately no "pick the biggest image on the page" fallback
+   either — tried that against a real site and it picked a press
+   photographer's photo over the actual poster purely because the
+   photo had more pixels. **If no image on the page carries a genuine
+   poster signal, this step returns nothing and that festival's poster
+   simply doesn't post this cycle** — skipping is always preferred
+   over guessing wrong.
+
+   A JS-rendered site builder (Wix, confirmed live) serves only a tiny
+   cropped placeholder in its server-rendered HTML; the real
+   full-resolution image is recovered by stripping the CDN's crop/fill
+   transform back to the bare original URL. A real poster was also
+   confirmed live to legitimately be a 7.5MB JPEG — well over
+   Bluesky's 2,000,000-byte blob limit — so an oversized-but-correctly-
+   identified poster is progressively downscaled/recompressed to JPEG
+   via `sharp` (already a dependency of the daily art pipeline) until
+   it fits, rather than discarded for being "too big." `og:image`
+   content is also frequently HTML-entity escaped (`&amp;` instead of
+   `&`) even inside the URL itself — a `decodeHtmlEntities` fix handles
+   this. Only `image/jpeg`/`image/png` are ultimately posted (a
+   `<source type="image/webp">` candidate is skipped in favor of a
+   sibling non-webp source/`<img>`, since Bluesky doesn't accept
+   webp). Any failure here (no confident candidate, wrong
+   content-type, uncompressible, network error) is logged and the
+   candidate is simply skipped — not recorded as posted, so a later
+   cycle can retry rather than posting something guessed.
 4. **Publish** (`festivalPosters/postFestivalPosters.ts`) — for each
    surviving, successfully-extracted poster, uploads the real image
    bytes and creates a Bluesky post with real visible text (a short
@@ -641,11 +663,15 @@ fixed-UTC cron is enough. The workflow is currently **paused**
   festival dropping a new lineup is a rare event — expect long
   stretches of silence between posts. That's the deliberate scope of
   this account now, not a malfunction.
-- **The image-extraction step is unofficial and could break.**
-  `og:image`/`twitter:image` is a widely-used but informal web
-  convention, not a stable API — if a festival's site stops using it,
-  that specific announcement's poster just won't be postable (logged,
-  skipped, retried next cycle), it won't crash anything else.
+- **The image-extraction step is a heuristic, not a guarantee, and
+  deliberately errs toward silence.** It only posts an image it finds
+  a real poster/flyer/artwork signal for; a festival whose site never
+  textually marks its poster as such (no matching alt text, filename,
+  or wrapping container) simply won't get a post for that lineup drop,
+  even though a human glancing at the same page would recognize the
+  poster instantly. This is an accepted tradeoff — the account owner
+  explicitly wants the real poster or nothing, never a photo mislabeled
+  as one.
 - **This is the one place in the pipeline that republishes someone
   else's copyrighted media**, not just facts stated in the wire's own
   words. That was a deliberate, informed choice by the account owner.
