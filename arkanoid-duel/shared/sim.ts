@@ -23,6 +23,8 @@ export interface PaddleState {
   shield: number;
 }
 
+export type ServeMode = 'alternate' | 'both';
+
 export interface Fx { pierce: number; slow: number; fast: number; chaos: number }
 
 const other = (p: PlayerNo): PlayerNo => (p === 1 ? 2 : 1);
@@ -85,6 +87,7 @@ export class Match {
   rematch: [boolean, boolean] = [false, false];
   connected: [boolean, boolean] = [false, false];
   speedSetting = 1;
+  serveMode: ServeMode = 'alternate';   // 'both': each player serves their own ball, at the same time
 
   events: GameEvent[] = [];
   changed = new Set<number>();        // blocks whose health changed since the last snapshot
@@ -188,12 +191,23 @@ export class Match {
     return true;
   }
 
-  // Only the serving player may launch, and only during SERVE.
+  // Launch the ball you are holding. Taking turns: only the serving player holds
+  // one, and only during SERVE. Both at once: each player holds their own, and
+  // the second may still launch after the first has (the rally is already on).
   pressServe(p: PlayerNo): boolean {
-    if (this.phase !== 'SERVE' || p !== this.servePlayer) return false;
-    const ball = this.balls[0];
-    if (!ball || !ball.attached) return false;
+    if (this.phase !== 'SERVE' && !(this.phase === 'PLAYING' && this.serveMode === 'both')) return false;
+    const ball = this.balls.find((b) => b.attached && b.held === p);
+    if (!ball) return false;
     this.launch(ball);
+    return true;
+  }
+
+  holds(p: PlayerNo): boolean { return this.balls.some((b) => b.attached && b.held === p); }
+
+  setServeMode(p: PlayerNo, mode: ServeMode): boolean {
+    if (p !== 1 || (this.phase !== 'READY' && this.phase !== 'WAITING_FOR_PLAYER')) return false;
+    if (mode !== 'alternate' && mode !== 'both') return false;
+    this.serveMode = mode;
     return true;
   }
 
@@ -244,11 +258,10 @@ export class Match {
   }
 
   private placeServeBall(): void {
-    const p = this.servePlayer;
-    const pd = this.paddles[seatOf(p)];
-    this.balls = [{
-      id: this.nextBallId++, x: pd.x, y: this.serveY(p), vx: 0, vy: 0, attached: true, inside: [],
-    }];
+    const holders: PlayerNo[] = this.serveMode === 'both' ? [1, 2] : [this.servePlayer];
+    this.balls = holders.map((p) => ({
+      id: this.nextBallId++, x: this.paddles[seatOf(p)].x, y: this.serveY(p), vx: 0, vy: 0, attached: true, held: p, inside: [],
+    }));
   }
 
   private serveY(p: PlayerNo): number {
@@ -259,10 +272,11 @@ export class Match {
   // it heads left across the court, from the left it heads right, and from the
   // middle it goes straight at the wall. Deliberate, never random.
   private launch(ball: Ball): void {
-    const p = this.servePlayer;
+    const p = ball.held || this.servePlayer;
     const speed = this.targetSpeed();
     const a = clamp(-(ball.x - W / 2) / (W / 2), -1, 1) * BALL.serveAngle;
     ball.attached = false;
+    ball.held = 0;
     ball.vx = Math.sin(a) * speed;
     ball.vy = (p === 1 ? -1 : 1) * Math.cos(a) * speed;
     this.lastHit = p;
@@ -319,9 +333,11 @@ export class Match {
         break;
       case 'SERVE':
         this.followServe();
-        if (this.phaseTime >= TIMING.autoServe) this.pressServe(this.servePlayer);   // an idle server is helped along
+        if (this.phaseTime >= TIMING.autoServe) for (const p of [1, 2] as const) this.pressServe(p);   // an idle server is helped along
         break;
       case 'PLAYING':
+        this.followServe();                                   // a ball still held (both at once) rides its paddle
+        if (this.phaseTime >= TIMING.secondServe) for (const p of [1, 2] as const) if (this.holds(p)) this.pressServe(p);
         this.updateEffects(dt);
         this.stepBalls(dt);
         this.stepPowerups(dt);
@@ -355,10 +371,11 @@ export class Match {
   }
 
   private followServe(): void {
-    const b = this.balls[0];
-    if (!b || !b.attached) return;
-    b.x = this.paddles[seatOf(this.servePlayer)].x;
-    b.y = this.serveY(this.servePlayer);
+    for (const b of this.balls) {
+      if (!b.attached || !b.held) continue;
+      b.x = this.paddles[seatOf(b.held)].x;
+      b.y = this.serveY(b.held);
+    }
   }
 
   private updateEffects(dt: number): void {
@@ -536,6 +553,11 @@ export class Match {
     else if (ball.y < LOSE_MARGIN) loser = 2;
     if (!loser) return false;
     this.balls = this.balls.filter((b) => b !== ball);
+    if (this.serveMode === 'both' && this.balls.length > 0) {
+      // Your own ball got past you while the rally goes on: that costs you your combo now.
+      this.combo[seatOf(loser)] = 0;
+      this.events.push(['lose', loser]);
+    }
     if (this.balls.length === 0) this.rallyLoser = loser;
     return true;
   }
@@ -589,7 +611,7 @@ export class Match {
       if (this.balls.length >= BALL.maxBalls) return;
       const c = Math.cos(a), s = Math.sin(a);
       this.balls.push({
-        id: this.nextBallId++, x: from.x, y: from.y, attached: false, inside: [],
+        id: this.nextBallId++, x: from.x, y: from.y, attached: false, held: 0, inside: [],
         vx: from.vx * c - from.vy * s, vy: from.vx * s + from.vy * c,
       });
       this.keepSteep(this.balls[this.balls.length - 1]);
@@ -719,6 +741,8 @@ export class Match {
       rd: this.phase === 'MATCH_WON' || this.phase === 'REMATCH' ? this.rematch : this.ready,
       cn: this.connected,
       sp: this.speedSetting,
+      sm: this.serveMode,
+      hb: [this.holds(1) ? 1 : 0, this.holds(2) ? 1 : 0],
       tm: Math.round(this.time * 1000) / 1000,
       p: [Math.round(this.paddles[0].x * 10) / 10, Math.round(this.paddles[1].x * 10) / 10],
       pw: [this.paddleWidth(0), this.paddleWidth(1)],
@@ -754,6 +778,8 @@ export interface Snapshot {
   rd: [boolean, boolean];           // who has pressed READY (lobby) or REMATCH (end)
   cn: [boolean, boolean];           // who is connected
   sp: number;                       // game speed
+  sm: ServeMode;                    // 'alternate' (take turns) or 'both' (each serves their own ball at once)
+  hb: [number, number];             // who is holding a ball right now
   tm: number;                       // seconds into the level (moving blocks swing by it)
   p: [number, number];              // paddle centres
   pw: [number, number];             // paddle widths

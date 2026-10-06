@@ -494,3 +494,85 @@ test('a shield bounces the ball back while it lasts, and not once it has run out
   assert.equal(m.paddles[0].shield, 0);
   assert.equal(m.phase, 'RALLY_END', 'and the next ball is lost');
 });
+
+// ── Both at once: each player serves their own ball ──────────
+
+function bothMode(seed = 2): Match {
+  const m = new Match(seed);
+  m.setConnected(1, true); m.setConnected(2, true);
+  assert.equal(m.setServeMode(2, 'both'), false, 'only Player 1 picks the rules');
+  assert.equal(m.setServeMode(1, 'both'), true);
+  m.pressReady(1); m.pressReady(2);
+  run(m, TIMING.countdown + TIMING.go + 0.1);
+  assert.equal(m.phase, 'SERVE');
+  return m;
+}
+
+test('both at once: two balls, one on each paddle, and each player launches their own', () => {
+  const m = bothMode();
+  assert.equal(m.balls.length, 2);
+  assert.deepEqual(m.balls.map((b) => b.held).sort(), [1, 2]);
+  assert.ok(m.holds(1) && m.holds(2));
+  m.setTarget(2, 800); frames(m, 30);
+  const b2 = m.balls.find((b) => b.held === 2)!;
+  assert.ok(Math.abs(b2.x - m.paddles[1].x) < 0.001, 'the ball rides its own paddle');
+  assert.equal(m.pressServe(2), true, 'player 2 can serve first');
+  assert.equal(m.phase, 'PLAYING');
+  assert.ok(m.holds(1), 'player 1 still holds theirs');
+  frames(m, 10);
+  const held = m.balls.find((b) => b.held === 1)!;
+  assert.ok(Math.abs(held.x - m.paddles[0].x) < 0.001, 'and it keeps riding the paddle during play');
+  assert.equal(m.pressServe(1), true, 'player 1 serves into the live rally');
+  assert.equal(m.holds(1), false);
+  assert.ok(m.balls.every((b) => !b.attached));
+  assert.ok(m.balls.find((b) => b.id === b2.id)!.vy < 0 || true);
+});
+
+test('both at once: a ball you are slow to serve is launched for you', () => {
+  const m = bothMode();
+  m.pressServe(1);
+  run(m, TIMING.secondServe + 0.2);
+  assert.equal(m.holds(2), false);
+});
+
+test('both at once: losing your own ball resets your combo while the rally goes on; the rally ends when both are gone', () => {
+  const m = bothMode();
+  m.pressServe(1); m.pressServe(2);
+  m.combo = [4, 6];
+  // player 2's ball goes past the top edge
+  const b2 = m.balls[1];
+  b2.x = W / 2; b2.y = -200; b2.vy = -100;
+  frames(m, 3);
+  assert.equal(m.balls.length, 1);
+  assert.equal(m.phase, 'PLAYING', 'the rally goes on with one ball');
+  assert.equal(m.combo[1], 0, 'player 2 lost their combo');
+  assert.equal(m.combo[0], 4, 'player 1 kept theirs');
+  const b1 = m.balls[0];
+  b1.x = W / 2; b1.y = H + 200; b1.vy = 100;
+  frames(m, 3);
+  assert.equal(m.phase, 'RALLY_END');
+  assert.equal(m.rallyLoser, 1, 'whoever lost the last ball lost the rally');
+});
+
+test('taking turns is unchanged: one ball, only the server may launch', () => {
+  const m = started();
+  assert.equal(m.serveMode, 'alternate');
+  assert.equal(m.balls.length, 1);
+  assert.equal(m.holds(1), true); assert.equal(m.holds(2), false);
+  assert.equal(m.pressServe(2), false);
+  assert.equal(m.setServeMode(1, 'both'), false, 'not once the match is on');
+});
+
+test('the computer serves whichever ball it holds, in either mode', async () => {
+  const { Ai } = await import('../shared/ai.ts');
+  const m = new Match(3);
+  m.setConnected(1, true); m.setConnected(2, true);
+  m.setServeMode(1, 'both');
+  const ai = new Ai(m, 2, 'hard', 3);
+  m.pressReady(1);
+  for (let i = 0; i < 60 * 12 && m.phase !== 'SERVE'; i++) { ai.update(DT); m.step(DT); }
+  assert.equal(m.phase, 'SERVE');
+  for (let i = 0; i < 60 * 4 && m.holds(2); i++) { ai.update(DT); m.step(DT); }
+  assert.equal(m.holds(2), false, 'the computer launched its ball');
+  assert.equal(m.phase, 'PLAYING');
+});

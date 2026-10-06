@@ -1561,7 +1561,7 @@
   {
     "id": "arkanoid-duel",
     "name": "Arkanoid Duel",
-    "description": "Two players, one ball, one wall. Break it before they do - play a friend with a passcode, or the computer.",
+    "description": "Two players, one ball, one wall. Break it before they do - find an opponent, or play the computer.",
     "category": "Games",
     "path": "https://duel.deeley.org",
     "added": "2026-10-03T05:00:00+00:00",

@@ -72,13 +72,13 @@ const input = new Input(canvas, {
   onTarget: () => {},
   onServe: () => {
     const s = world.latest;
-    if (s && s.ph === 'SERVE' && s.sv === app.me) net.send({ t: 'serve' });
+    if (s && s.hb && s.hb[app.me - 1]) net.send({ t: 'serve' });
   },
 });
 
 // ── Screens ──────────────────────────────────────────────────
 
-const SCREENS = ['landing', 'solo', 'create', 'join', 'lobby', 'end', 'disc'] as const;
+const SCREENS = ['landing', 'search', 'solo', 'lobby', 'end', 'disc'] as const;
 type ScreenId = (typeof SCREENS)[number] | null;
 let screen: ScreenId = 'landing';
 function show(id: ScreenId): void {
@@ -107,9 +107,6 @@ function applySettings(): void {
 
 // ── Landing, create, join ────────────────────────────────────
 
-function randomPass(): string { return String(1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000)); }
-
-let createSpeed = 1;
 let soloSpeed = 1;
 let soloLevel: 'easy' | 'normal' | 'hard' = (['easy', 'normal', 'hard'] as const).find((l) => l === (() => { try { return localStorage.getItem('duel.level'); } catch { return null; } })()) ?? 'normal';
 function bindSpeed(box: HTMLElement, current: () => number, set: (v: number) => void): void {
@@ -118,26 +115,68 @@ function bindSpeed(box: HTMLElement, current: () => number, set: (v: number) => 
   paint();
 }
 
+// ── Finding an opponent ──────────────────────────────────────
+// A socket to the lobby; the next person who searches is paired with you.
+let lobbyWs: WebSocket | null = null;
+let searchTimer = 0;
+function stopSearch(): void {
+  if (lobbyWs) { try { lobbyWs.send(JSON.stringify({ t: 'cancel' })); lobbyWs.close(); } catch { /* gone */ } lobbyWs = null; }
+  clearInterval(searchTimer);
+  $('searching').hidden = true;
+  $('form-search').hidden = false;
+}
+function findOpponent(name: string): void {
+  stopSearch();
+  $('form-search').hidden = true;
+  $('searching').hidden = false;
+  $('f-solo').hidden = true;
+  $('f-status').textContent = 'SEARCHING FOR AN OPPONENT…';
+  const started = Date.now();
+  const tick = () => { const t = Math.floor((Date.now() - started) / 1000); $('f-time').textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; if (t >= 12) $('f-solo').hidden = false; };
+  tick();
+  searchTimer = window.setInterval(tick, 500);
+  const ws = new WebSocket(`${WSBASE}/api/lobby/ws`);
+  lobbyWs = ws;
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'find', pid, name }));
+  ws.onmessage = async (e) => {
+    let m: any; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.t === 'waiting') $('f-status').textContent = m.n > 1 ? `${m.n} PEOPLE ARE LOOKING…` : 'SEARCHING FOR AN OPPONENT…';
+    if (m.t === 'err') { stopSearch(); $('f-err').textContent = String(m.say || 'Could not search.').toUpperCase(); }
+    if (m.t === 'matched') {
+      lobbyWs = null; clearInterval(searchTimer);
+      $('f-status').textContent = `OPPONENT FOUND: ${String(m.opponent || 'SOMEONE').toUpperCase()}`;
+      audio.tap();
+      const r = await enter({ code: m.code, pass: m.pass, pid, name });
+      if (!r.ok) { $('searching').hidden = true; $('form-search').hidden = false; $('f-err').textContent = r.say; }
+    }
+  };
+  ws.onclose = () => { if (lobbyWs === ws) { lobbyWs = null; clearInterval(searchTimer); if (!app.active && !$('searching').hidden) { $('f-status').textContent = 'LOST THE LOBBY. TRY AGAIN.'; } } };
+  ws.onerror = () => ws.close();
+}
+$('btn-find').addEventListener('click', () => {
+  $<HTMLInputElement>('f-name').value = localStorage.getItem('duel.name') || '';
+  $('f-err').textContent = '';
+  stopSearch();
+  show('search');
+});
+$('form-search').addEventListener('submit', (e) => {
+  e.preventDefault();
+  audio.unlock();
+  const name = cleanName($<HTMLInputElement>('f-name').value);
+  saveName(name);
+  $('f-err').textContent = '';
+  findOpponent(name);
+});
+$('f-cancel').addEventListener('click', () => { audio.tap(); stopSearch(); });
+$('f-solo').addEventListener('click', () => { audio.tap(); stopSearch(); $<HTMLInputElement>('o-name').value = $<HTMLInputElement>('f-name').value; $('o-err').textContent = ''; show('solo'); });
+
 $('btn-solo').addEventListener('click', () => {
   $<HTMLInputElement>('o-name').value = localStorage.getItem('duel.name') || '';
   $('o-err').textContent = '';
   show('solo');
 });
-$('btn-create').addEventListener('click', () => {
-  $<HTMLInputElement>('c-pass').value = randomPass();
-  $<HTMLInputElement>('c-name').value = localStorage.getItem('duel.name') || '';
-  $('c-err').textContent = '';
-  show('create');
-});
-$('btn-join').addEventListener('click', () => {
-  $<HTMLInputElement>('j-name').value = localStorage.getItem('duel.name') || '';
-  $('j-err').textContent = '';
-  show('join');
-});
 $('btn-settings').addEventListener('click', () => openSettings());
-document.querySelectorAll('.back').forEach((b) => b.addEventListener('click', () => show('landing')));
-$('c-rand').addEventListener('click', () => { $<HTMLInputElement>('c-pass').value = randomPass(); });
-bindSpeed($('c-speed'), () => createSpeed, (v) => { createSpeed = v; });
+document.querySelectorAll('.back').forEach((b) => b.addEventListener('click', () => { stopSearch(); show('landing'); }));
 bindSpeed($('o-speed'), () => soloSpeed, (v) => { soloSpeed = v; });
 {
   const box = $('o-level');
@@ -149,29 +188,6 @@ bindSpeed($('o-speed'), () => soloSpeed, (v) => { soloSpeed = v; });
 const saveName = (n: string) => { try { localStorage.setItem('duel.name', n); } catch { /* private mode */ } };
 const cleanName = (n: string) => n.replace(/[<>]/g, '').trim().slice(0, 12);
 
-$('form-create').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  audio.unlock();
-  const name = cleanName($<HTMLInputElement>('c-name').value);
-  const pass = $<HTMLInputElement>('c-pass').value.trim();
-  const err = $('c-err');
-  if (pass.length < 3) { err.textContent = 'Pick a passcode of at least 3 characters.'; return; }
-  saveName(name);
-  $<HTMLButtonElement>('c-go').disabled = true;
-  err.textContent = '';
-  try {
-    const res = await fetch(`${API}/api/rooms`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pass, pid }) });
-    const body = (await res.json().catch(() => ({}))) as { code?: string; say?: string };
-    if (!res.ok || !body.code) { err.textContent = body.say || 'Could not create a game. Try again.'; return; }
-    app.speed = createSpeed;
-    const r = await enter({ code: body.code, pass, pid, name });
-    if (!r.ok) err.textContent = r.say;
-  } catch {
-    err.textContent = 'SERVER UNAVAILABLE. Check your connection.';
-  } finally {
-    $<HTMLButtonElement>('c-go').disabled = false;
-  }
-});
 
 // A game against the computer: the passcode is made up and kept for you (it only
 // matters for getting back in after a reload), and the computer takes the other seat.
@@ -200,22 +216,6 @@ $('form-solo').addEventListener('submit', async (e) => {
   }
 });
 
-$('form-join').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  audio.unlock();
-  const code = $<HTMLInputElement>('j-code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const pass = $<HTMLInputElement>('j-pass').value.trim();
-  const name = cleanName($<HTMLInputElement>('j-name').value);
-  const err = $('j-err');
-  if (code.length !== 4) { err.textContent = 'The game code has 4 characters.'; return; }
-  if (pass.length < 3) { err.textContent = 'Enter the passcode.'; return; }
-  saveName(name);
-  $<HTMLButtonElement>('j-go').disabled = true;
-  err.textContent = '';
-  const r = await enter({ code, pass, pid, name });
-  if (!r.ok) err.textContent = r.say;
-  $<HTMLButtonElement>('j-go').disabled = false;
-});
 
 // Connect to a game; on success we are in it, on failure we say why.
 async function enter(s: Session): Promise<{ ok: true } | { ok: false; say: string }> {
@@ -266,17 +266,11 @@ function leaveGame(message = ''): void {
 
 $('l-ready').addEventListener('click', () => { audio.unlock(); audio.tap(); net.send({ t: 'ready' }); });
 $('l-leave').addEventListener('click', () => leaveGame());
-$('l-show').addEventListener('click', () => {
-  const b = $('l-pass'), shown = b.dataset.shown === '1';
-  b.dataset.shown = shown ? '0' : '1';
-  b.textContent = shown ? '•'.repeat(app.pass.length) : app.pass;
-  $('l-show').textContent = shown ? 'SHOW' : 'HIDE';
-});
-$('l-copy').addEventListener('click', async () => {
-  const text = `Join my ARKANOID // DUEL game!\n${location.origin}/?room=${app.code}\nGame code: ${app.code}\nPasscode: ${app.pass}`;
-  try { await navigator.clipboard.writeText(text); banner('INVITE COPIED', true, 2200); } catch { window.prompt('Copy this invite:', text); }
-});
 bindSpeed($('l-speed'), () => world.latest?.sp ?? 1, (v) => net.send({ t: 'speed', v }));
+{
+  const box = $('l-serve');
+  box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { audio.tap(); net.send({ t: 'servemode', v: (b as HTMLElement).dataset.v as 'alternate' | 'both' }); }));
+}
 
 $('e-rematch').addEventListener('click', () => { audio.tap(); net.send({ t: 'rematch' }); });
 $('e-lobby').addEventListener('click', () => { audio.tap(); net.send({ t: 'lobby' }); });
@@ -288,7 +282,7 @@ function syncUi(): void {
   const s = world.latest;
   if (!s || !app.active) return;
   const remain = s.ph === 'DISCONNECTED' ? Math.max(0, Math.ceil(s.pt - (net.serverNow() - s.st) / 1000)) : 0;
-  const key = [s.ph, s.cn.join(), s.rd.join(), s.sp, app.names.join('|'), app.me, remain, s.mw, app.solo].join('/');
+  const key = [s.ph, s.cn.join(), s.rd.join(), s.sp, s.sm, app.names.join('|'), app.me, remain, s.mw, app.solo].join('/');
   if (key === uiKey) return;
   uiKey = key;
 
@@ -298,10 +292,12 @@ function syncUi(): void {
   if (target !== screen) show(target);
 
   if (lobbyPhase) {
-    $('l-code').textContent = app.code;
-    for (const id of ['l-codebox', 'l-passline', 'l-copy']) $(id).hidden = !!app.solo;     // nobody to invite
-    const passEl = $('l-pass');
-    if (passEl.dataset.shown !== '1') passEl.textContent = '•'.repeat(app.pass.length);
+    $('l-title').textContent = app.solo ? 'YOU VS THE COMPUTER' : s.ph === 'WAITING_FOR_PLAYER' ? 'WAITING FOR YOUR OPPONENT' : 'OPPONENT FOUND';
+    $('l-serve').hidden = false;
+    $('l-serve').querySelectorAll('button').forEach((b) => {
+      b.setAttribute('aria-checked', String((b as HTMLElement).dataset.v === s.sm));
+      (b as HTMLButtonElement).disabled = app.me !== 1;
+    });
     for (const p of [1, 2] as const) {
       const li = $(`slot${p}`);
       const here = s.cn[p - 1];
@@ -317,7 +313,7 @@ function syncUi(): void {
     ready.hidden = s.ph !== 'READY';
     ready.disabled = !!s.rd[app.me - 1];
     ready.textContent = s.rd[app.me - 1] ? (app.solo ? 'STARTING…' : 'WAITING FOR OPPONENT…') : 'READY';
-    $('l-status').textContent = s.ph === 'WAITING_FOR_PLAYER' ? 'SHARE THE CODE AND PASSCODE WITH YOUR OPPONENT' : s.rd[app.me - 1] ? 'GET READY…' : app.solo ? 'PRESS READY WHEN YOU ARE' : 'BOTH PLAYERS PRESS READY TO BEGIN';
+    $('l-status').textContent = s.ph === 'WAITING_FOR_PLAYER' ? 'YOUR OPPONENT IS CONNECTING…' : s.rd[app.me - 1] ? 'GET READY…' : app.solo ? 'PRESS READY WHEN YOU ARE' : app.me === 1 ? 'PICK THE RULES, THEN BOTH PRESS READY' : 'PLAYER 1 PICKS THE RULES · BOTH PRESS READY';
   }
   if (target === 'end') {
     const w = s.mw as 1 | 2;
@@ -445,19 +441,12 @@ function boot(): void {
   window.addEventListener('keydown', unlock);
   requestAnimationFrame(frame);
 
-  // An invite link (?room=Q7K9) goes straight to the join screen.
-  const room = new URLSearchParams(location.search).get('room');
-  if (room) {
-    $<HTMLInputElement>('j-code').value = room.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
-    $<HTMLInputElement>('j-name').value = localStorage.getItem('duel.name') || '';
-    show('join');
-  }
 
   // Reloaded in the middle of a game? Slip back into it.
   const prev = loadSession();
   if (prev) {
     void enter(prev).then((r) => {
-      if (!r.ok) { saveSession(null); app.active = false; show(room ? 'join' : 'landing'); banner(r.say, false, 4000); }
+      if (!r.ok) { saveSession(null); app.active = false; show('landing'); banner(r.say, false, 4000); }
     });
   }
 }

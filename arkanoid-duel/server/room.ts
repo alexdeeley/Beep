@@ -249,6 +249,7 @@ export class Room {
       case 'wait': mt.waitMore(); break;
       case 'leave': mt.abandon(); this.releaseSeats(); this.sendNames(); break;
       case 'speed': mt.setSpeed(p, m.v); break;
+      case 'servemode': mt.setServeMode(p, m.v); break;
       default: break;
     }
   }

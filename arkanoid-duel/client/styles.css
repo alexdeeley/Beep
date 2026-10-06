@@ -22,6 +22,7 @@ body { position: fixed; inset: 0; height: 100dvh; -webkit-user-select: none; use
 main { position: fixed; inset: 0; pointer-events: none; }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: calc(var(--sat) + 18px) calc(var(--sar) + 18px) calc(var(--sab) + 18px) calc(var(--sal) + 18px); text-align: center; pointer-events: auto; overflow-y: auto; touch-action: pan-y; background: #000 radial-gradient(120% 80% at 50% 0%, #10143a 0%, #000 60%); }
 .screen[hidden] { display: none; }
+[hidden] { display: none !important; }
 .screen.overlay { background: rgba(0, 0, 4, 0.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 .stack { display: flex; flex-direction: column; gap: 14px; width: min(100%, 26rem); align-items: stretch; }
 
@@ -58,6 +59,8 @@ input.code { text-align: center; font-size: 2rem; letter-spacing: .4em; text-tra
 .err { min-height: 1.4em; margin: 0; color: var(--bad); font-size: .9rem; letter-spacing: .06em; }
 .status { margin: 0; min-height: 1.4em; color: var(--dim); letter-spacing: .1em; font-size: .95rem; }
 
+.big-status { font-size: 1.1rem; letter-spacing: .14em; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
 .codebox { display: flex; flex-direction: column; gap: 4px; padding: 10px 28px; border: 3px solid var(--gold); border-radius: 16px; box-shadow: 0 0 24px rgba(255, 225, 77, .3); }
 .codebox span { font-size: .72rem; letter-spacing: .2em; color: var(--dim); }
 .codebox b { font-size: clamp(2.6rem, 14vw, 4.4rem); letter-spacing: .28em; padding-left: .28em; color: var(--gold); }

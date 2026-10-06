@@ -94,7 +94,7 @@ export class Ai {
     if (this.clock < this.actAt) return;
     switch (m.phase) {
       case 'READY': if (!m.ready[seat]) m.pressReady(this.player); break;
-      case 'SERVE': if (m.servePlayer === this.player) m.pressServe(this.player); break;
+      case 'SERVE': case 'PLAYING': if (m.holds(this.player)) m.pressServe(this.player); break;
       case 'MATCH_WON': case 'REMATCH': if (!m.rematch[seat]) m.pressRematch(this.player); break;
       default: break;
     }

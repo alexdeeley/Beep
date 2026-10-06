@@ -8,9 +8,8 @@ Player 2 at the top, one shared ball bounces between you and through a wall of
 blocks in the middle. Every block you break scores. Win three levels to win the
 match.
 
-Games are private: you create one, get a four-character **game code** and a
-**passcode**, and share both with a friend. No friend handy? Tap **PLAY THE
-COMPUTER** and play on your own against an AI at easy, normal or hard.
+Tap **FIND AN OPPONENT** and the next person who taps it is yours. No friend
+handy? Tap **PLAY THE COMPUTER** and play against an AI at easy, normal or hard.
 
 ---
 
@@ -18,10 +17,9 @@ COMPUTER** and play on your own against an AI at easy, normal or hard.
 
 **Live:** https://duel.deeley.org
 
-1. One player taps **CREATE GAME**, picks a name, and gets a code (like `Q7K9`) and a passcode.
-2. The other player taps **JOIN GAME** and enters the code and passcode (or opens the invite link, which fills the code in).
-3. Both tap **READY**. A 3-2-1-GO countdown runs on the server's clock.
-4. The player whose serve it is taps / presses Space to launch. Play.
+1. Tap **FIND AN OPPONENT**, type a name, tap **SEARCH**. You wait in the lobby until someone else searches; you are paired at once. (Two friends who search at the same moment get each other.) After twelve seconds the screen offers the computer instead.
+2. Player 1 (whoever waited longest) picks the game speed and how serves work: **TAKE TURNS** (one ball, serves alternate) or **BOTH AT ONCE** (two balls, one each). Both tap **READY**. A 3-2-1-GO countdown runs on the server's clock.
+3. Tap / press Space to launch the ball you are holding. Play.
 
 ### Playing the computer
 
@@ -58,7 +56,8 @@ Objects and all) instead of the lightweight Node stand-in.
 
 ## 3. Rules
 
-- **Serve.** Player 1 serves first. After that serves **strictly alternate every rally** — whoever *won* the rally does not serve. Only the player the server names can launch the ball; anything else is rejected.
+- **Serve (take turns).** Player 1 serves first. After that serves **strictly alternate every rally** — whoever *won* the rally does not serve. Only the player holding the ball can launch it; anything else is rejected.
+- **Serve (both at once).** Every rally starts with a ball on *each* paddle. Either player may launch first; the other's ball keeps riding their paddle until they launch it (or eight seconds into the rally, when it is launched for them). Two balls are then in play. Let your own ball past you and your combo resets on the spot; the rally ends when the last ball is gone, and whoever lost that one lost the rally.
 - **Scoring.** Each block is worth 100 × your combo multiplier. The last paddle to touch the ball gets the credit. Your combo grows with every block you break in a row and **resets only when you lose a rally**.
 - **Losing a rally.** Let the last ball past your paddle. (No lives are lost — a rally only changes who serves and resets your combo.)
 - **Speed.** The ball speeds up each paddle hit within a rally (capped), and a little each level.
@@ -129,12 +128,14 @@ rules that run.
 
 The create request takes an optional `solo` (`easy` / `normal` / `hard`) which seats the computer as Player 2.
 
-Client → server: `hello` (code, passcode, player id, name) · `in` (paddle x) · `ready` · `serve` · `rematch` · `lobby` · `wait` · `leave` · `speed` · `ping`.
+Client → server: `hello` (code, passcode, player id, name) · `in` (paddle x) · `ready` · `serve` · `rematch` · `lobby` · `wait` · `leave` · `speed` · `servemode` · `ping`.
+Lobby socket (`/api/lobby/ws`): `find` (player id, name) · `cancel`; replies `waiting` (how many), `matched` (code, passcode, your seat, opponent's name).
 Server → client: `welcome` · `level` · `s` (snapshot) · `pong` · `names` · `err`. See `shared/protocol.ts`.
 
-## 7. Passcodes and safety
+## 7. Matchmaking, passcodes and safety
 
-- A game is created with a passcode (you choose one, or accept the generated one). To join you need **both** the code and the passcode.
+- **The lobby** is one Durable Object for everyone. It pairs the two people who have waited longest, as long as they are different people (a second tab replaces the first). It makes the room itself, with a random code and a random passcode it hands to both players; nobody sees them. Cancelling or closing the page takes you out of the queue.
+- Under the hood a game is still a room with a code and a passcode - that is what lets you reload or lose signal and slide back into the same seat. The `POST /api/rooms` API that creates a room directly is still there (the computer games and the tests use it).
 - The server stores only a salted SHA-256 hash of the passcode, never the passcode itself, and compares in constant time.
 - 5 wrong passcodes lock that game's join attempts for a minute (so a four-letter code can't be brute-forced).
 - A game holds exactly two players. A third visitor gets **GAME FULL**. In a game against the computer the second seat belongs to the computer for good, so nobody can join it.
@@ -181,7 +182,7 @@ Copy `.env.example`. None of these are secret.
 | `npm start` | run the local server |
 | `npm run typecheck` | TypeScript, client and server |
 | `npm run lint` | repo-specific checks (determinism of `shared/`, no stray `console.log`, no secrets…) |
-| `npm test` | fast unit / AI / room / worker tests (≈ 80 tests, under a minute) |
+| `npm test` | fast unit / AI / room / lobby / worker tests (≈ 90 tests, under a minute) |
 | `npm run test:integration` | bots play a whole match over real WebSockets, ~100 s |
 | `npm run test:browser` | two real Chromium browsers (a phone and a desktop) play each other; needs `playwright` |
 | `npm run loadtest` | N simultaneous games; see below |

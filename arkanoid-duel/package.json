@@ -14,7 +14,7 @@
     "start": "node dev/local-server.mjs",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.server.json",
     "lint": "node dev/lint.mjs",
-    "test": "node --no-warnings --test --test-timeout=60000 tests/sim.test.ts tests/ai.test.ts tests/room.test.ts tests/worker.test.ts",
+    "test": "node --no-warnings --test --test-timeout=60000 tests/sim.test.ts tests/ai.test.ts tests/room.test.ts tests/lobby.test.ts tests/worker.test.ts",
     "test:browser": "node dev/browser-test.mjs",
     "loadtest": "node dev/load-test.mjs",
     "deploy": "wrangler deploy",

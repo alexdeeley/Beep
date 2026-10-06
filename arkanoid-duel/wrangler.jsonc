@@ -11,8 +11,8 @@
   "assets": { "directory": "./public", "run_worker_first": ["/api/*", "/health"] },
 
   // One Durable Object per game. It owns the match and runs the 60 Hz simulation.
-  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }],
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }, { "name": "LOBBY", "class_name": "DuelLobby" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }, { "tag": "v2", "new_sqlite_classes": ["DuelLobby"] }],
 
   "vars": { "ENVIRONMENT": "production" },
   "observability": { "enabled": true },
@@ -24,8 +24,8 @@
     "staging": {
       "name": "arkanoid-duel-staging",
       "vars": { "ENVIRONMENT": "staging" },
-      "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }] },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }],
+      "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "DuelRoom" }, { "name": "LOBBY", "class_name": "DuelLobby" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuelRoom"] }, { "tag": "v2", "new_sqlite_classes": ["DuelLobby"] }],
       "routes": []
     }
   }

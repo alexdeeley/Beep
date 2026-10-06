@@ -5,6 +5,7 @@
 //                                    (solo: "easy" | "normal" | "hard" makes Player 2 the computer)
 //   GET  /api/rooms/:code         → { exists, full }
 //   GET  /api/rooms/:code/ws      → WebSocket into that game's Durable Object
+//   GET  /api/lobby/ws            → WebSocket to the lobby: send { t: 'find', pid, name }, get { t: 'matched', code, pass }
 //
 // Everything else is served from ./public as static files.
 //
@@ -14,12 +15,14 @@
 // serverless function can't do.
 
 import { Room } from './room.ts';
+import { Lobby } from './lobby.ts';
 import { isDifficulty } from '../shared/ai.ts';
 import type { Difficulty } from '../shared/ai.ts';
 import { cleanCode, hashPass, validCode, validPass } from '../shared/protocol.ts';
 
 export interface Env {
   ROOMS: DurableObjectNamespace;
+  LOBBY: DurableObjectNamespace;
   ALLOWED_ORIGINS?: string;        // extra origins allowed to open a WebSocket, comma separated
   ENVIRONMENT?: string;            // "production" tightens a few dev conveniences
   CREATE_LIMIT?: string;           // games one address may create per 10 minutes (default 20); raise it for load tests
@@ -113,6 +116,41 @@ export class DuelRoom {
   }
 }
 
+// ── The lobby: one for everyone, pairing people off as they arrive ──
+
+export class DuelLobby {
+  private lobby: Lobby;
+
+  constructor(_state: DurableObjectState, env: Env) {
+    this.lobby = new Lobby({
+      randomCode,
+      createRoom: async (code, passHash, pid) => {
+        const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
+        const res = await stub.fetch('https://room/init', { method: 'POST', body: JSON.stringify({ code, passHash, pid }) });
+        return res.ok;
+      },
+      log: (event, detail) => console.info(JSON.stringify({ lobby: event, ...detail })),
+    });
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
+    server.accept();
+    const lobby = this.lobby;
+    const seeker = lobby.attach({
+      send: (d) => server.send(d),
+      close: (c, r) => { try { server.close(c, r); } catch { /* already closed */ } },
+    });
+    server.addEventListener('message', (e) => { void lobby.receive(seeker, e.data); });
+    const gone = () => lobby.detach(seeker);
+    server.addEventListener('close', gone);
+    server.addEventListener('error', gone);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+}
+
 // ── The Worker ───────────────────────────────────────────────
 
 export default {
@@ -121,6 +159,10 @@ export default {
 
     if (url.pathname === '/health') return json({ ok: true, service: 'arkanoid-duel' });
     const parts = url.pathname.split('/').filter(Boolean);        // ['api', 'rooms', code?, 'ws'?]
+    if (parts[0] === 'api' && parts[1] === 'lobby' && parts[2] === 'ws' && parts.length === 3) {
+      if (!originAllowed(request.headers.get('Origin'), url.host, env)) return new Response('Forbidden origin', { status: 403 });
+      return env.LOBBY.get(env.LOBBY.idFromName('lobby')).fetch(new Request('https://lobby/ws', request));
+    }
     if (parts[0] !== 'api' || parts[1] !== 'rooms') return new Response('Not found', { status: 404 });
 
     // Create a game.
