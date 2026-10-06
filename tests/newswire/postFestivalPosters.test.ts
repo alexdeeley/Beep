@@ -25,6 +25,14 @@ describe("buildPostText", () => {
     );
   });
 
+  it("doesn't duplicate the year when festivalName already contains it (observed live in production)", () => {
+    const text = buildPostText(makeItem({ festivalName: "ArcTanGent Festival 2027" }));
+    expect(text.startsWith("FESTIVAL LINEUP: ArcTanGent Festival 2027\n\n")).toBe(true);
+    expect(text).not.toContain("2027 2027");
+    expect(text).toContain("#ArcTanGentFestival2027 ");
+    expect(text).not.toContain("20272027");
+  });
+
   it("omits the year when eventYear is null", () => {
     expect(buildPostText(makeItem({ eventYear: null }))).toBe(
       "FESTIVAL LINEUP: Coachella\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +

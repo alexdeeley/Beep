@@ -14,6 +14,17 @@ const TAG = "festival-posters";
 
 const MAX_LINEUP_NAMES_SHOWN = 6;
 
+/**
+ * Discovery/verification sometimes return festivalName already containing the edition year (e.g.
+ * "ArcTanGent Festival 2027") even though eventYear carries that same year separately - observed live
+ * in production. Strips a trailing duplicate year before any display text is built, so the year is
+ * never shown twice (header "... 2027 2027", hashtag "...Festival20272027").
+ */
+function cleanFestivalName(festivalName: string, eventYear: number | null): string {
+  if (!eventYear) return festivalName;
+  return festivalName.replace(new RegExp(`\\s*${eventYear}\\s*$`), "").trim();
+}
+
 /** Turns a festival name into a bare (no "#") PascalCase hashtag token, e.g. "Rock am Ring" -> "RockAmRing". */
 function slugifyForHashtag(name: string): string {
   return name
@@ -24,7 +35,7 @@ function slugifyForHashtag(name: string): string {
 }
 
 function buildHashtagLine(item: VerifiedFestivalPoster): string {
-  const slug = slugifyForHashtag(item.festivalName);
+  const slug = slugifyForHashtag(cleanFestivalName(item.festivalName, item.eventYear));
   const tags = [slug ? (item.eventYear ? `${slug}${item.eventYear}` : slug) : null, "MusicFestival", "FestivalLineup"].filter(
     (t): t is string => Boolean(t)
   );
@@ -43,7 +54,8 @@ function buildLineupLine(lineupArtists: string[]): string {
 
 /** Exported for unit testing. Truncates the blurb (never the header, the lineup line, or the hashtags) if the combined text would exceed Bluesky's post limit - real festival lineups can list many headliners. */
 export function buildPostText(item: VerifiedFestivalPoster): string {
-  const label = item.eventYear ? `${item.festivalName} ${item.eventYear}` : item.festivalName;
+  const name = cleanFestivalName(item.festivalName, item.eventYear);
+  const label = item.eventYear ? `${name} ${item.eventYear}` : name;
   const header = `FESTIVAL LINEUP: ${label}\n\n`;
   const lineupLine = buildLineupLine(item.lineupArtists);
   const hashtagLine = buildHashtagLine(item);
