@@ -2,32 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 
-const quietHoursSchema = z.object({
-  timezone: z.string().min(1),
-  slowStartHourLocal: z.number().int().min(0).max(23),
-  slowEndHourLocal: z.number().int().min(0).max(23),
-  minImportanceScoreDuringSlow: z.number().min(0).max(1),
-  minImportanceScoreDuringSilentThreshold: z.number().min(0).max(1),
-});
-
-const voiceSchema = z.object({
-  allowJokes: z.boolean(),
-  allowHashtagsInline: z.boolean(),
-  allowEmoji: z.boolean(),
-  allowRhetoricalQuestions: z.boolean(),
-});
-
 export const editorialFocusSchema = z.object({
   $schemaVersion: z.number().int(),
-  neutralityNote: z.string().min(1),
   /** Ordered (most to least authoritative) list of source tiers the verification stage classifies every source into. */
   sourceTiers: z.array(z.string().min(1)).min(1),
   /** Named music-trade publishers (Pitchfork, Billboard, ...) recognized as the "entertainment_trade" tier during verification. */
   entertainmentTradePublishers: z.array(z.string()).default([]),
-  /** Artist names (must match watched-artists.txt exactly) that get VIP treatment: always bypass quiet hours, jump the queue ahead of everything else, never held for the Friday album roundup, and get a "HUGE NEWS:" label instead of the normal flat wire tone. */
-  priorityArtists: z.array(z.string().min(1)).default([]),
-  quietHours: quietHoursSchema,
-  voice: voiceSchema,
 });
 
 export type EditorialFocus = z.infer<typeof editorialFocusSchema>;

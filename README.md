@@ -10,15 +10,13 @@ This README assumes you are **not** a professional developer. Every step is
 spelled out. If a step feels obvious to you, skip ahead.
 
 > **Note:** This account now runs a second, primary pipeline on top of the
-> daily one described below — a twice-daily autonomous music news
-> wire that checks a personal artist watchlist via web search, requires
-> independent 2-source verification, and posts when something genuinely
-> new clears that bar (plus an industry-wide Friday roundup and a daily
-> music-history post). It replaced the daily pipeline's *schedule* (the
-> code below still works and is still runnable by hand, it just no longer
-> fires automatically). See **[§18, The music news
-> wire](#18-the-music-news-wire)** for how it works. The formerly-independent
-> weekly "card draw" pipeline has been removed entirely.
+> daily one described below — an autonomous music festival-poster finder
+> that searches the web worldwide for major festivals that have just
+> announced their lineup, independently verifies each one, and posts the
+> festival's own official poster image. It replaced the daily pipeline's
+> *schedule* (the code below still works and is still runnable by hand, it
+> just no longer fires automatically). See **[§18, The festival-poster
+> finder](#18-the-festival-poster-finder)** for how it works.
 
 ---
 
@@ -423,7 +421,7 @@ src/
   storage/         # R2/S3 upload
   bluesky/         # official AT Protocol publish flow
   orchestration/   # the master daily pipeline + CLI stage runners
-  newswire/        # fully independent twice-daily music news wire - see §18 below
+  newswire/        # the festival-poster finder - see §18 below
   cli/             # command-line entry point
   utils/           # dates/timezones, logging, run state, text limits
 
@@ -432,7 +430,7 @@ tests/                   # vitest unit tests + the August 29 fixture
 runs/                    # generated output (gitignored, per-date)
 .github/workflows/       # daily.yml (workflow_dispatch only - see §18) + news.yml
 
-watched-artists.txt      # the newswire pipeline's artist watchlist, one name per line - see §18.2
+editorial-focus.json     # source-tier authority ranking for verification - see §18.2
 ```
 
 ---
@@ -506,725 +504,70 @@ and whatever gets added later), published together as a static site via
 
 ---
 
-## 18. The music news wire
-
-A third, independent pipeline lives in `src/newswire/` and is now the
-account's primary posting cadence: twice a day (8am/8pm local - §18.3a),
-it rotates through a batch of a personal artist watchlist, searches the
-web for genuine new releases or notable music news, independently
-re-verifies each candidate before trusting it, and posts a short, factual
-item when something clears that bar — or, most cycles, posts nothing
-through the writer path at all, because most artists in a large watchlist
-don't have real news most cycles, and that silence is correct, not a bug.
-Alongside that per-artist flow: every Friday cycle also posts an
-industry-wide `NEW MUSIC FRIDAY` roundup, every cycle also checks whether
-today's `TODAY IN HISTORY` post has gone out yet, every non-priority
-single posts immediately as a plain mechanical line rather than through
-the writer, any watchlist artist gets a one-line `HAPPY BIRTHDAY` post on
-their real, independently-verified birthday, every Tuesday a `SHOWS`
-post lists upcoming Portland/Pacific-Northwest concerts industry-wide
-like the Friday roundup, every cycle also checks for a `MUSIC NEWS`
-recap - a rare, narrow, high-bar digest of genuinely major real-world
-news (arrest, death, breakup, major lawsuit/scandal) for a watchlist
-artist - and, if configured, every cycle also checks a user-maintained
-Spotify playlist for newly-added tracks (§18.7-§18.15).
-
-**Nothing is ever posted on a single unverified source.** Discovery finds
-candidates via one web-search sweep across the batch; a completely
-separate verification pass then re-researches each candidate from scratch
-— it does not trust discovery's claims or sources — and requires **at
-least 2 independent corroborating source domains** before a candidate is
-eligible to post at all. That verified copy then still goes through a
-mandatory final fact-check gate before anything is published. (An earlier
-version of this pipeline briefly used the Spotify Web API instead of web
-search for this — Spotify locked down Developer Mode access in February
-2026 in a way that broke that approach before it ever went live, so this
-now uses the same discover → independently-verify architecture the
-account's general-news pipeline used, just scoped to an artist batch
-instead of a topic list.)
-
-It shares the Bluesky account with the daily pipeline above but
-nothing else: its own concurrency group (`on-this-day-newswire`), its own
-persistent state (a SQLite database in the R2 bucket, not `runs/<date>/`),
-and its own idempotency/dedup logic. A failure here can't corrupt or block
-the daily pipeline, and vice versa.
-
-### 18.1 The cycle, stage by stage
-
-This pipeline runs twice a day, not hourly - see §18.3a for the posting-
-hours mechanism. Each run that actually executes (`npm run news:preview`
-or `news:publish`, or the `news.yml` schedule at 8am/8pm local) does, in
-order:
-
-1. **Import the watchlist** (`artists/importArtistList.ts`) — re-reads
-   `watched-artists.txt` and adds any names not already tracked. Cheap
-   and idempotent, so editing the file takes effect on the very next run
-   with no separate import step.
-2. **Pick a rotation batch** (`db/watchedArtistsRepo.ts`) — the
-   oldest-checked-first (never-checked-first) `NEWS_ARTIST_BATCH_SIZE`
-   artists. A watchlist can be thousands of names long, so a full
-   rotation naturally takes many cycles - each cycle just needs to check
-   *some* of the list, not all of it.
-3. **Discover** (`discovery/discoverArtistNews.ts`) — one web-search
-   sweep across the whole batch via OpenAI's Responses API with the
-   built-in web-search tool, asking for at most one genuinely new item
-   (a release, or concrete news like a tour date or lineup change) per
-   artist in roughly the last few days. A release item is also classified
-   by format - `single`, `album`, `ep`, or `compilation` - and, for a
-   release, a clean `releaseTitle` (just the song/album name, nothing
-   else) - both decide how it's posted later (see §18.7). Candidates with
-   no reported source, an artist name that isn't an exact match in the
-   batch, or an effectively-identical headline to something already on
-   record for that artist are rejected here.
-4. **Verify** (`verification/verifyArtistNews.ts`) — for each surviving
-   candidate, an **independent** re-search (a fresh web-search call that
-   does not trust discovery's claims or sources) breaks it into
-   individual factual claims, labels each FACT / ANALYSIS / UNCONFIRMED /
-   BACKGROUND / PREDICTION, classifies every source into a tier, and
-   requires **at least 2 independent corroborating source domains** or
-   the candidate is dropped outright.
-5. **NEW MUSIC FRIDAY + TODAY IN HISTORY + birthdays + SHOWS** — four
-   independent, mechanical posts that run before anything below and
-   aren't affected by whatever this cycle's quiet-hours outcome ends up
-   being. See §18.7, §18.9, §18.10, and §18.11.
-6. **Mechanical singles** — every non-priority single verified so far
-   (this cycle's or an earlier one's backlog) posts immediately as its
-   own post, built directly as `NEW SINGLE: Artist - Title` - no writer,
-   no copy-edit, no fact-check, since there's no new prose to check. See
-   §18.7.
-7. **Rank** (`ranking/rankMusicItems.ts`) — what's left for the writer is
-   every verified **news item** (priority or not) plus every **priority
-   artist's release** (single or album/EP/compilation - priority items
-   skip both the mechanical-single and Friday-roundup paths above; see
-   §18.8), not yet posted. The pool is in FIFO order (oldest-discovered
-   first) - deliberately **not** importance-ordered, so an item from
-   three days ago is never starved indefinitely behind a stream of newer
-   items. A structural confidence score (release vs. news, fact label,
-   corroboration count) only feeds the quiet-hours check below, never the
-   post order.
-8. **Quiet-hours check** (`quietHours/`) — see §18.4. May end the run
-   right here with nothing more posted beyond whatever went out
-   mechanically in steps 5-6, which is expected most cycles.
-9. **Write** (`writing/`) — composes one short, factual post per item
-   from the verified facts only, against a hard list of banned AI-cliché
-   and hype phrases (`writing/bannedPhrases.ts`). No claim about quality,
-   significance, or any detail not present in the verified facts is ever
-   invented; an UNCONFIRMED or PREDICTION fact must be hedged in the
-   prose ("reportedly", "expected to"), never stated as settled.
-10. **Copy-edit** (`copyEdit/`) — a structural check against the banned
-    phrase list and your `voice` settings (jokes/hashtags/emoji/rhetorical
-    questions), with one revision pass if anything's flagged.
-11. **Fact-check** (`factCheck/`) — **mandatory, cannot be skipped.**
-    Extracts every factual claim from the *final* copy-edited text and
-    checks it against the independently-verified facts only - never
-    outside knowledge. Every claim must come back `SUPPORTED` or
-    publishing is blocked outright. This is what catches a claim the
-    writer invented or embellished while composing prose.
-12. **Duplicate-check** (`duplicateCheck/`) — a content-hash exact-repost
-    guard (never literally re-post identical text). The real "is this
-    genuinely new" judgment already happened in steps 3-4.
-13. **Publish** (`publishing/publishMusicItems.ts`) — each item is
-    posted as its **own independent post** (never threaded together with
-    an unrelated artist's news), split at grapheme-safe sentence
-    boundaries if it runs long. Each post is recorded to the database
-    immediately after it succeeds - a mid-edition failure leaves an
-    accurate record, and whatever didn't post stays queued for the next
-    cycle.
-
-### 18.2 Editing who it covers: `watched-artists.txt`
-
-The repo-root `watched-artists.txt` is yours to edit directly - one
-artist name per line, blank lines and `#`-prefixed comments ignored,
-re-read at the start of every run. Add a name and it's picked up
-automatically within the next cycle or two, once its turn in the rotation
-comes up; delete a line and that artist just stops being checked (its
-history in the database is kept, not deleted).
-
-`editorial-focus.json` controls source-tier authority ranking, posting
-cadence, and voice/style:
-
-- **`sourceTiers`** — the ordered authority ranking (most to least
-  authoritative) the verification stage classifies every source into:
-  `primary_official` (the artist's own posts/site), `company_statement`
-  (a label statement), `entertainment_trade`, `wire_service`,
-  `general_news`, `aggregator`, `blog_social`.
-- **`entertainmentTradePublishers`** — named music-trade outlets
-  (Pitchfork, Billboard, Rolling Stone, etc.) recognized as the
-  `entertainment_trade` tier - add your own trusted outlets here.
-- **`quietHours`** and **`voice`** — see §18.4 and §18.1 step 7.
-- **`neutralityNote`** — a fixed reminder (to the model, not to you) of
-  what this file controls, and that it no longer selects topics -
-  `watched-artists.txt` is the sole determinant of who gets covered.
-
-JSON doesn't support comments natively, but the loader
-(`src/newswire/editorialFocus.ts`) tolerates `//` line comments, so feel
-free to annotate your own copy.
-
-### 18.3 Per-stage models and cost control
-
-Every stage has its own model env var, independent of the daily
-pipeline's `RESEARCH_MODEL`/`VERIFICATION_MODEL`: `NEWS_DISCOVERY_MODEL`,
-`NEWS_VERIFICATION_MODEL`, `NEWS_WRITER_MODEL`, `NEWS_COPYEDIT_MODEL`,
-`NEWS_FACTCHECK_MODEL` (see `.env.example`) - a cheaper model for
-high-volume discovery/copy-edit, a stronger one for verification/writing/
-fact-check. `NEWS_ARTIST_BATCH_SIZE` (default 150) controls how many
-artists one discovery web-search call covers per cycle - large enough to
-make real rotation progress through a big watchlist even at only 2
-cycles/day, small enough that a single search call can meaningfully cover
-every name in it.
-
-### 18.3a Twice a day, not hourly
-
-`NEWS_POSTING_HOURS_LOCAL` (default `8,20`, i.e. 8am and 8pm in
-`editorial-focus.json`'s `quietHours.timezone`) is what actually enforces
-this pipeline's cadence. `news.yml`'s cron fires more often than that -
-four lines, one PST/PDT pair per target hour, the same two-cron-per-hour
-pattern `daily.yml` uses to survive DST without a wall-clock anchor
-drifting - but `runNewswireCycle.ts` checks the actual local hour against
-`NEWS_POSTING_HOURS_LOCAL` first, before anything else, and exits
-immediately (no OpenAI call, no R2 download) on any cycle outside the
-posting window (see below). The "wrong" DST offset's extra daily firing
-is exactly this: a cheap, harmless no-op. `--force` (via `news:preview --
---force` / `news:publish -- --force`) bypasses this gate too, same as it
-bypasses quiet hours, for manual testing at any hour.
-
-**The posting window tolerates a late-arriving cron, rather than requiring
-an exact-hour match.** GitHub Actions scheduled workflows have no timing
-SLA - confirmed live, this pipeline's cron has been observed firing
-2.5-4 hours late against its target. The original gate required the
-current local hour to equal 8 or 20 exactly; a delayed firing landing on
-any other hour was silently treated as off-hours, which meant the account
-went a full day without posting once every recent scheduled run started
-missing its window. `quietHours/postingWindow.ts`'s
-`resolveEligiblePostingWindow` now accepts any firing within
-`NEWS_POSTING_WINDOW_TOLERANCE_HOURS` (default 6) hours after a target
-hour, correctly handling the 20:00 window wrapping past midnight. Since
-cron already fires up to 4x/day and a wider tolerance means more than one
-of those firings can now land inside the same window,
-`db/researchRunsRepo.ts`'s `getLastHourlyRun` (real cycles only - dry
-runs from `news:preview` don't count) guards against running the full
-pipeline twice for one window: if a real cycle already started at or
-after the current window's start, later firings inside that same window
-skip cleanly instead of re-sweeping the watchlist.
-
-### 18.4 Quiet hours: silence is the point, not a failure
-
-`editorial-focus.json`'s `quietHours` block defines a window (default
-23:00–06:00 in your configured timezone) where the bar for posting rises.
-Below `minImportanceScoreDuringSlow`, the hour stays silent. Above it but
-below `minImportanceScoreDuringSilentThreshold`, it still posts, but only
-items that clear that bar. Above `minImportanceScoreDuringSilentThreshold`
-- a release backed by unusually strong corroboration - it posts as if it
-were any other cycle. Since this pipeline only actually runs twice a day
-(§18.3a), and neither 8am nor 8pm falls inside the default 23:00–06:00
-window, quiet hours rarely triggers unless you widen the window yourself.
-**If you check `news:status` and see a cycle with no writer-path post,
-that is very likely the pipeline working correctly** (most artists on a
-large watchlist don't have writer-eligible news most cycles - mechanical
-singles/roundup/history posts are unaffected by this check anyway), not a
-stuck or broken run - manufacturing a post to fill a cycle is explicitly
-the wrong behavior here.
-
-### 18.5 The story database: R2-hosted SQLite, not `runs/<date>/`
-
-Unlike the daily pipeline's git-committed or filesystem-only
-state, this pipeline's memory - the watchlist's rotation state and every
-verified item ever seen - is a SQLite database (`better-sqlite3`) stored
-as an object in your existing R2 bucket (`NEWS_DB_R2_KEY`, default
-`newswire/story.db`). Every run downloads it fresh, works against the
-local copy, and - outside of `news:preview`, which never persists
-anything - uploads it back at the end, even on failure (so the audit
-trail survives a bad run). **The first run ever finds no object in R2 and
-starts from an empty database - this is normal, not an error**; you'll
-see a log line saying exactly that. Concurrent writes are prevented by
-the GitHub Actions `concurrency` group (`on-this-day-newswire`); an ETag
-precondition on upload is a second line of defense that fails loudly
-instead of silently overwriting another run's data if that lock is ever
-removed.
-
-### 18.6 Commands
-
-```bash
-npm run news:preview                 # run everything for real, print the proposed post(s), publish/persist NOTHING - safe to re-run
-npm run news:preview -- --force      # same, but bypass the quiet-hours silence check (to actually see output while testing at 3am)
-npm run news:publish                 # run everything and publish to Bluesky if there's something verified worth posting
-npm run news:status                  # read-only summary: last run, watched-artist count, unposted backlog, last roundup/history post, recent items posted, recent failures
-```
-
-`news:preview` and `news:publish` are two different commands, not one
-command with a `--dry-run` flag, because the distinction is safety-load-
-bearing here: `news:preview` is guaranteed to never touch the shared R2
-database or Bluesky account, so it's the one to run repeatedly while
-iterating on `watched-artists.txt` or prompts.
-
-### 18.7 Singles post immediately; albums wait for Friday
-
-Not every release gets posted the moment it's verified. `releaseFormat`
-(set during discovery, §18.1 step 3) splits release items into two very
-different posting paths:
-
-- **Non-priority singles** post immediately, the same cycle they're
-  verified, as a mechanical, fixed-format line built directly from
-  structured fields - never through the writer LLM at all (there's no
-  prose to compose, so there's nothing for copy-edit/fact-check/
-  duplicate-check to check either):
-
-  ```
-  NEW SINGLE: The Strokes - Name Of Song
-  https://open.spotify.com/track/abc123
-  ```
-
-  `artistName` and `releaseTitle` (both captured at discovery, §18.1 step
-  3) are used verbatim - this is the one place accuracy depends on
-  discovery reporting the release's real title exactly, since nothing
-  downstream rewrites or checks it. A priority artist's single instead
-  goes through the writer with the `HUGE NEWS:` treatment - see §18.8.
-
-  The Spotify link is optional and best-effort (`spotify/lookupTrack.ts`):
-  a live Client Credentials catalog search (no user login) by artist +
-  title, attached as a clickable `app.bsky.richtext.facet#link` on its
-  own line via `bluesky/threadPublish.ts`'s `buildLinkFacet`. It's added
-  only when a result confidently matches both the artist and the title
-  *and* was itself released within the last 45 days - guarding against a
-  title collision with an old catalog track by the same artist. When
-  `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` aren't set, the lookup
-  fails, or no confident match is found, the single posts exactly as it
-  always has, with no second line - never a hard dependency.
-- **Albums, EPs, and compilations from your watchlist** are held back from
-  the mechanical-single/writer paths entirely (`db/musicItemsRepo.ts`'s
-  `getUnpostedIndividualItems` excludes them) and instead accumulate,
-  unposted, in the database all week.
-
-**`NEW MUSIC FRIDAY` is industry-wide, not limited to
-`watched-artists.txt`, and just lists artist names.** Once a week - the
-first cycle on a Friday, local time (in `editorial-focus.json`'s
-`quietHours.timezone`), at or after `NEWS_WEEKLY_ROUNDUP_HOUR_LOCAL`
-(default 8am) - `postWeeklyRoundup.ts` does two things before it posts:
-
-1. Runs its own independent web-search sweep
-   (`discovery/discoverIndustryReleases.ts` +
-   `verification/verifyIndustryReleases.ts`) for major album/EP/
-   compilation releases across the **whole music industry** - a
-   New-Music-Friday-style roundup, not scoped to any personal watchlist.
-   These go through the same independent 2-corroborating-source
-   verification as everything else (including rejecting anything the
-   model reports as a `single` outright - this roundup is full releases
-   only) and are stored in their own `industry_release_items` table (no
-   `watched_artist_id` - these artists don't need to be tracked between
-   cycles).
-2. Merges that with whatever watchlist albums/EPs/compilations are
-   sitting unposted, de-duplicating by artist+headline so an artist
-   that's both on your watchlist and independently surfaced by the
-   industry sweep is only listed once (the watchlist-tracked version
-   wins).
-
-**Fundamental rule: only releases dated exactly today make the cut.**
-Both pools are passed through `weeklyRoundup/releaseDateFilter.ts`'s
-`wasReleasedOn`, which requires an "exact"-confidence `event_time` (as
-independently determined during verification, not discovery's initial
-guess) matching today's local date precisely. An album that's been
-sitting unposted because the watchlist rotation only just got around to
-checking that artist - even if it actually released three days ago - is
-**excluded**, not swept in just because it happened to still be
-unposted. `NEW MUSIC FRIDAY` is a same-day snapshot of what's actually
-new today, never a backlog dump; a release with an approximate/unknown
-confidence, or no confirmed date at all, never counts as "today" no
-matter how notable it is. (This rule is specific to the roundup - it
-does not apply to `TODAY IN HISTORY`, §18.9, which is inherently about
-other years.)
-
-The combined, date-filtered list becomes one thread, artist names only,
-comma-separated:
-
-```
-NEW MUSIC FRIDAY 9/4/26
-
-Daft Punk, Interpol, Ben Kweller, Soft Pink, Death Cab
-```
-
-Every item across both sources is marked posted. This step is independent
-of, and runs before, the rest of the per-item flow, so it isn't affected
-by that cycle's quiet-hours outcome and always gets a chance to run on a
-Friday.
-
-Because the roundup is built directly from facts the verification stage
-already independently confirmed (not fresh model prose), it skips
-copy-edit/fact-check/duplicate-check entirely - there's no new writer
-output to check. If nothing turns up (watchlist or industry-wide) by
-Friday morning, nothing posts and no roundup is recorded, so a later
-cycle the same Friday (8pm) re-runs the industry sweep and can still catch
-anything found since (see `db/weeklyRoundupRepo.ts` for the once-per-
-Friday idempotency guard). `npm run news:status` reports
-`albumsQueuedForRoundup` (watchlist albums waiting),
-`industryReleasesQueuedForRoundup` (industry-wide releases already
-discovered and waiting), and `lastRoundup` (the date and combined item
-count of the most recent one actually posted).
-
-### 18.8 VIP artists: `priorityArtists`
-
-`editorial-focus.json`'s `priorityArtists` array (names must match
-`watched-artists.txt` exactly) gets an artist special treatment across
-every stage that matters:
-
-- **Never held back.** An album/EP/compilation from a priority artist
-  skips the Friday-only roundup entirely and joins the immediate queue
-  like a single would (`runNewswireCycle.ts` merges it in and excludes it
-  from `postWeeklyRoundup.ts`'s pool).
-- **Jumps the queue.** Priority items are placed at the front of the
-  FIFO pool before ranking, so they're never waiting behind older,
-  unrelated items when `NEWS_MAX_POSTS_PER_EDITION` caps an edition.
-- **Always clears quiet hours.** Their `importanceScore` is forced to the
-  maximum (1.0), guaranteeing a `normal` quiet-hours outcome regardless
-  of the hour - see §18.4.
-- **A different voice, on purpose.** The writer labels the post
-  `HUGE NEWS:` instead of the usual flat wire tone - including instead of
-  the mechanical `NEW SINGLE:` format everyone else's singles get, since a
-  priority artist's release always goes through the writer, never the
-  mechanical path - and is allowed one exclamation point, the one
-  deliberate exception to this pipeline's otherwise strict no-hype voice.
-  It's still bound by the same rule as everything else, though: only the
-  given verified facts, never an invented superlative.
-
-This is a small, deliberately manual list (repo ships with
-`["Dave Matthews", "Dave Matthews Band"]`) - add any artist name you want
-VIP treatment for, exactly as it appears in `watched-artists.txt`.
-
-### 18.9 Every day: `TODAY IN HISTORY`
-
-Independent of the artist watchlist entirely, every cycle also checks
-whether today's "on this day in music history" post has gone out yet
-(`history/postMusicHistory.ts`, gated by `db/historyPostsRepo.ts`'s
-once-a-day idempotency table, `history_posts`). If not, it runs its own
-web-search sweep (`discovery/discoverMusicHistory.ts` +
-`verification/verifyMusicHistory.ts`) for real, independently-verifiable
-music-history events on today's calendar date (any year) - an album
-release, a landmark performance, a chart milestone, a significant death -
-through the same 2-corroborating-source rule as everything else in this
-pipeline. Verified events are sorted chronologically and posted as one
-thread:
-
-```
-TODAY IN HISTORY 9/5
-
-1977: Fleetwood Mac releases Rumours
-
-2019: Idles release Ultra Mono
-```
-
-Like the Friday roundup, this is built directly from independently-
-verified facts, so it skips copy-edit/fact-check/duplicate-check. **If
-nothing independently verifiable turns up for a given date, no post goes
-out and nothing is recorded** - accuracy comes before "there must always
-be something," and a later cycle the same day will try again rather than
-settling for an approximate date or a fact the model can't actually back
-up with a search result. `npm run news:status` reports `lastHistoryPost`
-(the date and item count of the most recent one actually posted).
-
-### 18.10 Watchlist birthdays: `birthdays/postBirthdays.ts`
-
-Unlike everything else in §18.7-§18.9, this is scoped strictly to
-`watched-artists.txt` - never industry-wide - and only ever fires for a
-name that's an **individual person**, never a band (a group has a
-formation date, not a birthday; the discovery prompt is explicitly told
-to skip - or return an all-null entry for - anything that isn't a solo
-musician). It does two independent things every cycle:
-
-1. **Resolve birth dates, a little at a time.** Every never-checked
-   artist gets looked up eventually: `db/watchedArtistsRepo.ts`'s
-   `getArtistsNeedingBirthDateCheck` picks up to `NEWS_BIRTHDATE_BATCH_SIZE`
-   (default 15) such artists per cycle, `discovery/discoverBirthDates.ts`
-   web-searches the batch, and `verification/verifyBirthDates.ts`
-   independently re-confirms each one (the same 2-corroborating-source
-   rule as everywhere else) before it's trusted. This is a **one-time**
-   lookup per artist, not a recurring check - `birth_date_checked_at` is
-   set the moment an artist is processed, even when no confirmable date
-   came back (a band, or a person whose birth date genuinely isn't
-   findable), so that artist is never re-queried forever. The discovery
-   prompt is deliberately strict about **coverage**: it must return one
-   entry per name in the batch (null fields when nothing's confirmable),
-   specifically so a name the model just didn't get to in one search pass
-   isn't silently and permanently written off as "no birthday" - verified
-   live, tightening this from "report what you found" to "one entry per
-   name, always" measurably improved how many real people's birthdays
-   actually got resolved in a single sweep.
-2. **Post on the day.** Every cycle, `getArtistsWithBirthdayOn` checks
-   today's local date (`editorial-focus.json`'s `quietHours.timezone`)
-   against every artist with a confirmed birth month/day. A match posts
-   immediately as its own short post - no writer, no copy-edit, no
-   fact-check, since it's built directly from already-verified data:
-
-   ```
-   Happy birthday, Dave Matthews. 57 years young.
-   ```
-
-   The age is stated **only** when the birth year was independently
-   confirmed; otherwise it's just `Happy birthday, Dave Matthews.` - never
-   a guessed age. `db/birthdayPostsRepo.ts`'s `birthday_posts` table
-   (`UNIQUE(watched_artist_id, year)`) is the once-a-year idempotency
-   guard, so the twice-daily cadence can never post the same artist's
-   birthday twice in the same year even if both the 8am and 8pm cycle
-   land on the date.
-
-### 18.11 Weekly regional shows: `shows/postWeeklyShows.ts`
-
-Independent of `watched-artists.txt` entirely (any artist, not just the
-personal watchlist) - every Tuesday, local time, at or after
-`NEWS_SHOWS_HOUR_LOCAL` (default 8am), this posts a calendar of upcoming
-concerts in **Portland, Oregon and the broader Pacific Northwest**
-(Oregon, Washington, Idaho) for the next 7 days. Unlike the Friday
-roundup, there's no backlog table to accumulate into - it's a single
-fresh web-search sweep each week (`discovery/discoverShows.ts` +
-`verification/verifyShows.ts`, the same independent 2-corroborating-
-source rule as everywhere else), discovered and posted in one shot, like
-`TODAY IN HISTORY`. Format is a tight, calendar-style list - one show per
-line, sorted chronologically, no blank lines between entries:
-
-```
-SHOWS
-
-Matchbox 20 - Crystal Ballroom - Sept 7
-The Cure - Moda Center - Sept 8
-```
-
-**The venue is independently confirmed too, not just carried over from
-discovery's guess.** `verification/showsVerificationPrompts.ts` uses a
-dedicated schema with its own `confirmedVenue` field (rather than reusing
-the pipeline's fully generic verification schema) specifically because an
-earlier substring-matching approach - checking whether discovery's
-claimed venue literally appeared in the verified claim text - turned out
-fragile in live testing: about 40% of venues were dropped as
-"unconfirmed" purely from cosmetic wording differences ("Theatre" vs
-"Theater", a dropped venue-group prefix), not genuine non-confirmation.
-Asking for the venue as its own structured field fixed that; a venue is
-only shown when independently confirmed, never guessed - the line just
-reads `Artist - Date` when it isn't.
-
-**A show's date is a calendar date at the venue, not a UTC instant** -
-`shows/postWeeklyShows.ts`'s `localCalendarDate`/`formatShowDate` always
-parse with `{ setZone: true }` rather than converting into the server's
-zone, specifically because this bit a live test during development: a
-verified 7pm-Pacific show naively converted to UTC landed on the *next*
-calendar day, silently reporting the wrong date. Deduplication
-(same artist + same calendar date) uses this same corrected date, so a
-show independently reported once with a bare date and once with a full
-timestamp still collapses to one line rather than showing twice.
-
-**The 7-day window is enforced after verification, not just requested in
-the prompt.** A live test showed discovery/verification returning shows
-up to a month past the intended window despite the prompt explicitly
-asking for "the next 7 days" - `postWeeklyShows.ts` filters every
-verified show's `localCalendarDate` against `[startIso, endIso]` before
-anything else, logging how many got dropped, so the post stays a true
-snapshot of *this* week regardless of what the model returns.
-
-Like the other mechanical posts, this skips copy-edit/fact-check/
-duplicate-check - there's no new prose to check. If nothing independently
-verifiable turns up for the window, no post goes out and nothing is
-recorded, so a later cycle the same Tuesday can retry.
-`db/showsRepo.ts`'s `shows_runs` table (keyed by the local date it ran
-on) is the once-a-week idempotency guard.
-
-### 18.12 Once a day: the `MUSIC NEWS` recap
-
-Once a day - the first cycle that finds at least one independently
-verifiable, genuinely *major* piece of dramatic real-world news for a
-watchlist artist - posts a tight, tabloid-style digest:
-
-```
-MUSIC NEWS
-
-Rivers Cuomo arrested. Idles breaks up. Avril Lavigne dies.
-```
-
-This is a deliberately narrow, high-bar category - separate from the
-regular twice-daily "news" itemType (tour dates, lineup tweaks, award
-nominations), which keeps its own full-prose posts. It only fires for an
-artist's own arrest/conviction, death, serious hospitalization, a full
-band breakup, a major lawsuit directly involving the artist, or a major
-public scandal the artist is personally at the center of. Most days have
-**zero** qualifying items, and that's correct, not a failure - this
-should be rare by design.
-
-`discovery/discoverMusicNews.ts` sweeps industry-wide (watched-artists.txt
-has 11,000+ names, far too many to fit in a discovery prompt), and
-`musicNews/postMusicNewsRecap.ts` cross-checks every verified candidate's
-artist name against the watchlist **after** verification, case-
-insensitively (`db/watchedArtistsRepo.ts`'s `getArtistByNameCaseInsensitive`)
-- the same "enforce scope in code, not just the prompt" pattern as the
-Friday roundup's date filter and SHOWS' window filter. Non-watchlist
-matches are dropped and logged, never posted.
-
-**The short "blurb" text is verification's own finding, never discovery's
-wording** - `verification/musicNewsVerificationPrompts.ts` uses a
-dedicated schema with its own `blurb` field (same reasoning as SHOWS'
-`confirmedVenue`), rather than mechanically truncating a headline. A
-candidate is only kept when the blurb comes back non-null, which the
-prompt requires only when the core claim is independently confirmed as
-`FACT` by at least two distinct source domains - "prefer null over a
-wrong or overstated guess" is stated explicitly, since this is the one
-category in the whole pipeline where a wrong claim (a false arrest/death
-report) does real harm, not just an embarrassing correction.
-
-**A live test caught a real misattribution bug before this shipped**: an
-early run surfaced "Stevie Nicks' brother Christopher Nicks dies at 72"
-under the candidate artist name "Stevie Nicks" - the watchlist check
-passed (Stevie Nicks *is* on the watchlist) but the person who actually
-died was her brother, not her. Both the discovery and verification
-prompts were tightened to explicitly require the event happen to the
-named artist *themselves*, never a family member, relative, or associate
-reported under the artist's name - re-tested live afterward to confirm
-the fix held.
-
-The same staleness guard as the rest of the pipeline
-(`verification/itemFreshness.ts`, `NEWS_MAX_ITEM_AGE_DAYS`) applies here
-too, so a genuinely old story that resurfaces in a search can't be
-reported as current. Like the other mechanical posts, this skips
-copy-edit/fact-check/duplicate-check - there's no new prose to check
-beyond what verification already confirmed. `db/musicNewsRepo.ts`'s
-`music_news_posts` table (keyed by the local date it ran on) is the
-once-a-day idempotency guard.
-
-### 18.13 Once a day: the `TOP MUSIC STORIES` recap
-
-Once a day - the first cycle that finds at least one independently
-verifiable, genuinely major music story of **any** kind - posts a short,
-ranked digest:
-
-```
-TOP MUSIC STORIES 9/14
-
-Olivia Rodrigo's new album breaks the platform's first-week streaming record.
-
-Live Nation agrees to pay $50M to settle an antitrust lawsuit.
-```
-
-This is a **separate, broader** post from §18.12's `MUSIC NEWS` recap,
-not a replacement for it. `MUSIC NEWS` stays narrowly scoped to dramatic
-events (arrests, deaths, breakups, lawsuits) for watchlist artists only.
-`TOP MUSIC STORIES` is industry-wide and deliberately covers exactly what
-`MUSIC NEWS` excludes as "routine" - new releases, chart/streaming
-records, awards, major business news, huge tour/festival announcements -
-selected purely on real-world significance, not category. The two can
-both post on the same day, and there is no cross-check between them or
-against `watched-artists.txt`; a story doesn't need to be about a single
-named artist at all (a label, platform, or industry-wide story qualifies
-just as well), so unlike `MUSIC NEWS` there's no `artistName` field on
-its candidates.
-
-`discovery/discoverBiggestStories.ts` runs one industry-wide web-search
-sweep asking specifically for the day's *biggest* stories, ranked most
-significant first, capped at 8 items - most days should have only a
-handful, sometimes zero, and that's the normal, expected outcome, not a
-failure to search hard enough.
-
-**The blurb text is verification's own finding, never discovery's
-wording** - `verification/biggestStoriesVerificationPrompts.ts` uses a
-dedicated schema with its own `blurb` field, same reasoning as `MUSIC
-NEWS`'s. Unlike `MUSIC NEWS`'s tight 2-6-word blurb (tuned for "X
-arrested"-style items), this blurb is a full sentence (roughly 8-25
-words) written like a wire headline, since these stories are often more
-involved (a settlement amount, a record broken, an album title). A
-candidate is only kept when the blurb comes back non-null, which the
-prompt requires only when the core claim is independently confirmed as
-`FACT` by at least two distinct source domains.
-
-Items post in the order verification returns them, which preserves
-discovery's own most-significant-first ranking - unlike `TODAY IN
-HISTORY` (§18.9), there's no re-sort by any other field. The same
-staleness guard as the rest of the pipeline
-(`verification/itemFreshness.ts`, `NEWS_MAX_ITEM_AGE_DAYS`) applies here
-too. Like the other mechanical posts, this skips
-copy-edit/fact-check/duplicate-check - there's no new prose to check
-beyond what verification already confirmed, and it reuses
-`musicNews/postMusicNewsRecap.ts`'s `formatBlurbAsSentence` helper to
-capitalize/punctuate each line. `db/biggestStoriesRepo.ts`'s
-`biggest_stories_posts` table (keyed by the local date it ran on) is the
-once-a-day idempotency guard, entirely separate from `MUSIC NEWS`'s own
-`music_news_posts` table.
-
-### 18.14 Playlist-watch: `spotify/postPlaylistAdditions.ts`
-
-Every cycle, for each playlist ID in `SPOTIFY_NEW_SINGLES_PLAYLIST_IDS`
-(comma-separated, optional), checks that public Spotify playlist for
-tracks added since its last check and posts a mechanical "NEW SINGLE"
-for each one - the same format singles already get, with a real
-clickable Spotify link. Playlists are watched independently (the
-seen-track table below is keyed by playlist ID + track ID), so adding
-or removing one playlist from the list never affects another's history:
-
-```
-NEW SINGLE: Artist Name - Track Title
-
-https://open.spotify.com/track/...
-```
-
-Unlike every other post in this pipeline, this one isn't sourced from
-web-search discovery/verification at all - "this track is now on the
-playlist" is a fact directly checkable against Spotify's own data, so
-there's nothing to independently corroborate. It skips the writer,
-copy-edit, fact-check, and duplicate-check stages entirely, same as the
-other mechanical posts.
-
-**Reads the playlist via Spotify's public embed page, not the official
-Web API.** `spotify/getPlaylistTracks.ts` fetches
-`open.spotify.com/embed/playlist/<id>` (the same unauthenticated page
-that powers embedded Spotify players across the web) and parses the
-track list out of its `__NEXT_DATA__` hydration JSON. No
-`SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` or any other credential is
-needed for this feature - it was originally built against the official
-Client Credentials flow, but this account's Spotify developer account
-can no longer obtain new self-serve API credentials, so it was rewritten
-to use this credential-free endpoint instead. Confirmed live against a
-real playlist. This is an unofficial, undocumented endpoint with no
-Spotify stability guarantee (unlike the real Web API) - if Spotify ever
-changes the embed page's markup this will start failing, but always
-gracefully: `getPlaylistTracks` never throws, it logs a warning and
-returns no tracks, so a cycle without a usable playlist read just skips
-this feature rather than breaking anything else.
-
-**Each playlist must be public, but doesn't have to be one you built
-manually from scratch.** Confirmed live: this also works for playlists
-under Spotify's algorithmic `37i9dQZF1...` ID space, such as an
-account's auto-generated "Favorites" - despite the ID prefix, it's still
-the same public HTML page for every reader, so the embed-page approach
-reads it fine with no login. **What still won't work is genuinely
-per-viewer personalized content** (Discover Weekly, Release Radar, or
-Spotify's own "New Singles" recommendation feed, which shares the exact
-same name as this feature by coincidence) - that content is scoped to
-the requesting user's own identity, not just a visibility flag, so
-reading it requires that user's own login (Authorization Code flow)
-regardless of which endpoint is used, and this pipeline deliberately
-does not implement that (it would need read-write scopes and a one-time
-browser consent step). Get each playlist's ID from its share link:
-`open.spotify.com/playlist/<this part>`.
-
-**Each playlist's first-ever check seeds every track currently on it as
-a baseline without posting anything** - `db/spotifyPlaylistRepo.ts`'s
-`spotify_playlist_tracks_seen` table (keyed by playlist ID + track ID)
-is the "have we seen this track before" guard. Without this, the very
-first check would blast-post the playlist's entire existing history as
-if every track were brand new. From the next check on, only tracks
-genuinely added since the last check post.
-
-Every new track across every watched playlist posts as its own
-independent post, never threaded together with another - unrelated
-singles sharing a reply chain would read as a non-sequitur, same
-reasoning as `publishing/publishMusicItems.ts`. A track is recorded as
-seen immediately after its post succeeds, so a failure partway through a
-batch of several new additions leaves an accurate record and only the
-ones that didn't go out get retried next cycle.
-
-`spotify/spotifyAuth.ts`'s shared Client Credentials token logic is used
-only by `lookupTrack.ts` (attaching a link to non-playlist-watch
-singles) - playlist-watch doesn't touch it at all. Leaving
-`SPOTIFY_NEW_SINGLES_PLAYLIST_IDS` unset or empty (see `.env.example`)
-makes this feature a complete no-op rather than an error.
-
-### 18.15 Festival posters: `festivalPosters/postFestivalPosters.ts`
-
-Every cycle, searches industry-wide for major music festivals that have
-just announced their lineup/poster, and posts the festival's own
-official poster **image** - not a text summary, the real graphic:
+## 18. The festival-poster finder
+
+A second, independent pipeline lives in `src/newswire/` and is now the
+account's primary posting cadence. It has one job: find major music
+festivals, anywhere in the world, that have just announced their
+lineup, and post the festival's own official poster image. It replaced
+an earlier, much larger music-news wire (artist-watchlist tracking,
+new-release announcements, a weekly roundup, daily music history,
+birthdays, regional show listings, Spotify playlist-watch) — all of
+that was deliberately removed; this pipeline does exactly one thing.
+
+### 18.1 How one cycle works
+
+Each run of `runNewswireCycle.ts` does, in order:
+
+1. **Discovery** (`discovery/discoverFestivalPosters.ts`) — one
+   industry-wide, worldwide web-search sweep asking specifically for
+   festivals that have *just* announced a lineup/poster, in the last
+   few days. "Major" is a deliberately high bar judged by the model
+   itself (Coachella/Glastonbury/Tomorrowland tier), not a fixed list —
+   see `discovery/festivalPostersPrompts.ts` for the calibration
+   examples, which span North America, Europe, South America, and Asia
+   on purpose, with an explicit instruction not to default to
+   English-language US/UK results. Most days should find nothing at
+   all; that's the expected, correct outcome, not a failure.
+2. **Verification** (`verification/verifyFestivalPosters.ts`) —
+   independently re-researches each candidate from scratch (never
+   trusting discovery's claims or sources), requiring at least 2
+   corroborating source domains before a candidate survives, plus the
+   shared staleness check (`verification/itemFreshness.ts`,
+   `NEWS_MAX_ITEM_AGE_DAYS`) so a lineup announced months ago can't
+   resurface as if it just happened. Verification also picks the
+   single most authoritative source for the announcement — the
+   festival's own official site, when available — since that URL is
+   what the next step fetches.
+3. **Image extraction** (`festivalPosters/extractPosterImage.ts`) —
+   **the only part of this pipeline that handles a third party's
+   actual copyrighted media, not just facts about it.** This step does
+   a plain HTTP fetch of verification's chosen URL and mechanically
+   parses its `og:image`/`twitter:image` meta tag with a regex —
+   deliberately *not* LLM-based. The model never reports an image URL
+   directly, because it can hallucinate one that doesn't exist or
+   doesn't actually point at the poster; only a URL a real,
+   already-verified page genuinely links to is ever fetched. Confirmed
+   live against real pages (Wikipedia, a major music outlet), which
+   caught a real bug: `og:image` content is frequently HTML-entity
+   escaped (`&amp;` instead of `&`) even inside the URL itself — a
+   `decodeHtmlEntities` fix handles this, since a literal `&amp;`
+   happens to be harmless on some sites' cosmetic tracking params but
+   would silently break or mis-fetch a URL where the query string
+   actually matters. Only `image/jpeg`/`image/png` are accepted, and
+   anything over Bluesky's 2,000,000-byte blob limit is rejected. Any
+   failure here (no meta tag, wrong content-type, too large, network
+   error) is logged and the candidate is simply skipped — not recorded
+   as posted, so a later cycle can retry rather than posting nothing or
+   posting something guessed.
+4. **Publish** (`festivalPosters/postFestivalPosters.ts`) — for each
+   surviving, successfully-extracted poster, uploads the real image
+   bytes and creates a Bluesky post with real visible text (a short
+   caption built from verification's own blurb) plus matching alt
+   text, via `bluesky/threadPublish.ts`'s `postImageMessage` — a
+   standalone image-post primitive separate from the daily art
+   pipeline's own `bluesky/publish.ts` (which is tightly coupled to
+   that pipeline's image-only/alt-text-only convention).
 
 ```
 FESTIVAL LINEUP: Coachella 2027
@@ -1232,57 +575,77 @@ FESTIVAL LINEUP: Coachella 2027
 Coachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C.
 ```
 
-**"Major" is an LLM judgment call, not a fixed watchlist** -
-`discovery/festivalPostersPrompts.ts` sets a deliberately high bar
-(internationally/nationally recognized festivals only - Coachella,
-Glastonbury, Bonnaroo, Lollapalooza, Primavera Sound, and similar scale,
-given as calibration examples, not an exhaustive list) and explicitly
-tells the model most days should find zero. Unlike the two once-a-day
-recaps above, this is **not** a daily digest - there's no daily cap or
-"already posted today" gate. Each distinct festival edition
-(`db/festivalPostersRepo.ts`'s `festival_key`: normalized name + edition
-year) posts its own standalone image post as soon as it's found, and
-next year's edition of the same festival isn't blocked by this year's
-row.
+(with the real poster image attached to the post)
 
-**The poster image is never sourced from anything the model reports
-directly.** `verification/verifyFestivalPosters.ts` only confirms the
-announcement is real (the same 2-independent-source rule as everywhere
-else) and picks the single most authoritative source URL, strongly
-preferring the festival's own official site over a secondary news
-article. `festivalPosters/extractPosterImage.ts` then does a plain HTTP
-fetch of that *exact* URL and mechanically parses its
-`og:image`/`twitter:image` meta tag via regex - deliberately not
-LLM-based, for the same reason `spotify/getPlaylistTracks.ts` never
-trusts a model-reported URL: an LLM can hallucinate a URL that doesn't
-exist or doesn't actually point at the poster. Only a URL a real,
-already-verified page genuinely links to is ever fetched and posted.
-Confirmed live against real pages (Wikipedia, a major music outlet) -
-including a real bug this caught: `og:image` content is often
-HTML-entity-escaped (`&amp;` instead of `&`) even inside the URL itself,
-which `decodeHtmlEntities` in that file corrects before the URL is
-constructed, since a literal `&amp;` happens to be harmless on some
-sites' cosmetic tracking params but would silently break or mis-fetch on
-any site where the query string actually matters (a signed URL, a CDN
-size/variant selector).
+There is **no daily cap and no "already posted today" gate** — unlike
+some of this pipeline's earlier, now-removed mechanical posts. Each
+distinct festival edition gets its own standalone post the moment it's
+found; the only idempotency rule is per-festival-per-year
+(`db/festivalPostersRepo.ts`'s `festival_key`: a normalized festival
+name plus edition year), so next year's poster for the same festival
+is never blocked by this year's row, and the same edition's poster is
+never posted twice even if it keeps surfacing in later searches.
 
-If no image can be mechanically extracted - no meta tag, wrong
-content-type (only `image/jpeg`/`image/png` are accepted), too large for
-Bluesky's 2,000,000-byte blob limit, or a network failure - that item is
-simply skipped and left unrecorded, so a later cycle can retry rather
-than posting nothing or posting something guessed.
+### 18.2 `editorial-focus.json`
 
-**Publishes via a new standalone image-post primitive**,
-`bluesky/threadPublish.ts`'s `postImageMessage` - the *only* other place
-this pipeline uploads image bytes is `bluesky/publish.ts`, which is
-tightly coupled to the daily art pipeline's own image-only convention
-(empty visible text, caption only in alt text). This one posts real
-visible text (a caption, same as everywhere else in the newswire) plus
-matching alt text, no reply chain, no discovery tags.
+A small, user-editable file at the repo root. With the rest of the
+original wire-service's config (priority artists, quiet hours, voice
+rules) removed along with the features that used them, it now holds
+exactly two things verification needs:
 
-**Worth being explicit about**: this is the one feature in the whole
-pipeline that republishes a third party's own copyrighted promotional
-artwork on this account, rather than reporting on verified facts in the
-wire's own words. That was a deliberate, informed choice by the account
-owner, not a default - every other mechanical/writer post in this
-pipeline only ever states facts, never reposts someone else's media.
+- **`sourceTiers`** — the ordered list of source-authority tiers
+  verification classifies every source into (most to least
+  authoritative).
+- **`entertainmentTradePublishers`** — named music-trade outlets
+  (Pitchfork, Billboard, …) recognized as the `entertainment_trade`
+  tier.
+
+### 18.3 Story database (R2-hosted SQLite)
+
+Same mechanism as before (`db/sync.ts`): the pipeline downloads a
+small SQLite file from the existing R2 bucket at the start of each
+run and uploads it back at the end, guarded by the GitHub Actions
+concurrency lock plus an ETag `IfMatch` precondition as a second line
+of defense. With everything else removed, this database now holds
+only the generic run/audit tables (`hourly_runs`, `run_candidates`,
+`bluesky_posts`) and `festival_poster_posts` (the per-edition
+idempotency guard). A handful of tables from the pipeline's earlier,
+larger design (`stories`, `watched_artists`, `music_items`, …) still
+physically exist in the schema migration history for backward
+compatibility with the already-migrated production database, but
+nothing in the current code reads or writes them.
+
+### 18.4 CLI
+
+- **`news:preview`** — downloads a snapshot, runs discovery/
+  verification/image-extraction for real, but never publishes and
+  never persists database changes back to R2. Safe to run repeatedly.
+- **`news:publish`** — the real thing: full download → run → upload
+  cycle, posting any festival poster found.
+- **`news:status`** — read-only summary (last run, total posters ever
+  posted, the 5 most recent, recent failures).
+
+### 18.5 GitHub Actions (`.github/workflows/news.yml`)
+
+No wall-clock-sensitive "posting hours" gate exists anymore (unlike
+the pipeline this replaced, which needed a DST-hedged 4-cron-per-day
+pattern to reliably hit exact local hours) — a cycle just checks
+what's out there and posts whatever clears the bar, so a plain
+fixed-UTC cron is enough. The workflow is currently **paused**
+(schedule commented out, not deleted) at the account owner's request;
+`workflow_dispatch` stays available for a manual run in the meantime.
+
+### 18.6 Known limitations
+
+- **Posting frequency is intentionally low.** A genuinely major
+  festival dropping a new lineup is a rare event — expect long
+  stretches of silence between posts. That's the deliberate scope of
+  this account now, not a malfunction.
+- **The image-extraction step is unofficial and could break.**
+  `og:image`/`twitter:image` is a widely-used but informal web
+  convention, not a stable API — if a festival's site stops using it,
+  that specific announcement's poster just won't be postable (logged,
+  skipped, retried next cycle), it won't crash anything else.
+- **This is the one place in the pipeline that republishes someone
+  else's copyrighted media**, not just facts stated in the wire's own
+  words. That was a deliberate, informed choice by the account owner.
