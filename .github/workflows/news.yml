@@ -11,13 +11,10 @@ name: Newswire
 # concurrent runs of this workflow from racing each other's read-modify-write of the shared R2-hosted
 # story database (which here only remembers which festival editions have already posted).
 #
-# PAUSED 2026-09-20 at the account owner's request ("technical issues") - schedule commented out below,
-# not deleted, so resuming is just uncommenting these lines. workflow_dispatch stays active so a run
-# can still be triggered manually while paused.
 on:
-  # schedule:
-  #   - cron: "0 14 * * *" # ~once in the morning, UTC
-  #   - cron: "0 2 * * *" # ~once in the evening, UTC
+  schedule:
+    - cron: "0 14 * * *" # ~once in the morning, UTC
+    - cron: "0 2 * * *" # ~once in the evening, UTC
   workflow_dispatch:
     inputs:
       dry_run:
