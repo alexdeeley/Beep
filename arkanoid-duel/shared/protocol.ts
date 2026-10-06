@@ -15,6 +15,7 @@ export type ClientMsg =
   | { t: 'wait' }            // keep waiting for a disconnected opponent
   | { t: 'leave' }           // stop waiting
   | { t: 'speed'; v: number }
+  | { t: 'servemode'; v: 'alternate' | 'both' }
   | { t: 'ping'; c: number };
 
 export type ErrorCode =
@@ -57,6 +58,8 @@ export function parseClient(raw: unknown): ClientMsg | null {
       return { t: m.t };
     case 'speed':
       return typeof m.v === 'number' ? { t: 'speed', v: m.v } : null;
+    case 'servemode':
+      return m.v === 'alternate' || m.v === 'both' ? { t: 'servemode', v: m.v } : null;
     case 'ping':
       return typeof m.c === 'number' && Number.isFinite(m.c) ? { t: 'ping', c: m.c } : null;
     default:

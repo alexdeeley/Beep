@@ -516,12 +516,15 @@ export class Renderer {
         break;
       }
       case 'SERVE':
-        if (cur.sv === me) {
-          this.canvasText(c, 'YOUR SERVE', W / 2, H * mySide - 36, 76, '#ffe14d');
+        if (cur.hb && cur.hb[me - 1]) {
+          this.canvasText(c, cur.sm === 'both' ? 'SERVE!' : 'YOUR SERVE', W / 2, H * mySide - 36, 76, '#ffe14d');
           this.canvasText(c, hud.touch ? 'TAP TO SERVE' : 'CLICK OR PRESS SPACE TO SERVE', W / 2, H * mySide + 36, 40, '#ffffff');
         } else {
           this.canvasText(c, 'GET READY', W / 2, H * mySide, 64, '#ffffff', 'center', true, 0.9);
         }
+        break;
+      case 'PLAYING':
+        if (cur.hb && cur.hb[me - 1]) this.canvasText(c, hud.touch ? 'TAP TO SERVE YOUR BALL' : 'PRESS SPACE TO SERVE YOUR BALL', W / 2, H * mySide, 40, '#ffe14d', 'center', true, 0.9);
         break;
       case 'RALLY_END':
         this.canvasText(c, cur.lo === me ? 'MISSED!' : 'POINT!', W / 2, H * mySide, 92, cur.lo === me ? '#ff4d6d' : '#4dff88');

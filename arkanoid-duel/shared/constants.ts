@@ -56,6 +56,7 @@ export const TIMING = {
   rallyEnd: 0.9,
   levelClear: 2.8,
   autoServe: 20,         // an idle server hands the ball over after this long
+  secondServe: 8,        // both at once: a ball still held this long into the rally is launched for you
   disconnectGrace: 25,   // how long a match waits for someone to come back
   serverIdleClose: 60,   // an empty room is thrown away after this long
 } as const;

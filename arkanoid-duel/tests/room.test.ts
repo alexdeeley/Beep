@@ -372,3 +372,18 @@ test('solo: after a match the computer takes a rematch as soon as you ask', asyn
   assert.deepEqual(m.levelWins, [0, 0]);
   room.dispose();
 });
+
+test('player 1 can pick BOTH AT ONCE in the lobby; it shows in the snapshot; player 2 cannot', async () => {
+  const { room, clock } = await makeRoom();
+  const a = await join(room, 'creator-pid-1'), b = await join(room, 'friend-pid-0001');
+  await say(room, b.client, { t: 'servemode', v: 'both' });
+  assert.equal(room.match.serveMode, 'alternate');
+  await say(room, a.client, { t: 'servemode', v: 'both' });
+  assert.equal(room.match.serveMode, 'both');
+  await say(room, a.client, { t: 'servemode', v: 'sideways' });
+  assert.equal(room.match.serveMode, 'both', 'nonsense is ignored');
+  advance(room, clock, 0.1);
+  assert.equal(a.conn.last('s').sm, 'both');
+  assert.deepEqual(a.conn.last('s').hb, [0, 0]);
+  room.dispose();
+});

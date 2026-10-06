@@ -40,7 +40,8 @@ export interface Ball {
   y: number;
   vx: number;
   vy: number;
-  attached: boolean;     // sitting on the server's paddle, waiting to be served
+  attached: boolean;     // sitting on a paddle, waiting to be served
+  held: 0 | PlayerNo;    // ... and whose paddle that is
   inside: number[];      // piercing: blocks it is passing through right now
 }
 

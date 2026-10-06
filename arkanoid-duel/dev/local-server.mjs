@@ -12,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Room } from '../server/room.ts';
-import worker, { originAllowed } from '../server/worker.ts';
+import worker, { originAllowed, randomCode } from '../server/worker.ts';
+import { Lobby } from '../server/lobby.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -49,6 +50,13 @@ const env = {
     }),
   },
 };
+
+// The lobby pairs people off and makes rooms the same way POST /api/rooms does.
+const lobby = new Lobby({
+  randomCode,
+  createRoom: async (code, passHash, pid) => (await env.ROOMS.get(code).fetch('https://room/init', { method: 'POST', body: JSON.stringify({ code, passHash, pid }) })).ok,
+  log: QUIET ? undefined : (event, detail) => console.log(JSON.stringify({ lobby: event, ...detail })),
+});
 
 // ── Minimal RFC 6455 WebSocket ───────────────────────────────
 
@@ -122,7 +130,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/dev/stats') {                       // local only: what the rooms are doing
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ rooms: [...rooms.values()].map((r) => r.stats()) }));
+    res.end(JSON.stringify({ rooms: [...rooms.values()].map((r) => r.stats()), lobby: lobby.stats() }));
     return;
   }
   let file = path.join(PUBLIC, decodeURIComponent(url.pathname));
@@ -135,15 +143,22 @@ const server = http.createServer(async (req, res) => {
 
 server.on('upgrade', (req, socket) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  const isLobby = url.pathname === '/api/lobby/ws';
   const m = /^\/api\/rooms\/([A-Za-z0-9]+)\/ws$/.exec(url.pathname);
   const room = m && rooms.get(m[1].toUpperCase());
   const refuse = (code, text) => { socket.write(`HTTP/1.1 ${code} ${text}\r\nConnection: close\r\n\r\n`); socket.destroy(); };
-  if (!m) return refuse(404, 'Not Found');
+  if (!m && !isLobby) return refuse(404, 'Not Found');
   if (!originAllowed(req.headers.origin || null, req.headers.host, env)) return refuse(403, 'Forbidden');
   const key = req.headers['sec-websocket-key'];
   if (!key) return refuse(400, 'Bad Request');
   const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+  if (isLobby) {
+    let seeker;
+    const ws = new ServerSocket(socket, (_s, text) => { if (seeker) void lobby.receive(seeker, text); }, () => { if (seeker) lobby.detach(seeker); });
+    seeker = lobby.attach({ send: (d) => ws.send(d), close: (c) => ws.close(c) });
+    return;
+  }
   if (!room) {
     // like the Durable Object does for a game that does not exist: say so, then close
     const dead = new ServerSocket(socket, () => {}, () => {});
