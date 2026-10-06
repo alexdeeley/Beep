@@ -1,43 +1,27 @@
 name: Newswire
 
-# V3.2: an autonomous music news/release-announcement wire, checking
-# twice a day (8am and 8pm, in editorial-focus.json's quietHours.timezone
-# - default America/Los_Angeles) - each cycle rotates through a batch of
-# the artist watchlist (watched-artists.txt), discovers candidates via
-# OpenAI web search, and independently re-verifies each one
-# (2-corroborating-source rule) before it's eligible to post.
+# The festival-poster finder: each cycle searches the web, worldwide, for major music festivals that
+# have JUST announced their lineup/poster, independently re-verifies each candidate
+# (2-corroborating-source rule), and posts the festival's own official poster image for each one that
+# clears the bar. There is no wall-clock-sensitive "posting hours" gate (unlike the pipeline this
+# replaced) - a cycle just checks and posts whatever it finds, so a plain fixed-UTC cron is fine; no
+# DST-hedge cron pairing is needed.
 #
-# Unlike the old hourly cadence, "8am/8pm local" IS a wall-clock anchor
-# that needs to survive DST, so this uses the same two-cron-per-target-hour
-# pattern as daily.yml - 4 cron lines total (2 target
-# hours x PST/PDT offsets). The "wrong" offset's extra firing each day is
-# cheap and harmless: runNewswireCycle.ts checks the actual local hour
-# against config.news.postingHoursLocal first and exits immediately,
-# before contacting OpenAI or downloading the story database, on any hour
-# that isn't actually 8am or 8pm local right now.
+# The concurrency group below is load-bearing, not just an overlap-prevention nicety: it's what keeps
+# concurrent runs of this workflow from racing each other's read-modify-write of the shared R2-hosted
+# story database (which here only remembers which festival editions have already posted).
 #
-# The concurrency group below is load-bearing, not just an
-# overlap-prevention nicety: it's what keeps concurrent runs of this
-# workflow from racing each other's read-modify-write of the shared
-# R2-hosted story database.
 # PAUSED 2026-09-20 at the account owner's request ("technical issues") - schedule commented out below,
-# not deleted, so resuming is just uncommenting these 4 lines. workflow_dispatch stays active so a run
-# can still be triggered manually while paused. A "temporarily paused" notice was posted to Bluesky.
+# not deleted, so resuming is just uncommenting these lines. workflow_dispatch stays active so a run
+# can still be triggered manually while paused.
 on:
   # schedule:
-  #   - cron: "0 15 * * *" # ~8:00am America/Los_Angeles during PDT
-  #   - cron: "0 16 * * *" # ~8:00am America/Los_Angeles during PST
-  #   - cron: "0 3 * * *" # ~8:00pm America/Los_Angeles during PDT
-  #   - cron: "0 4 * * *" # ~8:00pm America/Los_Angeles during PST
+  #   - cron: "0 14 * * *" # ~once in the morning, UTC
+  #   - cron: "0 2 * * *" # ~once in the evening, UTC
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Preview only: run the full pipeline for real but never publish or persist story database changes (same as news:preview)"
-        required: false
-        type: boolean
-        default: false
-      force_run:
-        description: "Bypass the quiet-hours silence check, for manual testing"
+        description: "Preview only: run for real but never publish or persist story database changes (same as news:preview)"
         required: false
         type: boolean
         default: false
@@ -77,17 +61,14 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
-          SPOTIFY_NEW_SINGLES_PLAYLIST_IDS: ${{ vars.SPOTIFY_NEW_SINGLES_PLAYLIST_IDS }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             CMD="news:preview"
           else
             CMD="news:publish"
           fi
-          ARGS=""
-          if [ "${{ inputs.force_run }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npm run $CMD -- $ARGS"
-          npm run $CMD -- $ARGS
+          echo "Running: npm run $CMD"
+          npm run $CMD
 
       - name: Upload run artifacts
         if: always()

@@ -171,38 +171,28 @@ program
 program
   .command("news:preview")
   .description(
-    "Run the full hourly music news pipeline for real (real web search, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
+    "Run the festival-poster finder for real (real web search, real model calls) but NEVER publish and NEVER persist story database changes back to R2 - safe to run repeatedly while iterating"
   )
-  .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
-  .action(async (opts) => {
-    const summary = await runNewswireCycle(config, { dryRun: true, forceRun: Boolean(opts.force) });
+  .action(async () => {
+    const summary = await runNewswireCycle(config, { dryRun: true });
     console.log(`\n=== Newswire preview (run ${summary.hourlyRunId}) ===`);
-    console.log(`Quiet-hours outcome: ${summary.quietHoursOutcome}`);
     console.log(`Publish status: ${summary.publishStatus}`);
-    if (summary.editionPreview && summary.editionPreview.length > 0) {
-      console.log(`\nProposed thread (${summary.editionPreview.length} post(s)):`);
-      summary.editionPreview.forEach((p, i) => console.log(`  [${i + 1}] ${p.text}`));
-    } else {
-      console.log("\nNo edition produced this run (silence, or blocked by fact-check/duplicate-check).");
-    }
+    console.log(`Posts that would publish: ${summary.publishedPostCount}`);
   });
 
 program
   .command("news:publish")
-  .description("Run the full hourly music news pipeline and publish to Bluesky if there's something verified worth posting")
-  .option("--force", "Bypass the quiet-hours silence check, for manual testing", false)
-  .action(async (opts) => {
-    const summary = await runNewswireCycle(config, { dryRun: false, forceRun: Boolean(opts.force) });
+  .description("Run the festival-poster finder and publish to Bluesky any major festival poster found")
+  .action(async () => {
+    const summary = await runNewswireCycle(config, { dryRun: false });
     console.log(`\n=== Newswire run ${summary.hourlyRunId} ===`);
-    console.log(`Quiet-hours outcome: ${summary.quietHoursOutcome}`);
     console.log(`Publish status: ${summary.publishStatus}`);
     console.log(`Posts published: ${summary.publishedPostCount}`);
-    if (summary.publishStatus === "failed") process.exitCode = 1;
   });
 
 program
   .command("news:status")
-  .description("Print a read-only status summary of the newswire pipeline's story database (last run, watched-artist count, recent items posted)")
+  .description("Print a read-only status summary of the festival-poster finder's story database (last run, posters posted)")
   .action(async () => {
     const { mkdtempSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");

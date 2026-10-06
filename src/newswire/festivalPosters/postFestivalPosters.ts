@@ -4,7 +4,7 @@ import { extractPosterImage } from "./extractPosterImage.js";
 import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } from "../db/festivalPostersRepo.js";
 import { createBlueskySession, postImageMessage, type BlueskySession } from "../../bluesky/threadPublish.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
-import { contentHash } from "../duplicateCheck/duplicateCheckEdition.js";
+import { contentHash } from "../contentHash.js";
 import { countGraphemes } from "../publishing/threadSplitter.js";
 import { BLUESKY_MAX_POST_GRAPHEMES } from "../../bluesky/threadPublish.js";
 import type { NewsRunContext } from "../runContext.js";

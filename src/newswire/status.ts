@@ -1,11 +1,7 @@
 import type Database from "better-sqlite3";
 import { getRecentPosts } from "./db/postsRepo.js";
 import { getLastHourlyRun, getRecentHourlyRuns } from "./db/researchRunsRepo.js";
-import { getWatchedArtistCount } from "./db/watchedArtistsRepo.js";
-import { getRecentlyPostedMusicItems, getUnpostedIndividualItems, getUnpostedAlbumItems } from "./db/musicItemsRepo.js";
-import { getUnpostedIndustryReleaseItems } from "./db/industryReleaseItemsRepo.js";
-import { getLastRoundupRun } from "./db/weeklyRoundupRepo.js";
-import { getLastHistoryPost } from "./db/historyPostsRepo.js";
+import { getFestivalPosterCount, getRecentFestivalPosterPosts } from "./db/festivalPostersRepo.js";
 
 export interface NewswireStatus {
   lastRun: {
@@ -13,19 +9,11 @@ export interface NewswireStatus {
     startedAt: string;
     finishedAt: string | null;
     status: string;
-    quietHoursOutcome: string | null;
     publishStatus: string | null;
   } | null;
-  watchedArtistCount: number;
-  unpostedItemCount: number;
-  /** Watchlist album/EP/compilation releases accumulated and waiting for the next Friday NEW MUSIC FRIDAY roundup. */
-  albumsQueuedForRoundup: number;
-  /** Industry-wide (non-watchlist) major releases discovered so far and waiting for the next roundup - only populated after a Friday sweep has run. */
-  industryReleasesQueuedForRoundup: number;
-  lastRoundup: { date: string; itemCount: number } | null;
-  /** Most recent TODAY IN HISTORY post actually published. */
-  lastHistoryPost: { date: string; itemCount: number } | null;
-  recentItems: { artistName: string; headline: string; itemType: string }[];
+  /** Total festival posters ever posted (all time). */
+  totalFestivalPostersPosted: number;
+  recentFestivalPosters: { festivalName: string; postedAt: string }[];
   latestPosts: { text: string; createdAt: string; uri: string | null }[];
   recentFailures: { id: number; startedAt: string; errorMessage: string | null }[];
 }
@@ -35,13 +23,8 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
   const lastRun = getLastHourlyRun(db);
   const recentPosts = getRecentPosts(db, 5);
   const recentRuns = getRecentHourlyRuns(db, 20);
-  const watchedArtistCount = getWatchedArtistCount(db);
-  const unposted = getUnpostedIndividualItems(db);
-  const queuedAlbums = getUnpostedAlbumItems(db);
-  const queuedIndustryReleases = getUnpostedIndustryReleaseItems(db);
-  const recentItems = getRecentlyPostedMusicItems(db, 5);
-  const lastRoundup = getLastRoundupRun(db);
-  const lastHistoryPost = getLastHistoryPost(db);
+  const totalFestivalPostersPosted = getFestivalPosterCount(db);
+  const recentFestivalPosters = getRecentFestivalPosterPosts(db, 5);
 
   return {
     lastRun: lastRun
@@ -50,17 +33,11 @@ export function getNewswireStatus(db: Database.Database): NewswireStatus {
           startedAt: lastRun.started_at,
           finishedAt: lastRun.finished_at,
           status: lastRun.status,
-          quietHoursOutcome: lastRun.quiet_hours_outcome,
           publishStatus: lastRun.publish_status,
         }
       : null,
-    watchedArtistCount,
-    unpostedItemCount: unposted.length,
-    albumsQueuedForRoundup: queuedAlbums.length,
-    industryReleasesQueuedForRoundup: queuedIndustryReleases.length,
-    lastRoundup: lastRoundup ? { date: lastRoundup.roundup_date, itemCount: lastRoundup.item_count } : null,
-    lastHistoryPost: lastHistoryPost ? { date: lastHistoryPost.post_date, itemCount: lastHistoryPost.item_count } : null,
-    recentItems: recentItems.map((r) => ({ artistName: r.artist_name, headline: r.headline, itemType: r.item_type })),
+    totalFestivalPostersPosted,
+    recentFestivalPosters: recentFestivalPosters.map((p) => ({ festivalName: p.festival_name, postedAt: p.created_at })),
     latestPosts: recentPosts.map((p) => ({ text: p.text, createdAt: p.created_at, uri: p.uri })),
     recentFailures: recentRuns
       .filter((r) => r.status === "failed")

@@ -16,8 +16,7 @@ describe("loadEditorialFocus", () => {
   it("loads and validates the actual repo-root editorial-focus.json", () => {
     // loadEditorialFocus resolves relative to process.cwd() (see editorialFocus.ts), which vitest runs from the repo root.
     const focus = loadEditorialFocus("editorial-focus.json");
-    expect(focus.neutralityNote.length).toBeGreaterThan(0);
-    expect(focus.voice.allowJokes).toBe(false);
+    expect(focus.sourceTiers.length).toBeGreaterThan(0);
   });
 
   it("tolerates // line comments", () => {
@@ -25,17 +24,14 @@ describe("loadEditorialFocus", () => {
     writeFileSync(
       path,
       `{
-        "$schemaVersion": 3,
+        "$schemaVersion": 1,
         // a comment
-        "neutralityNote": "note",
         "sourceTiers": ["primary_official", "general_news"],
-        "entertainmentTradePublishers": [],
-        "quietHours": { "timezone": "UTC", "slowStartHourLocal": 23, "slowEndHourLocal": 6, "minImportanceScoreDuringSlow": 0.6, "minImportanceScoreDuringSilentThreshold": 0.85 },
-        "voice": { "allowJokes": false, "allowHashtagsInline": false, "allowEmoji": false, "allowRhetoricalQuestions": false }
+        "entertainmentTradePublishers": []
       }`
     );
     const focus = loadEditorialFocus(path);
-    expect(focus.neutralityNote).toBe("note");
+    expect(focus.sourceTiers).toEqual(["primary_official", "general_news"]);
   });
 
   it("throws a clear error for a missing file", () => {
@@ -50,21 +46,14 @@ describe("loadEditorialFocus", () => {
 
   it("throws a clear error when required fields are missing (schema validation)", () => {
     const path = join(dir, "incomplete.json");
-    writeFileSync(path, `{ "$schemaVersion": 2 }`);
+    writeFileSync(path, `{ "$schemaVersion": 1 }`);
     expect(() => loadEditorialFocus(path)).toThrow(/failed validation/);
   });
 
-  it("rejects an invalid quietHours field", () => {
-    const path = join(dir, "bad-quiet-hours.json");
-    writeFileSync(
-      path,
-      `{
-        "$schemaVersion": 2,
-        "neutralityNote": "note",
-        "quietHours": { "timezone": "UTC", "slowStartHourLocal": 25, "slowEndHourLocal": 6, "minImportanceScoreDuringSlow": 0.6, "minImportanceScoreDuringSilentThreshold": 0.85 },
-        "voice": { "allowJokes": false, "allowHashtagsInline": false, "allowEmoji": false, "allowRhetoricalQuestions": false }
-      }`
-    );
-    expect(() => loadEditorialFocus(path)).toThrow();
+  it("defaults entertainmentTradePublishers to an empty array when omitted", () => {
+    const path = join(dir, "no-trade-publishers.json");
+    writeFileSync(path, `{ "$schemaVersion": 1, "sourceTiers": ["primary_official"] }`);
+    const focus = loadEditorialFocus(path);
+    expect(focus.entertainmentTradePublishers).toEqual([]);
   });
 });
