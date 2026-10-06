@@ -584,20 +584,19 @@ Each run of `runNewswireCycle.ts` does, in order:
    cycle can retry rather than posting something guessed.
 4. **Publish** (`festivalPosters/postFestivalPosters.ts`) — for each
    surviving, successfully-extracted poster, uploads the real image
-   bytes and creates a Bluesky post with real visible text (a short
-   caption built from verification's own blurb) plus matching alt
-   text, via `bluesky/threadPublish.ts`'s `postImageMessage` — a
-   standalone image-post primitive separate from the daily art
-   pipeline's own `bluesky/publish.ts` (which is tightly coupled to
-   that pipeline's image-only/alt-text-only convention).
+   bytes and creates a Bluesky post via `bluesky/threadPublish.ts`'s
+   `postImageMessage` — a standalone image-post primitive separate
+   from the daily art pipeline's own `bluesky/publish.ts`. The post is
+   **image-only: no visible caption text**, at the account owner's
+   explicit request — just the poster in the feed, nothing else. The
+   full descriptive caption (`buildAltText`: festival name/year,
+   verification's blurb, the independently-confirmed lineup names, and
+   a few hashtags) still goes into the image's alt text, so it remains
+   accessible to screen readers and searchable, it just never appears
+   as visible post text.
 
-```
-FESTIVAL LINEUP: Coachella 2027
-
-Coachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C.
-```
-
-(with the real poster image attached to the post)
+(the real poster image, with no visible post text — the full caption
+lives only in the image's alt text)
 
 There is **no daily cap and no "already posted today" gate** — unlike
 some of this pipeline's earlier, now-removed mechanical posts. Each

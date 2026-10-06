@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPostText } from "../../src/newswire/festivalPosters/postFestivalPosters.js";
+import { buildAltText } from "../../src/newswire/festivalPosters/postFestivalPosters.js";
 import { buildFestivalKey } from "../../src/newswire/db/festivalPostersRepo.js";
 import type { VerifiedFestivalPoster } from "../../src/newswire/types.js";
 
@@ -17,16 +17,16 @@ function makeItem(overrides: Partial<VerifiedFestivalPoster> = {}): VerifiedFest
   };
 }
 
-describe("buildPostText", () => {
+describe("buildAltText", () => {
   it("includes the festival name and year in the header", () => {
-    expect(buildPostText(makeItem())).toBe(
+    expect(buildAltText(makeItem())).toBe(
       "FESTIVAL LINEUP: Coachella 2027\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
         "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella2027 #MusicFestival #FestivalLineup"
     );
   });
 
   it("doesn't duplicate the year when festivalName already contains it (observed live in production)", () => {
-    const text = buildPostText(makeItem({ festivalName: "ArcTanGent Festival 2027" }));
+    const text = buildAltText(makeItem({ festivalName: "ArcTanGent Festival 2027" }));
     expect(text.startsWith("FESTIVAL LINEUP: ArcTanGent Festival 2027\n\n")).toBe(true);
     expect(text).not.toContain("2027 2027");
     expect(text).toContain("#ArcTanGentFestival2027 ");
@@ -34,14 +34,14 @@ describe("buildPostText", () => {
   });
 
   it("omits the year when eventYear is null", () => {
-    expect(buildPostText(makeItem({ eventYear: null }))).toBe(
+    expect(buildAltText(makeItem({ eventYear: null }))).toBe(
       "FESTIVAL LINEUP: Coachella\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
         "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella #MusicFestival #FestivalLineup"
     );
   });
 
   it("omits the lineup line when no artists were independently confirmed", () => {
-    expect(buildPostText(makeItem({ lineupArtists: [] }))).toBe(
+    expect(buildAltText(makeItem({ lineupArtists: [] }))).toBe(
       "FESTIVAL LINEUP: Coachella 2027\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
         "\n\n#Coachella2027 #MusicFestival #FestivalLineup"
     );
@@ -49,16 +49,15 @@ describe("buildPostText", () => {
 
   it("caps the shown lineup names and notes how many more there are", () => {
     const lineupArtists = Array.from({ length: 10 }, (_, i) => `Artist ${i + 1}`);
-    const text = buildPostText(makeItem({ lineupArtists }));
+    const text = buildAltText(makeItem({ lineupArtists }));
     expect(text).toContain("Lineup: Artist 1, Artist 2, Artist 3, Artist 4, Artist 5, Artist 6, +4 more");
   });
 
-  it("truncates an overlong blurb to stay within the 300-grapheme post limit, keeping the header, lineup, and hashtags intact", () => {
+  it("does not truncate an overlong blurb - alt text has no AT Protocol length limit, unlike the visible post text this is no longer used for", () => {
     const longBlurb = "A".repeat(400);
-    const text = buildPostText(makeItem({ blurb: longBlurb }));
-    expect([...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].length).toBeLessThanOrEqual(300);
+    const text = buildAltText(makeItem({ blurb: longBlurb }));
+    expect(text).toContain(longBlurb);
     expect(text.startsWith("FESTIVAL LINEUP: Coachella 2027\n\n")).toBe(true);
-    expect(text).toContain("\n\nLineup: Artist A, Artist B, Artist C");
     expect(text.endsWith("#Coachella2027 #MusicFestival #FestivalLineup")).toBe(true);
   });
 });
