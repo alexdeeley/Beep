@@ -146,12 +146,15 @@ export async function postThreadMessage(
  * Posts a standalone image post (uploadBlob then createRecord with an
  * app.bsky.embed.images embed) - the only other place this pipeline
  * uploads image bytes is bluesky/publish.ts, which is tightly coupled to
- * the daily art pipeline's own caption/tag/image-only conventions
- * (empty visible text, alt-only caption, discovery tags). This is a
- * simpler standalone variant for the newswire pipeline: real visible
- * text (a post here should say what it is, not rely on alt text alone),
- * no reply chain, no tags. Used by festivalPosters/postFestivalPosters.ts
- * to post an already-fetched, already-verified poster image.
+ * the daily art pipeline's own caption/tag/image-only conventions. This
+ * is a simpler standalone variant for the newswire pipeline, used by
+ * festivalPosters/postFestivalPosters.ts to post an already-fetched,
+ * already-verified poster image. text is deliberately allowed to be
+ * empty - the account owner wants these posts to show just the poster
+ * image with no visible caption text, same image-only convention as
+ * bluesky/publish.ts's daily posts (the full descriptive caption still
+ * goes into altText, read by screen readers and used for search, just
+ * never shown as the post's visible body).
  */
 export async function postImageMessage(
   config: AppConfig,
@@ -159,9 +162,6 @@ export async function postImageMessage(
   session: BlueskySession,
   opts: { text: string; altText: string; imageBytes: Buffer; mimeType: string }
 ): Promise<PostRef> {
-  if (opts.text.length === 0) {
-    throw new Error("postImageMessage: refusing to post empty text");
-  }
 
   const { maxPublishAttempts } = config.bluesky;
   let lastError: string | null = null;

@@ -5,14 +5,23 @@ import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } f
 import { createBlueskySession, postImageMessage, type BlueskySession } from "../../bluesky/threadPublish.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { contentHash } from "../contentHash.js";
-import { countGraphemes } from "../publishing/threadSplitter.js";
-import { BLUESKY_MAX_POST_GRAPHEMES } from "../../bluesky/threadPublish.js";
 import type { NewsRunContext } from "../runContext.js";
 import type { VerifiedFestivalPoster } from "../types.js";
 
 const TAG = "festival-posters";
 
 const MAX_LINEUP_NAMES_SHOWN = 6;
+
+/**
+ * Discovery/verification sometimes return festivalName already containing the edition year (e.g.
+ * "ArcTanGent Festival 2027") even though eventYear carries that same year separately - observed live
+ * in production. Strips a trailing duplicate year before any display text is built, so the year is
+ * never shown twice (header "... 2027 2027", hashtag "...Festival20272027").
+ */
+function cleanFestivalName(festivalName: string, eventYear: number | null): string {
+  if (!eventYear) return festivalName;
+  return festivalName.replace(new RegExp(`\\s*${eventYear}\\s*$`), "").trim();
+}
 
 /** Turns a festival name into a bare (no "#") PascalCase hashtag token, e.g. "Rock am Ring" -> "RockAmRing". */
 function slugifyForHashtag(name: string): string {
@@ -24,7 +33,7 @@ function slugifyForHashtag(name: string): string {
 }
 
 function buildHashtagLine(item: VerifiedFestivalPoster): string {
-  const slug = slugifyForHashtag(item.festivalName);
+  const slug = slugifyForHashtag(cleanFestivalName(item.festivalName, item.eventYear));
   const tags = [slug ? (item.eventYear ? `${slug}${item.eventYear}` : slug) : null, "MusicFestival", "FestivalLineup"].filter(
     (t): t is string => Boolean(t)
   );
@@ -41,22 +50,23 @@ function buildLineupLine(lineupArtists: string[]): string {
   return `\n\nLineup: ${shown.join(", ")}`;
 }
 
-/** Exported for unit testing. Truncates the blurb (never the header, the lineup line, or the hashtags) if the combined text would exceed Bluesky's post limit - real festival lineups can list many headliners. */
-export function buildPostText(item: VerifiedFestivalPoster): string {
-  const label = item.eventYear ? `${item.festivalName} ${item.eventYear}` : item.festivalName;
+/**
+ * Exported for unit testing. Builds the full descriptive caption - festival name/year, verification's
+ * blurb, the lineup list, and hashtags - but this is used ONLY as the image's alt text (read by screen
+ * readers, used for search), never as the post's visible body text. The account owner wants these posts
+ * to show just the poster image with nothing else visible in the feed - see postFestivalPosters's call
+ * site, which always passes an empty string as the actual post text. Alt text has no AT Protocol length
+ * limit (unlike the 300-grapheme visible-post cap elsewhere in this pipeline), so this is never
+ * truncated.
+ */
+export function buildAltText(item: VerifiedFestivalPoster): string {
+  const name = cleanFestivalName(item.festivalName, item.eventYear);
+  const label = item.eventYear ? `${name} ${item.eventYear}` : name;
   const header = `FESTIVAL LINEUP: ${label}\n\n`;
   const lineupLine = buildLineupLine(item.lineupArtists);
   const hashtagLine = buildHashtagLine(item);
   const blurb = item.blurb!;
-
-  const full = `${header}${blurb}${lineupLine}${hashtagLine}`;
-  if (countGraphemes(full) <= BLUESKY_MAX_POST_GRAPHEMES) return full;
-
-  const fixedGraphemes = countGraphemes(header) + countGraphemes(lineupLine) + countGraphemes(hashtagLine);
-  const budget = BLUESKY_MAX_POST_GRAPHEMES - fixedGraphemes - 1; // -1 for the trailing ellipsis char
-  const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(blurb)].map((s) => s.segment);
-  const truncatedBlurb = `${graphemes.slice(0, Math.max(0, budget)).join("")}…`;
-  return `${header}${truncatedBlurb}${lineupLine}${hashtagLine}`;
+  return `${header}${blurb}${lineupLine}${hashtagLine}`;
 }
 
 /**
@@ -66,15 +76,18 @@ export function buildPostText(item: VerifiedFestivalPoster): string {
  * once-a-day digest: each distinct festival edition (see db/festivalPostersRepo.ts's festival_key) gets
  * its own standalone post as soon as it's found, and there is no cap on how many can post in one cycle.
  *
- * Posts the festival's OWN official poster image, not a generated graphic. The image is never sourced
- * from anything the model reports directly - verifyFestivalPosters.ts only confirms the announcement is
- * real and picks the single most authoritative source URL (preferring the festival's own site);
- * extractPosterImage.ts then does a plain HTTP fetch of that exact URL and mechanically parses its
- * og:image/twitter:image meta tag, so the image that gets posted is always something that genuinely,
- * verifiably exists at a URL a real page actually links to - never a hallucinated one. If no image can
- * be mechanically extracted (missing meta tag, wrong content-type, too large for Bluesky, network
- * failure), that item is simply skipped and left unrecorded, so a later cycle can retry rather than
- * posting nothing or posting something guessed.
+ * Posts the festival's OWN official poster image, not a generated graphic, and with no visible caption
+ * text - just the poster, at the account owner's explicit request (the rich caption still goes into the
+ * image's alt text; see buildAltText). The image is never sourced from anything the model reports
+ * directly - verifyFestivalPosters.ts only confirms the announcement is real and picks the single most
+ * authoritative source URL (preferring the festival's own site); extractPosterImage.ts then does a plain
+ * HTTP fetch of that exact page and mechanically looks for an image that's actually signalled as the
+ * poster/flyer/artwork graphic (never a generic social-share photo), so the image that gets posted is
+ * always something that genuinely, verifiably exists at a URL a real page actually links to - never a
+ * hallucinated one. If no such image can be mechanically found (no poster signal anywhere on the page,
+ * wrong content-type, too large even after compression, network failure), that item is simply skipped
+ * and left unrecorded, so a later cycle can retry rather than posting nothing or posting something
+ * guessed.
  *
  * Reposting a festival's own promotional artwork is a deliberate choice made explicitly by the account
  * owner (this pipeline never posts anything without independent 2-source verification that the
@@ -111,19 +124,22 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
     if (!image) continue; // already logged inside extractPosterImage; left unrecorded so a later cycle retries
 
     const key = buildFestivalKey(item.festivalName, item.eventYear);
-    const text = buildPostText(item);
+    // The post itself is image-only, no visible body text - the account owner wants just the poster in
+    // the feed. The rich caption (festival/blurb/lineup/hashtags) still goes into altText (accessibility
+    // + search) and is what's recorded as this row's "text" for an audit trail that's actually useful.
+    const altText = buildAltText(item);
 
     if (ctx.dryRun) {
       ctx.logger.info(
         TAG,
         `Dry run: would publish poster image for "${item.festivalName}" (${image.imageBytes.length} bytes from ${image.imageUrl})`,
-        { text }
+        { altText }
       );
       insertBlueskyPost(ctx.db, {
         runId: ctx.hourlyRunId,
         threadPosition: 0,
-        text,
-        contentHash: contentHash(text),
+        text: altText,
+        contentHash: contentHash(altText),
         uri: null,
         cid: null,
         rootUri: null,
@@ -138,16 +154,16 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
     try {
       session = session ?? (await createBlueskySession(ctx.config));
       const ref = await postImageMessage(ctx.config, ctx.logger, session, {
-        text,
-        altText: text,
+        text: "",
+        altText,
         imageBytes: image.imageBytes,
         mimeType: image.mimeType,
       });
       insertBlueskyPost(ctx.db, {
         runId: ctx.hourlyRunId,
         threadPosition: 0,
-        text,
-        contentHash: contentHash(text),
+        text: altText,
+        contentHash: contentHash(altText),
         uri: ref.uri,
         cid: ref.cid,
         rootUri: ref.uri,
