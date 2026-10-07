@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAZILLIONAIRE — The Universe Is Your Market</title>
+<style>
+:root{
+  --void:#070A26; --void2:#0C1140; --panel:#141B5C; --panel2:#1C2678; --panel3:#24308F;
+  --hi:#5B6CF0; --lo:#04061A; --ink:#F4F6FF; --dim:#B5BDF0; --mute:#7F89C9;
+  --gold:#FFC93C; --gold2:#FF8A1F; --up:#58F2B0; --down:#FF5A78; --cyan:#62DCFF; --pink:#FF73DA; --warn:#FFB347;
+  --fs:18px; --big:1.35rem; --huge:2.1rem;
+  --font: "Trebuchet MS", "Lucida Grande", Verdana, sans-serif;
+  --disp: "Arial Black", Impact, "Franklin Gothic Heavy", sans-serif;
+}
+body.hc{ --void:#000; --void2:#000; --panel:#000; --panel2:#111; --panel3:#222; --hi:#fff; --lo:#fff;
+  --ink:#fff; --dim:#fff; --mute:#ddd; --gold:#FFE600; --up:#00FF9C; --down:#FF4D6D; --cyan:#00E5FF; --pink:#FF66FF; }
+body.large{ --fs:21px; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--void);color:var(--ink);font-family:var(--font);font-size:var(--fs);overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums;font-weight:bold}
+.up{color:var(--up)} .down{color:var(--down)} .gold{color:var(--gold)} .dimt{color:var(--dim)} .cy{color:var(--cyan)}
+#bg{position:fixed;inset:0;z-index:0}
+#fx{position:fixed;inset:0;z-index:60;pointer-events:none}
+.screen{position:fixed;inset:0;z-index:5;display:none}
+.screen.on{display:flex}
+
+/* chunky 90s bevel */
+.bev{background:var(--panel);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.btn{background:linear-gradient(var(--panel3),var(--panel2));border:3px solid;border-color:#8a97ff #02041a #02041a #8a97ff;
+  padding:.45em .9em;font-weight:bold;letter-spacing:.02em;min-height:44px;transition:transform .08s,filter .1s}
+body.hc .btn{background:#000;border-color:#fff}
+body.hc .btn.gold,body.hc #tabs .btn.on{background:#FFE600;color:#000} body.hc .btn.green{background:#00FF9C;color:#000} body.hc .btn.red{background:#FF4D6D;color:#000}
+.btn:hover{filter:brightness(1.25)}
+.btn:active{transform:translateY(2px);border-color:#02041a #8a97ff #8a97ff #02041a}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn.gold{background:linear-gradient(#FFD764,#F29A1E);color:#1a0d00;border-color:#fff3c0 #6b3a00 #6b3a00 #fff3c0}
+.btn.green{background:linear-gradient(#5ef0b8,#159a6a);color:#00170d;border-color:#d8fff0 #003a24 #003a24 #d8fff0}
+.btn.red{background:linear-gradient(#ff7d93,#b8203d);color:#fff;border-color:#ffd0d8 #4a0010 #4a0010 #ffd0d8}
+.btn.sm{min-height:34px;padding:.15em .55em;font-size:.88em;white-space:nowrap}
+table.mk .btn.sm{min-height:30px;padding:.05em .5em}
+.btn.on{outline:3px solid var(--gold)}
+
+/* ---------- TITLE ---------- */
+#title{flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;text-align:center}
+.logo{font-family:var(--disp);font-size:clamp(3rem,9vw,7.5rem);line-height:.9;letter-spacing:-.02em;font-style:italic;
+  background:linear-gradient(180deg,#FFF6B0 0%,#FFC93C 45%,#FF7A1A 55%,#C2410C 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 #3b1a00) drop-shadow(0 8px 0 #1d0c00) drop-shadow(0 0 28px rgba(255,170,40,.45));
+  transform:perspective(600px) rotateX(14deg);animation:logoBob 5s ease-in-out infinite}
+@keyframes logoBob{50%{transform:perspective(600px) rotateX(10deg) translateY(-6px)}}
+.sub{font-size:1.4rem;letter-spacing:.5em;color:var(--cyan);text-shadow:0 0 12px rgba(98,220,255,.6)}
+.press{font-family:var(--disp);font-size:1.6rem;color:var(--gold);animation:blink 1.1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.menu{display:flex;flex-direction:column;gap:.6rem;min-width:320px}
+.menu .btn{font-size:1.2rem}
+.copy{position:absolute;bottom:14px;color:var(--mute);font-size:.85rem}
+
+/* ---------- MODALS ---------- */
+#modalWrap{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(2,3,18,.72);backdrop-filter:blur(2px)}
+#modalWrap.on{display:flex}
+.modal{max-width:min(860px,94vw);max-height:90vh;overflow:auto;padding:1.2rem 1.4rem;animation:modalIn .25s ease-out}
+@keyframes modalIn{from{transform:scale(.92);opacity:0}}
+.modal h2{font-family:var(--disp);margin:.1em 0 .5em;font-size:1.8rem;color:var(--gold);font-style:italic}
+.modal p{line-height:1.5;max-width:70ch}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.6rem;margin-top:1rem}
+.choice{text-align:left;display:flex;flex-direction:column;gap:.15rem}
+.choice small{font-weight:normal;color:var(--dim);font-size:.82em}
+.evIcon{font-size:3.4rem;float:right;margin-left:1rem;animation:wob 2s ease-in-out infinite}
+@keyframes wob{50%{transform:rotate(8deg) scale(1.08)}}
+.outcome{margin-top:1rem;padding:.8rem 1rem;font-size:1.1rem;border-left:6px solid var(--cyan);background:var(--void2)}
+.outcome.good{border-color:var(--up)} .outcome.bad{border-color:var(--down)}
+.field{display:flex;flex-direction:column;gap:.3rem;margin:.6rem 0}
+.field input[type=text]{font:inherit;font-size:1.2rem;padding:.5rem;background:var(--void);color:var(--ink);border:3px solid var(--hi)}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.5rem 0;border-bottom:1px solid var(--panel3)}
+.diffgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.diffgrid .btn{display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.diffgrid small{font-weight:normal;color:var(--dim)}
+
+/* ---------- GAME LAYOUT ---------- */
+#game{flex-direction:column;z-index:5}
+#top{display:flex;align-items:stretch;gap:.35rem;padding:.3rem .4rem;background:var(--void2);border-bottom:3px solid var(--hi)}
+.stat{padding:.15rem .6rem;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.stat label{font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim);letter-spacing:.06em}
+.stat .v{font-size:1.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cashStat .v{font-size:1.9rem;color:var(--gold);line-height:1;text-shadow:0 0 14px rgba(255,201,60,.35)}
+#cashStat{min-width:220px;position:relative}
+.co{flex:1.2}
+.co .v{font-family:var(--disp);font-style:italic;font-size:1.1rem}
+.co{min-width:0} .co .tier{font-size:.78rem;color:var(--pink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pop-gain{animation:popG .7s ease-out}
+@keyframes popG{30%{transform:scale(1.25);filter:brightness(1.8) drop-shadow(0 0 16px var(--gold))}}
+.pop-loss{animation:popL .6s}
+@keyframes popL{20%,60%{transform:translateX(-6px);color:var(--down)}40%,80%{transform:translateX(6px);color:var(--down)}}
+.rainbow{animation:rb 3s linear infinite}
+@keyframes rb{to{filter:hue-rotate(360deg)}}
+.jitter{animation:jit .15s steps(2) infinite}
+@keyframes jit{50%{transform:translate(1px,-1px) rotate(-.5deg)}}
+.floater{position:fixed;z-index:61;font-family:var(--disp);font-size:2rem;pointer-events:none;animation:floatUp 1.6s ease-out forwards;white-space:nowrap}
+@keyframes floatUp{0%{opacity:0;transform:translateY(10px) scale(.6)}15%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:translateY(-70px) scale(1)}}
+
+#main{flex:1;display:grid;grid-template-columns:255px minmax(0,1fr) 275px;gap:.4rem;padding:.4rem;min-height:0}
+.col{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:.4rem}
+.card{padding:.6rem .7rem}
+.card h3{margin:0 0 .4rem;font-size:1.05rem;color:var(--cyan);letter-spacing:.04em}
+#locArt{width:100%;height:110px;display:block;background:var(--void)}
+.locName{font-family:var(--disp);font-size:1.4rem;font-style:italic;line-height:1.05;margin:.3rem 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.1rem .6rem;font-size:.9rem}
+.kv span:nth-child(odd){color:var(--dim)}
+.dest{display:grid;grid-template-columns:1fr auto;gap:0 .4rem;padding:.4rem .5rem;margin-bottom:.3rem;background:var(--void2);border:2px solid var(--panel3);text-align:left;width:100%}
+.dest:hover,.dest.sel{border-color:var(--gold);background:var(--panel2)}
+.dest .dn{font-weight:bold}
+.dest .dm{font-size:.8rem;color:var(--dim);grid-column:1/3}
+.dest .de{font-size:.85rem}
+.risk{display:inline-block;padding:0 .3em;font-size:.75rem;font-weight:bold;border:1px solid}
+#launch{width:100%;font-size:1.3rem;font-family:var(--disp);font-style:italic}
+
+#center{min-height:0;min-width:0;display:flex;flex-direction:column;gap:.35rem}
+#tabs{display:flex;gap:.2rem;flex-wrap:wrap;flex-shrink:0}
+#tabs .btn{min-height:32px;padding:.05rem .45rem;font-size:.84rem;white-space:nowrap;border-width:2px}
+#tabs .btn.on{background:linear-gradient(#FFD764,#F29A1E);color:#1a0d00;outline:none}
+#view{flex:1;overflow:auto;padding:.6rem .8rem;min-height:0;position:relative}
+
+/* market */
+.dock.min{grid-template-columns:1fr} .dock.min .dfull{display:none}
+.dock{position:relative;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:.7rem;padding:.5rem .6rem;margin-bottom:.6rem;background:var(--void2);border:2px solid var(--panel3)}
+.dockTitle{font-family:var(--disp);font-size:1.25rem;font-style:italic;line-height:1.1}
+.dockPrice{font-size:1.6rem;color:var(--gold);line-height:1.1}
+#graph{width:100%;height:118px;display:block;background:var(--void)}
+.lots{display:flex;gap:.25rem;flex-wrap:wrap;margin-top:.35rem;align-items:center}
+.qtyRow{display:flex;align-items:center;gap:.4rem;margin-top:.35rem;flex-wrap:wrap}
+.qtyRow input[type=range]{flex:1 1 90px;min-width:90px;accent-color:var(--gold);height:28px}
+table.mk{width:100%;border-collapse:collapse;font-size:.95rem}
+table.mk th{position:sticky;top:-.6rem;background:var(--panel);text-align:left;color:var(--dim);font-size:.75rem;letter-spacing:.06em;padding:.3rem;z-index:1}
+table.mk td{padding:.18rem .3rem;border-bottom:1px solid var(--panel3);vertical-align:middle}
+table.mk tr{cursor:pointer}
+table.mk tr:hover td{background:var(--panel2)}
+table.mk tr.sel td{background:var(--panel3)}
+.ci{font-size:1.4rem;width:1.8rem;display:inline-block;text-align:center}
+.tag{display:inline-block;font-size:.68rem;font-weight:bold;padding:.05em .35em;margin-left:.45em;vertical-align:middle;border:1px solid currentColor}
+.tag.r{color:var(--warn)} .tag.x{color:var(--down)} .tag.cheap{background:var(--up);color:#002;border:none;animation:pulse 1s infinite}
+.tag.hot{background:var(--down);color:#fff;border:none;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.12)}}
+.flash{animation:flash .8s}
+@keyframes flash{0%{background:rgba(255,201,60,.5)}}
+.bar{height:8px;background:var(--void);border:1px solid var(--panel3);width:70px;display:inline-block;vertical-align:middle}
+.bar i{display:block;height:100%;background:var(--cyan)}
+.hint{padding:.6rem .8rem;margin-bottom:.6rem;background:linear-gradient(90deg,rgba(255,115,218,.18),transparent);border-left:5px solid var(--pink)}
+
+/* right */
+.hullbar,.cargobar{height:14px;background:var(--void);border:2px solid var(--panel3);margin:.2rem 0 .4rem}
+.hullbar i,.cargobar i{display:block;height:100%;transition:width .4s}
+.hullbar i{background:linear-gradient(90deg,var(--down),var(--up))}
+.cargobar i{background:linear-gradient(90deg,var(--cyan),var(--pink))}
+.hold{display:grid;grid-template-columns:auto 1fr auto;gap:.15rem .4rem;font-size:.9rem;align-items:center}
+.hold .pl{font-size:.8rem}
+.crewChip{display:flex;gap:.4rem;align-items:flex-start;font-size:.85rem;margin:.25rem 0}
+.crewChip .fc{font-size:1.5rem}
+.bubble{color:var(--dim);font-style:italic}
+.shipPic{width:100%;height:80px;display:block}
+
+/* bottom */
+#bottom{display:grid;grid-template-columns:1fr auto;gap:.4rem;padding:0 .4rem .4rem}
+#log{height:72px;overflow:auto;padding:.3rem .6rem;font-size:.88rem;background:var(--void2);border:2px solid var(--panel3)}
+#log div{padding:.06rem 0}
+#ctrl{display:flex;gap:.3rem;align-items:center}
+#ticker{grid-column:1/3;height:32px;overflow:hidden;background:#000;border:2px solid var(--gold2);position:relative;white-space:nowrap}
+#tickerInner{position:absolute;top:0;left:0;line-height:28px;font-weight:bold;color:var(--gold);will-change:transform}
+#tickerInner b{color:var(--down);margin-left:2.5em}
+
+/* toasts */
+#toasts{position:fixed;top:84px;right:12px;z-index:55;display:flex;flex-direction:column;gap:.4rem;width:min(380px,90vw);pointer-events:none}
+.toast{padding:.55rem .8rem;background:var(--panel2);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);animation:tIn .35s ease-out;font-size:.95rem}
+.toast b{display:block;font-size:.8rem;letter-spacing:.08em}
+.toast.out{animation:tOut .4s forwards}
+@keyframes tIn{from{transform:translateX(110%)}}
+@keyframes tOut{to{transform:translateX(110%);opacity:0}}
+.t-profit b{color:var(--up)} .t-danger b{color:var(--down)} .t-market b{color:var(--warn)} .t-opp b{color:var(--cyan)} .t-ach b{color:var(--gold)}
+
+/* travel */
+#travel{z-index:40;flex-direction:column;background:#000}
+#travelCv{position:absolute;inset:0;width:100%;height:100%}
+.tvHud{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);width:min(760px,90vw);text-align:center}
+.tvMsg{font-size:1.3rem;min-height:1.6em;color:var(--cyan)}
+.tvBar{height:18px;border:3px solid var(--gold);margin:.5rem 0;background:#000}
+.tvBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.tvDest{font-family:var(--disp);font-size:2rem;font-style:italic;color:var(--gold)}
+.tvAd{position:absolute;top:6%;left:50%;transform:translateX(-50%);padding:.5rem 1rem;border:2px dashed var(--pink);color:var(--pink);font-size:.95rem;max-width:90vw;text-align:center}
+.tvSkip{position:absolute;right:14px;top:12px;color:var(--mute);font-size:.85rem}
+
+/* misc grids */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.6rem}
+.tile{padding:.7rem;background:var(--void2);border:2px solid var(--panel3);display:flex;flex-direction:column;gap:.3rem}
+.tile h4{margin:0;font-size:1.05rem}
+.tile .big{font-size:1.4rem}
+.pips{display:flex;gap:3px}
+.pips i{width:16px;height:10px;border:1px solid var(--gold);display:block}
+.pips i.f{background:var(--gold)}
+.locked{opacity:.45}
+.report{max-width:900px}
+.report h2{font-family:var(--disp);font-style:italic;color:var(--gold)}
+.report table{width:100%;border-collapse:collapse}
+.report td{padding:.35rem .4rem;border-bottom:1px dotted var(--panel3)}
+.report td:last-child{text-align:right}
+.lb{width:100%;border-collapse:collapse;font-size:1.05rem}
+.lb td{padding:.4rem;border-bottom:1px solid var(--panel3)}
+.lb tr.me td{background:linear-gradient(90deg,rgba(255,201,60,.3),transparent);font-weight:bold}
+#mapWrap{position:relative;width:100%;height:100%;min-height:380px}
+#mapCv{width:100%;height:100%;display:block;cursor:crosshair}
+#mapTip{position:absolute;pointer-events:none;padding:.5rem .7rem;background:var(--panel2);border:2px solid var(--gold);font-size:.88rem;display:none;max-width:290px;z-index:3}
+#mapTip .tn{font-family:var(--disp);font-style:italic;font-size:1.15rem;color:var(--gold)}
+.mapBtns{position:absolute;right:8px;bottom:8px;display:flex;gap:.4rem}
+.shake{animation:shk .45s}
+@keyframes shk{20%{transform:translate(-7px,3px)}40%{transform:translate(6px,-4px)}60%{transform:translate(-4px,2px)}80%{transform:translate(3px,-1px)}}
+.banner{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:62;font-family:var(--disp);font-style:italic;font-size:clamp(2rem,6vw,4.5rem);
+  color:var(--gold);text-align:center;pointer-events:none;text-shadow:0 5px 0 #4a2200,0 0 30px rgba(255,180,40,.7);animation:ban 2.6s ease-out forwards}
+.banner small{display:block;font-size:.35em;color:var(--ink);text-shadow:none;letter-spacing:.1em}
+@keyframes ban{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}12%{transform:translate(-50%,-50%) scale(1.15);opacity:1}20%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%)}}
+body.rm *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}
+body.rm #tickerInner{animation:none!important;position:static;padding-left:.6em;white-space:normal}
+
+@media (max-height:800px){#log{height:56px} #locArt{height:84px} .card{padding:.45rem .6rem} .kv{font-size:.85rem}}
+@media (max-width:1180px){#main{grid-template-columns:240px minmax(0,1fr) 250px} #cashStat{min-width:180px} .stat .v{font-size:1.05rem}}
+@media (max-width:960px){
+  html,body{overflow:auto}
+  #game.on{position:relative;min-height:100%}
+  #main{grid-template-columns:1fr;}
+  #top{flex-wrap:wrap}
+  #view{min-height:520px}
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="bg"></canvas>
+
+<section id="title" class="screen on" aria-label="Title screen">
+  <div class="logo" aria-label="Gazillionaire">GAZILLIONAIRE</div>
+  <div class="sub">THE UNIVERSE IS YOUR MARKET</div>
+  <div class="press" id="pressStart">PRESS START</div>
+  <nav class="menu" id="titleMenu">
+    <button class="btn gold" data-act="new">START NEW GAME</button>
+    <button class="btn" data-act="continue" id="btnContinue">CONTINUE</button>
+    <button class="btn" data-act="howto">HOW TO PLAY</button>
+    <button class="btn" data-act="settings">SETTINGS</button>
+    <button class="btn" data-act="credits">CREDITS</button>
+  </nav>
+  <div class="copy">A single-file space trading simulation · Buy low · Fly far · Sell absurdly high</div>
+</section>
+
+<section id="game" class="screen" aria-label="Game">
+  <header id="top">
+    <div class="stat bev co"><label>COMPANY</label><div class="v" id="sCo">—</div><div class="tier" id="sTier"></div></div>
+    <div class="stat bev" id="cashStat"><label>CASH</label><div class="v num" id="sCash">$0</div></div>
+    <div class="stat bev"><label>NET WORTH</label><div class="v num" id="sNw">$0</div></div>
+    <div class="stat bev"><label>LOCATION</label><div class="v" id="sLoc">—</div></div>
+    <div class="stat bev"><label>DAY · TURN</label><div class="v num" id="sDay">1</div></div>
+    <div class="stat bev"><label>PROFIT THIS TRIP</label><div class="v num" id="sTrip">$0</div></div>
+    <div class="stat bev"><label>COMPANY RANK</label><div class="v num" id="sRank">#—</div></div>
+  </header>
+  <div id="main">
+    <aside class="col" id="left"></aside>
+    <section id="center">
+      <nav id="tabs" role="tablist"></nav>
+      <div id="view" class="bev"></div>
+    </section>
+    <aside class="col" id="right"></aside>
+  </div>
+  <footer id="bottom">
+    <div id="log" aria-live="polite"></div>
+    <div id="ctrl">
+      <button class="btn sm" id="bSound" title="Mute / unmute (N)">🔊</button>
+      <button class="btn sm" id="bSettings" title="Settings">⚙</button>
+      <button class="btn sm" id="bPause" title="Pause menu (Esc)">⏸ MENU</button>
+    </div>
+    <div id="ticker" aria-hidden="true"><div id="tickerInner"></div></div>
+  </footer>
+</section>
+
+<section id="travel" class="screen" aria-label="Travelling">
+  <canvas id="travelCv"></canvas>
+  <div class="tvAd" id="tvAd"></div>
+  <div class="tvSkip">Click or press SPACE to hurry</div>
+  <div class="tvHud">
+    <div class="tvDest" id="tvDest"></div>
+    <div class="tvBar"><i id="tvBar"></i></div>
+    <div class="tvMsg" id="tvMsg"></div>
+  </div>
+</section>
+
+<div id="modalWrap"><div class="modal bev" id="modal" role="dialog" aria-modal="true"></div></div>
+<div id="toasts"></div>
+<canvas id="fx"></canvas>
+<script>
+"use strict";
+/* =====================================================================
+   GAZILLIONAIRE — data tables
+   ===================================================================== */
+const COMMODITIES = [
+ // id, name, icon, base price, volatility, weight (tons/unit), legal 0=legal 1=restricted 2=contraband
+ {id:'food',name:'Food',icon:'🍞',base:40,vol:.08,wt:1,legal:0},
+ {id:'water',name:'Water',icon:'💧',base:25,vol:.06,wt:1,legal:0},
+ {id:'fuel',name:'Fuel',icon:'⛽',base:60,vol:.10,wt:1,legal:0},
+ {id:'oxygen',name:'Oxygen',icon:'🫧',base:35,vol:.07,wt:1,legal:0},
+ {id:'metals',name:'Metals',icon:'🔩',base:90,vol:.10,wt:2,legal:0},
+ {id:'titanium',name:'Titanium',icon:'🦾',base:220,vol:.12,wt:2,legal:0},
+ {id:'uranium',name:'Uranium',icon:'☢️',base:420,vol:.16,wt:2,legal:1},
+ {id:'electronics',name:'Electronics',icon:'💾',base:300,vol:.10,wt:1,legal:0},
+ {id:'robots',name:'Robots',icon:'🤖',base:1200,vol:.12,wt:3,legal:0},
+ {id:'medicine',name:'Medicine',icon:'💊',base:380,vol:.12,wt:1,legal:0},
+ {id:'luxury',name:'Luxury Goods',icon:'💎',base:1500,vol:.14,wt:1,legal:0},
+ {id:'coffee',name:'Space Coffee',icon:'☕',base:140,vol:.15,wt:1,legal:0},
+ {id:'cheese',name:'Moon Cheese',icon:'🧀',base:95,vol:.14,wt:1,legal:0},
+ {id:'fruit',name:'Alien Fruit',icon:'🍑',base:120,vol:.18,wt:1,legal:0},
+ {id:'potato',name:'Space Potatoes',icon:'🥔',base:30,vol:.12,wt:1,legal:0},
+ {id:'bananas',name:'Bananas',icon:'🍌',base:35,vol:.20,wt:1,legal:0},
+ {id:'qbatt',name:'Quantum Batteries',icon:'🔋',base:900,vol:.13,wt:1,legal:0},
+ {id:'nano',name:'Nanobots',icon:'🦠',base:2200,vol:.18,wt:1,legal:1},
+ {id:'crypto',name:'Crypto Beans',icon:'🫘',base:300,vol:.45,wt:1,legal:0},
+ {id:'art',name:'Illegal-ish Art',icon:'🖼️',base:3000,vol:.25,wt:1,legal:2},
+ {id:'rocks',name:'Extremely Expensive Rocks',icon:'🪨',base:5000,vol:.20,wt:4,legal:0},
+ {id:'tele',name:'Teleportation Parts',icon:'🌀',base:6500,vol:.16,wt:1,legal:1},
+ {id:'crystal',name:'Memory Crystals',icon:'🔮',base:2600,vol:.15,wt:1,legal:0},
+ {id:'dino',name:'Dinosaur DNA',icon:'🦖',base:9000,vol:.22,wt:1,legal:2},
+ {id:'paint',name:'Anti-Gravity Paint',icon:'🎨',base:700,vol:.14,wt:0,legal:0},
+ {id:'mustache',name:'Fake Mustaches',icon:'🥸',base:20,vol:.20,wt:.1,legal:0},
+ {id:'weed',name:'Space Weed',icon:'🌿',base:250,vol:.20,wt:1,legal:1},
+ {id:'mystery',name:'Mystery Boxes',icon:'📦',base:500,vol:.30,wt:1,legal:0},
+ {id:'spoons',name:'Spoons',icon:'🥄',base:15,vol:.10,wt:.5,legal:0},
+];
+const CI = {}; COMMODITIES.forEach((c,i)=>CI[c.id]=i);
+const NC = COMMODITIES.length;
+// production recipes: output needs inputs to be in stock locally (creates cascades)
+const RECIPES = { electronics:['metals'], robots:['electronics','titanium'], nano:['electronics'], qbatt:['uranium'],
+  tele:['qbatt','titanium'], medicine:['fruit','water'], food:['water'], luxury:['metals','rocks'], paint:['crystal'] };
+
+// location type profiles: P = produces, C = consumes (strength ~0..3)
+const TYPES = {
+ agri:{label:'Farm world',P:{food:2,water:1,fruit:1.6,coffee:1.2,potato:2,bananas:2,weed:1},C:{electronics:1,robots:1,medicine:1,fuel:1,metals:.5,luxury:.5,spoons:.5},mood:'agri'},
+ ice:{label:'Ice world',P:{water:2.5,oxygen:1.6,crystal:.5},C:{food:1.2,fuel:1.5,electronics:.5,coffee:1.2,potato:1},mood:'calm'},
+ mining:{label:'Mining colony',P:{metals:2,uranium:1.5,titanium:2,rocks:1.2,crystal:.6},C:{food:1.5,water:1,oxygen:1.5,fuel:1,robots:1,medicine:1,coffee:1.5,bananas:.8},mood:'industry'},
+ industry:{label:'Industrial world',P:{electronics:1.5,robots:1.5,fuel:1,spoons:2,mustache:1,paint:.8},C:{metals:2,titanium:1.5,uranium:1,food:1,water:1,oxygen:.6,coffee:1},mood:'industry'},
+ tech:{label:'Tech hub',P:{nano:2,qbatt:1.6,tele:1.4,crystal:1,electronics:1,robots:.8},C:{uranium:1.5,metals:1,coffee:2,luxury:1,food:1,titanium:.8},mood:'hub'},
+ luxury:{label:'Luxury world',P:{luxury:1.4,art:.4},C:{art:2,rocks:2,coffee:1.5,cheese:1.6,dino:1.5,fruit:1.5,robots:1,medicine:1,crystal:1,paint:1.2,luxury:.5},mood:'lux'},
+ resort:{label:'Pleasure resort',P:{mystery:1.6,mustache:1.2},C:{luxury:2,coffee:2,cheese:1,food:1.5,crypto:1.5,weed:1.5,art:1,fruit:1,bananas:1},mood:'lux'},
+ outlaw:{label:'Outlaw haven',P:{art:2,dino:1.4,weed:2,mystery:1,crypto:1},C:{fuel:2,medicine:2,uranium:1.5,robots:1,tele:1.5,nano:1.5,mustache:1.6,food:1},mood:'outlaw'},
+ hub:{label:'Trade hub',P:{electronics:.5,fuel:.5,spoons:.5},C:{luxury:.5,coffee:.6,food:.5,cheese:.4},mood:'hub'},
+ garbage:{label:'Junk world',P:{metals:1,robots:.6,mystery:2,spoons:1.2,mustache:1,paint:.4},C:{food:1.5,water:1.5,oxygen:1.2,medicine:1.5,potato:1},mood:'outlaw'},
+ research:{label:'Research station',P:{medicine:1.6,dino:1,crystal:1.4,nano:1,paint:1.5},C:{electronics:1.5,qbatt:1.5,fruit:1,coffee:2,uranium:1,potato:.6},mood:'calm'},
+ gas:{label:'Gas giant refinery',P:{fuel:2.5,oxygen:1,uranium:.6},C:{food:1,water:1,metals:1,robots:.6,cheese:.6},mood:'industry'},
+ haven:{label:'Tax haven',P:{crypto:2},C:{luxury:1.5,art:1.5,rocks:1.5,dino:1,crypto:.4,coffee:.8},mood:'lux'},
+ moon:{label:'Dairy moon',P:{cheese:2.6,rocks:.5},C:{water:1,coffee:1,fruit:.8,mustache:.6},mood:'agri'},
+ secret:{label:'???',P:{tele:2,dino:2,crystal:2,qbatt:1.5,nano:1},C:{mustache:2.6,spoons:2.6,potato:2.2,bananas:2.2,cheese:1.5},mood:'secret'},
+};
+// name, type, x, y (0..1000 / 0..600), wealth, pop (M), risk (pirates), law (customs), tax %, palette, description
+const LOCATIONS = [
+ ['Earth','hub',470,300,1.2,9000,.05,.9,6,['#3b82f6','#22c55e'],'Mostly harmless, extremely taxed. Has a lot of water and opinions.'],
+ ['The Moon','moon',540,345,.9,40,.05,.6,4,['#d6d3c4','#a8a294'],'The original cheese moon. Everyone insists it is not actually cheese. It is.'],
+ ['Mars','industry',610,275,1.0,800,.1,.7,5,['#dc4a26','#8a2c14'],'Red, dusty, and absolutely covered in factories that make spoons.'],
+ ['Phobos Yard','mining',650,215,.8,12,.2,.4,3,['#8b7d6b','#5a5040'],'A potato-shaped rock that is mostly being dug up.'],
+ ['Ceres','mining',710,330,.9,60,.25,.4,3,['#9ca3af','#4b5563'],'Dwarf planet, giant ambitions, enormous holes.'],
+ ['Europa','ice',770,190,1.0,90,.1,.6,4,['#e0f2fe','#7dd3fc'],'An ocean under the ice. The fish refuse to comment.'],
+ ['Titan','gas',830,265,1.0,150,.15,.5,4,['#f59e0b','#b45309'],'Thick orange haze, thicker fuel margins.'],
+ ['Ganymede Farms','agri',730,120,.9,70,.1,.5,3,['#84cc16','#3f6212'],'Endless greenhouses. Smells faintly of bananas.'],
+ ['Neptune Outpost','ice',905,170,.9,20,.2,.5,4,['#3b82f6','#1e3a8a'],'Remote, cold, and paying through the nose for coffee.'],
+ ['New Venus','luxury',410,215,1.6,300,.08,.8,7,['#f9a8d4','#be185d'],'Terraformed into a spa. The clouds are scented.'],
+ ['Megapolis Station','hub',370,345,1.1,2000,.1,.7,5,['#a78bfa','#4c1d95'],'A station so big it has its own weather, mostly drizzle.'],
+ ['Space Vegas','resort',300,265,1.3,500,.15,.3,2,['#ff3df2','#facc15'],'Neon, slot machines, and a 24-hour buffet in zero gravity.'],
+ ['The Tax Haven','haven',245,170,1.5,3,.05,.2,0,['#fde68a','#ca8a04'],'A suspiciously luxurious orbital with no visible economy.'],
+ ['The Garbage Moon','garbage',560,440,.6,15,.3,.1,1,['#6b8e23','#4a3b1f'],'Where the galaxy throws things away. One trader\u2019s trash\u2026'],
+ ['Pirate Station 13','outlaw',885,470,.8,8,.85,0,0,['#1f2937','#ef4444'],'Dark, dangerous, heavily armed. Great prices though.'],
+ ['The Luxury Orbital','luxury',330,105,1.8,2,.05,.85,8,['#fbbf24','#fff7d6'],'A giant gold station. The doormats are tipped.'],
+ ['Deep Space 7','hub',955,345,1.0,40,.25,.5,3,['#94a3b8','#0ea5e9'],'Last stop before nowhere. Sells everything at "frontier" prices.'],
+ ['Zorp','agri',150,300,.8,400,.1,.5,3,['#34d399','#065f46'],'Zorpians grow fruit that tastes like a Tuesday.'],
+ ['Blorbo','outlaw',115,470,.7,30,.55,.1,1,['#a3e635','#4d7c0f'],'A jelly planet run by a committee of very confident slimes.'],
+ ['Kepler Labs','research',195,85,1.2,6,.05,.8,4,['#22d3ee','#155e75'],'Scientists here have discovered several extremely expensive rocks.'],
+ ['Vesta Foundry','industry',690,430,.9,90,.2,.6,4,['#fb923c','#7c2d12'],'Smelters run day and night. There is no night.'],
+ ['Io Reactor','gas',800,370,.9,25,.2,.5,4,['#facc15','#a16207'],'Volcanic moon that sells fuel and mild existential dread.'],
+ ['Callisto Creamery','moon',840,40,.8,10,.1,.4,3,['#fef3c7','#d97706'],'The galaxy\u2019s second-largest cheese moon. Very bitter about it.'],
+ ['Proxima Bazaar','hub',60,165,1.0,120,.2,.4,3,['#f472b6','#7e22ce'],'A sprawling market where every stall claims to be the original.'],
+ ['Glorp Prime','agri',60,375,.7,200,.15,.4,2,['#bef264','#65a30d'],'Glorps farm potatoes with a devotion bordering on worship.'],
+ ['Asteroid 404','mining',955,560,.7,4,.45,.1,1,['#78716c','#292524'],'Location not found. Ore found, though.'],
+ ['Nebula Gardens','agri',450,525,1.0,60,.1,.6,4,['#c084fc','#16a34a'],'Orchards floating in a pink nebula. Bring sunglasses.'],
+ ['Silicon Ring','tech',515,165,1.3,80,.08,.8,5,['#38bdf8','#0f172a'],'A ring station made entirely of startups.'],
+ ['Quantum Spire','tech',265,420,1.3,45,.1,.7,5,['#818cf8','#e0e7ff'],'Simultaneously open and closed for business.'],
+ ['Hotel Infinity','resort',625,545,1.4,15,.15,.4,3,['#f43f5e','#fde047'],'Infinite rooms, always fully booked.'],
+ ['The Pickle Nebula','research',770,520,1.0,5,.25,.5,3,['#4ade80','#14532d'],'A briny research nebula. Nobody remembers why it is called that.'],
+ ['Smuggler\u2019s Rest','outlaw',45,560,.8,6,.7,0,0,['#57534e','#f97316'],'Nobody here has a real name. Nobody here has a real anything.'],
+ ['Frostbite Station','ice',355,565,.8,9,.15,.5,3,['#a5f3fc','#0e7490'],'So cold the prices freeze. They do not, but it is very cold.'],
+ ['Helium Heights','gas',190,555,.9,12,.2,.4,3,['#fda4af','#9f1239'],'Everyone here talks in a high voice and it never stops being funny.'],
+ ['Dyson Fragment','tech',930,75,1.4,30,.15,.6,4,['#fde047','#78350f'],'A chunk of an ancient megastructure, now an office park.'],
+ ['Cloud City Nimbus','luxury',620,55,1.6,25,.06,.8,7,['#e0f2fe','#a78bfa'],'Floating mansions above a gas giant. The view costs extra.'],
+ ['Glimmering Bazaar','secret',985,15,1.2,1,.0,0,0,['#ffffff','#ff00ff'],'A hidden alien market. They will pay ANYTHING for spoons.'],
+].map((a,i)=>({i,name:a[0],type:a[1],x:a[2],y:a[3],wealth:a[4],pop:a[5],risk:a[6],law:a[7],tax:a[8],pal:a[9],desc:a[10]}));
+const NL = LOCATIONS.length;
+const SECRET_LOC = NL-1;
+const STARTS = [0,2,10,17];
+
+const SHIPS = [
+ {id:'pickup',name:'Space Pickup',cargo:60,speed:1.4,fuel:.7,hull:60,crew:1,price:6000,desc:'Cheap, tiny, surprisingly zippy.'},
+ {id:'hauler',name:'Rustbucket Hauler',cargo:150,speed:1.0,fuel:1,hull:90,crew:2,price:22000,desc:'More cargo, more rust.'},
+ {id:'freighter',name:'Freighter',cargo:420,speed:.7,fuel:1.5,hull:160,crew:3,price:95000,desc:'Huge hold. Turns like a planet.'},
+ {id:'clipper',name:'Clipper',cargo:200,speed:2.1,fuel:1.1,hull:100,crew:3,price:180000,desc:'Fast, sleek, expensive to insure.'},
+ {id:'miner',name:'Mining Ship',cargo:260,speed:.9,fuel:1.2,hull:220,crew:3,price:130000,desc:'Mines free ore at mining and junk worlds.'},
+ {id:'yacht',name:'Luxury Yacht',cargo:120,speed:1.7,fuel:2,hull:120,crew:5,price:2500000,desc:'+15% when selling luxury items. Reputation magnet.'},
+ {id:'mega',name:'Galactic Mega-Freighter',cargo:3200,speed:.8,fuel:3,hull:500,crew:6,price:9000000,desc:'Absurd capacity. Moves markets by existing.'},
+ {id:'alien',name:'Questionable Alien Ship',cargo:500,speed:1.5,fuel:1,hull:150,crew:4,price:777777,desc:'Capabilities: unknown. Smell: unknown. Vibe: immaculate.'},
+];
+const SI = {}; SHIPS.forEach((s,i)=>SI[s.id]=i);
+const SHIP_NAMES = ['SS Moneybag','The Profit Margin','Buy Low Fly High','Cash Comet','The Invoice','Petty Cache','Liquid Asset','Debt Star','The Fiscal Yearn','Brr-ish Bulldozer','The Spreadsheet','Sir Haulsalot'];
+
+const UPGRADES = [
+ {id:'cargo',name:'Cargo Bays',icon:'📦',max:5,base:4000,mult:3,desc:l=>l?`+${25*l}% cargo capacity`:'Standard hold'},
+ {id:'engine',name:'Engines',icon:'🚀',max:5,base:5000,mult:3,desc:l=>l?`+${15*l}% speed (fewer days per trip)`:'Standard engines'},
+ {id:'fuel',name:'Fuel System',icon:'⛽',max:5,base:3000,mult:3,desc:l=>l?`-${12*l}% fuel cost`:'Standard fuel use'},
+ {id:'shields',name:'Shields',icon:'🛡️',max:5,base:6000,mult:3,desc:l=>l?`-${15*l}% pirate losses, better odds in fights`:'No shields'},
+ {id:'scanner',name:'Scanner',icon:'📡',max:4,base:5000,mult:3.5,desc:l=>['Current market only','See prices within short range','See prices within long range','See every market live','Live markets + price predictions'][l]},
+ {id:'computer',name:'Trade Computer',icon:'🧮',max:3,base:8000,mult:3.5,desc:l=>['No trade advice','Suggests the best known trade','Adds trend forecasts to the market','Forecasts + spots stock-tip lies'][l]},
+ {id:'insurance',name:'Insurance',icon:'📄',max:4,base:3000,mult:3,desc:l=>l?`Covers ${20*l}% of catastrophic losses`:'Uninsured'},
+ {id:'automation',name:'Auto-Trader',icon:'⚙️',max:3,base:15000,mult:3,desc:l=>l?`Auto-sells flagged cargo at ${[0,40,25,12][l]}%+ profit`:'Off'},
+ {id:'secret',name:'Secret Technology',icon:'✨',max:3,base:5e6,mult:10,desc:l=>['Classified','Probability Drive: luck favors you','Market Whisperer: hear galactic news early','Gazillion Engine: every trip takes 1 day, no fuel'][l]},
+];
+const UI_ = {}; UPGRADES.forEach((u,i)=>UI_[u.id]=i);
+
+const CREW_ROLES = {
+ pilot:{name:'Pilot',face:'🧑‍✈️',cost:2500,wage:30,desc:'-10% fuel, +5% speed',lines:['I can see my house from here.','Shortcut! Probably.','Hold on to your invoices.','That asteroid was closer than it looked.']},
+ engineer:{name:'Engineer',face:'🧑‍🔧',cost:3000,wage:35,desc:'-40% repair costs, fewer breakdowns',lines:['The engine is fine. The noise is a feature.','Who used duct tape on the reactor? Oh. Me.','I named the ship\u2019s bolts. All of them.']},
+ trader:{name:'Trader',face:'🕴️',cost:4000,wage:45,desc:'Buy 3% cheaper, sell 3% higher',lines:['Buy the rumor, sell the moon.','I could sell sand on Frostbite Station.','Our margins are looking frisky.']},
+ security:{name:'Security Officer',face:'💂',cost:3500,wage:40,desc:'-30% pirate risk, +15% fight odds',lines:['I have a very large stick.','All clear. Suspiciously clear.','I scared a pirate once. It was a mirror.']},
+ accountant:{name:'Accountant',face:'🧮',cost:5000,wage:50,desc:'Finds money, -25% loan interest',lines:['I found $12 in the couch cushions.','Technically, that was a business expense.','Our tax situation is... creative.']},
+ alien:{name:'Alien',face:'👽',cost:6000,wage:10,desc:'???',lines:['Blorp.','I have eaten one (1) spoon.','Your money is very shiny. I respect it.','Zxx\u2019krr. It means "profit".']},
+};
+const FIRST_NAMES = ['Zed','Moxie','Brix','Juno','Pell','Quill','Rosco','Tamsin','Vex','Odo','Nim','Sprocket','Kaz','Lumen','Fizz','Bodhi','Marlo','Ziggy','Persimmon','Gus'];
+const LAST_NAMES = ['Starbuck','Ledger','Nebulon','Quark','Voidwalker','McCredit','Fizzlewick','Orbitz','Cashmore','Thrustwell','Haulsby','Grommet'];
+const ALIEN_NAMES = ['Xyl\u2019brr','Gloop','Mr. Tentacles','Zorgana','Qwx','Bleeb'];
+
+const ASSETS = [
+ {id:'vend',name:'Vending Satellite',icon:'🛰️',price:50000,inc:.03},
+ {id:'claim',name:'Asteroid Mining Claim',icon:'⛏️',price:250000,inc:.028},
+ {id:'station',name:'Space Station',icon:'🏗️',price:2e6,inc:.026},
+ {id:'moon',name:'A Moon',icon:'🌕',price:1.5e7,inc:.025},
+ {id:'corp',name:'Megacorporation',icon:'🏢',price:1e8,inc:.024},
+ {id:'belt',name:'Asteroid Belt',icon:'💫',price:8e8,inc:.023},
+ {id:'planet',name:'Entire Planet',icon:'🪐',price:6e9,inc:.022},
+ {id:'gov',name:'A Government (lightly used)',icon:'🏛️',price:5e10,inc:.021},
+ {id:'system',name:'Star System',icon:'☀️',price:4e11,inc:.02},
+ {id:'arm',name:'Spiral Arm',icon:'🌀',price:5e12,inc:.02},
+ {id:'senate',name:'Galactic Senate Majority',icon:'🗳️',price:6e13,inc:.02},
+ {id:'galaxy',name:'THE GALAXY',icon:'🌌',price:1e15,inc:0,once:true},
+];
+
+const TIERS = [
+ [0,'Space Peddler'],[1e4,'Small Trader'],[1e5,'Established Trader'],[1e6,'Millionaire'],[1e7,'Mega-Rich'],
+ [1e8,'Industrial Titan'],[1e9,'Billionaire'],[1e12,'Trillionaire'],[1e15,'GAZILLIONAIRE (Ridiculous)'],[1e18,'Numbers Have Stopped Meaning Things'],
+];
+
+const DIFFS = {
+ easy:{name:'Easy',desc:'Generous economy',cash:15000,vol:.6,ev:.6,pir:.5,spread:1.2,int:.7,comp:.8},
+ normal:{name:'Normal',desc:'Balanced',cash:8000,vol:1,ev:1,pir:1,spread:1,int:1,comp:1},
+ hard:{name:'Hard',desc:'Volatile markets',cash:5000,vol:1.4,ev:1.2,pir:1.4,spread:.9,int:1.3,comp:1.2},
+ chaos:{name:'Chaos',desc:'Wild events',cash:8000,vol:1.3,ev:2.3,pir:1.3,spread:1,int:1,comp:1.1},
+ tycoon:{name:'Tycoon',desc:'Very difficult',cash:3000,vol:1.2,ev:1.2,pir:1.6,spread:.8,int:1.5,comp:1.5},
+ absurd:{name:'Absurd',desc:'Ridiculous everything',cash:8000,vol:2.2,ev:3,pir:1.5,spread:1.3,int:1,comp:1.3},
+};
+
+const CO_NAMES = ['Cosmic Potato Holdings','Interstellar Bargain Corp.','Absolutely Legit Industries','Big Money Space LLC','Moon Cheese Enterprises','Definitely Not A Pyramid Scheme','Galactic Cash Machine','Orbit & Profit Ltd.','Nebula Nickel Co.','Wormhole Wholesale','Supernova Savings & Loan','Asteroid Arbitrage Inc.'];
+const CEO_FIRST = ['Alex','Buck','Penny','Rich','Cash','Goldie','Mint','Bill','Fortune','Dot','Sterling','Nickel'];
+const CEO_LAST = ['Moneybags','Starprofit','Ledgerton','Quasar','Coinsworth','von Margin','Spacebucks','Dividend'];
+const COMPETITORS = ['Zorbo Industries','Galactic Holdings','MoonCorp','Suspiciously Rich LLC','Blorbo Slime Capital','Nebulax Trading','Krang & Sons','Ultra Mega Corp','The Cheese Cartel','Quark Logistics','Void Ventures','Hyperspace Hedge Fund','Uncle Gorp\u2019s Discount Freight','Pyramid Pyramid Inc.'];
+
+const SLOGANS = ['Buy low. Fly far. Sell ridiculous.','Profit at the speed of light.','Your cargo, our problem.','We put the "gal" in galactic.','Trusted by 3 out of 5 slimes.','Now with 40% fewer explosions.','Money is just space rocks with ambition.','Fueled by spite and Space Coffee.'];
+const ADS = ['TIRED OF GRAVITY? Try Anti-Gravity Paint\u2122. Now in beige!','FAKE MUSTACHES: Be someone else. Legally!*  *Legality varies by planet.','HOTEL INFINITY: Always one more room. Never one available.','DEBT TROUBLE? Call Krang & Sons. We know where you park.','MOON CHEESE: It\u2019s not the moon. It IS cheese. Wait, reverse that.','CRYPTO BEANS: Past performance is a hallucination.','MYSTERY BOXES: Could be anything! (It\u2019s mostly spoons.)','SPACE VEGAS: What happens in orbit, stays in orbit.','INSURANCE: Because pirates are a lifestyle.'];
+const TRAVEL_MSGS = ['Checking navigation\u2026','Calculating fuel requirements\u2026','Scanning for pirates\u2026','Your accountant looks nervous.','Reticulating hyperlanes\u2026','Asking the ship nicely to go faster\u2026','Converting coffee into thrust\u2026','Polishing the cargo\u2026','Ignoring a suspicious beeping\u2026','Avoiding eye contact with a comet\u2026','Recounting the money. Still there.','Rerouting around a tax inspector\u2026'];
+const HEADLINES = ['LOCAL MINING COMPANY DISCOVERS ROCK','ECONOMISTS ADMIT THEY HAVE NO IDEA WHAT IS HAPPENING','SPACE POTATO PRICES SURGE 400% (CORRECTION: 4%)','ALIENS CLAIM THEY INVENTED MONEY','SCIENTISTS DISCOVER EXTREMELY EXPENSIVE ROCK','MEGACORP POSTS RECORD PROFITS, RECORD SMUGNESS','STUDY: 9 IN 10 SPACESHIPS ARE "BASICALLY FINE"','EARTH ANNOUNCES NEW TAX ON ANNOUNCING TAXES','SLIME COMMITTEE ON BLORBO VOTES TO HOLD MORE VOTES','HOTEL INFINITY GUEST STILL LOOKING FOR ROOM 7','FORECAST: CHANCE OF METEORS, OPPORTUNITY OF PROFITS','MOON INSISTS IT IS "NOT A CHEESE"','PIRATE UNION DEMANDS DENTAL PLAN','ANALYST PREDICTS NUMBERS WILL GO UP, DOWN, OR SIDEWAYS','MAN BUYS SPOON, REGRETS NOTHING','DEEP SPACE 7 RENAMES ITSELF DEEP SPACE 7 (AGAIN)','CRYPTO BEAN WHITEPAPER IS JUST A PICTURE OF A BEAN'];
+/* =====================================================================
+   Core: RNG, formatting, state, economy
+   ===================================================================== */
+// --- seeded RNG (mulberry32) stored in state so runs are reproducible ---
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function rng(){ let a=S.rs|0; a=a+0x6D2B79F5|0; S.rs=a; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }
+const ri=(a,b)=>a+Math.floor(rng()*(b-a+1));
+const pick=arr=>arr[Math.floor(rng()*arr.length)];
+const chance=p=>rng()<p;
+function gauss(){let u=0,v=0;while(!u)u=rng();while(!v)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const cpick=arr=>arr[Math.floor(Math.random()*arr.length)]; // cosmetic only
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// --- money formatting ---
+const BIGNAMES=[[1e27,'octillion'],[1e24,'septillion'],[1e21,'sextillion'],[1e18,'quintillion'],[1e15,'quadrillion'],[1e12,'trillion'],[1e9,'billion']];
+function fmt(n,plus){
+  if(!isFinite(n)) return '$\u221e';
+  const s = n<0?'-':(plus&&n>0?'+':''); n=Math.abs(n);
+  if(n>=1e30) return s+'$1 gazillion-ish';
+  if(n<1e9) return s+'$'+Math.round(n).toLocaleString('en-US');
+  for(const [v,w] of BIGNAMES) if(n>=v) return s+'$'+(n/v).toFixed(n/v>=100?1:2)+' '+w;
+}
+function fmtS(n,plus){
+  const s=n<0?'-':(plus&&n>0?'+':''); n=Math.abs(n);
+  if(n<1e4) return s+'$'+Math.round(n).toLocaleString('en-US');
+  const u=[[1e15,'Q'],[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'k']];
+  for(const [v,w] of u) if(n>=v) return s+'$'+(n/v).toFixed(n/v>=100?0:1)+w;
+}
+const fq=q=>(Math.round(q*10)/10).toLocaleString('en-US');
+
+// --- global state ---
+let S=null;                 // the saved game state
+let ST={};                  // static derived tables (rebuilt from seed)
+let SETTINGS={rm:false,hc:false,large:false,sound:true,music:true,vol:.7,mvol:.45};
+
+function buildStatic(seed){
+  const r=mulberry(seed^0x9e3779b9);
+  ST.prod=[];ST.cons=[];ST.E=[];ST.mult=[];ST.phase=[];
+  const LUXC=new Set(['luxury','art','rocks','dino','coffee','cheese','crystal','paint','tele']);
+  const BASIC={food:.35,water:.35,oxygen:.35,fuel:.35,coffee:.25};
+  for(const L of LOCATIONS){
+    const T=TYPES[L.type]; const sz=.6+.25*Math.log10(L.pop+1);
+    const P=[],C=[],E=[],M=[];
+    COMMODITIES.forEach((c,ci)=>{
+      let p=(T.P[c.id]||0), q=(T.C[c.id]||0)+(BASIC[c.id]&&!T.P[c.id]?BASIC[c.id]:0);
+      // a little seeded local flavour so no two planets of a type are identical
+      p*= .8+r()*.4; q*= .8+r()*.4;
+      P.push(p);C.push(q);
+      E.push(sz*30000/Math.pow(c.base,.75)*(1+p*.35));
+      M.push(Math.pow(L.wealth,LUXC.has(c.id)?.6:.2)*(.92+r()*.16));
+    });
+    ST.prod.push(P);ST.cons.push(C);ST.E.push(E);ST.mult.push(M);
+  }
+  COMMODITIES.forEach(()=>ST.phase.push(r()*Math.PI*2));
+  // distances
+  ST.dist=LOCATIONS.map(a=>LOCATIONS.map(b=>Math.hypot(a.x-b.x,a.y-b.y)));
+}
+
+function newState(opts){
+  const seed=(Math.random()*2**31)|0;
+  const D=DIFFS[opts.diff];
+  S={v:3,seed,rs:seed,diff:opts.diff,company:opts.company,ceo:opts.ceo,slogan:cpick(SLOGANS),
+    cash:D.cash,day:1,turn:1,loc:opts.start,visited:Array(NL).fill(false),
+    ship:{t:0,name:cpick(SHIP_NAMES),hull:SHIPS[0].hull,up:{cargo:0,engine:0,fuel:0,shields:0,scanner:1,computer:0,insurance:0,automation:0,secret:0}},
+    fleet:[],cargo:{},auto:{},crew:[],hire:null,rep:50,heat:0,loans:[],assets:{},
+    stock:[],sent:[],hist:[],known:[],events:[],contracts:{offers:null,active:[]},
+    stats:{earned:0,lost:0,trades:0,best:null,worst:null,dist:0,traded:{},shipsBought:0,crewHired:0,events:0,pirates:0,taxes:0,moved:0,highNw:0,bankrupt:0,fines:0,contraband:0,trips:0,failedTrips:0,discoveries:0,contractsDone:0},
+    ach:{},secrets:{},comps:[],news:[],recentSales:[],tripProfit:0,flags:{secretKnown:false,firstHint:true,lastRescue:-999},
+    log:[],gameWon:false};
+  S.visited[S.loc]=true;
+  buildStatic(seed);
+  for(let l=0;l<NL;l++){
+    S.stock.push(ST.E[l].map((e,c)=>e*Math.exp(.55*clamp(ST.prod[l][c]-ST.cons[l][c],-2.5,2.5))*(.85+rng()*.3)));
+    S.sent.push(Array(NC).fill(0));
+    S.hist.push(Array.from({length:NC},()=>[]));
+    S.known.push(null);
+  }
+  const shuffled=[...COMPETITORS].sort(()=>rng()-.5);
+  for(let i=0;i<10;i++) S.comps.push({name:shuffled[i],nw:Math.round(2e5*Math.pow(2.6,i)*(.7+rng()*.6)),g:.003+rng()*.006});
+  // warm the economy up so it already has history and character
+  for(let d=0;d<25;d++){ econTick(true); if(d%3===1) recordHistory(); }
+  S.day=1; S.turn=1;
+  recordHistory(); snapshotKnown();
+  const nm=S.company.toUpperCase();
+  if(nm.includes('MOON CHEESE')) S.cargo[CI.cheese]={q:15,cost:0};
+  return S;
+}
+
+// --- economy -----------------------------------------------------------
+function effMults(l,c){
+  let p=1,q=1,pr=1;
+  for(const ev of S.events) for(const e of ev.eff){
+    if((e.l===-1||e.l===l||(e.type&&LOCATIONS[l].type===e.type))&&(e.c===-1||e.c===c)){
+      if(e.prod)p*=e.prod; if(e.cons)q*=e.cons; if(e.price)pr*=e.price;
+    }
+  }
+  return [p,q,pr];
+}
+function price(l,c,stockOverride){
+  const C=COMMODITIES[c]; const E=ST.E[l][c];
+  const s=Math.max(E*.02,stockOverride!=null?stockOverride:S.stock[l][c]);
+  const season=(['food','water','coffee','fruit','bananas','potato'].includes(C.id))?1+.07*Math.sin(S.day/30*Math.PI*2+ST.phase[c]):1;
+  const [,,pr]=effMults(l,c);
+  let p=C.base*ST.mult[l][c]*Math.pow(E/s,.7)*Math.exp(S.sent[l][c])*season*pr;
+  if(LOCATIONS[l].type==='secret'&&['spoons','mustache','potato','bananas'].includes(C.id)) p*=6;
+  return Math.max(.5,p);
+}
+function canBuyHere(l,c){ return !(COMMODITIES[c].legal===2 && LOCATIONS[l].law>=.6); }
+function econTick(warm){
+  const D=DIFFS[S.diff];
+  const mean=Array(NC).fill(0);
+  for(let l=0;l<NL;l++)for(let c=0;c<NC;c++) mean[c]+=S.stock[l][c]/ST.E[l][c]/NL;
+  for(let l=0;l<NL;l++){
+    for(let c=0;c<NC;c++){
+      const E=ST.E[l][c]; const [pm,cm]=effMults(l,c);
+      let P=ST.prod[l][c]*pm, Cn=ST.cons[l][c]*cm;
+      const rec=RECIPES[COMMODITIES[c].id];
+      if(rec&&P>0){
+        let av=1.1; for(const id of rec){const k=CI[id];av=Math.min(av,clamp(S.stock[l][k]/ST.E[l][k],.12,1.1));}
+        const raw=P; P*=Math.pow(av,1.2);
+        for(const id of rec){const k=CI[id]; S.stock[l][k]-=ST.E[l][k]*.012*raw*Math.min(av,1);}
+      }
+      const T=E*Math.exp(.55*clamp(P-Cn,-2.6,2.6)*D.spread);
+      let s=S.stock[l][c];
+      s+=(T-s)*.07;
+      s+=s*gauss()*COMMODITIES[c].vol*.05*D.vol;
+      s+=(mean[c]-s/E)*E*.012;          // NPC traders smoothing the galaxy
+      S.stock[l][c]=Math.max(E*.02,s);
+      S.sent[l][c]=S.sent[l][c]*.86+gauss()*COMMODITIES[c].vol*.07*D.vol;
+    }
+  }
+  if(warm) return;
+}
+function recordHistory(){
+  for(let l=0;l<NL;l++)for(let c=0;c<NC;c++){
+    const h=S.hist[l][c]; h.push(Math.round(price(l,c)*100)/100); if(h.length>150)h.shift();
+  }
+}
+function scanRange(){ return [0,260,480,99999,99999][S.ship.up.scanner]; }
+function snapshotKnown(){
+  const R=scanRange();
+  for(let l=0;l<NL;l++){
+    if(l===SECRET_LOC&&!S.flags.secretKnown) continue;
+    if(l===S.loc||ST.dist[S.loc][l]<=R) S.known[l]={turn:S.turn,p:S.hist[l].map(h=>h[h.length-1])};
+  }
+}
+// known price for planning: live if here or scanner >= 3, else last snapshot
+function knownPrice(l,c){
+  if(l===S.loc||S.ship.up.scanner>=3) return price(l,c);
+  return S.known[l]?S.known[l].p[c]:null;
+}
+function titaniumIndex(){ let s=0; for(let l=0;l<NL;l++) s+=price(l,CI.titanium)/COMMODITIES[CI.titanium].base; return clamp(Math.sqrt(s/NL),.6,2.5); }
+
+// --- ship / company derived values --------------------------------------
+const ship=()=>SHIPS[S.ship.t];
+function capacity(){
+  let c=ship().cargo*(1+.25*S.ship.up.cargo);
+  if(ship().id==='alien') c=S.flags.alienCargo||500;
+  for(const f of S.fleet) c+=SHIPS[f.t].cargo*.5;
+  return Math.round(c);
+}
+function cargoUsed(){ let t=0; for(const k in S.cargo) t+=S.cargo[k].q*COMMODITIES[k].wt; return Math.round(t*10)/10; }
+function cargoValue(l=S.loc){ let t=0; for(const k in S.cargo) t+=S.cargo[k].q*price(l,+k)*.97; return t; }
+function hasCrew(role){ return S.crew.filter(c=>c.role===role).length; }
+function speed(){ let s=ship().speed*(1+.15*S.ship.up.engine)*(1+.05*hasCrew('pilot')); return s; }
+function travelDays(to){ if(S.ship.up.secret>=3) return 1; return Math.max(1,Math.round(ST.dist[S.loc][to]/(110*speed()))); }
+function travelCost(to){
+  if(S.ship.up.secret>=3) return 0;
+  const fp=price(S.loc,CI.fuel)/COMMODITIES[CI.fuel].base;
+  return Math.round(ST.dist[S.loc][to]*.55*ship().fuel*(1-.12*S.ship.up.fuel)*(1-.1*Math.min(1,hasCrew('pilot')))*clamp(fp,.5,3));
+}
+function wages(){ return S.crew.reduce((a,c)=>a+CREW_ROLES[c.role].wage,0); }
+function assetIncome(){ let t=0; for(const a of ASSETS) t+=(S.assets[a.id]||0)*a.price*a.inc; return t; }
+function assetPrice(a){ return a.price*Math.pow(1.07,S.assets[a.id]||0); }
+function debt(){ return S.loans.reduce((a,l)=>a+l.bal,0); }
+function shipValue(){ let v=SHIPS[S.ship.t].price*.5; for(const f of S.fleet) v+=SHIPS[f.t].price*.5; return v; }
+function assetValue(){ let t=0; for(const a of ASSETS) for(let i=0;i<(S.assets[a.id]||0);i++) t+=a.price*Math.pow(1.07,i)*.7; return t; }
+function netWorth(){ return S.cash+cargoValue()+shipValue()+assetValue()-debt(); }
+function tierOf(nw){ let t=TIERS[0]; for(const x of TIERS) if(nw>=x[0]) t=x; return t; }
+function riskOf(l){ const D=DIFFS[S.diff]; let r=LOCATIONS[l].risk*D.pir; for(const ev of S.events) for(const e of ev.eff) if(e.risk&&(e.l===-1||e.l===l)) r+=e.risk; return clamp(r,0,1); }
+function riskLabel(r){ return r<.12?['LOW','var(--up)']:r<.3?['MED','var(--warn)']:r<.6?['HIGH','var(--down)']:['EXTREME','var(--pink)']; }
+function rankOf(nw){
+  const better=S.comps.filter(c=>c.nw>nw).length;
+  if(better<S.comps.length) return better+1;
+  const lo=Math.min(...S.comps.map(c=>c.nw));
+  return 11+Math.round(9000*clamp((Math.log10(lo)-Math.log10(Math.max(nw,100)))/(Math.log10(lo)-2),0,1));
+}
+/* =====================================================================
+   Galactic events (the universe evolving on its own)
+   ===================================================================== */
+const realLocs=()=>LOCATIONS.filter(l=>l.type!=='secret');
+const locsOfType=t=>LOCATIONS.filter(l=>l.type===t);
+const cname=id=>COMMODITIES[CI[id]].name;
+const GEVENTS = {
+ war:{w:1,make(){const [a,b]=[...realLocs()].sort(()=>rng()-.5);const e=[];for(const L of [a,b]){e.push({l:L.i,c:CI.fuel,cons:2.5},{l:L.i,c:CI.medicine,cons:3},{l:L.i,c:CI.metals,cons:2},{l:L.i,c:CI.robots,cons:2},{l:L.i,c:CI.luxury,cons:.4},{l:L.i,c:-1,risk:.3});}
+   return{name:`War: ${a.name} vs ${b.name}`,icon:'⚔️',days:ri(18,35),eff:e,news:`WAR: ${a.name.toUpperCase()} AND ${b.name.toUpperCase()} EXCHANGE STRONGLY WORDED MISSILES. FUEL AND MEDICINE DEMAND SOARS.`,chain:{id:'peace',p:.6,d:30}}}},
+ peace:{w:0,make(){return{name:'Peace dividend',icon:'🕊️',days:12,eff:[{l:-1,c:CI.luxury,cons:1.4},{l:-1,c:CI.coffee,cons:1.3}],news:'PEACE DECLARED. EVERYONE CELEBRATES WITH LUXURY GOODS AND COFFEE.'}}},
+ independence:{w:.8,make(){const L=pick(realLocs());return{name:`${L.name} independence`,icon:'🏳️',days:15,eff:[{l:L.i,c:-1,price:.88},{l:L.i,c:CI.food,cons:1.5}],news:`${L.name.toUpperCase()} DECLARES INDEPENDENCE, HOLDS CELEBRATORY CLEARANCE SALE.`}}},
+ boom:{w:1,make(){return{name:'Mining boom',icon:'⛏️',days:25,eff:[{type:'mining',l:-2,c:CI.metals,prod:2},{type:'mining',l:-2,c:CI.titanium,prod:1.8},{type:'mining',l:-2,c:CI.rocks,prod:1.5},{type:'mining',l:-2,c:CI.coffee,cons:2}],news:'MINING BOOM! METAL GLUT EXPECTED. MINERS DEMAND MORE COFFEE.'}}},
+ fuelshort:{w:1,make(){return{name:'Fuel shortage',icon:'⛽',days:20,eff:[{type:'gas',l:-2,c:CI.fuel,prod:.25},{l:-1,c:CI.fuel,cons:1.3}],news:'FUEL SHORTAGE: REFINERY WORKERS DISCOVER NAPS. TRAVEL COSTS EXPECTED TO RISE.'}}},
+ robots:{w:.8,make(){return{name:'Robot uprising',icon:'🤖',days:18,eff:[{type:'industry',l:-2,c:CI.robots,prod:.2},{l:-1,c:CI.robots,cons:.35},{l:-1,c:CI.electronics,cons:1.6}],news:'ROBOT UPRISING! ROBOTS DEMAND WEEKENDS. NOBODY WANTS TO BUY A ROBOT RIGHT NOW.',chain:{id:'robotpeace',p:.7,d:18}}}},
+ robotpeace:{w:0,make(){return{name:'Robots unionize',icon:'🔧',days:15,eff:[{l:-1,c:CI.robots,cons:2.2}],news:'ROBOTS SIGN LABOR DEAL. DEMAND FOR (POLITE) ROBOTS SKYROCKETS.'}}},
+ plague:{w:.8,make(){return{name:'Space plague',icon:'🦠',days:25,eff:[{l:-1,c:CI.medicine,cons:3},{l:-1,c:CI.food,cons:1.3},{l:-1,c:CI.luxury,cons:.6}],news:'SPACE PLAGUE SPREADS. SYMPTOMS INCLUDE SNEEZING IN ZERO-G. MEDICINE PRICES EXPLODE.'}}},
+ celeb:{w:1.2,make(){const c=pick(['cheese','fruit','potato','water','oxygen','coffee','mustache','spoons','bananas']);return{name:`Celebrity loves ${cname(c)}`,icon:'🌟',days:15,eff:[{l:-1,c:CI[c],cons:2.6}],news:`CELEBRITY ZAZA NEBULON CALLS ${cname(c).toUpperCase()} "LIFE-CHANGING". DEMAND SKYROCKETS.`}}},
+ treaty:{w:.7,make(){return{name:'Trade agreement',icon:'🤝',days:30,eff:[{l:-1,c:-1,risk:-.1},{l:-1,c:-1,price:.97}],news:'INTERGALACTIC TRADE AGREEMENT SIGNED. PIRATES SULK. TARIFFS DROP.'}}},
+ rocks:{w:.8,make(){return{name:'Massive asteroid discovery',icon:'🪨',days:20,stock:{type:'mining',c:CI.rocks,m:2.2},eff:[{l:-1,c:CI.rocks,prod:1.8,cons:.7}],news:'MASSIVE ASTEROID OF EXTREMELY EXPENSIVE ROCKS FOUND. ROCKS NOW MERELY "QUITE EXPENSIVE".'}}},
+ invasion:{w:.6,make(){const L=pick(realLocs());return{name:`Alien invasion at ${L.name}`,icon:'👾',days:12,eff:[{l:L.i,c:-1,risk:.5},{l:L.i,c:CI.food,cons:2},{l:L.i,c:CI.medicine,cons:2},{l:L.i,c:CI.robots,cons:2.5}],news:`ALIENS INVADE ${L.name.toUpperCase()}. THEY SEEM MOSTLY INTERESTED IN THE GIFT SHOP.`}}},
+ recession:{w:.7,make(){return{name:'Galactic recession',icon:'📉',days:30,eff:[{l:-1,c:CI.luxury,cons:.5},{l:-1,c:CI.art,cons:.5},{l:-1,c:CI.rocks,cons:.6},{l:-1,c:CI.robots,cons:.7},{l:-1,c:-1,price:.9}],news:'GALACTIC RECESSION. ECONOMISTS ADMIT THEY HAVE NO IDEA WHAT IS HAPPENING.'}}},
+ trend:{w:1,make(){const c=pick(['cheese','coffee','paint','mustache','fruit','crystal','art','spoons']);return{name:`${cname(c)} craze`,icon:'✨',days:18,eff:[{l:-1,c:CI[c],cons:3}],news:`NEW LUXURY TREND: EVERYONE WHO IS ANYONE NOW OWNS ${cname(c).toUpperCase()}.`}}},
+ blockade:{w:.8,make(){const L=pick(realLocs());return{name:`Pirate blockade at ${L.name}`,icon:'🏴‍☠️',days:15,eff:[{l:L.i,c:-1,risk:.6},{l:L.i,c:CI.food,cons:2.2},{l:L.i,c:CI.fuel,cons:2.2},{l:L.i,c:CI.water,cons:2}],news:`PIRATE BLOCKADE AT ${L.name.toUpperCase()}. LOCALS RATION SNACKS. PRICES SOAR.`}}},
+ olympics:{w:.6,make(){const L=pick(realLocs());return{name:`Space Olympics at ${L.name}`,icon:'🏅',days:10,eff:[{l:L.i,c:CI.food,cons:3},{l:L.i,c:CI.coffee,cons:3},{l:L.i,c:CI.medicine,cons:2},{l:L.i,c:CI.mustache,cons:3}],news:`SPACE OLYMPICS OPEN AT ${L.name.toUpperCase()}. ZERO-G SYNCHRONIZED SNACKING IS A NEW EVENT.`}}},
+ renamed:{w:.5,make(){const nm=pick(['Moon 2','Gary','The Big Cheese','Lunar McLunarface','Not Earth']);return{name:'Moon renamed',icon:'🌙',days:10,eff:[{l:-1,c:CI.cheese,cons:1.6}],news:`THE MOON HAS BEEN OFFICIALLY RENAMED "${nm.toUpperCase()}". CHEESE SALES UP IN CONFUSION.`}}},
+ spoonban:{w:.5,make(){const e=realLocs().filter(l=>l.law>=.6).map(l=>({l:l.i,c:CI.spoons,cons:.1,price:.4}));return{name:'Government bans spoons',icon:'🥄',days:25,eff:e,news:'GOVERNMENT BANS SPOONS. SOUP INDUSTRY IN CHAOS. SPOONS DUMPED AT FIRE-SALE PRICES.',chain:{id:'spoonback',p:.8,d:25}}}},
+ spoonback:{w:0,make(){return{name:'Spoons legal again',icon:'🥄',days:12,eff:[{l:-1,c:CI.spoons,cons:3}],news:'SPOONS RE-LEGALIZED. PENT-UP SOUP DEMAND UNLEASHED.'}}},
+ bananas:{w:.7,make(){return{name:'Bananas declared worthless',icon:'🍌',days:6,stock:{type:null,c:CI.bananas,m:1.8},eff:[{l:-1,c:CI.bananas,price:.18}],news:'SOMEONE ACCIDENTALLY ANNOUNCED THAT BANANAS ARE WORTHLESS. BANANA PRICES COLLAPSE.',chain:{id:'bananaback',p:.9,d:7}}}},
+ bananaback:{w:0,make(){return{name:'Banana correction',icon:'🍌',days:8,eff:[{l:-1,c:CI.bananas,price:1.8}],news:'CORRECTION: BANANAS ARE WORTH SOMETHING. BANANA PRICES REBOUND HARD.'}}},
+ strike:{w:.9,make(){return{name:'Asteroid strike on titanium mines',icon:'☄️',days:25,eff:[{type:'mining',l:-2,c:CI.titanium,prod:.12},{type:'mining',l:-2,c:CI.metals,prod:.5}],news:'ASTEROID STRIKES TITANIUM MINES. SHORTAGE EXPECTED; SHIPYARDS RAISE PRICES.',chain:{id:'tirush',p:.85,d:22}}}},
+ tirush:{w:0,make(){return{name:'Titanium rush',icon:'🦾',days:15,stock:{type:'mining',c:CI.titanium,m:1.8},eff:[{type:'mining',l:-2,c:CI.titanium,prod:3}],news:'TITANIUM RUSH: PROSPECTORS FLOOD THE MINES. PRICES EXPECTED TO COLLAPSE.'}}},
+ crypto:{w:.9,make(){return{name:'Crypto Bean mania',icon:'🫘',days:8,eff:[{l:-1,c:CI.crypto,cons:4,price:1.6}],news:'CRYPTO BEAN MANIA! A BEAN WAS SOLD FOR THE PRICE OF A SMALL MOON.',chain:{id:'cryptocrash',p:.9,d:8}}}},
+ cryptocrash:{w:0,make(){return{name:'Crypto Bean crash',icon:'📉',days:6,stock:{type:null,c:CI.crypto,m:3},eff:[{l:-1,c:CI.crypto,price:.25}],news:'CRYPTO BEAN CRASH. INVESTORS DISCOVER BEANS ARE BEANS.'}}},
+ blight:{w:.8,make(){return{name:'Coffee blight',icon:'☕',days:25,eff:[{type:'agri',l:-2,c:CI.coffee,prod:.2}],news:'COFFEE BLIGHT HITS FARM WORLDS. GALAXY ENTERS COLLECTIVE GRUMP.'}}},
+ dino:{w:.6,make(){return{name:'Dinosaur fever',icon:'🦖',days:12,eff:[{l:-1,c:CI.dino,cons:2.5}],news:'T-REX ESCAPES THEME PARK. NOW EVERYBODY WANTS ONE.'}}},
+ quantum:{w:.6,make(){const m=rng()<.5?.35:2.8;return{name:'Quantum glitch',icon:'🌀',days:5,eff:[{l:-1,c:CI.tele,price:m}],news:`QUANTUM GLITCH: TELEPORTATION PARTS NOW ${m>1?'WILDLY VALUABLE':'BASICALLY WORTHLESS'}. PROBABLY.`}}},
+ accident:{w:1,make(){const L=pick(locsOfType('mining'));return{name:`Mining accident at ${L.name}`,icon:'💥',days:20,eff:[{l:L.i,c:CI.metals,prod:.1},{l:L.i,c:CI.titanium,prod:.3},{l:L.i,c:CI.medicine,cons:2.5}],news:`MINING ACCIDENT AT ${L.name.toUpperCase()}. METAL SUPPLY DROPS; FACTORIES NERVOUS ABOUT ELECTRONICS.`}}},
+ cheesewar:{w:.4,make(){return{name:'The Cheese Wars',icon:'🧀',days:15,eff:[{l:1,c:CI.cheese,prod:.3},{l:22,c:CI.cheese,prod:.3},{l:-1,c:CI.cheese,cons:1.8}],news:'THE MOON AND CALLISTO CREAMERY DECLARE CHEESE WAR. CHEDDAR CASUALTIES MOUNTING.'}}},
+};
+function spawnGalacticEvent(id,delayDays){
+  const def=GEVENTS[id]; const ev=def.make(); ev.id=id;
+  if(delayDays>0){ S.pending=S.pending||[]; S.pending.push({ev,day:S.day+delayDays}); news('RUMOR: '+ev.news.split('.')[0]+'?'); toast('opp','🔮 RUMOR',`Whispers say: ${ev.name} in ${delayDays} days.`); return; }
+  activateEvent(ev);
+}
+function activateEvent(ev){
+  // resolve type-wide effects into per-location entries
+  const eff=[]; for(const e of ev.eff){ if(e.type){ for(const L of locsOfType(e.type)) eff.push({...e,type:undefined,l:L.i}); } else eff.push(e); }
+  ev.eff=eff;
+  if(ev.stock){ for(const L of LOCATIONS) if(!ev.stock.type||L.type===ev.stock.type) S.stock[L.i][ev.stock.c]*=ev.stock.m; }
+  S.events.push(ev); news(ev.news);
+  if(S.loc!=null&&$('game').classList.contains('on')) toast('market','⚠ GALACTIC EVENT',`${ev.icon} ${ev.name}`);
+  logMsg(`${ev.icon} <b>${esc(ev.name)}</b> — ${esc(ev.news.toLowerCase())}`);
+}
+function eventsTick(){
+  for(const ev of S.events){ ev.days--; }
+  const ended=S.events.filter(e=>e.days<=0);
+  S.events=S.events.filter(e=>e.days>0);
+  for(const ev of ended){ const ch=ev.chain; if(ch&&rng()<ch.p){ S.pending=S.pending||[]; S.pending.push({id:ch.id,day:S.day+ri(0,4)}); } }
+  if(S.pending){ const now=S.pending.filter(p=>p.day<=S.day); S.pending=S.pending.filter(p=>p.day>S.day); for(const p of now){ if(p.ev) activateEvent(p.ev); else spawnGalacticEvent(p.id,0); } }
+  const D=DIFFS[S.diff];
+  if(S.events.length<6&&rng()<.055*D.ev){
+    const ids=Object.keys(GEVENTS).filter(k=>GEVENTS[k].w>0); let tot=ids.reduce((a,k)=>a+GEVENTS[k].w,0),r=rng()*tot,id=ids[0];
+    for(const k of ids){r-=GEVENTS[k].w;if(r<=0){id=k;break;}}
+    spawnGalacticEvent(id,S.ship.up.secret>=2?3:0);
+  }
+}
+
+/* =====================================================================
+   Travel & arrival encounters (choices with risk/reward)
+   ===================================================================== */
+function luck(){ return .06*Math.min(1,S.ship.up.secret); }
+function scale(){ return Math.max(1,Math.sqrt(Math.max(1,netWorth())/20000)); }
+function mostValuableCargo(){ let best=null,bv=0; for(const k in S.cargo){const v=S.cargo[k].q*price(S.loc,+k); if(v>bv){bv=v;best=+k;}} return best; }
+function removeCargo(c,q){ const h=S.cargo[c]; if(!h)return 0; q=Math.min(h.q,Math.max(1,Math.round(q))); h.q=Math.round((h.q-q)*1000)/1000; if(h.q<1) delete S.cargo[c]; return q; }
+function addCargo(c,q,cost){ const free=capacity()-cargoUsed(); const wt=COMMODITIES[c].wt; if(wt>0) q=Math.min(q,Math.floor(free/wt)); if(q<=0) return 0;
+  const h=S.cargo[c]||(S.cargo[c]={q:0,cost:0}); h.cost=(h.cost*h.q+cost*q)/(h.q+q); h.q+=q; return q; }
+function loseCargoFrac(frac,why){
+  // insurance pays out a share of the market value lost
+  let lost=0; for(const k of Object.keys(S.cargo)){ const q=Math.round(S.cargo[k].q*frac); if(q<1) continue; lost+=q*price(S.loc,+k); removeCargo(+k,q); }
+  const cover=lost*.2*S.ship.up.insurance; if(cover>0){ S.cash+=cover; }
+  S.stats.lost+=lost-cover;
+  return {lost,cover};
+}
+function hullDamage(n){ n=Math.round(n*(1-.08*S.ship.up.shields)); S.ship.hull=Math.max(0,S.ship.hull-n); return n; }
+function payCash(n){ n=Math.round(n); S.cash-=n; S.stats.lost+=n; return n; }
+function gainCash(n){ n=Math.round(n); S.cash+=n; S.stats.earned+=n; return n; }
+function flaggedCargo(){ let v=0,list=[]; for(const k in S.cargo){ const C=COMMODITIES[k]; if(C.legal>0){ v+=S.cargo[k].q*price(S.loc,+k); list.push(+k);} } return {v,list}; }
+
+const TEVENTS = [
+ {id:'pirates',w:c=>c.risk*3.2,make(c){
+   const n=ri(1,4); const D=DIFFS[S.diff];
+   const fightP=clamp(.38+.07*S.ship.up.shields+.15*Math.min(1,hasCrew('security'))+ship().hull/1500-.06*n*D.pir+luck(),.05,.92);
+   const runP=clamp(.25+.22*speed()-.07*n+luck(),.05,.9);
+   const toll=Math.max(300,S.cash*.07)*(1-.1*S.ship.up.shields);
+   const mv=mostValuableCargo();
+   const ch=[
+    {label:'⚔️ FIGHT',hint:`~${Math.round(fightP*100)}% to win`,act(){ if(rng()<fightP){ const loot=gainCash(ri(400,1600)*n*scale()); S.stats.pirates++; S.rep=clamp(S.rep+4,0,100); sfx('jackpot'); return{txt:`Victory! The pirates flee, dropping ${fmt(loot)} in the scramble. Your security footage is going viral.`,mood:'good',coins:true}; }
+      const d=hullDamage(ri(15,40)); const r=loseCargoFrac(clamp(.5-.07*S.ship.up.shields,.1,.5)); shakeScreen(); sfx('loss');
+      return{txt:`You lose. Hull -${d}. ${r.lost>0?`They take ${fmt(r.lost)} of cargo${r.cover?` (insurance pays back ${fmt(r.cover)})`:''}.`:'Luckily your hold was empty, so they just insult your paint job.'}`,mood:'bad'}; }},
+    {label:'💨 RUN',hint:`~${Math.round(runP*100)}% to escape`,act(){ if(rng()<runP) return{txt:'You punch it. The pirates are left choking on your exhaust and your excellent driving.',mood:'good'};
+      const d=hullDamage(ri(8,22)); const r=loseCargoFrac(.15); sfx('loss'); shakeScreen(); return{txt:`They catch your tail. Hull -${d}${r.lost>0?`, ${fmt(r.lost)} of cargo gone`:''}.`,mood:'bad'}; }},
+    {label:'💰 PAY',hint:`Toll: ${fmt(toll)}`,act(){ payCash(toll); sfx('loss'); return{txt:`You pay ${fmt(toll)}. The pirates give you a receipt and a loyalty card.`,mood:'neutral'}; }},
+   ];
+   if(mv!=null) ch.push({label:'📦 BRIBE WITH CARGO',hint:`Give 30% of your ${COMMODITIES[mv].name}`,act(){ const q=removeCargo(mv,S.cargo[mv].q*.3); return{txt:`You hand over ${fq(q)} ${COMMODITIES[mv].name}. The pirates are delighted. One of them cries a little.`,mood:'neutral'}; }});
+   return{title:'SPACE PIRATES',icon:'🏴‍☠️',text:`${['One','Two','Three','Four'][n-1]} suspicious ship${n>1?'s have':' has'} intercepted you. Their hail is just the word "SHINY" repeated.`,choices:ch,danger:true};
+ }},
+ {id:'whale',w:()=>.5,make(c){
+   const ch=[
+    {label:'⏳ WAIT',hint:'+2 days, safe',act(){ c.extraDays+=2; return{txt:'You wait. The whale takes its time. It knows.',mood:'neutral'}; }},
+    {label:'↪️ GO AROUND',hint:'Costs extra fuel',act(){ const f=payCash(Math.max(80,travelCostRaw(c)*.5)); return{txt:`A wide detour costs ${fmt(f)} in fuel. The whale winks.`,mood:'neutral'}; }},
+    {label:'🐋 FOLLOW IT',hint:'Who knows?',act(){ const r=rng();
+      if(r<.4&&!S.flags.secretKnown){ discoverBazaar(); return{txt:'The whale leads you to a hidden asteroid ringed with lights: THE GLIMMERING BAZAAR. It is now on your map.',mood:'good'}; }
+      if(r<.75){ const q=addCargo(CI.crystal,ri(3,10),0); unlockSecret('whale'); return{txt:q?`The whale coughs up ${q} Memory Crystals. Gross. Valuable.`:'The whale offers you crystals but your hold is full. It seems disappointed in you.',mood:'good'}; }
+      c.extraDays+=1; return{txt:'You follow the whale for a day. It was going nowhere. You feel at peace, and slightly poorer.',mood:'neutral'}; }},
+   ];
+   const mv=mostValuableCargo(); if(mv!=null) ch.push({label:'🛒 SELL IT SOMETHING',hint:`Pitch your ${COMMODITIES[mv].name}`,act(){ const h=S.cargo[mv]; const q=Math.max(1,Math.floor(h.q*.5));
+      if(rng()<.65){ const v=gainCash(q*price(S.loc,mv)*2.4); removeCargo(mv,q); sfx('kaching'); return{txt:`The whale buys ${q} ${COMMODITIES[mv].name} for ${fmt(v)}. Whales: great customers.`,mood:'good',coins:true}; }
+      removeCargo(mv,q); return{txt:`The whale eats ${q} ${COMMODITIES[mv].name} as a "free sample" and swims off.`,mood:'bad'}; }});
+   return{title:'SPACE WHALE',icon:'🐋',text:'A gigantic space whale blocks the shipping lane. It is humming something that sounds like a sales jingle.',choices:ch};
+ }},
+ {id:'lottery',w:()=>.45,make(){
+   const t=Math.max(500,Math.round(S.cash*.01/100)*100); const sc=scale();
+   const roll=()=>{const r=rng()-luck(); if(r<.12){S.heat=clamp(S.heat+60,0,100);return['wanted',gainCash(2000)];} if(r<.15) return['big',gainCash(50000*sc)]; if(r<.42) return['small',gainCash(5000*sc)]; return['lose',0];};
+   const desc=(o)=>o[0]==='wanted'?`Your ticket wins ${fmt(o[1])} and an active warrant in three governments.`:o[0]==='big'?`JACKPOT! ${fmt(o[1])}!`:o[0]==='small'?`A winner! ${fmt(o[1])}.`:'Not a winner. The alien laughs in five dimensions.';
+   return{title:'LOTTERY',icon:'🎟️',text:`A mysterious alien offers you a lottery ticket for ${fmt(t)}. Its third eye is doing something persuasive.`,choices:[
+    {label:'🎟️ BUY A TICKET',hint:fmt(t),act(){ payCash(t); const o=roll(); if(o[0]==='big'){S.ach.lucky||award('lucky');sfx('jackpot');} else if(o[1]) sfx('kaching'); return{txt:desc(o),mood:o[1]?'good':'bad',coins:!!o[1]}; }},
+    {label:'🎟️×5 GO BIG',hint:fmt(t*5),act(){ payCash(t*5); let w=0,wanted=false,big=false; for(let i=0;i<5;i++){const o=roll(); w+=o[1]; if(o[0]==='wanted')wanted=true; if(o[0]==='big')big=true;} if(big&&!S.ach.lucky)award('lucky'); if(w)sfx('kaching'); return{txt:`Five tickets, ${fmt(w)} in winnings.${wanted?' Also: you are now wanted somewhere.':''}`,mood:w>t*5?'good':'bad',coins:w>0}; }},
+    {label:'🙅 DECLINE',hint:'Keep your money',act(){ return{txt:'You decline. The alien shrugs with all eleven shoulders.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'tip',w:()=>.55,make(){
+   const c=pick(['uranium','robots','nano','qbatt','tele','crystal','rocks','coffee','cheese','metals','titanium']); const ci=CI[c];
+   const truth=rng(); const fee=Math.max(200,Math.round(S.cash*.02));
+   const lie=truth>=.75;
+   return{title:'STOCK TIP',icon:'🕵️',text:`A suspicious alien whispers that a certain commodity is "about to explode in value". For ${fmt(fee)} it will tell you which.`,choices:[
+    {label:'💵 PAY FOR THE TIP',hint:fmt(fee),act(){ payCash(fee);
+      if(truth<.45) S.events.push({id:'tip',name:`${COMMODITIES[ci].name} surge`,icon:'📈',days:12,eff:[{l:-1,c:ci,cons:2.8}],news:''});
+      else if(!lie) S.events.push({id:'tip',name:`${COMMODITIES[ci].name} uptick`,icon:'📈',days:10,eff:[{l:-1,c:ci,cons:1.5}],news:''});
+      else S.events.push({id:'tip',name:`${COMMODITIES[ci].name} slump`,icon:'📉',days:10,eff:[{l:-1,c:ci,cons:.5}],news:''});
+      const warn=S.ship.up.computer>=3?(lie?' Your Trade Computer flashes: LIKELY LIE.':' Your Trade Computer flashes: PLAUSIBLE.'):'';
+      return{txt:`"${COMMODITIES[ci].icon} ${COMMODITIES[ci].name.toUpperCase()}," it hisses, then vanishes into a vent.${warn}`,mood:'neutral'}; }},
+    {label:'🙉 IGNORE',hint:'Probably a scam',act(){ return{txt:'You walk away. Somewhere, a commodity explodes in value. Or doesn\u2019t.',mood:'neutral'}; }},
+    {label:'🚨 REPORT IT',hint:'+reputation',act(){ S.rep=clamp(S.rep+3,0,100); return{txt:'You report the alien to the Galactic Trade Authority. They give you a sticker. Reputation +3.',mood:'good'}; }},
+   ]};
+ }},
+ {id:'engine',w:()=>.5*(hasCrew('engineer')?.4:1),make(c){
+   const cost=Math.round(Math.max(400,ship().price*.04)*(1-.4*Math.min(1,hasCrew('engineer'))));
+   const ch=[
+    {label:'🔧 PAY FOR REPAIR',hint:fmt(cost),act(){ payCash(cost); return{txt:`A mobile mechanic fixes it for ${fmt(cost)}. They say it was a "thingamajig".`,mood:'neutral'}; }},
+    {label:'🤞 RISK IT',hint:'60% it\u2019s fine',act(){ if(rng()<.6+luck()) return{txt:'The noise stops. You choose not to think about it.',mood:'good'}; const d=hullDamage(30); c.extraDays+=2; shakeScreen(); return{txt:`BANG. Hull -${d}, and the limp home adds 2 days.`,mood:'bad'}; }},
+   ];
+   if(hasCrew('engineer')) ch.unshift({label:'🧑‍🔧 ASK YOUR ENGINEER',hint:'Usually works',act(){ if(rng()<.85) return{txt:'Your engineer whacks it with a wrench. Fixed. Free.',mood:'good'}; c.extraDays+=1; return{txt:'Your engineer fixes it, eventually. +1 day.',mood:'neutral'}; }});
+   return{title:'ENGINE FAILURE',icon:'⚙️',text:'Your engine has made a noise that engineers describe as \u201cinteresting.\u201d',choices:ch,danger:true};
+ }},
+ {id:'derelict',w:()=>.5,make(){
+   return{title:'DERELICT SHIP',icon:'🛸',text:'An abandoned freighter drifts by, lights blinking. Its hatch is open. Very open. Suspiciously open.',choices:[
+    {label:'🧰 SALVAGE',hint:'Could be anything',act(){ const r=rng()+luck();
+      if(r>.4){ const c=pick([CI.electronics,CI.metals,CI.robots,CI.medicine,CI.luxury,CI.qbatt,CI.mystery,CI.spoons]); const q=addCargo(c,ri(4,25),0); return{txt:q?`Free cargo! You salvage ${q} ${COMMODITIES[c].name}.`:'There was cargo, but your hold is full. Tragic.',mood:q?'good':'neutral'}; }
+      if(r>.15) return{txt:'Empty. Someone already took everything, including the toilet.',mood:'neutral'};
+      const d=hullDamage(25); shakeScreen(); return{txt:`Booby trap! Hull -${d}.`,mood:'bad'}; }},
+    {label:'📞 REPORT IT',hint:'+reputation',act(){ S.rep=clamp(S.rep+4,0,100); return{txt:'Authorities thank you. Reputation +4.',mood:'good'}; }},
+    {label:'🚀 IGNORE',hint:'Keep flying',act(){ return{txt:'You keep flying. Curiosity is a luxury good.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'distress',w:()=>.45,make(c){
+   return{title:'DISTRESS CALL',icon:'🆘',text:'A small transport broadcasts a distress call. Their message ends with "we have snacks".',choices:[
+    {label:'🦸 HELP THEM',hint:'+1 day',act(){ c.extraDays+=1; if(rng()<.78+luck()){ S.rep=clamp(S.rep+8,0,100); const v=rng()<.4?gainCash(ri(500,3000)*scale()):0; return{txt:`You rescue them! Reputation +8.${v?` They insist on paying you ${fmt(v)}.`:''}`,mood:'good',coins:v>0}; }
+      const v=payCash(S.cash*.05); sfx('loss'); return{txt:`It was an ambush! They take ${fmt(v)} and, worse, the snacks.`,mood:'bad'}; }},
+    {label:'🚀 IGNORE',hint:'-reputation',act(){ S.rep=clamp(S.rep-2,0,100); return{txt:'You fly past. Reputation -2. The snacks were probably stale anyway.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'asteroids',w:c=>.5,make(c){
+   const ch=[
+    {label:'🐢 NAVIGATE CAREFULLY',hint:'+1 day',act(){ c.extraDays+=1; return{txt:'Slow and steady. Your pilot hums nervously.',mood:'neutral'}; }},
+    {label:'💥 PUNCH THROUGH',hint:'Risky, fast',act(){ if(rng()<.5+.06*S.ship.up.shields+luck()) return{txt:'You thread the needle. Somebody film that!',mood:'good'}; const d=hullDamage(ri(10,40)); shakeScreen(); sfx('loss'); return{txt:`Crunch. Hull -${d}.`,mood:'bad'}; }},
+    {label:'⛏️ MINE IT',hint:ship().id==='miner'?'Mining ship: great odds':'+1 day, maybe rocks',act(){ c.extraDays+=1; const p=ship().id==='miner'?.9:.45; if(rng()<p){ const q=addCargo(CI.rocks,ri(1,ship().id==='miner'?8:3),0); return{txt:q?`You chip off ${q} Extremely Expensive Rocks!`:'You found rocks, but no room. Painful.',mood:'good'}; } return{txt:'Just regular rocks. Cheap rocks. Disappointing rocks.',mood:'neutral'}; }},
+   ];
+   return{title:'ASTEROID FIELD',icon:'☄️',text:'A dense asteroid field lies ahead. One of them looks expensive.',choices:ch};
+ }},
+ {id:'signal',w:()=>S.flags.secretKnown?0:.22,make(){
+   return{title:'STRANGE SIGNAL',icon:'📶',text:'Your scanner picks up a repeating signal: a jingle, played on what might be spoons.',choices:[
+    {label:'📡 FOLLOW THE SIGNAL',hint:'Off the map',act(){ discoverBazaar(); return{txt:'At the edge of the map you find THE GLIMMERING BAZAAR, an alien market that adores ordinary things. It is now on your map.',mood:'good'}; }},
+    {label:'🙈 IGNORE IT',hint:'Probably nothing',act(){ return{txt:'You ignore it. The jingle gets stuck in your head for three days.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'caravan',w:()=>.55,make(){
+   const c=pick([CI.coffee,CI.medicine,CI.electronics,CI.luxury,CI.qbatt,CI.cheese,CI.fruit,CI.crystal,CI.nano]);
+   let avg=0; for(let l=0;l<NL;l++) avg+=price(l,c)/NL; const p=Math.max(1,avg*.55); const free=capacity()-cargoUsed();
+   const q=Math.max(0,Math.min(Math.floor(free/Math.max(.1,COMMODITIES[c].wt)),Math.floor(S.cash/p),ri(10,60)*Math.ceil(capacity()/100)));
+   return{title:'MERCHANT CARAVAN',icon:'🐫',text:`A drifting caravan offers ${COMMODITIES[c].icon} ${COMMODITIES[c].name} at ${fmt(p)} each (galaxy average: ${fmt(avg)}). They can sell you up to ${q}.`,choices:[
+    {label:'🛒 BUY',hint:q?`${q} for ${fmt(q*p)}`:'No room or money',act(){ if(!q) return{txt:'You can\u2019t afford it or fit it. The caravan moves on.',mood:'neutral'}; payCash(q*p); S.stats.lost-=q*p; addCargo(c,q,p); sfx('buy'); return{txt:`You buy ${q} ${COMMODITIES[c].name}. Bargain!`,mood:'good'}; }},
+    {label:'🗣️ HAGGLE',hint:'50/50',act(){ if(!q) return{txt:'Nothing to haggle over.',mood:'neutral'}; if(rng()<.5+luck()){ const p2=p*.75; payCash(q*p2); S.stats.lost-=q*p2; addCargo(c,q,p2); sfx('buy'); return{txt:`Master negotiator! ${q} for ${fmt(q*p2)}.`,mood:'good'}; } return{txt:'They are offended and leave. One of them makes a rude gesture with a tentacle.',mood:'bad'}; }},
+    {label:'👋 DECLINE',hint:'',act(){ return{txt:'You wave them off.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'wormhole',w:()=>.3,make(c){
+   return{title:'WORMHOLE',icon:'🕳️',text:'A shimmering wormhole opens beside you. It could lead anywhere. Including somewhere.',choices:[
+    {label:'🌀 ENTER',hint:'Arrive somewhere random, instantly',act(){ const opts=realLocs().filter(l=>l.i!==c.from); const L=pick(opts); c.to=L.i; c.extraDays=-99; S.stats.discoveries++; return{txt:`You tumble out at ${L.name}. Instantly. No fuel spent beyond the start.`,mood:'good'}; }},
+    {label:'🙅 AVOID',hint:'Stay on course',act(){ return{txt:'You steer clear. The wormhole looks hurt.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'flare',w:()=>{let t=0;for(const id of ['electronics','robots','nano','qbatt','crystal','tele'])if(S.cargo[CI[id]])t++;return t?.5:0;},make(c){
+   const fry=()=>{let lost=0;for(const id of ['electronics','robots','nano','qbatt','crystal','tele']){const k=CI[id];if(S.cargo[k]){lost+=S.cargo[k].q*.35*price(S.loc,k);removeCargo(k,S.cargo[k].q*.35);}}const cov=lost*.2*S.ship.up.insurance;S.cash+=cov;return[lost,cov];};
+   const ch=[
+    {label:'⛰️ HIDE BEHIND A MOON',hint:'+1 day, safe',act(){ c.extraDays+=1; return{txt:'You wait out the flare. The moon does not charge rent.',mood:'neutral'}; }},
+    {label:'🤘 YOLO',hint:'50% fries electronics',act(){ if(rng()<.5+luck()) return{txt:'The flare misses. Your circuits live to compute another day.',mood:'good'}; const [l,cv]=fry(); sfx('loss'); return{txt:`Zap. ${fmt(l)} of sensitive cargo is fried${cv?` (insurance pays ${fmt(cv)})`:''}.`,mood:'bad'}; }},
+   ];
+   if(S.ship.up.shields>=1) ch.unshift({label:'🛡️ RAISE SHIELDS',hint:`Shields Lv ${S.ship.up.shields}: ${S.ship.up.shields>=2?'safe':'mostly safe'}`,act(){ if(S.ship.up.shields>=2||rng()<.75) return{txt:'Shields hold. Everything smells faintly of ozone.',mood:'good'}; const [l]=fry(); return{txt:`Shields flicker. ${fmt(l)} of cargo is fried.`,mood:'bad'}; }});
+   return{title:'SOLAR FLARE',icon:'🌞',text:'A solar flare is incoming. Your electronics, robots and crystals are nervous.',choices:ch,danger:true};
+ }},
+ {id:'hitch',w:()=>.4,make(){
+   return{title:'HITCHHIKER',icon:'👍',text:'A hitchhiker floats by in a spacesuit, holding a sign that says "ANYWHERE".',choices:[
+    {label:'🚗 GIVE A LIFT',hint:'Could be anyone',act(){ const r=rng();
+      if(r<.45){ const v=gainCash(ri(200,1500)*scale()); return{txt:`They tip you ${fmt(v)} and recommend a podcast.`,mood:'good',coins:true}; }
+      if(r<.75){ S.ship.up.scanner<4&&(S.flags.freeScan=(S.flags.freeScan||0)+1); for(let l=0;l<NL;l++) if(l!==SECRET_LOC||S.flags.secretKnown) S.known[l]={turn:S.turn,p:S.hist[l].map(h=>h[h.length-1])}; return{txt:'They\u2019re a retired market analyst! They download every current price in the galaxy into your computer.',mood:'good'}; }
+      const v=payCash(Math.min(S.cash*.03,5000*scale())); return{txt:`They steal ${fmt(v)} from the snack fund and jump out at a red light.`,mood:'bad'}; }},
+    {label:'🙅 DECLINE',hint:'',act(){ return{txt:'You leave them floating. They give you a thumbs-down. Same sign, different thumb.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'collect',w:()=>S.loans.some(l=>l.due<S.day)?2.5:0,make(){
+   const od=S.loans.filter(l=>l.due<S.day); const amt=od.reduce((a,l)=>a+l.bal,0);
+   return{title:'DEBT COLLECTORS',icon:'🦍',text:`Krang & Sons Collections pull alongside. You owe ${fmt(amt)} in overdue loans. They brought a very large wrench.`,choices:[
+    {label:'💸 PAY IN FULL',hint:S.cash>=amt?fmt(amt):'Not enough cash',act(){ if(S.cash<amt) return{txt:'You don\u2019t have enough. They take what you have and a souvenir.',mood:'bad',...(()=>{const v=S.cash*.6;S.cash-=v;for(const l of od)l.bal=Math.max(0,l.bal-v/od.length);S.loans=S.loans.filter(l=>l.bal>1);return{};})()};
+      S.cash-=amt; S.loans=S.loans.filter(l=>l.due>=S.day); return{txt:'Paid. They tip their hats. The wrench remains ominous.',mood:'good'}; }},
+    {label:'🤝 NEGOTIATE',hint:'+10 days, 10% fee',act(){ for(const l of od){l.bal*=1.1;l.due=S.day+10;} S.rep=clamp(S.rep-3,0,100); return{txt:'They agree to 10 more days, plus a 10% "wrench fee".',mood:'neutral'}; }},
+    {label:'🏃 RUN',hint:'Bad for reputation',act(){ S.rep=clamp(S.rep-10,0,100); S.heat=clamp(S.heat+20,0,100); if(rng()<.5){ const r=loseCargoFrac(.4); return{txt:`They catch you and seize ${fmt(r.lost)} of cargo.`,mood:'bad'}; } return{txt:'You escape! Reputation -10. They will remember this.',mood:'neutral'}; }},
+   ],danger:true};
+ }},
+ {id:'insure',w:()=>S.ship.up.insurance<4?.3:0,make(){
+   const u=UPGRADES[UI_.insurance]; const cost=Math.round(upgradeCost(u)*.7);
+   return{title:'INSURANCE SALESMAN',icon:'🧑‍💼',text:`A salesman has somehow docked with your ship. He offers Insurance Level ${S.ship.up.insurance+1} at 30% off: ${fmt(cost)}.`,choices:[
+    {label:'✍️ SIGN UP',hint:fmt(cost),act(){ if(S.cash<cost) return{txt:'You can\u2019t afford it. He leaves a brochure. And a second brochure.',mood:'neutral'}; S.cash-=cost; S.ship.up.insurance++; return{txt:`Insured! Coverage is now ${20*S.ship.up.insurance}%.`,mood:'good'}; }},
+    {label:'🚪 OPEN THE AIRLOCK',hint:'Politely',act(){ return{txt:'He floats away still talking about premiums.',mood:'neutral'}; }},
+   ]};
+ }},
+ {id:'drama',w:()=>S.crew.length>=2?.35:0,make(){
+   const [a,b]=[...S.crew].sort(()=>rng()-.5);
+   const topic=pick(['whether spoons count as cutlery or weapons','who ate the Moon Cheese','the correct way to pronounce "Zorp"','whose turn it is to clean the airlock','if the ship is a "he", a "she", or a "the"']);
+   const quit=(w)=>{ if(rng()<.3){ S.crew=S.crew.filter(x=>x!==w); return ` ${w.name} quits in protest at the next port.`;} return ''; };
+   return{title:'CREW DRAMA',icon:'🎭',text:`${a.face} ${a.name} (${CREW_ROLES[a.role].name}) and ${b.face} ${b.name} (${CREW_ROLES[b.role].name}) are arguing about ${topic}.`,choices:[
+    {label:`Side with ${a.name}`,hint:'',act(){ return{txt:`${a.name} is smug.`+quit(b),mood:'neutral'}; }},
+    {label:`Side with ${b.name}`,hint:'',act(){ return{txt:`${b.name} is smug.`+quit(a),mood:'neutral'}; }},
+    {label:'🎉 THROW A PARTY',hint:fmt(300*S.crew.length),act(){ payCash(300*S.crew.length); return{txt:'Everyone forgets the argument. Someone does karaoke. It is bad. It is wonderful.',mood:'good'}; }},
+   ]};
+ }},
+];
+function travelCostRaw(c){ return Math.max(50,ST.dist[c.from][c.to]*.55*ship().fuel); }
+function discoverBazaar(){ if(S.flags.secretKnown) return; S.flags.secretKnown=true; unlockSecret('bazaar'); news('UNCONFIRMED REPORTS OF A GLIMMERING ALIEN MARKET AT THE EDGE OF THE MAP'); }
+function pickTravelEvent(c){
+  const pool=TEVENTS.map(e=>[e,Math.max(0,e.w(c))]).filter(x=>x[1]>0);
+  let tot=pool.reduce((a,x)=>a+x[1],0),r=rng()*tot;
+  for(const [e,w] of pool){r-=w;if(r<=0)return e;}
+  return pool[0][0];
+}
+
+/* arrival events */
+function arrivalEvent(){
+  const L=LOCATIONS[S.loc];
+  // secret heist
+  if(L.type==='luxury'&&S.cargo[CI.mustache]&&S.cargo[CI.art]&&S.cargo[CI.mystery]&&!S.secrets.heist){
+    return{title:'THE GREAT DISGUISE',icon:'🥸',text:'You have Fake Mustaches, Illegal-ish Art and Mystery Boxes. A plan forms. A ridiculous plan. You could disguise yourself as a famous art critic and \u201cappraise\u201d the vault.',choices:[
+      {label:'🥸 DO THE HEIST',hint:'This is so stupid it might work',act(){ unlockSecret('heist'); removeCargo(CI.mustache,1); if(rng()<.7){ const v=gainCash(80000*scale()); sfx('jackpot'); return{txt:`It works! Nobody questions the mustache. You walk out with ${fmt(v)}.`,mood:'good',coins:true}; } S.heat=100; const f=payCash(S.cash*.2); return{txt:`The mustache falls off. Fined ${fmt(f)} and now extremely wanted.`,mood:'bad'}; }},
+      {label:'😇 BE NORMAL',hint:'',act(){ return{txt:'You decide against crime. For now.',mood:'neutral'}; }},
+    ]};
+  }
+  // customs
+  const fl=flaggedCargo();
+  if(L.law>=.45&&fl.list.length){
+    const p=L.law*.45*(1+S.heat/50)*(S.rep<25?1.4:1)*(S.company.toUpperCase().includes('PYRAMID')?1.5:1);
+    if(rng()<p){
+      const k=fl.list.sort((a,b)=>S.cargo[b].q*price(S.loc,b)-S.cargo[a].q*price(S.loc,a))[0]; const C=COMMODITIES[k]; const fine=Math.max(200,fl.v*.25);
+      const contra=fl.list.filter(x=>COMMODITIES[x].legal===2);
+      const confisc=()=>{for(const x of contra) removeCargo(x,S.cargo[x]?S.cargo[x].q:0);};
+      return{title:'CUSTOMS INSPECTION',icon:'🛂',danger:true,text:`Customs would like to know why you have ${fq(S.cargo[k].q)} tons of ${C.name.toLowerCase()}.`,choices:[
+        {label:'💳 PAY FINE',hint:fmt(fine)+(contra.length?' + contraband seized':''),act(){ payCash(fine); S.stats.fines+=fine; confisc(); S.heat=clamp(S.heat-20,0,100); return{txt:`You pay ${fmt(fine)}. ${contra.length?'Contraband confiscated. ':''}The officer stamps something aggressively.`,mood:'bad'}; }},
+        {label:'🗣️ ARGUE',hint:`~${Math.round((S.rep/100*.7+.05)*100)}% (reputation)`,act(){ if(rng()<S.rep/100*.7+.05+luck()) return{txt:'You explain it\u2019s for "personal use". Somehow, this works.',mood:'good'}; const f=payCash(fine*2); S.stats.fines+=f; confisc(); S.rep=clamp(S.rep-5,0,100); return{txt:`Wrong answer. Fined ${fmt(f)}. Reputation -5.`,mood:'bad'}; }},
+        {label:'🏃 RUN',hint:'Fast ships do better',act(){ if(rng()<.3+.12*speed()){ S.heat=clamp(S.heat+25,0,100); S.rep=clamp(S.rep-5,0,100); return{txt:'You blast out of the dock! Heat +25. You\u2019ll come back later. In a different mustache.',mood:'neutral'}; } for(const x of fl.list) removeCargo(x,S.cargo[x]?S.cargo[x].q:0); const f=payCash(fine); S.stats.fines+=f; return{txt:`Caught. All flagged cargo seized and ${fmt(f)} fine.`,mood:'bad'}; }},
+        {label:'🤫 OFFER A BRIBE',hint:fmt(fine*.5),act(){ payCash(fine*.5); if(rng()<.75-L.law*.3+luck()) return{txt:'The officer suddenly remembers an urgent lunch.',mood:'good'}; const f=payCash(fine*1.5); S.stats.fines+=f; S.heat=clamp(S.heat+20,0,100); confisc(); return{txt:`Honest officer! Extra fine ${fmt(f)}.`,mood:'bad'}; }},
+      ]};
+    }
+  }
+  if(L.type==='outlaw'||L.type==='garbage'){ if(rng()<.22){
+    const c=pick([CI.dino,CI.art,CI.tele,CI.nano]); const p=price(S.loc,c)*.5; const q=Math.min(ri(3,15),Math.floor(S.cash/p),Math.floor((capacity()-cargoUsed())/COMMODITIES[c].wt));
+    return{title:'BLACK MARKET DEALER',icon:'🕶️',text:`A figure in a trench coat (three small aliens, probably) offers ${COMMODITIES[c].icon} ${COMMODITIES[c].name} at ${fmt(p)}, half the local price.`,choices:[
+      {label:'🤝 DEAL',hint:q>0?`${q} for ${fmt(q*p)}`:'Can\u2019t afford/fit',act(){ if(q<=0) return{txt:'You pat your pockets. They sigh.',mood:'neutral'}; if(rng()<.8){ payCash(q*p); S.stats.lost-=q*p; addCargo(c,q,p); S.heat=clamp(S.heat+10,0,100); return{txt:`Done. ${q} ${COMMODITIES[c].name} acquired. Heat +10.`,mood:'good'}; } const v=payCash(q*p*.5); return{txt:`It was a scam: the crate is full of spoons. You lose ${fmt(v)}.`,mood:'bad',...(()=>{addCargo(CI.spoons,q,0);return{};})()}; }},
+      {label:'🙅 WALK AWAY',hint:'',act(){ return{txt:'The trench coat waddles off into the shadows.',mood:'neutral'}; }},
+    ]};
+  }}
+  if(L.type==='luxury'&&S.rep>=80&&rng()<.2){
+    return{title:'VIP INVITATION',icon:'🥂',text:`Your reputation precedes you. The governor of ${L.name} invites you to a gala.`,choices:[
+      {label:'🥂 ATTEND',hint:'Network!',act(){ const v=gainCash(ri(2000,10000)*scale()); return{txt:`You make connections and a few side deals: ${fmt(v)}.`,mood:'good',coins:true}; }},
+      {label:'🎁 SEND A GIFT',hint:'+reputation',act(){ S.rep=clamp(S.rep+5,0,100); return{txt:'You send a fruit basket. It is very well received. Reputation +5.',mood:'good'}; }},
+    ]};
+  }
+  if(L.tax>=5&&netWorth()>250000&&rng()<.08){
+    const f=netWorth()*.015;
+    return{title:'TAX AUDIT',icon:'🧾',text:`The ${L.name} Revenue Service would like a word about your "creative" bookkeeping.`,danger:true,choices:[
+      {label:'💳 SETTLE',hint:fmt(f),act(){ payCash(f); S.stats.taxes+=f; return{txt:`You settle for ${fmt(f)}.`,mood:'bad'}; }},
+      {label:hasCrew('accountant')?'🧮 SEND YOUR ACCOUNTANT':'📚 REPRESENT YOURSELF',hint:hasCrew('accountant')?'Very likely to win':'Risky',act(){ const p=hasCrew('accountant')?.85:.35; if(rng()<p+luck()) return{txt:'The auditors leave, confused and slightly impressed.',mood:'good'}; const v=payCash(f*1.8); S.stats.taxes+=v; return{txt:`Penalties apply: ${fmt(v)}.`,mood:'bad'}; }},
+    ]};
+  }
+  return null;
+}
+/* =====================================================================
+   Player actions: trading, ships, crew, bank, contracts, empire
+   ===================================================================== */
+const ACH=[
+ ['firstTrade','🤝','Open For Business','Make your first trade'],
+ ['profit10k','💰','Big Score','Make $10,000 profit on a single sale'],
+ ['first100k','📈','Six Figures','Reach $100,000 net worth'],
+ ['million','🏆','FIRST MILLION','Reach $1,000,000 net worth'],
+ ['tycoon','🎩','SPACE TYCOON','Reach $10 million net worth'],
+ ['billion','🏦','Billionaire','Reach $1 billion net worth'],
+ ['trillion','🌠','Trillionaire','Reach $1 trillion net worth'],
+ ['gazillionaire','🤑','GAZILLIONAIRE','Reach $1 quadrillion net worth'],
+ ['galaxy','🌌','OWN THE GALAXY','Buy the galaxy. All of it.'],
+ ['bad','📉','BAD INVESTMENT','Lose $100,000 on one transaction'],
+ ['yolo','🎲','YOLO','Spend your entire cash balance on one commodity'],
+ ['paper','🧻','PAPER HANDS','Sell something right before its price skyrockets'],
+ ['pirates5','⚔️','Pirate Problem Solver','Defeat 5 pirate attacks'],
+ ['smuggler','🕶️','Smooth Criminal','Sell contraband 10 times'],
+ ['tourist','🗺️','Galactic Tourist','Visit every planet on the map'],
+ ['bankrupt','🕳️','Rock Bottom','Go bankrupt (and live)'],
+ ['lucky','🎟️','Lucky Ticket','Win a lottery jackpot'],
+ ['fleet','🚢','Fleet Admiral','Own 4 ships at once'],
+ ['crew6','👥','Full House','Employ 6 crew members'],
+ ['maxup','🔧','Fully Loaded','Max out any upgrade'],
+ ['corner','🧲','Cornered The Market','Buy up nearly all of a market\u2019s stock'],
+ ['debtfree','🧾','Debt Free','Pay off a loan in full'],
+ ['longhaul','🛣️','Long Haul','Travel 10,000 distance units'],
+ ['contract5','📜','Reliable Courier','Complete 5 delivery contracts'],
+ ['firstAsset','🏗️','Landlord','Buy your first empire asset'],
+ ['how','❓','HOW DID YOU DO THAT?','Discover a secret'],
+ ['s_tickle','👉','Planet Tickler','???',1],['s_warp','⏩','Warp Cheat','???',1],['s_heist','🥸','The Great Disguise','???',1],
+ ['s_bazaar','🛸','Off The Map','???',1],['s_million','🎯','Exactly A Million','???',1],['s_konami','🕹️','Old School','???',1],
+ ['s_name','📛','Name Of Power','???',1],['s_whale','🐋','Whale Whisperer','???',1],
+];
+const ACHD={}; ACH.forEach(a=>ACHD[a[0]]=a);
+function award(id){
+  if(!S||S.ach[id]) return; S.ach[id]=S.day; const a=ACHD[id];
+  toast('ach','🏆 ACHIEVEMENT',`${a[1]} ${a[2]}`); sfx('achievement'); logMsg(`🏆 Achievement unlocked: <b>${esc(a[2])}</b>`);
+  if(['million','tycoon','billion','trillion','gazillionaire','how'].includes(id)){ banner(a[2],a[3]); confetti(140); }
+}
+function unlockSecret(id){ if(S.secrets[id]) return; S.secrets[id]=true; S.stats.discoveries++; award('s_'+id); award('how'); }
+function checkAch(){
+  const nw=netWorth(); S.stats.highNw=Math.max(S.stats.highNw,nw);
+  if(nw>=1e5)award('first100k'); if(nw>=1e6)award('million'); if(nw>=1e7)award('tycoon'); if(nw>=1e9)award('billion'); if(nw>=1e12)award('trillion'); if(nw>=1e15)award('gazillionaire');
+  if(S.stats.pirates>=5)award('pirates5'); if(S.stats.contraband>=10)award('smuggler');
+  if(LOCATIONS.every((L,i)=>i===SECRET_LOC||S.visited[i]))award('tourist');
+  if(S.fleet.length+1>=4)award('fleet'); if(S.crew.length>=6)award('crew6');
+  if(UPGRADES.some(u=>S.ship.up[u.id]>=u.max))award('maxup');
+  if(S.stats.dist>=10000)award('longhaul'); if(S.stats.contractsDone>=5)award('contract5');
+  if(Math.round(S.cash)===1000000) unlockSecret('million');
+  // wealth tier change
+  const t=tierOf(nw)[1]; if(S.flags.tier&&S.flags.tier!==t&&nw>S.flags.tierNw){ banner(t,'NEW WEALTH TIER'); sfx('levelup'); confetti(80); news(`${S.company.toUpperCase()} PROMOTED TO "${t.toUpperCase()}" STATUS BY THE GALACTIC GOSSIP BOARD`); }
+  if(!S.flags.tier||nw>S.flags.tierNw){ S.flags.tier=t; S.flags.tierNw=nw; }
+}
+
+// --- trading ---
+function traderBonus(){ return .03*Math.min(2,hasCrew('trader')); }
+function buyUnit(c,q){ const l=S.loc; return price(l,c,S.stock[l][c]-q/2)*1.03*(1-traderBonus())*(S.rep>=80?.98:S.rep<20?1.03:1); }
+function sellUnit(c,q){ const l=S.loc; let p=price(l,c,S.stock[l][c]+q/2)*.97*(1+traderBonus());
+  if(ship().id==='yacht'&&['luxury','art','dino','rocks','crystal'].includes(COMMODITIES[c].id)) p*=1.15; return p; }
+function maxBuy(c){
+  const l=S.loc; if(!canBuyHere(l,c)) return 0;
+  const C=COMMODITIES[c]; const avail=Math.floor(S.stock[l][c]-ST.E[l][c]*.04);
+  const space=C.wt>0?Math.floor((capacity()-cargoUsed())/C.wt+1e-9):1e9;
+  let hi=Math.max(0,Math.min(avail,space)); if(hi<=0) return 0;
+  if(hi*buyUnit(c,hi)<=S.cash) return hi;
+  let lo=0; while(lo<hi){ const m=Math.ceil((lo+hi)/2); if(m*buyUnit(c,m)<=S.cash) lo=m; else hi=m-1; }
+  return lo;
+}
+function held(c){ return S.cargo[c]?Math.floor(S.cargo[c].q+1e-9):0; }
+function doBuy(c,q,srcEl){
+  q=Math.min(q,maxBuy(c)); if(q<=0){ const C=COMMODITIES[c];
+    if(!canBuyHere(S.loc,c)) toast('danger','⚠ BANNED',`${C.name} is banned here.`);
+    else if(C.wt>0&&capacity()-cargoUsed()<C.wt) toast('danger','⚠ CARGO FULL','No room in your hold. Sell something or upgrade Cargo Bays.');
+    else toast('danger','⚠ NOT ENOUGH CASH',`You can\u2019t afford any ${C.name}.`);
+    sfx('error'); return; }
+  const before=S.cash; const unit=buyUnit(c,q); const total=q*unit;
+  S.cash-=total; S.stock[S.loc][c]-=q; addCargo(c,q,unit);
+  S.stats.trades++; S.stats.traded[c]=(S.stats.traded[c]||0)+q; S.stats.moved+=q*COMMODITIES[c].wt;
+  const C=COMMODITIES[c]; const L=LOCATIONS[S.loc];
+  if(C.legal>0&&L.law>=.4) S.heat=clamp(S.heat+(C.legal===2?8:4),0,100);
+  award('firstTrade');
+  if(total>=before*.95&&before>=2000) award('yolo');
+  if(S.stock[S.loc][c]<ST.E[S.loc][c]*.08&&q>=10) award('corner');
+  sfx('buy'); if(srcEl) flyFrom(srcEl,$('right'),C.icon,Math.min(12,2+Math.ceil(q/10)));
+  logMsg(`🛒 Bought ${fq(q)} ${C.icon} ${C.name} for ${fmt(total)} (${fmt(unit)} each)`);
+  S.flags.firstHint=false;
+  afterAction();
+}
+function doSell(c,q,srcEl,silent){
+  q=Math.min(q,held(c)); if(q<=0){ if(!silent){toast('danger','⚠ NOTHING TO SELL',`You have no ${COMMODITIES[c].name}.`);sfx('error');} return 0; }
+  const C=COMMODITIES[c]; const L=LOCATIONS[S.loc];
+  let unit=sellUnit(c,q);
+  if(C.id==='mystery') unit*=.25+rng()*2.2;
+  let rev=q*unit; const tax=rev*L.tax/100; let net=rev-tax;
+  const basis=q*S.cargo[c].cost; let profit=net-basis;
+  let alienMsg='';
+  if(hasCrew('alien')&&profit>0&&rng()<.08){ net+=profit; profit*=2; alienMsg=' 👽 Your alien did something to the buyer\u2019s brain. Profit doubled!'; }
+  S.cash+=net; S.stock[S.loc][c]+=q; removeCargo(c,q);
+  S.stats.taxes+=tax; S.stats.trades++; S.stats.traded[c]=(S.stats.traded[c]||0)+q; S.stats.moved+=q*C.wt;
+  if(profit>=0) S.stats.earned+=profit; else S.stats.lost+=-profit;
+  if(!S.stats.best||profit>S.stats.best.v) S.stats.best={v:profit,c,l:S.loc,t:S.turn};
+  if(!S.stats.worst||profit<S.stats.worst.v) S.stats.worst={v:profit,c,l:S.loc,t:S.turn};
+  S.tripProfit+=profit;
+  if(C.legal===2){ S.stats.contraband++; if(L.law>=.4) S.heat=clamp(S.heat+10,0,100); }
+  S.recentSales.push({l:S.loc,c,p:unit,day:S.day}); if(S.recentSales.length>12) S.recentSales.shift();
+  award('firstTrade');
+  if(profit>=1e4) award('profit10k');
+  if(profit<=-1e5) award('bad');
+  const margin=basis>0?profit/basis:1;
+  if(!silent){
+    if(profit>=Math.max(2000,netWorth()*.05)&&margin>.8){ sfx('jackpot'); floater('💰 JACKPOT '+fmtS(profit,true),'var(--gold)'); confetti(60); }
+    else if(profit>0){ sfx(profit>500?'kaching':'sell'); }
+    else { sfx('loss'); if(profit<-1000){ floater(fmtS(profit),'var(--down)'); shakeEl($('cashStat')); } }
+    if(srcEl) flyFrom(srcEl,$('cashStat'),'🪙',Math.min(18,3+Math.ceil(Math.max(0,profit)/2000)));
+  }
+  logMsg(`💵 Sold ${fq(q)} ${C.icon} ${C.name} for ${fmt(net)}${tax>0?` (tax ${fmt(tax)})`:''} — <span class="${profit>=0?'up':'down'}">${profit>=0?'profit':'loss'} ${fmt(Math.abs(profit))}</span>${alienMsg}`);
+  if(!silent&&profit>=2000) toast('profit','💰 PROFIT',`You made ${fmt(profit)} on that shipment.`);
+  S.flags.firstHint=false;
+  if(!silent) afterAction();
+  return profit;
+}
+function afterAction(){ checkAch(); renderAll(); autosave(); }
+
+// --- shipyard ---
+function upgradeCost(u){ const l=S.ship.up[u.id]; const ti=['cargo','engine','shields','fuel'].includes(u.id)?titaniumIndex():1; return Math.round(u.base*Math.pow(u.mult,u.id==='scanner'?l-1:l)*ti); }
+function buyUpgrade(id){
+  const u=UPGRADES[UI_[id]]; if(S.ship.up[id]>=u.max) return; const c=upgradeCost(u);
+  if(S.cash<c){ toast('danger','⚠ NOT ENOUGH CASH',`${u.name} Lv ${S.ship.up[id]+1} costs ${fmt(c)}.`); sfx('error'); return; }
+  S.cash-=c; S.ship.up[id]++; sfx('levelup'); banner(`${u.icon} ${u.name.toUpperCase()} LV ${S.ship.up[id]}`,u.desc(S.ship.up[id])); confetti(40);
+  logMsg(`🔧 Upgraded ${u.name} to level ${S.ship.up[id]} for ${fmt(c)}`);
+  if(id==='scanner') snapshotKnown();
+  afterAction();
+}
+function shipPrice(t){ return Math.round(SHIPS[t].price*(SHIPS[t].id==='pickup'?1:titaniumIndex())); }
+function buyShip(t){
+  const p=shipPrice(t); if(S.cash<p){ toast('danger','⚠ NOT ENOUGH CASH',`${SHIPS[t].name} costs ${fmt(p)}.`); sfx('error'); return; }
+  if(S.fleet.length>=5){ toast('danger','⚠ FLEET FULL','Sell a fleet ship first (max 6 ships).'); return; }
+  S.cash-=p; S.fleet.push({t:S.ship.t,name:S.ship.name}); S.ship.t=t; S.ship.name=cpick(SHIP_NAMES); S.ship.hull=SHIPS[t].hull; S.stats.shipsBought++;
+  if(SHIPS[t].id==='alien'){ S.flags.alienCargo=ri(300,900); discoverBazaar(); }
+  if(SHIPS[t].id==='yacht') S.rep=clamp(S.rep+10,0,100);
+  sfx('levelup'); banner(`NEW SHIP: ${SHIPS[t].name.toUpperCase()}`,`Christened "${S.ship.name}"`); confetti(70);
+  news(`${S.company.toUpperCase()} TAKES DELIVERY OF A SHINY NEW ${SHIPS[t].name.toUpperCase()}`);
+  afterAction();
+}
+function swapFlagship(i){ const f=S.fleet[i]; const cur={t:S.ship.t,name:S.ship.name}; S.ship.t=f.t; S.ship.name=f.name; S.ship.hull=SHIPS[f.t].hull; S.fleet[i]=cur;
+  if(cargoUsed()>capacity()){ S.fleet[i]=f; S.ship.t=cur.t; S.ship.name=cur.name; toast('danger','⚠ TOO MUCH CARGO','That ship can\u2019t carry your current load.'); return; }
+  sfx('click'); afterAction(); }
+function sellFleet(i){ const f=S.fleet[i]; const v=SHIPS[f.t].price*.5; S.fleet.splice(i,1);
+  if(cargoUsed()>capacity()){ S.fleet.splice(i,0,f); toast('danger','⚠ TOO MUCH CARGO','Your hold needs that ship\u2019s space.'); return; }
+  S.cash+=v; sfx('kaching'); logMsg(`Sold ${f.name} for ${fmt(v)}`); afterAction(); }
+function repairCost(){ return Math.max(5,ship().price*.0015)*(1-.4*Math.min(1,hasCrew('engineer'))); }
+function repair(){ const need=ship().hull-S.ship.hull; if(need<=0) return; const per=repairCost(); const n=Math.min(need,Math.floor(S.cash/per)); if(n<=0){toast('danger','⚠ NOT ENOUGH CASH','Repairs cost '+fmt(per)+' per point.');return;} S.cash-=n*per; S.ship.hull+=n; sfx('levelup'); logMsg(`🔧 Repaired ${n} hull for ${fmt(n*per)}`); afterAction(); }
+
+// --- crew ---
+function crewSlots(){ return ship().crew+S.fleet.length; }
+function makeCrew(role){ return{role,name:role==='alien'?cpick(ALIEN_NAMES):cpick(FIRST_NAMES)+' '+cpick(LAST_NAMES),face:CREW_ROLES[role].face}; }
+function hireOffers(){
+  if(!S.hire||S.hire.loc!==S.loc||S.hire.turn!==S.turn){
+    const roles=Object.keys(CREW_ROLES).filter(r=>r!=='alien'||rng()<.35||LOCATIONS[S.loc].type==='secret'||LOCATIONS[S.loc].type==='outlaw');
+    S.hire={loc:S.loc,turn:S.turn,list:Array.from({length:3},()=>makeCrew(pick(roles)))};
+  }
+  return S.hire.list;
+}
+function hire(i){ const c=S.hire.list[i]; const cost=CREW_ROLES[c.role].cost; if(S.crew.length>=crewSlots()){toast('danger','⚠ NO BUNKS','Get a bigger ship (or more ships) for more crew slots.');return;}
+  if(S.cash<cost){toast('danger','⚠ NOT ENOUGH CASH','Hiring costs '+fmt(cost)+'.');return;}
+  S.cash-=cost; S.crew.push(c); S.hire.list.splice(i,1); S.stats.crewHired++; sfx('levelup');
+  c.say=cpick(CREW_ROLES[c.role].lines); toast('opp','👥 NEW CREW',`${c.face} ${c.name} joins as ${CREW_ROLES[c.role].name}.`); afterAction(); }
+function fire(i){ const c=S.crew[i]; S.crew.splice(i,1); logMsg(`${c.face} ${esc(c.name)} has left the company. They took a stapler.`); sfx('click'); afterAction(); }
+
+// --- bank ---
+function loanTerms(){
+  const nw=Math.max(0,netWorth()); const D=DIFFS[S.diff]; const acc=1-.25*Math.min(1,hasCrew('accountant'));
+  const sh=5000+S.rep*150+nw*.3;
+  return {
+    short:{name:'Short-term loan',limit:sh,rate:.012*D.int*acc,term:20,ok:true},
+    long:{name:'Long-term loan',limit:sh*3,rate:.004*D.int*acc,term:120,ok:S.rep>=30,why:'Requires reputation 30+'},
+    emergency:{name:'Emergency loan',limit:3000+nw*.1,rate:.035*D.int*acc,term:10,ok:true},
+  };
+}
+function takeLoan(kind,frac){
+  const T=loanTerms()[kind]; if(!T.ok){toast('danger','⚠ DENIED',T.why);return;}
+  if(S.loans.some(l=>l.kind===kind)){toast('danger','⚠ ALREADY BORROWED','Repay your current '+T.name.toLowerCase()+' first.');return;}
+  const amt=Math.round(T.limit*frac); S.loans.push({kind,bal:amt,rate:T.rate,due:S.day+T.term,orig:amt}); S.cash+=amt; sfx('kaching');
+  logMsg(`🏦 Borrowed ${fmt(amt)} (${(T.rate*100).toFixed(1)}%/day, due day ${S.day+T.term})`); afterAction(); }
+function repay(i,frac){ const L=S.loans[i]; const amt=Math.min(S.cash,L.bal*frac); if(amt<=0){toast('danger','⚠ NOT ENOUGH CASH','');return;}
+  S.cash-=amt; L.bal-=amt; if(L.bal<1){ S.loans.splice(i,1); award('debtfree'); S.rep=clamp(S.rep+3,0,100); logMsg('🧾 Loan paid off. The bank sends a fruit basket.'); }
+  sfx('click'); afterAction(); }
+
+// --- contracts ---
+function contractOffers(){
+  const o=S.contracts.offers;
+  if(!o||o.loc!==S.loc||o.turn!==S.turn){
+    const list=[]; const opts=realLocs().filter(L=>L.i!==S.loc&&ST.dist[S.loc][L.i]>120&&ST.dist[S.loc][L.i]<750);
+    for(let k=0;k<3&&opts.length;k++){
+      const dest=pick(opts); const c=pick(COMMODITIES.filter(C=>C.base<4000&&C.wt>0).map(C=>CI[C.id]));
+      const qty=Math.max(5,Math.round(capacity()*(.2+rng()*.35)/COMMODITIES[c].wt));
+      const days=travelDays(dest.i)*2+ri(3,8);
+      const reward=Math.round(qty*Math.max(price(dest.i,c),COMMODITIES[c].base)*(1.3+rng()*.3)+250);
+      list.push({id:Math.random().toString(36).slice(2,8),to:dest.i,c,qty,due:S.day+days,reward});
+    }
+    S.contracts.offers={loc:S.loc,turn:S.turn,list};
+    if(list.length&&rng()<.5){ const x=list[0]; toast('opp','⭐ OPPORTUNITY',`Someone at ${LOCATIONS[x.to].name} wants ${x.qty} ${COMMODITIES[x.c].name}.`); }
+  }
+  return S.contracts.offers.list;
+}
+function acceptContract(i){ if(S.contracts.active.length>=3){toast('danger','⚠ TOO BUSY','You can hold 3 contracts at once.');return;}
+  const x=S.contracts.offers.list.splice(i,1)[0]; S.contracts.active.push(x); sfx('click'); logMsg(`📜 Accepted: deliver ${x.qty} ${COMMODITIES[x.c].name} to ${LOCATIONS[x.to].name} by day ${x.due} for ${fmt(x.reward)}`); afterAction(); }
+function deliver(i){ const x=S.contracts.active[i]; if(x.to!==S.loc||held(x.c)<x.qty) return;
+  const basis=x.qty*S.cargo[x.c].cost; removeCargo(x.c,x.qty); S.cash+=x.reward; const pr=x.reward-basis; S.tripProfit+=pr; if(pr>0)S.stats.earned+=pr;
+  S.contracts.active.splice(i,1); S.stats.contractsDone++; S.rep=clamp(S.rep+3,0,100);
+  sfx('jackpot'); floater('📜 DELIVERED '+fmtS(x.reward,true),'var(--up)'); confetti(40);
+  logMsg(`📜 Contract complete! ${fmt(x.reward)} paid. Reputation +3.`); afterAction(); }
+function abandonContract(i){ S.contracts.active.splice(i,1); S.rep=clamp(S.rep-4,0,100); logMsg('📜 Contract abandoned. Reputation -4.'); afterAction(); }
+
+// --- empire ---
+function buyAsset(id,n=1){
+  const a=ASSETS.find(x=>x.id===id); let bought=0;
+  for(let k=0;k<n;k++){ if(a.once&&S.assets[id]) break; const p=assetPrice(a); if(S.cash<p) break; S.cash-=p; S.assets[id]=(S.assets[id]||0)+1; bought++; }
+  if(!bought){ toast('danger','⚠ NOT ENOUGH CASH',`${a.name} costs ${fmt(assetPrice(a))}.`); sfx('error'); return; }
+  award('firstAsset'); sfx('jackpot'); confetti(30+bought*10);
+  logMsg(`👑 Acquired ${bought>1?bought+'× ':''}${a.icon} ${a.name}`);
+  news(`${S.company.toUpperCase()} ACQUIRES ${bought>1?bought+' ':''}${a.name.toUpperCase()}${bought>1?'S':''}. ANALYSTS: "WHY?"`);
+  if(id==='galaxy') { award('galaxy'); afterAction(); winGame(); return; }
+  afterAction();
+}
+
+// --- day tick: the universe keeps moving ---
+function dayTick(){
+  econTick(); eventsTick();
+  const inc=assetIncome(); if(inc>0){ S.cash+=inc; S.stats.earned+=inc; }
+  for(const L of S.loans) L.bal*=1+L.rate;
+  const w=wages(); S.cash-=w; S.stats.lost+=w;
+  if(hasCrew('accountant')&&rng()<.04){ const v=Math.round(50+Math.max(0,netWorth())*.002); S.cash+=v; S.stats.earned+=v; logMsg(`🧮 Your accountant found ${fmt(v)} in an old spreadsheet.`); }
+  S.heat=Math.max(0,S.heat-1);
+  for(const c of S.comps){ c.nw*=1+c.g*DIFFS[S.diff].comp+gauss()*.01; if(rng()<.004){ news(`${c.name.toUpperCase()} ${pick(['POSTS RECORD QUARTER','ACQUIRES A SMALL MOON','CEO SPOTTED BUYING 400 SPOONS','ANNOUNCES "PIVOT TO CHEESE"','UNDER INVESTIGATION FOR BEING SUSPICIOUSLY RICH'])}`); } }
+  // paper hands detector
+  for(const r of S.recentSales){ if(S.day-r.day<=12&&price(r.l,r.c)>=r.p*1.6&&!S.ach.paper){ award('paper'); toast('market','🧻 OUCH',`${COMMODITIES[r.c].name} at ${LOCATIONS[r.l].name} just skyrocketed after you sold.`); } }
+  S.recentSales=S.recentSales.filter(r=>S.day-r.day<=12);
+  // contract expiry
+  for(const x of [...S.contracts.active]) if(x.due<S.day){ S.contracts.active.splice(S.contracts.active.indexOf(x),1); S.rep=clamp(S.rep-6,0,100); S.stats.failedTrips++; logMsg(`📜 Contract to ${LOCATIONS[x.to].name} expired. Reputation -6.`); }
+  S.day++;
+}
+
+function waitDays(n){
+  if(TV.on) return;
+  for(let d=0;d<n;d++) dayTick();
+  S.turn++; recordHistory(); snapshotKnown(); sfx('click');
+  logMsg(`⏳ Waited ${n} day${n>1?'s':''} at ${esc(LOCATIONS[S.loc].name)}.`);
+  rebuildTicker(); afterAction(); checkBankrupt();
+}
+/* =====================================================================
+   UI rendering
+   ===================================================================== */
+const UI={tab:'market',sel:0,lot:10,dest:null,qty:1,range:25,cashShown:0,lastCash:0,lastPrice:{},tickle:{l:-1,n:0,t:0},showAllRoutes:false};
+const TABS=[['market','🛒 Market','M'],['map','🌌 Map','G'],['contracts','📜 Jobs','O'],['shipyard','🚀 Shipyard','Y'],['crew','👥 Crew','C'],['bank','🏦 Bank','B'],['empire','👑 Empire','E'],['stats','📊 Report','R'],['ranks','🏆 Ranks','L'],['awards','🎖 Awards','A']];
+
+function renderAll(){ if(!S) return; renderTop(); renderLeft(); renderRight(); renderTabs(); renderView(); }
+function renderTop(){
+  const nw=netWorth(); const t=tierOf(nw);
+  $('sCo').textContent=S.company; $('sTier').textContent=`${t[1]} · CEO ${S.ceo}`;
+  $('sNw').textContent=fmt(nw); $('sNw').title=`$${Math.round(nw).toLocaleString('en-US')}`;
+  $('sLoc').textContent=LOCATIONS[S.loc].name;
+  $('sDay').textContent=`Day ${S.day} · T${S.turn}`;
+  const tp=$('sTrip'); tp.textContent=fmt(S.tripProfit,true); tp.className='v num '+(S.tripProfit>0?'up':S.tripProfit<0?'down':'');
+  $('sRank').textContent='#'+rankOf(nw).toLocaleString('en-US');
+  const cv=$('sCash'); cv.classList.toggle('rainbow',nw>=1e12); cv.classList.toggle('jitter',nw>=1e15&&!SETTINGS.rm);
+  $('cashStat').querySelector('label').textContent=nw>=1e18?'CASH (THE NUMBER IS NOW MOSTLY DECORATIVE)':nw>=1e15?'CASH (THIS IS GETTING RIDICULOUS)':debt()>0?`CASH · DEBT ${fmtS(debt())}`:'CASH';
+  if(S.cash!==UI.lastCash){ const up=S.cash>UI.lastCash; cv.classList.remove('pop-gain','pop-loss'); void cv.offsetWidth; cv.classList.add(up?'pop-gain':'pop-loss');
+    const d=S.cash-UI.lastCash; if(Math.abs(d)>=1&&UI.lastCash!==0) floatNear($('cashStat'),fmtS(d,true),up?'var(--up)':'var(--down)');
+    UI.lastCash=S.cash; }
+}
+function tickCash(){ if(!S) return; const d=S.cash-UI.cashShown; if(Math.abs(d)<1) UI.cashShown=S.cash; else UI.cashShown+=d*(SETTINGS.rm?1:.16); $('sCash').textContent=fmt(UI.cashShown); }
+
+function stabilityWord(l){ const n=S.events.filter(e=>e.eff.some(x=>x.l===l)).length; const s=1-riskOf(l)*.7-n*.15; return s>.8?'Stable':s>.55?'Shaky':s>.3?'Unstable':'Chaotic'; }
+function eventsAt(l){ return S.events.filter(e=>e.name&&e.eff.some(x=>x.l===l)); }
+function renderLeft(){
+  const L=LOCATIONS[S.loc]; const r=riskOf(S.loc); const rl=riskLabel(r);
+  const evs=eventsAt(S.loc);
+  let h=`<div class="card bev"><canvas id="locArt"></canvas><div class="locName">${esc(L.name)}</div>
+   <div class="dimt" style="font-size:.85rem;margin-bottom:.4rem">${TYPES[L.type].label} — ${esc(L.desc)}</div>
+   <div class="kv"><span>Population</span><span>${L.pop>=1000?(L.pop/1000).toFixed(1)+' billion':L.pop+' million'}</span>
+   <span>Wealth</span><span>${'💰'.repeat(Math.max(1,Math.round(L.wealth*2.5)))}</span>
+   <span>Stability</span><span>${stabilityWord(S.loc)}</span>
+   <span>Sales tax</span><span>${L.tax}%</span>
+   <span>Pirates</span><span><span class="risk" style="color:${rl[1]}">${rl[0]}</span></span>
+   <span>Customs</span><span>${L.law>=.7?'Strict':L.law>=.4?'Normal':L.law>0?'Lax':'None'}</span></div>
+   ${evs.map(e=>`<div style="margin-top:.35rem;font-size:.85rem" class="cy">${e.icon} ${esc(e.name)} (${e.days}d)</div>`).join('')}
+   <button class="btn sm" data-act="wait" data-n="1" style="margin-top:.4rem;width:100%" title="Let a day pass here: prices move, wages are paid">⏳ Wait 1 day here</button>
+  </div>`;
+  const d=UI.dest;
+  if(d!=null&&d!==S.loc){
+    const D=LOCATIONS[d]; const cost=travelCost(d), days=travelDays(d); const rr=riskLabel(riskOf(d));
+    h+=`<div class="card bev"><h3>NEXT STOP</h3><div class="locName" style="font-size:1.2rem">${esc(D.name)}</div>
+     <div class="kv"><span>Fuel</span><span class="num">${fmt(cost)}</span><span>Time</span><span class="num">${days} day${days>1?'s':''}</span>
+     <span>Wages</span><span class="num">${fmt(wages()*days)}</span><span>Pirates</span><span><span class="risk" style="color:${rr[1]}">${rr[0]}</span></span>
+     ${S.cargo&&Object.keys(S.cargo).length?`<span>Cargo there</span><span class="num">${estHtml(d)}</span>`:''}</div>
+     <button class="btn gold" id="launch" data-act="launch" data-l="${d}" style="margin-top:.5rem">🚀 LAUNCH</button></div>`;
+  } else h+=`<div class="card bev"><h3>NEXT STOP</h3><div class="dimt">Pick a destination below or on the 🌌 Map.</div></div>`;
+  const list=LOCATIONS.filter(x=>x.i!==S.loc&&(x.i!==SECRET_LOC||S.flags.secretKnown)).sort((a,b)=>ST.dist[S.loc][a.i]-ST.dist[S.loc][b.i]);
+  const shown=UI.showAllRoutes?list:list.slice(0,10);
+  h+=`<div class="card bev"><h3>ROUTES</h3>${shown.map(D=>{const rr=riskLabel(riskOf(D.i));return `<button class="dest ${UI.dest===D.i?'sel':''}" data-act="dest" data-l="${D.i}">
+    <span class="dn">${S.visited[D.i]?'':'✦ '}${esc(D.name)}</span><span class="de num">${fmtS(travelCost(D.i))}</span>
+    <span class="dm">${travelDays(D.i)}d · <span class="risk" style="color:${rr[1]}">${rr[0]}</span> ${Object.keys(S.cargo).length?'· '+estHtml(D.i):''} ${eventsAt(D.i).map(e=>e.icon).join('')}</span></button>`;}).join('')}
+    <button class="btn sm" data-act="allroutes" style="width:100%">${UI.showAllRoutes?'Show nearest only':'Show all '+list.length+' destinations'}</button></div>`;
+  $('left').innerHTML=h;
+  const cv=$('locArt'); const w=cv.clientWidth||270; cv.width=w*devicePixelRatio; cv.height=120*devicePixelRatio;
+  UI.locArt=cv;
+}
+function estProfit(l){ let t=0,unk=false; for(const k in S.cargo){ const p=knownPrice(l,+k); if(p==null){unk=true;continue;} t+=S.cargo[k].q*(p*.97*(1-LOCATIONS[l].tax/100)-S.cargo[k].cost); } return unk&&t===0?null:t; }
+function estHtml(l){ const e=estProfit(l); if(e==null) return '<span class="dimt">sell ?</span>'; return `<span class="${e>=0?'up':'down'}">sell ${fmtS(e,true)}</span>`; }
+
+function renderRight(){
+  const sh=ship(); const cap=capacity(), used=cargoUsed();
+  let h=`<div class="card bev"><h3>SHIP</h3><div style="display:flex;gap:.6rem;align-items:center"><div style="font-size:2.4rem">${sh.id==='alien'?'🛸':sh.id==='yacht'?'🛥️':sh.id==='mega'?'🚢':'🚀'}</div>
+    <div><div style="font-weight:bold;font-size:1.1rem">${esc(S.ship.name)}</div><div class="dimt" style="font-size:.85rem">${sh.name}${S.fleet.length?` + ${S.fleet.length} in fleet`:''}</div></div></div>
+    <div style="font-size:.85rem;margin-top:.4rem">Hull ${Math.round(S.ship.hull)} / ${sh.hull}</div><div class="hullbar"><i style="width:${S.ship.hull/sh.hull*100}%"></i></div>
+    ${S.ship.hull<sh.hull?`<button class="btn sm red" data-act="repair">🔧 Repair (${fmtS(repairCost()*(sh.hull-S.ship.hull))})</button>`:''}
+    <div style="font-size:.85rem;margin-top:.4rem">Cargo <b class="num">${fq(used)} / ${cap}</b> tons</div><div class="cargobar"><i style="width:${Math.min(100,used/cap*100)}%"></i></div>`;
+  const keys=Object.keys(S.cargo);
+  if(keys.length){ h+=`<div class="hold">`; for(const k of keys){ const C=COMMODITIES[k],x=S.cargo[k]; const sp=sellUnit(+k,1); const pl=(sp*(1-LOCATIONS[S.loc].tax/100)-x.cost)/(x.cost||1);
+      h+=`<span>${C.icon}</span><span>${esc(C.name)} <span class="dimt">×${fq(x.q)}</span><br><span class="pl dimt">paid ${fmtS(x.cost)}</span></span>
+        <span class="pl ${pl>=0?'up':'down'}" style="text-align:right">${x.cost?(pl>=0?'▲':'▼')+Math.round(Math.abs(pl)*100)+'%':'free'}${S.ship.up.automation?`<br><label style="font-size:.75rem"><input type="checkbox" data-act="auto" data-c="${k}" ${S.auto[k]?'checked':''}> auto</label>`:''}</span>`; }
+    h+=`</div>`; } else h+=`<div class="dimt" style="font-size:.9rem">Hold is empty. Buy something cheap!</div>`;
+  h+=`</div>`;
+  h+=`<div class="card bev"><h3>COMPANY</h3><div class="kv"><span>Reputation</span><span>${S.rep>=80?'🌟 Beloved':S.rep>=55?'👍 Respected':S.rep>=30?'😐 Known':S.rep>=15?'👎 Shady':'💀 Notorious'} (${Math.round(S.rep)})</span>
+    <span>Heat</span><span>${S.heat>=60?'🚨 Wanted':S.heat>=25?'👀 Watched':'😎 Clean'} (${Math.round(S.heat)})</span>
+    <span>Daily wages</span><span class="num">${fmt(wages())}</span>${assetIncome()?`<span>Empire income</span><span class="num up">${fmtS(assetIncome(),true)}/day</span>`:''}
+    ${debt()?`<span>Debt</span><span class="num down">${fmt(debt())}</span>`:''}</div></div>`;
+  h+=`<div class="card bev"><h3>CREW ${S.crew.length}/${crewSlots()}</h3>${S.crew.length?S.crew.map(c=>`<div class="crewChip"><span class="fc">${c.face}</span><span><b>${esc(c.name)}</b> <span class="dimt">${CREW_ROLES[c.role].name}</span>${c.say?`<br><span class="bubble">“${esc(c.say)}”</span>`:''}</span></div>`).join(''):'<div class="dimt" style="font-size:.9rem">Just you. Hire crew in 👥 Crew.</div>'}</div>`;
+  const evs=S.events.filter(e=>e.name&&e.news).slice(-5).reverse();
+  if(evs.length) h+=`<div class="card bev"><h3>GALAXY NEWS</h3>${evs.map(e=>`<div style="font-size:.85rem;margin:.2rem 0">${e.icon} ${esc(e.name)} <span class="dimt">(${e.days}d)</span></div>`).join('')}</div>`;
+  $('right').innerHTML=h;
+}
+function renderTabs(){ $('tabs').innerHTML=TABS.map(t=>`<button class="btn ${UI.tab===t[0]?'on':''}" role="tab" aria-selected="${UI.tab===t[0]}" data-act="tab" data-t="${t[0]}" title="Shortcut: ${t[2]}">${t[1]}</button>`).join(''); }
+function renderView(){
+  const v=$('view'); const st=v.scrollTop;
+  const f={market:viewMarket,map:viewMap,contracts:viewContracts,shipyard:viewShipyard,crew:viewCrew,bank:viewBank,empire:viewEmpire,stats:viewStats,ranks:viewRanks,awards:viewAwards}[UI.tab];
+  v.innerHTML=f(); v.scrollTop=st;
+  if(UI.tab==='market') drawGraph();
+  if(UI.tab==='map') setupMap();
+}
+
+/* ---- market ---- */
+function demandWord(l,c){ const [pm,cm]=effMults(l,c); const d=ST.cons[l][c]*cm-ST.prod[l][c]*pm; return d>1.2?['Very high','down']:d>.4?['High','down']:d>-.4?['Normal','']:d>-1.2?['Low','up']:['Very low','up']; }
+function bestTrade(){
+  let best=null;
+  for(let c=0;c<NC;c++){ if(!canBuyHere(S.loc,c)) continue; const b=price(S.loc,c)*1.03; if(S.stock[S.loc][c]<ST.E[S.loc][c]*.1) continue;
+    for(let l=0;l<NL;l++){ if(l===S.loc||(l===SECRET_LOC&&!S.flags.secretKnown)) continue; const p=knownPrice(l,c); if(p==null) continue;
+      const net=p*.97*(1-LOCATIONS[l].tax/100); const per=(net-b)/Math.max(.1,COMMODITIES[c].wt||.1)/Math.max(1,travelDays(l)); const pct=(net-b)/b;
+      if(pct>.15&&(!best||per>best.per)) best={c,l,b,net,pct,per}; } }
+  return best;
+}
+function viewMarket(){
+  const l=S.loc; const c=UI.sel; const C=COMMODITIES[c];
+  let h='';
+  if(S.flags.firstHint) h+=`<div class="hint"><b>Quick start:</b> ① Click a cheap commodity (look for <span class="tag cheap">CHEAP!</span>) and press BUY. ② Pick a destination on the left. ③ Launch, then SELL where the price is higher. Greener “sell +$” numbers on the routes list mean profit.</div>`;
+  if(S.ship.up.computer>=1){ const b=bestTrade(); h+=`<div class="hint" style="border-color:var(--cyan);background:linear-gradient(90deg,rgba(98,220,255,.15),transparent)">🧮 <b>Trade Computer:</b> ${b?`Buy ${COMMODITIES[b.c].icon} <b>${COMMODITIES[b.c].name}</b> here at ${fmt(b.b)} → sell at <b>${LOCATIONS[b.l].name}</b> for ~${fmt(b.net)} <span class="up">(+${Math.round(b.pct*100)}%)</span> <button class="btn sm" data-act="dest" data-l="${b.l}">Set course</button>`:'No profitable known trade from here. Try exploring.'}</div>`; }
+  const h0=held(c), mb=maxBuy(c); const bu=buyUnit(c,1), su=sellUnit(c,1);
+  const mx=Math.max(1,mb,h0); UI.qty=clamp(UI.qty,1,mx);
+  const tagC=C.legal===2?`<span class="tag x">CONTRABAND</span>`:C.legal===1?`<span class="tag r">RESTRICTED</span>`:'';
+  h+=`<div class="dock ${UI.dockMin?'min':''}"><button class="btn sm" data-act="dockmin" style="position:absolute;right:6px;top:6px;min-height:28px;z-index:2" title="${UI.dockMin?'Show':'Hide'} chart and quick buttons">${UI.dockMin?'▾ more':'▴ less'}</button><div>
+    <div class="dockTitle">${C.icon} ${esc(C.name)} ${tagC}</div>
+    <div class="row" style="gap:1rem;margin:.2rem 0"><div><span class="dimt" style="font-size:.72rem">BUY</span> <span class="dockPrice num">${canBuyHere(l,c)?fmt(bu):'BANNED'}</span></div>
+      <div><span class="dimt" style="font-size:.72rem">SELL</span> <span class="dockPrice num" style="color:var(--up)">${fmt(su)}</span></div></div>
+    <div style="font-size:.85rem">Hold <b>${h0}</b>${h0?` @ ${fmt(S.cargo[c].cost)}`:''} · can buy <b>${mb}</b> · ${C.wt} t each${C.wt===0?' (weightless!)':''}</div>
+    <div class="qtyRow"><input type="range" id="qty" min="1" max="${mx}" value="${UI.qty}" aria-label="Quantity"><b class="num" id="qtyV" style="min-width:2.6em">${UI.qty}</b>
+      <button class="btn sm green" data-act="buyN" data-c="${c}" id="bN">BUY ×${UI.qty}</button><button class="btn sm red" data-act="sellN" data-c="${c}" id="sN">SELL ×${UI.qty}</button></div>
+    <div class="dfull"><div class="lots"><span class="dimt" style="font-size:.8rem;width:2.4em">Buy</span>${[1,5,10].map(n=>`<button class="btn sm" data-act="buy" data-c="${c}" data-q="${n}">${n}</button>`).join('')}<button class="btn sm gold" data-act="buy" data-c="${c}" data-q="max">MAX</button></div>
+    <div class="lots"><span class="dimt" style="font-size:.8rem;width:2.4em">Sell</span>${[1,5,10].map(n=>`<button class="btn sm" data-act="sell" data-c="${c}" data-q="${n}">${n}</button>`).join('')}<button class="btn sm gold" data-act="sell" data-c="${c}" data-q="max">ALL</button></div></div>
+   </div><div class="dfull"><canvas id="graph"></canvas><div class="row" style="margin-top:.25rem;font-size:.8rem;gap:.25rem">History:
+    ${[10,25,50,0].map(n=>`<button class="btn sm ${UI.range===n?'on':''}" data-act="range" data-n="${n}" style="min-height:30px">${n||'ALL'}</button>`).join('')}
+    ${S.ship.up.scanner>=4||S.ship.up.computer>=2?'<span class="cy">┅ forecast</span>':'<span class="dimt" title="Forecast needs Scanner Lv4 or Trade Computer Lv2">no forecast</span>'}</div>
+    <div class="row" style="margin-top:.35rem;font-size:.8rem;gap:.25rem" title="How many units the BUY/SELL buttons in each table row trade. Shift-click for MAX.">Table BUY/SELL:
+    ${[1,5,10,'max'].map(n=>`<button class="btn sm ${UI.lot==n?'on':''}" data-act="lot" data-n="${n}" style="min-height:30px">${n==='max'?'MAX':n}</button>`).join('')}</div></div></div>`;
+  h+=`<table class="mk"><thead><tr><th>COMMODITY</th><th>PRICE</th><th>TREND</th><th>SUPPLY</th><th>DEMAND</th><th>CARGO</th><th>BUY</th><th>SELL</th></tr></thead><tbody>`;
+  const lp=UI.lastPrice[l]||(UI.lastPrice[l]=[]);
+  COMMODITIES.forEach((C,k)=>{
+    const p=price(l,k); const hh=S.hist[l][k]; const prev=hh.length>1?hh[hh.length-2]:p; const ch=(p-prev)/prev;
+    const tr=ch>.02?`<span class="up">▲ ${Math.round(ch*100)}%</span>`:ch<-.02?`<span class="down">▼ ${Math.round(-ch*100)}%</span>`:`<span class="dimt">━ ${ch>=0?'+':'−'}${Math.abs(Math.round(ch*100))}%</span>`;
+    const ratio=S.stock[l][k]/ST.E[l][k]; const dw=demandWord(l,k);
+    let tags=''; if(C.legal===2) tags+='<span class="tag x" title="Contraband">⛔</span>'; else if(C.legal===1) tags+='<span class="tag r" title="Restricted">⚠</span>';
+    if(p<C.base*ST.mult[l][k]*.62) tags+='<span class="tag cheap">CHEAP!</span>';
+    if(p>C.base*1.8) tags+='<span class="tag hot">🔥 INSANE DEMAND</span>';
+    const hq=held(k); if(hq&&S.cargo[k].cost&&sellUnit(k,1)>=S.cargo[k].cost*2) tags+='<span class="tag" style="color:var(--gold)">💰 JACKPOT</span>';
+    const fl=lp[k]!=null&&Math.abs(p-lp[k])/lp[k]>.005; lp[k]=p;
+    h+=`<tr data-act="sel" data-c="${k}" class="${k===c?'sel':''}"><td><span class="ci">${C.icon}</span>${esc(C.name)}${tags}</td>
+      <td class="num ${fl?'flash':''}">${canBuyHere(l,k)?fmt(p):'<span class="down">BANNED</span>'}</td><td>${tr}</td>
+      <td><span class="bar"><i style="width:${clamp(ratio/2.5*100,3,100)}%"></i></span> <span style="font-size:.8rem" class="dimt">${ratio<.5?'Low':ratio<1.3?'OK':'High'}</span></td>
+      <td class="${dw[1]}" style="font-size:.85rem">${dw[0]}</td><td class="num">${hq||'<span class="dimt">—</span>'}</td>
+      <td><button class="btn sm green" data-act="buy" data-c="${k}" data-q="${UI.lot}" ${canBuyHere(l,k)?'':'disabled'} aria-label="Buy ${C.name}">BUY</button></td>
+      <td><button class="btn sm red" data-act="sell" data-c="${k}" data-q="${UI.lot}" ${hq?'':'disabled'} aria-label="Sell ${C.name}">SELL</button></td></tr>`;
+  });
+  h+=`</tbody></table>`;
+  return h;
+}
+function forecast(l,c,n){
+  const E=ST.E[l][c]; const [pm,cm]=effMults(l,c); const T=E*Math.exp(.55*clamp(ST.prod[l][c]*pm-ST.cons[l][c]*cm,-2.6,2.6)*DIFFS[S.diff].spread);
+  const s=S.stock[l][c]; const out=[]; const step=Math.max(2,travelDays(Math.max(0,(S.loc+5)%(NL-1))));
+  for(let k=1;k<=n;k++){ out.push(price(l,c,s+(T-s)*(1-Math.pow(.93,k*step)))); } return out;
+}
+function drawGraph(){
+  const cv=$('graph'); if(!cv) return; const w=cv.clientWidth,h=cv.clientHeight; cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+  const g=cv.getContext('2d'); g.scale(devicePixelRatio,devicePixelRatio);
+  let data=S.hist[S.loc][UI.sel].slice(); if(UI.range) data=data.slice(-UI.range);
+  const fc=(S.ship.up.scanner>=4||S.ship.up.computer>=2)?forecast(S.loc,UI.sel,5):[];
+  const all=data.concat(fc); const mn=Math.min(...all)*.95, mx=Math.max(...all)*1.05; const n=all.length;
+  const X=i=>8+i/(Math.max(1,n-1))*(w-16), Y=v=>h-14-(v-mn)/(mx-mn||1)*(h-28);
+  g.strokeStyle='rgba(120,140,255,.18)'; g.lineWidth=1; for(let i=0;i<4;i++){const y=10+i*(h-24)/3;g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}
+  const base=COMMODITIES[UI.sel].base*ST.mult[S.loc][UI.sel]; if(base>mn&&base<mx){ g.setLineDash([2,4]); g.strokeStyle='rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(0,Y(base)); g.lineTo(w,Y(base)); g.stroke(); g.setLineDash([]); g.fillStyle='rgba(255,255,255,.5)'; g.font='11px sans-serif'; g.fillText('typical',4,Y(base)-3); }
+  // animate the line drawing in
+  const t0=performance.now(); const dur=SETTINGS.rm?0:500;
+  const frame=()=>{
+    const p=dur?clamp((performance.now()-t0)/dur,0,1):1;
+    g.clearRect(0,0,w,h);
+    g.strokeStyle='rgba(120,140,255,.18)'; for(let i=0;i<4;i++){const y=10+i*(h-24)/3;g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}
+    if(base>mn&&base<mx){ g.setLineDash([2,4]); g.strokeStyle='rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(0,Y(base)); g.lineTo(w,Y(base)); g.stroke(); g.setLineDash([]); g.fillStyle='rgba(255,255,255,.55)'; g.font='11px sans-serif'; g.fillText('typical',4,Y(base)-3); }
+    const upto=Math.max(1,Math.floor(data.length*p));
+    const grd=g.createLinearGradient(0,0,0,h); grd.addColorStop(0,'rgba(255,201,60,.35)'); grd.addColorStop(1,'rgba(255,201,60,0)');
+    g.beginPath(); for(let i=0;i<upto;i++){ i?g.lineTo(X(i),Y(data[i])):g.moveTo(X(i),Y(data[i])); } g.lineTo(X(upto-1),h); g.lineTo(X(0),h); g.closePath(); g.fillStyle=grd; g.fill();
+    g.beginPath(); for(let i=0;i<upto;i++){ i?g.lineTo(X(i),Y(data[i])):g.moveTo(X(i),Y(data[i])); } g.strokeStyle='#FFC93C'; g.lineWidth=2.5; g.stroke();
+    if(p>=1){ const lx=X(data.length-1),ly=Y(data[data.length-1]); g.fillStyle='#FFC93C'; g.beginPath(); g.arc(lx,ly,4,0,7); g.fill();
+      if(fc.length){ g.setLineDash([5,4]); g.strokeStyle='#62DCFF'; g.beginPath(); g.moveTo(lx,ly); fc.forEach((v,i)=>g.lineTo(X(data.length+i),Y(v))); g.stroke(); g.setLineDash([]); }
+      g.fillStyle='#F4F6FF'; g.font='bold 12px sans-serif'; g.fillText(fmtS(mx/1.05),w-g.measureText(fmtS(mx/1.05)).width-4,12); g.fillText(fmtS(mn/.95),w-g.measureText(fmtS(mn/.95)).width-4,h-2); }
+    else requestAnimationFrame(frame);
+  }; frame();
+}
+
+/* ---- contracts ---- */
+function viewContracts(){
+  const offers=contractOffers();
+  let h=`<h2 style="margin-top:0">📜 Delivery contracts</h2><p class="dimt">Clients pay well above market to have goods delivered on time. Hold up to 3 at once. Missing a deadline hurts your reputation.</p><h3 class="cy">ACTIVE (${S.contracts.active.length}/3)</h3><div class="grid2">`;
+  h+=S.contracts.active.length?S.contracts.active.map((x,i)=>{const C=COMMODITIES[x.c]; const here=x.to===S.loc; const ok=here&&held(x.c)>=x.qty;
+    return `<div class="tile"><h4>${C.icon} ${x.qty} ${esc(C.name)} → ${esc(LOCATIONS[x.to].name)}</h4><div>Reward <b class="gold num">${fmt(x.reward)}</b></div><div class="dimt">Due day ${x.due} (${x.due-S.day} days left) · you hold ${held(x.c)}</div>
+     <div class="row">${here?`<button class="btn ${ok?'gold':''}" data-act="deliver" data-i="${i}" ${ok?'':'disabled'}>📦 DELIVER</button>`:`<button class="btn sm" data-act="dest" data-l="${x.to}">Set course</button>`}<button class="btn sm" data-act="abandon" data-i="${i}">Abandon</button></div></div>`;}).join(''):'<div class="dimt">None yet.</div>';
+  h+=`</div><h3 class="cy" style="margin-top:1rem">OFFERS AT ${esc(LOCATIONS[S.loc].name.toUpperCase())}</h3><div class="grid2">`;
+  h+=offers.length?offers.map((x,i)=>{const C=COMMODITIES[x.c]; const bp=canBuyHere(S.loc,x.c)?buyUnit(x.c,1):null;
+    return `<div class="tile"><h4>${C.icon} ${x.qty} ${esc(C.name)} → ${esc(LOCATIONS[x.to].name)}</h4><div>Reward <b class="gold num">${fmt(x.reward)}</b></div>
+     <div class="dimt">Deadline: ${x.due-S.day} days · trip is ~${travelDays(x.to)} days${bp?` · buy here at ${fmt(bp)} (${fmtS(bp*x.qty)} total)`:''}</div>
+     <button class="btn green" data-act="accept" data-i="${i}">✍️ ACCEPT</button></div>`;}).join(''):'<div class="dimt">No offers today. Check back next visit.</div>';
+  return h+'</div>';
+}
+
+/* ---- shipyard ---- */
+function viewShipyard(){
+  const ti=titaniumIndex(); const sh=ship();
+  let h=`<h2 style="margin-top:0">🚀 Shipyard</h2><p class="dimt">Titanium price index: <b class="${ti>1.05?'down':ti<.95?'up':''}">${Math.round(ti*100)}%</b> — hull parts and ships get pricier when titanium is scarce.</p>
+  <div class="row" style="margin-bottom:.8rem"><b>${esc(S.ship.name)}</b> (${sh.name}) · Hull ${Math.round(S.ship.hull)}/${sh.hull} ${S.ship.hull<sh.hull?`<button class="btn sm red" data-act="repair">🔧 Repair ${fmt(repairCost()*(sh.hull-S.ship.hull))}</button>`:''}</div>
+  <h3 class="cy">UPGRADES</h3><div class="grid2">`;
+  for(const u of UPGRADES){ const lv=S.ship.up[u.id]; const max=lv>=u.max; const c=max?0:upgradeCost(u); const lock=u.id==='secret'&&netWorth()<1e6&&lv===0;
+    h+=`<div class="tile ${lock?'locked':''}"><h4>${u.icon} ${u.name}</h4><div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'f':''}"></i>`).join('')}</div>
+      <div style="font-size:.88rem">${lock?'Unlocks at $1M net worth':u.desc(lv)}</div>${max?'<b class="gold">MAXED</b>':lock?'':`<div class="dimt" style="font-size:.85rem">Next: ${u.desc(lv+1)}</div>
+      <button class="btn ${S.cash>=c?'gold':''}" data-act="up" data-id="${u.id}">Upgrade ${fmt(c)}</button>`}</div>`; }
+  h+=`</div><h3 class="cy" style="margin-top:1rem">SHIPS FOR SALE</h3><p class="dimt" style="font-size:.9rem">Your old flagship joins your fleet and adds half its cargo space to your hauling capacity.</p><div class="grid2">`;
+  SHIPS.forEach((s,t)=>{ if(t===0) return; const p=shipPrice(t);
+    h+=`<div class="tile"><h4>${s.id==='alien'?'🛸':s.id==='yacht'?'🛥️':s.id==='mega'?'🚢':'🚀'} ${s.name}</h4><div style="font-size:.85rem" class="dimt">${s.desc}</div>
+     <div class="kv" style="font-size:.85rem"><span>Cargo</span><span>${s.id==='alien'?'???':s.cargo+' t'}</span><span>Speed</span><span>${s.speed}×</span><span>Fuel use</span><span>${s.fuel}×</span><span>Hull</span><span>${s.hull}</span><span>Crew</span><span>${s.crew}</span></div>
+     <button class="btn ${S.cash>=p?'gold':''}" data-act="ship" data-t="${t}" ${S.ship.t===t?'disabled':''}>${S.ship.t===t?'Your flagship':'Buy '+fmt(p)}</button></div>`; });
+  h+=`</div>`;
+  if(S.fleet.length){ h+=`<h3 class="cy" style="margin-top:1rem">FLEET</h3><div class="grid2">`+S.fleet.map((f,i)=>`<div class="tile"><h4>${esc(f.name)}</h4><div class="dimt">${SHIPS[f.t].name} · +${Math.round(SHIPS[f.t].cargo*.5)} t capacity</div><div class="row"><button class="btn sm" data-act="swap" data-i="${i}">Make flagship</button><button class="btn sm red" data-act="sellfleet" data-i="${i}">Sell ${fmtS(SHIPS[f.t].price*.5)}</button></div></div>`).join('')+'</div>'; }
+  return h;
+}
+function viewCrew(){
+  const off=hireOffers();
+  let h=`<h2 style="margin-top:0">👥 Crew</h2><p class="dimt">Bunks: ${S.crew.length}/${crewSlots()} (bigger ships and fleet ships add bunks). Wages are paid daily.</p><div class="grid2">`;
+  h+=S.crew.map((c,i)=>`<div class="tile"><h4><span style="font-size:1.6rem">${c.face}</span> ${esc(c.name)}</h4><div>${CREW_ROLES[c.role].name} — <span class="dimt">${CREW_ROLES[c.role].desc}</span></div><div class="dimt">Wage ${fmt(CREW_ROLES[c.role].wage)}/day</div>${c.say?`<div class="bubble">“${esc(c.say)}”</div>`:''}<button class="btn sm red" data-act="fire" data-i="${i}">Let go</button></div>`).join('')||'<div class="dimt">No crew yet.</div>';
+  h+=`</div><h3 class="cy" style="margin-top:1rem">FOR HIRE AT ${esc(LOCATIONS[S.loc].name.toUpperCase())}</h3><div class="grid2">`;
+  h+=off.map((c,i)=>{const R=CREW_ROLES[c.role];return `<div class="tile"><h4><span style="font-size:1.6rem">${c.face}</span> ${esc(c.name)}</h4><div>${R.name} — <span class="dimt">${R.desc}</span></div><div class="dimt">Signing ${fmt(R.cost)} · wage ${fmt(R.wage)}/day</div><button class="btn green" data-act="hire" data-i="${i}">Hire</button></div>`;}).join('')||'<div class="dimt">Nobody else is looking for work here today.</div>';
+  return h+'</div>';
+}
+function viewBank(){
+  const T=loanTerms();
+  let h=`<h2 style="margin-top:0">🏦 First Galactic Bank of Questionable Lending</h2><p class="dimt">Interest compounds daily. Overdue loans attract collectors. Your reputation (${Math.round(S.rep)}) and net worth set your limits.</p><div class="grid2">`;
+  for(const k in T){ const t=T[k]; const has=S.loans.some(l=>l.kind===k);
+    h+=`<div class="tile ${t.ok?'':'locked'}"><h4>${t.name}</h4><div>Up to <b class="gold num">${fmt(t.limit)}</b></div><div class="dimt">${(t.rate*100).toFixed(2)}% per day · due in ${t.term} days</div>
+     ${!t.ok?`<div class="down">${t.why}</div>`:has?'<div class="dimt">Already borrowed.</div>':`<div class="row">${[.25,.5,1].map(f=>`<button class="btn sm" data-act="loan" data-k="${k}" data-f="${f}">${fmtS(t.limit*f)}</button>`).join('')}</div>`}</div>`; }
+  h+=`</div><h3 class="cy" style="margin-top:1rem">YOUR LOANS</h3><div class="grid2">`;
+  h+=S.loans.map((L,i)=>`<div class="tile"><h4>${T[L.kind].name}</h4><div>Balance <b class="down num">${fmt(L.bal)}</b></div><div class="${L.due<S.day?'down':'dimt'}">${L.due<S.day?'OVERDUE by '+(S.day-L.due)+' days':'Due day '+L.due+' ('+(L.due-S.day)+' days)'}</div><div class="row"><button class="btn sm" data-act="repay" data-i="${i}" data-f=".25">Repay 25%</button><button class="btn sm green" data-act="repay" data-i="${i}" data-f="1">Repay all</button></div></div>`).join('')||'<div class="dimt">Debt free. The bank misses you.</div>';
+  return h+'</div>';
+}
+function viewEmpire(){
+  const nw=netWorth();
+  let h=`<h2 style="margin-top:0">👑 Empire</h2><p class="dimt">Buy things that make money while you fly. Income arrives every day. Each purchase of the same thing costs 7% more. The final purchase is… everything.</p>
+   <div class="row" style="margin-bottom:.8rem;font-size:1.2rem">Empire income: <b class="up num">${fmt(assetIncome())}/day</b>
+   <span style="font-size:.9rem" class="dimt">Let time pass:</span>${[1,7,30].map(n=>`<button class="btn sm" data-act="wait" data-n="${n}">⏳ ${n} day${n>1?'s':''}</button>`).join('')}</div><div class="grid2">`;
+  ASSETS.forEach((a,i)=>{ const own=S.assets[a.id]||0; const p=assetPrice(a); const vis=i===0||nw>=ASSETS[i-1].price*.3||own;
+    if(!vis){ h+=`<div class="tile locked"><h4>🔒 ???</h4><div class="dimt">Get richer to reveal.</div></div>`; return; }
+    h+=`<div class="tile"><h4>${a.icon} ${esc(a.name)} ${own?`<span class="gold">×${own}</span>`:''}</h4>${a.once?'<div class="pink" style="color:var(--pink)">Ends the game (then keep playing in sandbox)</div>':`<div class="dimt">Earns ${fmtS(a.price*a.inc)}/day each</div>`}
+     <div class="row">${a.once&&own?'<b class="gold">YOU OWN THE GALAXY</b>':`<button class="btn ${S.cash>=p?'gold':''}" data-act="asset" data-id="${a.id}" data-n="1">Buy ${fmt(p)}</button>${a.once?'':`<button class="btn sm" data-act="asset" data-id="${a.id}" data-n="10">×10</button>`}`}</div></div>`; });
+  return h+'</div>';
+}
+function viewStats(){
+  const s=S.stats; const nw=netWorth(); const top=Object.entries(s.traded).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,q])=>`${COMMODITIES[k].icon} ${COMMODITIES[k].name} (${fq(q)})`).join(', ')||'—';
+  const row=(a,b)=>`<tr><td>${a}</td><td class="num">${b}</td></tr>`;
+  return `<div class="report"><h2>${esc(S.company)} — Annual Report</h2><p class="dimt">Prepared by the Department of Numbers Going Up. CEO: ${esc(S.ceo)}. Difficulty: ${DIFFS[S.diff].name}. Slogan: “${esc(S.slogan)}”</p>
+  <table>${row('Current net worth',fmt(nw))+row('Highest net worth',fmt(s.highNw))+row('Total money earned',`<span class="up">${fmt(s.earned)}</span>`)+row('Total money lost',`<span class="down">${fmt(s.lost)}</span>`)+row('Total trades',s.trades.toLocaleString())
+  +row('Most profitable trade',s.best?`${fmt(s.best.v)} (${COMMODITIES[s.best.c].name} @ ${LOCATIONS[s.best.l].name})`:'—')+row('Worst trade',s.worst?`${fmt(s.worst.v)} (${COMMODITIES[s.worst.c].name} @ ${LOCATIONS[s.worst.l].name})`:'—')
+  +row('Top commodities',top)+row('Distance traveled',Math.round(s.dist).toLocaleString()+' units')+row('Trips completed',s.trips)+row('Planets visited',`${S.visited.filter(Boolean).length} / ${NL-(S.flags.secretKnown?0:1)}`)
+  +row('Ships purchased',s.shipsBought)+row('Crew hired',s.crewHired)+row('Events encountered',s.events)+row('Pirates defeated',s.pirates)+row('Taxes paid',fmt(s.taxes))+row('Fines paid',fmt(s.fines))
+  +row('Total cargo moved',Math.round(s.moved).toLocaleString()+' t')+row('Contracts completed',s.contractsDone)+row('Contracts failed',s.failedTrips)+row('Secrets discovered',s.discoveries)+row('Bankruptcies',s.bankrupt)
+  +row('Achievements',`${Object.keys(S.ach).length} / ${ACH.length}`)}</table></div>`;
+}
+function viewRanks(){
+  const nw=netWorth(); const list=[...S.comps.map(c=>({n:c.name,v:c.nw})),{n:S.company+' (YOU)',v:nw,me:true}].sort((a,b)=>b.v-a.v);
+  const myRank=rankOf(nw);
+  return `<h2 style="margin-top:0">🏆 Galactic Rich List</h2><p class="dimt">Your rank: <b class="gold">#${myRank.toLocaleString()}</b> of 9,000+ trading companies.</p><table class="lb">${list.map((r,i)=>{const rk=r.me?myRank:(i+1>myRank&&myRank>10?i:i+1);return `<tr class="${r.me?'me':''}"><td style="width:3em">#${r.me?myRank.toLocaleString():(i+1)}</td><td>${esc(r.n)}</td><td class="num" style="text-align:right">${fmt(r.v)}</td></tr>`;}).join('')}</table>`;
+}
+function viewAwards(){
+  return `<h2 style="margin-top:0">🎖 Achievements ${Object.keys(S.ach).length}/${ACH.length}</h2><div class="grid2">`+ACH.map(a=>{const got=S.ach[a[0]]; const hidden=a[4]&&!got;
+    return `<div class="tile ${got?'':'locked'}"><h4>${hidden?'❔':a[1]} ${hidden?'Secret':esc(a[2])}</h4><div class="dimt">${hidden?'Keep poking at the universe.':esc(a[3]==='???'?'Discovered!':a[3])}</div>${got?`<div class="gold" style="font-size:.85rem">Unlocked day ${got}</div>`:''}</div>`;}).join('')+'</div>';
+}
+/* =====================================================================
+   Visuals: planets, galaxy map, particles, travel sequence
+   ===================================================================== */
+function hexA(h,a){ const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function drawPlanet(g,x,y,r,L,t){
+  const [c1,c2]=L.pal; const ty=L.type;
+  const glow=g.createRadialGradient(x,y,r*.5,x,y,r*2.1); glow.addColorStop(0,hexA(c1,.28)); glow.addColorStop(1,hexA(c1,0));
+  g.fillStyle=glow; g.beginPath(); g.arc(x,y,r*2.1,0,7); g.fill();
+  const body=()=>{ const gr=g.createRadialGradient(x-r*.35,y-r*.35,r*.1,x,y,r); gr.addColorStop(0,c1); gr.addColorStop(1,c2); g.fillStyle=gr; };
+  g.save();
+  if(ty==='hub'||ty==='tech'||ty==='haven'){
+    // space station: torus + hub
+    g.translate(x,y); g.rotate(t*.15*(ty==='tech'?-1:1));
+    g.strokeStyle=c1; g.lineWidth=Math.max(2,r*.28); g.beginPath(); g.ellipse(0,0,r,r*.55,0,0,7); g.stroke();
+    g.strokeStyle=c2; g.lineWidth=Math.max(1,r*.08); for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(0,0); g.lineTo(Math.cos(i*Math.PI/2)*r,Math.sin(i*Math.PI/2)*r*.55); g.stroke(); }
+    g.fillStyle=c2; g.beginPath(); ty==='haven'?(g.moveTo(0,-r*.5),g.lineTo(r*.35,0),g.lineTo(0,r*.5),g.lineTo(-r*.35,0)):g.arc(0,0,r*.32,0,7); g.fill();
+    if(ty==='haven'){ g.fillStyle='#fff8d0'; g.globalAlpha=.6+.4*Math.sin(t*3); g.fillRect(-r*.08,-r*.2,r*.16,r*.16); }
+    g.restore(); return;
+  }
+  if(ty==='mining'){ body(); g.beginPath(); for(let i=0;i<9;i++){ const a=i/9*Math.PI*2+t*.05, rr=r*(.78+.22*Math.sin(i*2.7+L.i)); i?g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr):g.moveTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);} g.closePath(); g.fill();
+    g.fillStyle='rgba(0,0,0,.25)'; for(let i=0;i<3;i++){ g.beginPath(); g.arc(x+Math.cos(i*2+L.i)*r*.4,y+Math.sin(i*2.3)*r*.35,r*.14,0,7); g.fill(); } g.restore(); return; }
+  body(); g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+  g.save(); g.beginPath(); g.arc(x,y,r,0,7); g.clip();
+  if(ty==='gas'){ for(let i=-3;i<=3;i++){ g.fillStyle=i%2?hexA(c2,.45):hexA('#ffffff',.12); g.fillRect(x-r,y+i*r*.28+Math.sin(t+i)*2,r*2,r*.14); } }
+  if(ty==='moon'||ty==='ice'){ g.fillStyle=ty==='moon'?hexA(c2,.6):'rgba(255,255,255,.35)'; for(let i=0;i<5;i++){ g.beginPath(); g.arc(x+Math.cos(i*1.9+L.i)*r*.55,y+Math.sin(i*2.6)*r*.5,r*(.1+.06*(i%3)),0,7); g.fill(); } }
+  if(ty==='agri'||ty==='garbage'){ g.fillStyle=ty==='agri'?'rgba(20,80,20,.45)':'rgba(60,40,10,.5)'; for(let i=0;i<6;i++){ g.beginPath(); g.ellipse(x+Math.cos(i*1.3+t*.1)*r*.5,y+Math.sin(i*2.1)*r*.5,r*.25,r*.12,i,0,7); g.fill(); } }
+  if(ty==='research'){ g.strokeStyle=hexA('#ffffff',.3); g.lineWidth=1; for(let i=0;i<4;i++){ g.beginPath(); g.arc(x,y,r*(.3+i*.2)+Math.sin(t*2+i)*1.5,0,7); g.stroke(); } }
+  if(ty==='secret'){ g.fillStyle=`hsla(${(t*80)%360},100%,70%,.55)`; g.fillRect(x-r,y-r,r*2,r*2); }
+  g.fillStyle='rgba(0,0,0,.35)'; g.beginPath(); g.arc(x+r*.45,y+r*.35,r*1.05,0,7); g.fill();
+  g.restore();
+  if(ty==='gas'||ty==='luxury'){ g.strokeStyle=ty==='luxury'?'#FFD764':hexA(c1,.8); g.lineWidth=Math.max(1.5,r*.12); g.beginPath(); g.ellipse(x,y,r*1.6,r*.38,-.35,0,7); g.stroke(); }
+  if(ty==='luxury'){ for(let i=0;i<3;i++){ const a=t*1.5+i*2.1; g.fillStyle='#fff'; g.globalAlpha=.5+.5*Math.sin(t*4+i); g.fillRect(x+Math.cos(a)*r*1.4-1,y+Math.sin(a)*r*.6-1,3,3);} g.globalAlpha=1; }
+  if(ty==='resort'){ g.strokeStyle=Math.floor(t*3)%2?'#ff3df2':'#facc15'; g.lineWidth=3; g.shadowColor=g.strokeStyle; g.shadowBlur=12; g.beginPath(); g.arc(x,y,r+3,0,7); g.stroke(); g.shadowBlur=0; }
+  if(ty==='garbage'){ g.fillStyle='#8a7a50'; for(let i=0;i<8;i++){ const a=t*.6+i*.8; g.fillRect(x+Math.cos(a)*r*1.5,y+Math.sin(a)*r*.6,3+i%3,2+i%2);} }
+  if(ty==='outlaw'){ g.strokeStyle='#555'; g.lineWidth=2; for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; g.beginPath(); g.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r); g.lineTo(x+Math.cos(a)*r*1.35,y+Math.sin(a)*r*1.35); g.stroke(); }
+    g.fillStyle=Math.sin(t*5)>0?'#ff2a2a':'#550000'; g.beginPath(); g.arc(x,y-r*.2,Math.max(2,r*.15),0,7); g.fill(); }
+  g.restore();
+}
+
+/* ---- galaxy map ---- */
+const MAP={cv:null,w:0,h:0,neb:null,npcs:[],hover:null};
+function viewMap(){
+  const d=UI.dest;
+  return `<div id="mapWrap"><canvas id="mapCv" aria-label="Galaxy map. Click a planet to pick it as your destination."></canvas><div id="mapTip"></div>
+   <div class="mapBtns">${d!=null&&d!==S.loc?`<button class="btn gold" data-act="launch" data-l="${d}">🚀 LAUNCH TO ${esc(LOCATIONS[d].name.toUpperCase())}</button>`:'<span class="dimt" style="background:var(--void2);padding:.3rem .5rem">Hover a planet for details · click to set course</span>'}</div></div>`;
+}
+function mapXY(L){ const pad=46; return [pad+L.x/1000*(MAP.w-pad*2),pad*1.1+L.y/600*(MAP.h-pad*2.4)]; }
+function nodeR(L){ return 7+Math.log10(L.pop+1)*3.2; }
+function setupMap(){
+  const cv=$('mapCv'); MAP.cv=cv; const r=cv.getBoundingClientRect(); MAP.w=r.width; MAP.h=r.height; cv.width=r.width*devicePixelRatio; cv.height=r.height*devicePixelRatio;
+  MAP.neb=document.createElement('canvas'); MAP.neb.width=cv.width; MAP.neb.height=cv.height; const g=MAP.neb.getContext('2d'); const rr=mulberry(S.seed);
+  g.fillStyle='#050720'; g.fillRect(0,0,cv.width,cv.height);
+  for(let i=0;i<9;i++){ const x=rr()*cv.width,y=rr()*cv.height,rad=(120+rr()*260)*devicePixelRatio; const gr=g.createRadialGradient(x,y,0,x,y,rad); const h=[260,300,200,330,180][i%5]; gr.addColorStop(0,`hsla(${h},80%,55%,.16)`); gr.addColorStop(1,'hsla(0,0%,0%,0)'); g.fillStyle=gr; g.fillRect(0,0,cv.width,cv.height); }
+  for(let i=0;i<500;i++){ g.fillStyle=`rgba(255,255,255,${rr()*.7})`; const s=rr()<.05?2:1; g.fillRect(rr()*cv.width,rr()*cv.height,s*devicePixelRatio,s*devicePixelRatio); }
+  if(!MAP.npcs.length) for(let i=0;i<14;i++) MAP.npcs.push(newNpc());
+  cv.onmousemove=e=>{ const b=cv.getBoundingClientRect(); const mx=e.clientX-b.left,my=e.clientY-b.top; MAP.hover=null;
+    for(const L of visibleLocs()){ const [x,y]=mapXY(L); if(Math.hypot(mx-x,my-y)<nodeR(L)+10){ MAP.hover=L.i; break; } }
+    const tip=$('mapTip'); if(MAP.hover==null){ tip.style.display='none'; cv.style.cursor='crosshair'; return; }
+    cv.style.cursor='pointer'; tip.innerHTML=mapTipHtml(MAP.hover); tip.style.display='block';
+    const tw=tip.offsetWidth, th=tip.offsetHeight; tip.style.left=Math.min(MAP.w-tw-6,mx+16)+'px'; tip.style.top=Math.min(MAP.h-th-6,Math.max(4,my-20))+'px'; };
+  cv.onmouseleave=()=>{ MAP.hover=null; $('mapTip').style.display='none'; };
+  cv.onclick=()=>{ if(MAP.hover==null) return; const l=MAP.hover; const now=performance.now();
+    if(UI.tickle.l===l&&now-UI.tickle.t<1500) UI.tickle.n++; else UI.tickle={l,n:1,t:now}; UI.tickle.t=now;
+    if(UI.tickle.n>=10){ UI.tickle.n=0; if(!S.secrets.tickle){ unlockSecret('tickle'); S.cash+=1000; openModal(`<h2>"OW."</h2><p>${esc(LOCATIONS[l].name)} would like you to stop poking it. They offer you $1,000 in hush money. You accept.</p><button class="btn gold" data-m="close">Fine</button>`); afterAction(); } else { toast('opp','👉 POKE',`${LOCATIONS[l].name}: "Seriously?"`); } return; }
+    sfx('click'); if(l!==S.loc){ UI.dest=l; renderLeft(); const b=document.querySelector('.mapBtns'); if(b) b.innerHTML=`<button class="btn gold" data-act="launch" data-l="${l}">🚀 LAUNCH TO ${esc(LOCATIONS[l].name.toUpperCase())}</button>`; } };
+}
+const visibleLocs=()=>LOCATIONS.filter(L=>L.i!==SECRET_LOC||S.flags.secretKnown);
+function newNpc(){ const a=pick(realLocs()), b=pick(realLocs()); return{a:a.i,b:b.i,t:Math.random(),sp:.0006+Math.random()*.0012}; }
+function mapTipHtml(l){
+  const L=LOCATIONS[l]; const here=l===S.loc; const rl=riskLabel(riskOf(l));
+  let h=`<div class="tn">${esc(L.name)}</div><div class="dimt">${TYPES[L.type].label}${S.visited[l]?'':' · unvisited'}</div>`;
+  if(!here) h+=`<div>Distance ${Math.round(ST.dist[S.loc][l])} · ${travelDays(l)}d · fuel ${fmt(travelCost(l))}</div>`;
+  h+=`<div>Pirates <b style="color:${rl[1]}">${rl[0]}</b> · Tax ${L.tax}% · ${stabilityWord(l)}</div>`;
+  const live=here||S.ship.up.scanner>=3; const kn=S.known[l];
+  if(live||kn){
+    const rel=COMMODITIES.map((C,c)=>[c,knownPrice(l,c)/(C.base*ST.mult[l][c])]).sort((a,b)=>a[1]-b[1]);
+    h+=`<div style="margin-top:.3rem"><span class="up">Cheap:</span> ${rel.slice(0,3).map(x=>COMMODITIES[x[0]].icon+' '+fmtS(knownPrice(l,x[0]))).join('  ')}</div>`;
+    h+=`<div><span class="down">Wanted:</span> ${rel.slice(-3).reverse().map(x=>COMMODITIES[x[0]].icon+' '+fmtS(knownPrice(l,x[0]))).join('  ')}</div>`;
+    h+=`<div class="dimt" style="font-size:.78rem">${live?'Live prices':'Prices seen '+(S.turn-kn.turn)+' turn(s) ago'}</div>`;
+    if(!here&&Object.keys(S.cargo).length) h+=`<div>Your cargo there: ${estHtml(l)}</div>`;
+  } else h+=`<div class="dimt">Market unknown — out of scanner range.</div>`;
+  for(const e of eventsAt(l)) h+=`<div class="cy">${e.icon} ${esc(e.name)} (${e.days}d)</div>`;
+  if(S.contracts.active.some(x=>x.to===l)) h+=`<div class="gold">📜 Contract delivery here</div>`;
+  return h;
+}
+function drawMap(t){
+  const cv=MAP.cv; if(!cv||!document.body.contains(cv)) return; const g=cv.getContext('2d'); const dpr=devicePixelRatio;
+  g.setTransform(1,0,0,1,0,0); g.drawImage(MAP.neb,0,0); g.setTransform(dpr,0,0,dpr,0,0);
+  const locs=visibleLocs(); const me=LOCATIONS[S.loc]; const [mx,my]=mapXY(me);
+  // trade lanes
+  g.strokeStyle='rgba(120,140,255,.13)'; g.lineWidth=1;
+  for(const a of locs) for(const b of locs) if(a.i<b.i&&ST.dist[a.i][b.i]<210){ const [x1,y1]=mapXY(a),[x2,y2]=mapXY(b); g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); }
+  // scanner range
+  const R=scanRange(); if(R<5000){ const sx=R/1000*(MAP.w-92), sy=R/600*(MAP.h-110); g.setLineDash([4,6]); g.strokeStyle='rgba(98,220,255,.35)'; g.beginPath(); g.ellipse(mx,my,sx,sy,0,0,7); g.stroke(); g.setLineDash([]); }
+  // npc traffic
+  for(const n of MAP.npcs){ if(!SETTINGS.rm) n.t+=n.sp; if(n.t>1){ Object.assign(n,newNpc(),{t:0}); } const [x1,y1]=mapXY(LOCATIONS[n.a]),[x2,y2]=mapXY(LOCATIONS[n.b]);
+    const x=x1+(x2-x1)*n.t,y=y1+(y2-y1)*n.t,ang=Math.atan2(y2-y1,x2-x1); g.save(); g.translate(x,y); g.rotate(ang); g.fillStyle='rgba(200,210,255,.75)'; g.beginPath(); g.moveTo(5,0); g.lineTo(-4,-3); g.lineTo(-4,3); g.fill(); g.restore(); }
+  // route
+  const tgt=MAP.hover!=null&&MAP.hover!==S.loc?MAP.hover:UI.dest;
+  if(tgt!=null&&tgt!==S.loc){ const [x2,y2]=mapXY(LOCATIONS[tgt]); g.setLineDash([10,8]); g.lineDashOffset=-t*30; g.strokeStyle='#FFC93C'; g.lineWidth=2.5; g.beginPath(); g.moveTo(mx,my); g.lineTo(x2,y2); g.stroke(); g.setLineDash([]); }
+  // nodes
+  for(const L of locs){ const [x,y]=mapXY(L); const r=nodeR(L)*(MAP.hover===L.i?1.25:1); drawPlanet(g,x,y,r,L,t+L.i);
+    if(eventsAt(L.i).length){ g.font='16px sans-serif'; g.fillText(eventsAt(L.i)[0].icon,x+r+2,y-r); }
+    if(S.contracts.active.some(c=>c.to===L.i)){ g.font='15px sans-serif'; g.fillText('📜',x-r-18,y-r); }
+    g.font=`${L.i===S.loc||L.i===tgt?'bold ':''}${SETTINGS.large?15:13}px Trebuchet MS, sans-serif`; g.textAlign='center';
+    g.fillStyle='rgba(0,0,0,.7)'; g.fillText(L.name,x+1,y+r+15); g.fillStyle=L.i===S.loc?'#FFC93C':L.i===tgt?'#62DCFF':S.visited[L.i]?'#F4F6FF':'#B5BDF0'; g.fillText(L.name,x,y+r+14); g.textAlign='left'; }
+  // you are here
+  const pr=nodeR(me)+8+Math.sin(t*4)*3; g.strokeStyle='#FFC93C'; g.lineWidth=2.5; g.beginPath(); g.arc(mx,my,pr,0,7); g.stroke();
+  g.font='bold 12px sans-serif'; g.fillStyle='#FFC93C'; g.textAlign='center'; g.fillText('YOU',mx,my-pr-4); g.textAlign='left';
+}
+
+/* ---- particles & juice ---- */
+const FX={cv:null,g:null,p:[]};
+function fxInit(){ FX.cv=$('fx'); FX.g=FX.cv.getContext('2d'); const rs=()=>{FX.cv.width=innerWidth*devicePixelRatio;FX.cv.height=innerHeight*devicePixelRatio;}; rs(); addEventListener('resize',rs); }
+function center(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2,r.top+r.height/2]; }
+function flyFrom(src,dst,ch,n){ if(SETTINGS.rm){n=Math.min(n,2);} const [x0,y0]=center(src),[x1,y1]=center(dst);
+  for(let i=0;i<n;i++) FX.p.push({k:'fly',ch,x0:x0+(Math.random()-.5)*30,y0:y0+(Math.random()-.5)*20,x1,y1,cx:(x0+x1)/2+(Math.random()-.5)*200,cy:Math.min(y0,y1)-80-Math.random()*120,t:-i*.05,sp:1.4+Math.random()*.4,size:20+Math.random()*8}); }
+function confetti(n){ if(SETTINGS.rm) return; const cols=['#FFC93C','#58F2B0','#62DCFF','#FF73DA','#FF5A78','#fff'];
+  for(let i=0;i<n;i++) FX.p.push({k:'conf',x:innerWidth/2+(Math.random()-.5)*innerWidth*.6,y:-20-Math.random()*200,vx:(Math.random()-.5)*4,vy:2+Math.random()*4,rot:Math.random()*6,vr:(Math.random()-.5)*.3,c:cpick(cols),life:0,max:180+Math.random()*80,w:6+Math.random()*6}); }
+function burst(x,y,n,col){ if(SETTINGS.rm) return; for(let i=0;i<n;i++){ const a=Math.random()*7,s=2+Math.random()*6; FX.p.push({k:'spark',x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0,max:30+Math.random()*30,c:col}); } }
+function coinRain(n){ for(let i=0;i<n;i++) FX.p.push({k:'coin',x:Math.random()*innerWidth,y:-30-Math.random()*300,vy:3+Math.random()*4,life:0,max:260,ch:cpick(['🪙','💰','💵','💎'])}); }
+function drawFx(){
+  const g=FX.g; g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); g.clearRect(0,0,innerWidth,innerHeight); if(!FX.p.length) return;
+  const keep=[];
+  for(const p of FX.p){
+    if(p.k==='fly'){ p.t+=.016*p.sp; if(p.t<0){keep.push(p);continue;} const t=Math.min(1,p.t),u=1-t; const x=u*u*p.x0+2*u*t*p.cx+t*t*p.x1, y=u*u*p.y0+2*u*t*p.cy+t*t*p.y1;
+      g.font=`${p.size*(1-t*.4)}px serif`; g.globalAlpha=1; g.fillText(p.ch,x-10,y+8); if(t<1) keep.push(p); else { burst(p.x1,p.y1,4,'#FFC93C'); } continue; }
+    p.life++;
+    if(p.k==='conf'){ p.x+=p.vx; p.y+=p.vy; p.vy+=.03; p.rot+=p.vr; g.save(); g.translate(p.x,p.y); g.rotate(p.rot); g.fillStyle=p.c; g.globalAlpha=1-p.life/p.max; g.fillRect(-p.w/2,-p.w/4,p.w,p.w/2); g.restore(); }
+    else if(p.k==='spark'){ p.x+=p.vx; p.y+=p.vy; p.vx*=.94; p.vy*=.94; g.globalAlpha=1-p.life/p.max; g.fillStyle=p.c; g.fillRect(p.x-2,p.y-2,4,4); }
+    else if(p.k==='coin'){ p.y+=p.vy; g.globalAlpha=1-p.life/p.max; g.font='26px serif'; g.fillText(p.ch,p.x,p.y); }
+    g.globalAlpha=1; if(p.life<p.max) keep.push(p);
+  }
+  FX.p=keep.length>900?keep.slice(-900):keep;
+}
+function floater(text,color){ const d=document.createElement('div'); d.className='floater'; d.textContent=text; d.style.color=color; d.style.left='50%'; d.style.top='38%'; d.style.transform='translateX(-50%)'; d.style.marginLeft='-'+(text.length*.5)+'rem'; document.body.appendChild(d); setTimeout(()=>d.remove(),1700); }
+function floatNear(el,text,color){ const r=el.getBoundingClientRect(); const d=document.createElement('div'); d.className='floater'; d.style.fontSize='1.4rem'; d.textContent=text; d.style.color=color; d.style.left=(r.left+10)+'px'; d.style.top=(r.bottom-8)+'px'; document.body.appendChild(d); setTimeout(()=>d.remove(),1700); }
+function banner(text,sub){ document.querySelectorAll('.banner').forEach(b=>b.remove()); const d=document.createElement('div'); d.className='banner'; d.innerHTML=`${esc(text)}${sub?`<small>${esc(sub)}</small>`:''}`; document.body.appendChild(d); setTimeout(()=>d.remove(),2700); }
+function shakeScreen(){ if(SETTINGS.rm) return; const g=$('game'); const m=$('modal'); for(const e of [g,m]){ e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake'); } }
+function shakeEl(el){ if(SETTINGS.rm||!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+
+/* ---- background starfield (title) ---- */
+const BG={stars:[],ships:[]};
+function bgInit(){ const cv=$('bg'); const rs=()=>{cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;}; rs(); addEventListener('resize',rs);
+  for(let i=0;i<260;i++) BG.stars.push({x:Math.random(),y:Math.random(),z:.2+Math.random()*.8}); }
+function drawBg(dt){
+  const cv=$('bg'),g=cv.getContext('2d'); const w=innerWidth,h=innerHeight; g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const gr=g.createLinearGradient(0,0,0,h); gr.addColorStop(0,'#05061c'); gr.addColorStop(1,'#140a3a'); g.fillStyle=gr; g.fillRect(0,0,w,h);
+  for(const s of BG.stars){ if(!SETTINGS.rm) s.x-=.00008*s.z*dt; if(s.x<0)s.x+=1; g.fillStyle=`rgba(255,255,255,${s.z})`; g.fillRect(s.x*w,s.y*h,s.z*2,s.z*2); }
+  if(!SETTINGS.rm&&Math.random()<.004) BG.ships.push({x:-40,y:Math.random()*h*.8+h*.1,v:.15+Math.random()*.35,s:.6+Math.random()});
+  for(const sh of BG.ships){ sh.x+=sh.v*dt; g.save(); g.translate(sh.x,sh.y); g.scale(sh.s,sh.s); g.fillStyle='#c9d0ff'; g.beginPath(); g.moveTo(18,0); g.lineTo(-10,-7); g.lineTo(-6,0); g.lineTo(-10,7); g.fill(); g.fillStyle=`rgba(255,${150+Math.random()*80|0},40,.9)`; g.beginPath(); g.moveTo(-8,-3); g.lineTo(-18-Math.random()*8,0); g.lineTo(-8,3); g.fill(); g.restore(); }
+  BG.ships=BG.ships.filter(s=>s.x<w+50);
+}
+
+/* ---- travel sequence ---- */
+const TV={on:false,ctx:null,p:0,speed:1,dur:2600,msgT:0,stars:[],paused:false,evAt:.45,evDone:false,warped:false,exh:[]};
+function startTravelAnim(ctx){
+  TV.on=true; TV.ctx=ctx; TV.p=0; TV.speed=1; TV.dur=SETTINGS.rm?900:2600+Math.min(1400,ctx.days*120); TV.paused=false; TV.evDone=!ctx.event; TV.evAt=.35+Math.random()*.25; TV.warped=false; TV.exh=[];
+  if(!TV.stars.length) for(let i=0;i<320;i++) TV.stars.push({x:Math.random()*2-1,y:Math.random()*2-1,z:Math.random()});
+  $('tvDest').textContent='→ '+LOCATIONS[ctx.to].name; $('tvAd').textContent='ADVERTISEMENT: '+cpick(ADS); $('tvMsg').textContent=cpick(TRAVEL_MSGS);
+  show('travel'); const cv=$('travelCv'); cv.width=innerWidth*devicePixelRatio; cv.height=innerHeight*devicePixelRatio;
+  sfx('launch'); music.setMood('travel');
+}
+function drawTravel(dt){
+  if(!TV.on) return; const cv=$('travelCv'),g=cv.getContext('2d'); const w=innerWidth,h=innerHeight; g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  if(!TV.paused){ TV.p=Math.min(1,TV.p+dt/TV.dur*TV.speed); TV.msgT+=dt; if(TV.msgT>800){TV.msgT=0;$('tvMsg').textContent=cpick(TRAVEL_MSGS);} }
+  const p=TV.p; const warp=Math.sin(Math.min(1,p)*Math.PI); // accelerate then decelerate
+  g.fillStyle=`rgba(0,0,8,${.35+.4*(1-warp)})`; g.fillRect(0,0,w,h);
+  const cx=w*.5,cy=h*.45;
+  for(const s of TV.stars){ const z0=s.z; s.z-=(.002+warp*.03)*TV.speed*(SETTINGS.rm?.3:1); if(s.z<=.01){s.z=1;s.x=Math.random()*2-1;s.y=Math.random()*2-1;}
+    const x=cx+s.x/s.z*w*.5, y=cy+s.y/s.z*h*.5, x0=cx+s.x/z0*w*.5, y0=cy+s.y/z0*h*.5;
+    g.strokeStyle=`rgba(${200+warp*55|0},${210},255,${1-s.z})`; g.lineWidth=(1-s.z)*2.5; g.beginPath(); g.moveTo(x0,y0); g.lineTo(x,y); g.stroke(); }
+  // origin planet shrinking, destination growing
+  const A=LOCATIONS[TV.ctx.from], B=LOCATIONS[TV.ctx.to]; const t=performance.now()/1000;
+  if(p<.3) drawPlanet(g,w*.12-p*400,h*.6+p*200,Math.max(4,90*(1-p/.3)),A,t);
+  if(p>.4) drawPlanet(g,w*.82,h*.42,8+Math.pow((p-.4)/.6,2)*130,B,t);
+  // the ship
+  const sx=w*.22+p*w*.38, sy=h*.5+Math.sin(t*3)*6;
+  for(let i=0;i<3;i++) TV.exh.push({x:sx-26,y:sy+(Math.random()-.5)*8,vx:-3-Math.random()*4*(1+warp*3),vy:(Math.random()-.5),l:0});
+  for(const e of TV.exh){ e.x+=e.vx; e.y+=e.vy; e.l++; g.fillStyle=`rgba(255,${200-e.l*6|0},60,${1-e.l/30})`; g.fillRect(e.x,e.y,4,4); } TV.exh=TV.exh.filter(e=>e.l<30);
+  g.save(); g.translate(sx,sy); g.scale(2.2,2.2);
+  g.fillStyle='#d9deff'; g.beginPath(); g.moveTo(22,0); g.lineTo(4,-9); g.lineTo(-12,-9); g.lineTo(-8,0); g.lineTo(-12,9); g.lineTo(4,9); g.closePath(); g.fill();
+  g.fillStyle='#FFC93C'; g.fillRect(-6,-4,12,8); g.fillStyle='#62DCFF'; g.beginPath(); g.arc(10,0,3.5,0,7); g.fill();
+  g.fillStyle='#8a97ff'; g.beginPath(); g.moveTo(-4,-9); g.lineTo(-14,-16); g.lineTo(-10,-9); g.fill(); g.beginPath(); g.moveTo(-4,9); g.lineTo(-14,16); g.lineTo(-10,9); g.fill();
+  g.restore();
+  $('tvBar').style.width=(p*100)+'%';
+  if(!TV.evDone&&p>=TV.evAt){ TV.evDone=true; TV.paused=true; sfx('alarm'); runTravelEvent(TV.ctx,()=>{TV.paused=false; if(TV.ctx.extraDays===-99) TV.p=Math.max(TV.p,.9); });}
+  if(p>=1&&!TV.paused){ TV.on=false; finishTravel(TV.ctx); }
+}
+/* =====================================================================
+   Audio: synthesized sfx + procedural ambient music (Web Audio, no files)
+   ===================================================================== */
+let AC=null, MASTER=null, SFXG=null, MUSG=null, VERB=null;
+function audioInit(){
+  if(AC) { if(AC.state==='suspended') AC.resume(); return; }
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
+  MASTER=AC.createGain(); MASTER.connect(AC.destination);
+  SFXG=AC.createGain(); SFXG.connect(MASTER); MUSG=AC.createGain(); MUSG.connect(MASTER);
+  // tiny feedback-delay "space" reverb for the music
+  const d=AC.createDelay(1); d.delayTime.value=.33; const fb=AC.createGain(); fb.gain.value=.38; const lp=AC.createBiquadFilter(); lp.frequency.value=2200;
+  d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(MUSG); VERB=d;
+  applyVolume(); music.start();
+}
+function applyVolume(){ if(!AC) return; MASTER.gain.value=SETTINGS.sound?SETTINGS.vol:0; MUSG.gain.value=SETTINGS.music?SETTINGS.mvol*.5:0; }
+function tone(f,t,dur,type='square',vol=.15,dest=SFXG,slideTo){
+  const o=AC.createOscillator(),g=AC.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.008); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t+dur+.05); }
+function noise(t,dur,vol=.2,freq=3000,q=1,slide){
+  const n=Math.floor(AC.sampleRate*dur); const b=AC.createBuffer(1,n,AC.sampleRate); const d=b.getChannelData(0); for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+  const s=AC.createBufferSource(); s.buffer=b; const f=AC.createBiquadFilter(); f.type='bandpass'; f.frequency.setValueAtTime(freq,t); if(slide) f.frequency.exponentialRampToValueAtTime(slide,t+dur); f.Q.value=q;
+  const g=AC.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur); s.connect(f); f.connect(g); g.connect(SFXG); s.start(t); }
+function sfx(name){
+  if(!AC||!SETTINGS.sound) return; const t=AC.currentTime;
+  switch(name){
+    case 'click': tone(880,t,.05,'square',.06); break;
+    case 'error': tone(180,t,.12,'square',.1); tone(140,t+.1,.16,'square',.1); break;
+    case 'buy': tone(520,t,.06,'square',.08); tone(390,t+.05,.09,'square',.08); noise(t,.06,.08,1200,2); break;
+    case 'sell': [660,880].forEach((f,i)=>tone(f,t+i*.05,.12,'triangle',.12)); break;
+    case 'kaching': noise(t,.08,.3,2500,1.5); tone(1320,t+.06,.5,'sine',.18); tone(1980,t+.06,.45,'sine',.1); tone(2640,t+.09,.35,'sine',.06); break;
+    case 'jackpot': sfx('kaching'); [523,659,784,1047,1319].forEach((f,i)=>tone(f,t+.15+i*.07,.25,'square',.08)); for(let i=0;i<6;i++) tone(2000+Math.random()*1500,t+.3+i*.06,.15,'sine',.06); break;
+    case 'loss': tone(440,t,.4,'sawtooth',.1,SFXG,140); break;
+    case 'alarm': for(let i=0;i<3;i++){ tone(880,t+i*.24,.11,'square',.09); tone(660,t+i*.24+.12,.11,'square',.09); } break;
+    case 'achievement': [784,988,1175,1568].forEach((f,i)=>tone(f,t+i*.09,.3,'triangle',.14)); break;
+    case 'levelup': [392,523,659,784,1047].forEach((f,i)=>tone(f,t+i*.05,.18,'square',.08)); break;
+    case 'launch': noise(t,1.6,.25,300,.7,3000); tone(60,t,1.8,'sawtooth',.12,SFXG,180); break;
+    case 'arrive': noise(t,.8,.18,2500,.7,300); tone(220,t,.6,'triangle',.1,SFXG,110); break;
+  }
+}
+const MOODS={
+  title:{root:45,scale:[0,2,4,7,9],prog:[0,5,3,4],bpm:84},
+  hub:{root:48,scale:[0,2,4,6,7,9,11],prog:[0,3,4,0],bpm:92},
+  agri:{root:50,scale:[0,2,4,7,9],prog:[0,4,5,3],bpm:88},
+  industry:{root:45,scale:[0,2,3,5,7,9,10],prog:[0,6,5,6],bpm:100},
+  outlaw:{root:43,scale:[0,1,3,5,7,8,10],prog:[0,1,0,6],bpm:80},
+  lux:{root:53,scale:[0,2,4,7,9,11],prog:[0,3,1,4],bpm:72},
+  calm:{root:47,scale:[0,2,4,7,9],prog:[0,3,0,4],bpm:68},
+  secret:{root:49,scale:[0,1,4,6,7,10],prog:[0,2,4,1],bpm:76},
+  travel:{root:45,scale:[0,2,4,7,9],prog:[0,4,2,3],bpm:116},
+};
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+const music={mood:'title',next:0,step:0,timer:null,
+  start(){ if(this.timer) return; this.next=AC.currentTime+.1; this.timer=setInterval(()=>this.tick(),100); },
+  setMood(m){ if(this.mood===m) return; this.mood=m; this.step=0; },
+  tick(){ if(!AC||!SETTINGS.music||!SETTINGS.sound||document.hidden) { if(AC) this.next=Math.max(this.next,AC.currentTime); return; }
+    const M=MOODS[this.mood]||MOODS.hub; const st=60/M.bpm/2;
+    while(this.next<AC.currentTime+.4){ this.play(M,this.step,this.next,st); this.next+=st; this.step++; } },
+  note(M,deg,oct=0){ const n=M.scale.length; const o=Math.floor(deg/n); return M.root+M.scale[((deg%n)+n)%n]+12*(o+oct); },
+  play(M,s,t,st){
+    const bar=Math.floor(s/16)%M.prog.length, ch=M.prog[bar], pos=s%16;
+    if(pos===0){ // pad chord
+      for(const d of [0,2,4]){ const f=mtof(this.note(M,ch+d,0)); for(const det of [-4,4]){ const o=AC.createOscillator(),g=AC.createGain(),lp=AC.createBiquadFilter(); lp.frequency.value=900; o.type='triangle'; o.frequency.value=f; o.detune.value=det;
+        g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.035,t+st*4); g.gain.linearRampToValueAtTime(.0001,t+st*16.5); o.connect(lp); lp.connect(g); g.connect(MUSG); g.connect(VERB); o.start(t); o.stop(t+st*17); } }
+      tone(mtof(this.note(M,ch,-1)),t,st*7,'sine',.09,MUSG);
+    }
+    if(pos===8) tone(mtof(this.note(M,ch,-1)),t,st*6,'sine',.07,MUSG);
+    // sparse arpeggio
+    const pat=this.mood==='travel'?[1,0,1,1,0,1,0,1]:[1,0,0,1,0,0,1,0];
+    if(pat[pos%8]&&Math.random()<.85){ const deg=ch+[0,2,4,7,4,2][(s>>1)%6]; const o=AC.createOscillator(),g=AC.createGain(); o.type='sine'; o.frequency.value=mtof(this.note(M,deg,1));
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.045,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+st*2.5); o.connect(g); g.connect(MUSG); g.connect(VERB); o.start(t); o.stop(t+st*3); }
+    if(this.mood==='travel'&&pos%4===0) noise(t,.05,.05,6000,1);
+  }
+};
+/* =====================================================================
+   Game flow: travel, modals, menus, saving, input, main loop
+   ===================================================================== */
+function show(id){ for(const s of ['title','game','travel']) $(s).classList.toggle('on',s===id); }
+
+// ---- notifications / log / news ----
+function toast(type,title,text){
+  const d=document.createElement('div'); d.className=`toast t-${type}`; d.innerHTML=`<b>${esc(title)}</b>${esc(text)}`; $('toasts').appendChild(d);
+  while($('toasts').children.length>4) $('toasts').firstChild.remove();
+  setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),400);},4500);
+}
+function logMsg(html){ if(!S) return; S.log.push(`<span class="dimt">D${S.day}</span> ${html}`); if(S.log.length>80) S.log.shift(); renderLog(); }
+function renderLog(){ const l=$('log'); l.innerHTML=S.log.slice(-40).map(x=>`<div>${x}</div>`).join(''); l.scrollTop=l.scrollHeight; }
+function news(t){ if(!S) return; S.news.push(t); if(S.news.length>24) S.news.shift(); }
+const TK={x:0,w:0};
+function rebuildTicker(){
+  const items=[]; const src=S?S.news.slice(-8):[]; for(const n of src) items.push(n);
+  while(items.length<10) items.push(cpick(HEADLINES));
+  if(S&&Math.random()<.5) items.push(`MARKET ALERT: ${cpick(COMMODITIES).name.toUpperCase()} TRADERS REPORT "${cpick(['VIBES','TURBULENCE','OPTIMISM','PANIC','CONFUSION'])}"`);
+  if(S&&S.stats.trades>5&&Math.random()<.6) items.push(cpick([`LOCAL TRADER ${S.ceo.toUpperCase()}'S COMPANY POSTS RECORD QUARTER`,`UNKNOWN ENTREPRENEUR CORNERS THE ${cpick(COMMODITIES).name.toUpperCase()} MARKET`,`${S.company.toUpperCase()}: "${S.slogan.toUpperCase()}"`]));
+  const el=$('tickerInner'); el.innerHTML=items.sort(()=>Math.random()-.5).map(t=>`<b>●</b> ${esc(t)}`).join(''); TK.x=TK.started?$('ticker').clientWidth:8; TK.started=true; TK.w=el.scrollWidth;
+}
+function tickTicker(dt){ if(!$('game').classList.contains('on')||SETTINGS.rm) return; TK.x-=dt*.085; const el=$('tickerInner'); if(TK.x<-TK.w) rebuildTicker(); el.style.transform=`translateX(${TK.x}px)`; }
+
+// ---- modals ----
+let modalCloseable=true, modalOnClose=null;
+function openModal(html,{closeable=true,onClose=null}={}){ $('modal').innerHTML=html; $('modalWrap').classList.add('on'); modalCloseable=closeable; modalOnClose=onClose;
+  setTimeout(()=>{ const f=$('modal').querySelector('button,input'); f&&f.focus(); },30); }
+function closeModal(){ $('modalWrap').classList.remove('on'); const f=modalOnClose; modalOnClose=null; if(f) f(); }
+const modalOpen=()=>$('modalWrap').classList.contains('on');
+function showEvent(ev,done){
+  S.stats.events++;
+  if(ev.danger){ sfx('alarm'); setTimeout(shakeScreen,50); }
+  openModal(`<div class="evIcon">${ev.icon}</div><h2>${esc(ev.title)}</h2><p style="font-size:1.15rem">${esc(ev.text)}</p><div class="choices" id="evc">${ev.choices.map((c,i)=>`<button class="btn choice" data-ci="${i}">${esc(c.label)}${c.hint?`<small>${esc(c.hint)}</small>`:''}</button>`).join('')}</div><div id="evo"></div>`,{closeable:false});
+  $('evc').onclick=e=>{ const b=e.target.closest('[data-ci]'); if(!b) return; sfx('click'); const r=ev.choices[+b.dataset.ci].act()||{txt:'',mood:'neutral'};
+    $('evc').remove(); $('evo').innerHTML=`<div class="outcome ${r.mood}">${esc(r.txt)}</div><div class="row" style="margin-top:1rem"><button class="btn gold" id="evok">CONTINUE</button></div>`;
+    if(r.coins) { coinRain(30); } if(r.mood==='bad') shakeEl($('modal'));
+    renderTop(); $('evok').focus(); $('evok').onclick=()=>{ $('modalWrap').classList.remove('on'); checkAch(); done&&done(); }; };
+}
+
+// ---- travel ----
+function launch(to){
+  if(to==null||to===S.loc||TV.on) return;
+  if(S.ship.hull<=0){ toast('danger','⚠ HULL DESTROYED','Repair your ship before launching.'); sfx('error'); checkBankrupt(); return; }
+  const cost=travelCost(to);
+  if(S.cash<cost){ toast('danger','⚠ NOT ENOUGH FUEL MONEY',`This trip needs ${fmt(cost)} of fuel. Sell cargo or borrow.`); sfx('error'); checkBankrupt(); return; }
+  if(cargoUsed()>capacity()+.01){ toast('danger','⚠ OVERLOADED','Sell some cargo first.'); return; }
+  S.cash-=cost;
+  const prem=Math.round(cargoValue()*.003*S.ship.up.insurance); if(prem>0) S.cash-=prem;
+  if(ship().id==='alien'&&rng()<.25){ S.cash+=cost; toast('opp','🛸 ALIEN SHIP','The ship decided fuel is optional today.'); }
+  const sec=1-.3*Math.min(1,hasCrew('security'));
+  const ctx={from:S.loc,to,days:travelDays(to),extraDays:0,risk:Math.max(riskOf(S.loc),riskOf(to))*sec};
+  const p=clamp((.3+ctx.risk*.6)*Math.sqrt(DIFFS[S.diff].ev),.18,.85);
+  ctx.event=rng()<p;
+  logMsg(`🚀 Departed ${esc(LOCATIONS[S.loc].name)} for ${esc(LOCATIONS[to].name)} (fuel ${fmt(cost)}${prem?`, insurance ${fmt(prem)}`:''})`);
+  startTravelAnim(ctx);
+}
+function runTravelEvent(ctx,done){ const e=pickTravelEvent(ctx); showEvent(e.make(ctx),done); }
+function finishTravel(ctx){
+  const days=ctx.extraDays===-99?1:Math.max(1,ctx.days+ctx.extraDays);
+  for(let d=0;d<days;d++) dayTick();
+  S.stats.dist+=ST.dist[ctx.from][ctx.to]; S.stats.trips++;
+  S.loc=ctx.to; S.turn++; S.visited[S.loc]=true; S.tripProfit=0; UI.dest=null;
+  if(S.loc===SECRET_LOC) discoverBazaar();
+  recordHistory(); snapshotKnown();
+  if(ship().id==='alien') S.flags.alienCargo=Math.max(cargoUsed(),ri(300,900));
+  show('game'); sfx('arrive'); music.setMood(TYPES[LOCATIONS[S.loc].type].mood);
+  const L=LOCATIONS[S.loc];
+  toast('opp','🛬 ARRIVED',`${L.name} — ${days} day${days>1?'s':''} later.`);
+  logMsg(`🛬 Arrived at <b>${esc(L.name)}</b> after ${days} day${days>1?'s':''}.`);
+  // mining bonus
+  if(ship().id==='miner'&&(L.type==='mining'||L.type==='garbage')){ const c=pick([CI.metals,CI.titanium,CI.rocks,CI.metals]); const q=addCargo(c,ri(6,c===CI.rocks?4:30),0); if(q) toast('profit','⛏️ MINED',`Your mining rig collected ${q} ${COMMODITIES[c].name}.`); }
+  // alien crew snacks
+  if(hasCrew('alien')&&rng()<.06){ const k=Object.keys(S.cargo); if(k.length){ const c=+pick(k); const q=removeCargo(c,Math.max(1,S.cargo[c].q*.1)); logMsg(`👽 Your alien ate ${fq(q)} ${COMMODITIES[c].name}. "Blorp," it says, apologetically.`); } }
+  // auto-trader
+  if(S.ship.up.automation){ const th=[0,.4,.25,.12][S.ship.up.automation]; let tot=0,n=0;
+    for(const k of Object.keys(S.cargo)){ if(!S.auto[k]) continue; const x=S.cargo[+k]; if(!x) continue; const net=sellUnit(+k,x.q)*(1-L.tax/100); if(x.cost===0||net>=x.cost*(1+th)){ tot+=doSell(+k,held(+k),null,true); n++; } }
+    if(n){ toast('profit','⚙️ AUTO-TRADER',`Sold ${n} flagged item${n>1?'s':''} for ${fmt(tot,true)} profit.`); sfx('kaching'); } }
+  // hull failure
+  if(S.ship.hull<=0){ const r=loseCargoFrac(.3); const fee=Math.round(ship().price*.05+200); S.cash-=fee; S.ship.hull=Math.round(ship().hull*.25); logMsg(`🛻 Towed in! Lost ${fmt(r.lost)} of cargo and paid ${fmt(fee)} towing.`); toast('danger','⚠ TOWED','Your hull failed. Towing fees applied.'); }
+  // crew chatter
+  if(S.crew.length&&rng()<.6){ const c=pick(S.crew); c.say=cpick(CREW_ROLES[c.role].lines); logMsg(`${c.face} <b>${esc(c.name)}:</b> “${esc(c.say)}”`); }
+  rebuildTicker(); checkAch(); renderAll(); autosave();
+  const ev=arrivalEvent();
+  const after=()=>{ renderAll(); checkBankrupt(); autosave(); };
+  if(ev) setTimeout(()=>showEvent(ev,after),350); else after();
+}
+
+// ---- bankruptcy ----
+function checkBankrupt(){
+  if(!S||modalOpen()) return;
+  const dests=LOCATIONS.filter(L=>L.i!==S.loc&&L.i!==SECRET_LOC); const cheapest=Math.min(...dests.map(L=>travelCost(L.i)));
+  const stuck=(S.cash+cargoValue()*.9<cheapest)||S.cash<-2000||(S.ship.hull<=0&&S.cash<repairCost()*5);
+  if(!stuck) return;
+  sfx('alarm');
+  const T=loanTerms(); const canEm=!S.loans.some(l=>l.kind==='emergency');
+  const canSellShip=S.ship.t!==0||S.fleet.length; const hasCargo=Object.keys(S.cargo).length;
+  const canRescue=S.day-S.flags.lastRescue>40;
+  openModal(`<div class="evIcon">🕳️</div><h2>YOU ARE BROKE</h2><p style="font-size:1.1rem">Cash: <b class="down">${fmt(S.cash)}</b>. The cheapest trip from here costs ${fmt(cheapest)}. Your accountant has started speaking exclusively in sighs.</p>
+   <div class="choices">
+    ${canEm?`<button class="btn choice" data-b="loan">🏦 EMERGENCY LOAN<small>${fmt(T.emergency.limit)} at ${(T.emergency.rate*100).toFixed(1)}%/day</small></button>`:''}
+    ${canSellShip?`<button class="btn choice" data-b="ship">🚀 SELL YOUR SHIP<small>Downgrade to a Space Pickup and pocket the difference</small></button>`:''}
+    ${hasCargo?`<button class="btn choice" data-b="cargo">📦 SELL CARGO<small>Go to the market and liquidate</small></button>`:''}
+    ${canRescue?`<button class="btn choice" data-b="rescue">🥸 RIDICULOUS RESCUE CONTRACT<small>The Mustache Consortium wants a mascot. +$5,000, -reputation</small></button>`:''}
+    <button class="btn choice red" data-b="declare">⚖️ DECLARE BANKRUPTCY<small>Fresh start: lose upgrades, ships, crew & debts</small></button>
+   </div>`,{closeable:false});
+  $('modal').querySelector('.choices').onclick=e=>{ const b=e.target.closest('[data-b]'); if(!b) return; const k=b.dataset.b; $('modalWrap').classList.remove('on');
+    if(k==='loan') takeLoan('emergency',1);
+    if(k==='ship'){ let v=0; for(const f of S.fleet) v+=SHIPS[f.t].price*.5; S.fleet=[]; if(S.ship.t!==0){ v+=SHIPS[S.ship.t].price*.5; S.ship.t=0; S.ship.hull=SHIPS[0].hull; }
+      // overflow cargo is dumped at local prices
+      while(cargoUsed()>capacity()){ const k2=+Object.keys(S.cargo)[0]; doSell(k2,held(k2),null,true); if(S.cargo[k2]) delete S.cargo[k2]; }
+      S.cash+=v; S.ship.hull=Math.max(S.ship.hull,20); logMsg(`Sold your ships for ${fmt(v)}. Back in a Space Pickup.`); afterAction(); }
+    if(k==='cargo'){ UI.tab='market'; renderAll(); }
+    if(k==='rescue'){ S.cash+=5000; S.rep=clamp(S.rep-12,0,100); S.flags.lastRescue=S.day; news(`${S.company.toUpperCase()} SIGNS DEAL TO WEAR GIANT BRANDED MUSTACHE FOR 30 DAYS`); logMsg('🥸 You are now the official mascot of the Mustache Consortium. +$5,000.'); afterAction(); }
+    if(k==='declare'){ S.stats.bankrupt++; award('bankrupt'); S.cash=2500; S.loans=[]; S.fleet=[]; S.crew=[]; S.cargo={}; S.ship.t=0; S.ship.hull=SHIPS[0].hull;
+      for(const u in S.ship.up) S.ship.up[u]=Math.floor(S.ship.up[u]/2); S.ship.up.scanner=Math.max(1,S.ship.up.scanner); S.rep=clamp(S.rep-30,0,100); S.heat=0;
+      news(`${S.company.toUpperCase()} DECLARES BANKRUPTCY. CEO ${S.ceo.toUpperCase()} SEEN SELLING SPOONS OUT OF A SUITCASE`); banner('BANKRUPT','A fresh, humble start'); afterAction(); }
+  };
+}
+
+// ---- winning ----
+function winGame(){
+  S.gameWon=true; coinRain(120); confetti(200); sfx('jackpot'); setTimeout(()=>sfx('achievement'),700);
+  setTimeout(()=>openModal(`<div class="evIcon">🌌</div><h2>YOU OWN THE GALAXY</h2><p style="font-size:1.15rem">${esc(S.company)} now owns every planet, moon, station, asteroid, government and slightly-used spoon in the known universe. On day ${S.day}, CEO ${esc(S.ceo)} is officially the first <b class="gold">GAZILLIONAIRE</b>.</p>
+   <p class="dimt">Net worth: ${fmt(netWorth())} · Trades: ${S.stats.trades} · Distance flown: ${Math.round(S.stats.dist).toLocaleString()}</p>
+   <div class="row"><button class="btn gold" data-m="close">KEEP PLAYING (SANDBOX)</button><button class="btn" data-m="report">VIEW FINAL REPORT</button></div>`),1400);
+}
+
+// ---- save system ----
+const SAVE_AUTO='gzl_auto', SAVE_MAN='gzl_manual', SAVE_SET='gzl_settings';
+let saveTimer=null;
+function autosave(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveTo(SAVE_AUTO,true),350); }
+function saveTo(key,quiet){ if(!S) return false; try{ localStorage.setItem(key,JSON.stringify(S)); if(!quiet) toast('opp','💾 SAVED','Game saved.'); return true; }catch(e){ if(!quiet) toast('danger','⚠ SAVE FAILED','Browser storage is unavailable or full.'); return false; } }
+function hasSave(key){ try{ return !!localStorage.getItem(key); }catch(e){ return false; } }
+function loadFrom(key){
+  try{ const raw=localStorage.getItem(key); if(!raw) return false; const s=JSON.parse(raw); if(!s||s.v!==3) return false;
+    S=s; buildStatic(S.seed); UI.dest=null; UI.sel=0; UI.lastCash=S.cash; UI.cashShown=S.cash; UI.lastPrice={}; return true; }catch(e){ console.warn(e); return false; }
+}
+function saveSettings(){ try{ localStorage.setItem(SAVE_SET,JSON.stringify(SETTINGS)); }catch(e){} }
+function loadSettings(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_SET)||'null'); if(s) Object.assign(SETTINGS,s); }catch(e){} applySettings(); }
+function applySettings(){ document.body.classList.toggle('rm',SETTINGS.rm); document.body.classList.toggle('hc',SETTINGS.hc); document.body.classList.toggle('large',SETTINGS.large); applyVolume(); $('bSound').textContent=SETTINGS.sound?'🔊':'🔇'; }
+function enterGame(){ show('game'); UI.lastCash=S.cash; UI.cashShown=S.cash; music.setMood(TYPES[LOCATIONS[S.loc].type].mood); rebuildTicker(); renderLog(); renderAll(); checkBankrupt(); }
+
+// ---- menus ----
+function settingsHtml(){
+  const tg=(k,label,desc)=>`<div class="toggle"><span><b>${label}</b><br><span class="dimt" style="font-size:.85rem">${desc}</span></span><button class="btn ${SETTINGS[k]?'gold':''}" data-set="${k}" aria-pressed="${SETTINGS[k]}">${SETTINGS[k]?'ON':'OFF'}</button></div>`;
+  return `<h2>⚙ Settings</h2>${tg('rm','Reduced motion','Calmer animations, no shaking or confetti')}${tg('hc','High contrast','Pure black background, brighter text')}${tg('large','Large UI','Bigger text everywhere')}${tg('sound','Sound','All audio on/off (N)')}${tg('music','Music','Procedural ambient soundtrack')}
+   <div class="toggle"><b>Master volume</b><input type="range" min="0" max="1" step=".05" value="${SETTINGS.vol}" data-vol="vol" style="width:200px;accent-color:var(--gold)" aria-label="Master volume"></div>
+   <div class="toggle"><b>Music volume</b><input type="range" min="0" max="1" step=".05" value="${SETTINGS.mvol}" data-vol="mvol" style="width:200px;accent-color:var(--gold)" aria-label="Music volume"></div>
+   <div class="row" style="margin-top:1rem"><button class="btn gold" data-m="close">DONE</button></div>`;
+}
+function openSettings(back){ openModal(settingsHtml(),{onClose:back}); }
+const HOWTO=`<h2>How to play</h2>
+<p><b>Goal:</b> start with a tiny ship and a little cash. Become a <b class="gold">GAZILLIONAIRE</b> — then buy the galaxy.</p>
+<p><b>1. Buy low.</b> In the 🛒 Market, look for <span class="tag cheap">CHEAP!</span> goods. Farm worlds sell food cheap, mining colonies sell metal cheap, and so on.</p>
+<p><b>2. Fly.</b> Pick a destination on the left (or the 🌌 Map). Each route shows fuel cost, days, pirate risk and an estimate of what your cargo would sell for there.</p>
+<p><b>3. Sell high.</b> Rich worlds and places with shortages pay more. Watch the galaxy news: wars, plagues and celebrity crazes move prices — and shortages ripple outward to the things made from them.</p>
+<p><b>4. Grow.</b> Upgrade your ship in the 🚀 Shipyard, hire 👥 Crew, take 📜 Contracts, borrow from the 🏦 Bank, and once you're rich, buy income-producing assets in 👑 Empire.</p>
+<p><b>Shortcuts:</b> M Market · G Map · O Contracts · Y Shipyard · C Crew · B Bank · E Empire · R Report · L Leaderboard · A Achievements · ↑/↓ choose commodity · + buy · − sell · Enter launch · Space hurry travel · N mute · Esc menu.</p>
+<p class="dimt">Some things are hidden. Poke around.</p><div class="row"><button class="btn gold" data-m="close">GOT IT</button></div>`;
+const CREDITS=`<h2>Credits</h2><p>An original space-trading tycoon game, inspired by the classic 1990s trading sims.</p><p>Design, code, sound and questionable economics: generated in one file with HTML, CSS, Canvas and the Web Audio API. No images, no samples, no servers.</p><p class="dimt">No space whales were harmed. Several were sold commodities.</p><div class="row"><button class="btn gold" data-m="close">CLOSE</button></div>`;
+function pauseMenu(){
+  if(TV.on) return;
+  openModal(`<h2>⏸ Paused</h2><div class="menu" style="min-width:0">
+    <button class="btn gold" data-m="close">RESUME</button><button class="btn" data-m="save">💾 SAVE GAME</button><button class="btn" data-m="load" ${hasSave(SAVE_MAN)?'':'disabled'}>📂 LOAD GAME</button>
+    <button class="btn" data-m="settings">⚙ SETTINGS</button><button class="btn" data-m="howto">❓ HOW TO PLAY</button><button class="btn" data-m="new">✨ NEW GAME</button>
+    <button class="btn" data-m="title">🏠 QUIT TO TITLE</button><button class="btn red" data-m="reset">🗑 RESET ALL DATA</button></div>`);
+}
+function newGameModal(){
+  const co=cpick(CO_NAMES), ceo=cpick(CEO_FIRST)+' '+cpick(CEO_LAST);
+  const ng={diff:'normal',start:-1};
+  openModal(`<h2>✨ New company</h2>
+   <div class="field"><label for="ngCo"><b>Company name</b></label><div class="row"><input type="text" id="ngCo" maxlength="40" value="${esc(co)}" style="flex:1"><button class="btn" id="ngCoR" title="Random name">🎲</button></div></div>
+   <div class="field"><label for="ngCeo"><b>CEO name</b></label><div class="row"><input type="text" id="ngCeo" maxlength="30" value="${esc(ceo)}" style="flex:1"><button class="btn" id="ngCeoR" title="Random name">🎲</button></div></div>
+   <div class="field"><b>Difficulty</b><div class="diffgrid" id="ngD">${Object.entries(DIFFS).map(([k,d])=>`<button class="btn ${k==='normal'?'on':''}" data-d="${k}">${d.name}<small>${d.desc} · ${fmtS(d.cash)}</small></button>`).join('')}</div></div>
+   <div class="field"><b>Starting planet</b><div class="row" id="ngS"><button class="btn on" data-s="-1">🎲 Random</button>${STARTS.map(i=>`<button class="btn" data-s="${i}">${LOCATIONS[i].name}</button>`).join('')}</div></div>
+   <p class="dimt">You start with a Space Pickup (60 t cargo) and a basic scanner.</p>
+   <div class="row"><button class="btn gold" id="ngGo" style="font-size:1.3rem">🚀 START TRADING</button><button class="btn" data-m="close">Cancel</button></div>`);
+  $('ngCoR').onclick=()=>{$('ngCo').value=cpick(CO_NAMES);sfx('click');}; $('ngCeoR').onclick=()=>{$('ngCeo').value=cpick(CEO_FIRST)+' '+cpick(CEO_LAST);sfx('click');};
+  $('ngD').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;ng.diff=b.dataset.d;$('ngD').querySelectorAll('.btn').forEach(x=>x.classList.toggle('on',x===b));sfx('click');};
+  $('ngS').onclick=e=>{const b=e.target.closest('[data-s]');if(!b)return;ng.start=+b.dataset.s;$('ngS').querySelectorAll('.btn').forEach(x=>x.classList.toggle('on',x===b));sfx('click');};
+  $('ngGo').onclick=()=>{
+    const company=($('ngCo').value.trim()||co).slice(0,40), ceoN=($('ngCeo').value.trim()||ceo).slice(0,30);
+    const start=ng.start<0?cpick(STARTS):ng.start;
+    $('modalWrap').classList.remove('on');
+    newState({diff:ng.diff,company,ceo:ceoN,start}); UI.tab='market'; UI.sel=CI.food; UI.lastPrice={};
+    const up=company.toUpperCase();
+    logMsg(`🏢 <b>${esc(company)}</b> is open for business at ${esc(LOCATIONS[start].name)}. Slogan: “${esc(S.slogan)}”`);
+    if(up.includes('IDDQD')||up==='GAZILLIONAIRE'||up.includes('MONEY PLEASE')){ unlockSecret('name'); S.cash+=5000; logMsg('📛 The galaxy recognises a Name Of Power. +$5,000.'); }
+    if(up.includes('MOON CHEESE')) logMsg('🧀 Your company name comes with complimentary Moon Cheese.');
+    if(up.includes('PYRAMID')) news('CUSTOMS OFFICERS ADVISED TO "KEEP AN EYE ON" A NEW COMPANY WITH "PYRAMID" IN ITS NAME');
+    // pick a sensible first selection: something cheap here
+    let best=0,bv=9; for(let c=0;c<NC;c++){ const r=price(S.loc,c)/(COMMODITIES[c].base); if(r<bv&&COMMODITIES[c].base<300&&canBuyHere(S.loc,c)){bv=r;best=c;} } UI.sel=best;
+    enterGame(); saveTo(SAVE_AUTO,true); sfx('levelup'); banner(company,'Est. Day 1');
+  };
+}
+function toTitle(){ if(S) saveTo(SAVE_AUTO,true); $('modalWrap').classList.remove('on'); show('title'); music.setMood('title'); $('btnContinue').disabled=!hasSave(SAVE_AUTO); }
+
+// ---- input ----
+document.addEventListener('click',e=>{
+  audioInit();
+  const m=e.target.closest('[data-m]');
+  if(m){ const k=m.dataset.m; sfx('click');
+    if(k==='close') closeModal();
+    else if(k==='save'){ saveTo(SAVE_MAN); saveTo(SAVE_AUTO,true); }
+    else if(k==='load'){ if(loadFrom(SAVE_MAN)){ $('modalWrap').classList.remove('on'); enterGame(); toast('opp','📂 LOADED','Welcome back.'); } }
+    else if(k==='settings') openSettings(()=>{ if($('game').classList.contains('on')) pauseMenu(); });
+    else if(k==='howto') openModal(HOWTO,{onClose:()=>{ if($('game').classList.contains('on')) pauseMenu(); }});
+    else if(k==='new') { if(S) saveTo(SAVE_AUTO,true); newGameModal(); }
+    else if(k==='title') toTitle();
+    else if(k==='report'){ $('modalWrap').classList.remove('on'); UI.tab='stats'; renderAll(); }
+    else if(k==='reset') openModal(`<h2>Delete all save data?</h2><p>This permanently erases your autosave, manual save and settings. There is no undo.</p><div class="row"><button class="btn red" data-m="reset2">YES, DELETE EVERYTHING</button><button class="btn gold" data-m="close">KEEP MY EMPIRE</button></div>`);
+    else if(k==='reset2'){ try{ localStorage.removeItem(SAVE_AUTO); localStorage.removeItem(SAVE_MAN); localStorage.removeItem(SAVE_SET); }catch(_){} S=null; $('modalWrap').classList.remove('on'); show('title'); $('btnContinue').disabled=true; toast('danger','🗑 DELETED','All data erased.'); }
+    return; }
+  const st=e.target.closest('[data-set]'); if(st){ const k=st.dataset.set; SETTINGS[k]=!SETTINGS[k]; if(k==='sound'&&SETTINGS.sound) audioInit(); applySettings(); saveSettings(); sfx('click'); const scroll=$('modal').scrollTop; $('modal').innerHTML=settingsHtml(); $('modal').scrollTop=scroll; if(S&&$('game').classList.contains('on')) renderAll(); return; }
+  if(e.target===$('modalWrap')&&modalCloseable){ closeModal(); return; }
+  const tm=e.target.closest('#titleMenu [data-act]');
+  if(tm){ sfx('click'); const a=tm.dataset.act;
+    if(a==='new') newGameModal(); if(a==='continue'){ if(loadFrom(SAVE_AUTO)) enterGame(); else toast('danger','⚠ NO SAVE','Nothing to continue yet.'); }
+    if(a==='howto') openModal(HOWTO); if(a==='settings') openSettings(); if(a==='credits') openModal(CREDITS); return; }
+  if(TV.on&&$('travel').contains(e.target)){ TV.speed=4; return; }
+  const b=e.target.closest('#game [data-act]'); if(!b||!S) return;
+  if(b.tagName==='INPUT') return;
+  const a=b.dataset.act, c=+b.dataset.c;
+  const qOf=(q,max)=>q==='max'||e.shiftKey?max:+q;
+  switch(a){
+    case 'tab': UI.tab=b.dataset.t; sfx('click'); renderTabs(); renderView(); break;
+    case 'sel': if(e.target.closest('button')&&e.target.closest('button')!==b) break; UI.sel=c; UI.qty=1; sfx('click'); renderView(); break;
+    case 'buy': UI.sel=c; doBuy(c,qOf(b.dataset.q,maxBuy(c)),b); break;
+    case 'sell': UI.sel=c; doSell(c,qOf(b.dataset.q,held(c)),b); break;
+    case 'buyN': doBuy(c,UI.qty,b); break;
+    case 'sellN': doSell(c,UI.qty,b); break;
+    case 'lot': UI.lot=b.dataset.n==='max'?'max':+b.dataset.n; sfx('click'); renderView(); break;
+    case 'range': UI.range=+b.dataset.n; renderView(); break;
+    case 'wait': waitDays(+b.dataset.n); break;
+    case 'dockmin': UI.dockMin=!UI.dockMin; renderView(); break;
+    case 'dest': UI.dest=+b.dataset.l; sfx('click'); renderLeft(); if(UI.tab==='map'||UI.tab==='market') renderView(); break;
+    case 'allroutes': UI.showAllRoutes=!UI.showAllRoutes; renderLeft(); break;
+    case 'launch': sfx('click'); launch(+b.dataset.l); break;
+    case 'up': buyUpgrade(b.dataset.id); break;
+    case 'ship': buyShip(+b.dataset.t); break;
+    case 'swap': swapFlagship(+b.dataset.i); break;
+    case 'sellfleet': sellFleet(+b.dataset.i); break;
+    case 'repair': repair(); break;
+    case 'hire': hire(+b.dataset.i); break;
+    case 'fire': fire(+b.dataset.i); break;
+    case 'loan': takeLoan(b.dataset.k,+b.dataset.f); break;
+    case 'repay': repay(+b.dataset.i,+b.dataset.f); break;
+    case 'accept': acceptContract(+b.dataset.i); break;
+    case 'deliver': deliver(+b.dataset.i); break;
+    case 'abandon': abandonContract(+b.dataset.i); break;
+    case 'asset': buyAsset(b.dataset.id,+b.dataset.n); break;
+  }
+});
+document.addEventListener('change',e=>{ const a=e.target.closest('[data-act="auto"]'); if(a&&S){ S.auto[a.dataset.c]=a.checked; autosave(); } });
+document.addEventListener('input',e=>{
+  if(e.target.id==='qty'){ UI.qty=+e.target.value; $('qtyV').textContent=UI.qty; $('bN').textContent='BUY ×'+UI.qty; $('sN').textContent='SELL ×'+UI.qty; }
+  const v=e.target.dataset&&e.target.dataset.vol; if(v){ SETTINGS[v]=+e.target.value; applyVolume(); saveSettings(); }
+});
+const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']; let kIdx=0;
+document.addEventListener('keydown',e=>{
+  audioInit();
+  const k=e.key; kIdx=(k===KONAMI[kIdx]||k.toLowerCase()===KONAMI[kIdx])?kIdx+1:(k===KONAMI[0]?1:0);
+  if(kIdx===KONAMI.length){ kIdx=0; if(S&&!S.secrets.konami){ unlockSecret('konami'); discoverBazaar(); S.cash+=3000; toast('opp','🕹️ OLD SCHOOL','+$3,000 and a mysterious new map marker.'); afterAction(); } }
+  if(e.target.tagName==='INPUT'&&e.target.type==='text'){ if(k==='Enter'&&$('ngGo')) $('ngGo').click(); return; }
+  if(TV.on){ if(k===' '||k==='Enter'){ e.preventDefault(); TV.speed=4; }
+    if((k==='w'||k==='W')&&!TV.paused&&!TV.warped&&TV.p<.95){ TV.warped=true; TV.p=Math.max(TV.p,TV.evDone?.97:TV.evAt); if(!S.secrets.warp){ unlockSecret('warp'); } const refund=Math.round(travelCost(TV.ctx.to)*.5); S.cash+=refund; toast('opp','⏩ WARP','You held W. The universe folded politely. 50% fuel refunded.'); }
+    return; }
+  if($('title').classList.contains('on')&&!modalOpen()){ if(k==='Enter'||k===' '){ e.preventDefault(); hasSave(SAVE_AUTO)?$('btnContinue').click():newGameModal(); } return; }
+  if(modalOpen()){ if(k==='Escape'&&modalCloseable) closeModal(); return; }
+  if(!S||!$('game').classList.contains('on')) return;
+  if(k==='Escape'){ pauseMenu(); return; }
+  const lower=k.toLowerCase(); const t=TABS.find(x=>x[2].toLowerCase()===lower);
+  if(t&&!e.ctrlKey&&!e.metaKey){ UI.tab=t[0]; sfx('click'); renderTabs(); renderView(); return; }
+  if(lower==='n'){ SETTINGS.sound=!SETTINGS.sound; applySettings(); saveSettings(); return; }
+  if(UI.tab==='market'){
+    if(k==='ArrowDown'||k==='ArrowUp'){ e.preventDefault(); UI.sel=(UI.sel+(k==='ArrowDown'?1:NC-1))%NC; UI.qty=1; renderView(); const r=document.querySelector('tr.sel'); r&&r.scrollIntoView({block:'nearest'}); return; }
+    if(k==='+'||k==='='){ doBuy(UI.sel,UI.lot==='max'?maxBuy(UI.sel):UI.lot,document.querySelector('tr.sel')||$('view')); return; }
+    if(k==='-'||k==='_'){ doSell(UI.sel,UI.lot==='max'?held(UI.sel):UI.lot,document.querySelector('tr.sel')||$('view')); return; }
+  }
+  if(k==='Enter'&&UI.dest!=null&&document.activeElement.tagName!=='BUTTON') launch(UI.dest);
+});
+$('bPause').onclick=()=>{ sfx('click'); pauseMenu(); };
+$('bSettings').onclick=()=>{ sfx('click'); openSettings(); };
+$('bSound').onclick=()=>{ SETTINGS.sound=!SETTINGS.sound; if(SETTINGS.sound) audioInit(); applySettings(); saveSettings(); };
+$('pressStart').onclick=()=>{ audioInit(); sfx('levelup'); $('titleMenu').querySelector('.btn').focus(); };
+addEventListener('resize',()=>{ if(S&&$('game').classList.contains('on')){ renderLeft(); if(UI.tab==='map') setupMap(); if(UI.tab==='market') drawGraph(); } });
+addEventListener('beforeunload',()=>{ if(S) saveTo(SAVE_AUTO,true); });
+
+// ---- main loop ----
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min(64,now-lastT); lastT=now; const t=now/1000;
+  try{
+    if($('title').classList.contains('on')) drawBg(dt);
+    if($('game').classList.contains('on')&&S){
+      tickCash(); tickTicker(dt);
+      if(UI.tab==='map') drawMap(t);
+      const la=UI.locArt; if(la&&document.body.contains(la)){ const g=la.getContext('2d'); const w=la.width/devicePixelRatio; g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+        g.fillStyle='#050720'; g.fillRect(0,0,w,120); const rr=mulberry(S.loc+7); for(let i=0;i<40;i++){ g.fillStyle=`rgba(255,255,255,${rr()*.8})`; g.fillRect(rr()*w,rr()*120,1.5,1.5); }
+        drawPlanet(g,w/2,60,38,LOCATIONS[S.loc],SETTINGS.rm?0:t); }
+    }
+    if(TV.on) drawTravel(dt);
+    drawFx();
+  }catch(err){ console.error(err); }
+  requestAnimationFrame(loop);
+}
+
+// ---- boot ----
+fxInit(); bgInit(); loadSettings();
+$('btnContinue').disabled=!hasSave(SAVE_AUTO);
+requestAnimationFrame(loop);
+window.__gz={get S(){return S;},launch,doBuy,doSell,finishTravel,dayTick,checkBankrupt,newState,enterGame,UI};
+</script>
+</body>
+</html>
