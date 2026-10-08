@@ -202,23 +202,63 @@ function extractImageCandidates(html: string, pageUrl: string, festivalName: str
 }
 
 /**
+ * og:image/twitter:image meta tags, scored by the EXACT SAME rules as `<img>`/`<source>` candidates -
+ * never trusted by default. The blind "always use og:image as a fallback" behavior this pipeline shipped
+ * with initially was removed after it posted a generic crowd/stage photo twice in production; this is NOT
+ * a reintroduction of that - a meta tag only becomes a candidate here if its own surrounding HTML context
+ * independently signals "poster" or its URL substantially matches the festival's own name, the same bar
+ * every other candidate must clear. Confirmed live valuable: a real press site's auto-generated
+ * og:description text explicitly said "...the top three headliners listed on this year's **poster**
+ * are...", immediately before an og:image tag that genuinely was the real poster - exactly the kind of
+ * independent corroboration this pipeline requires elsewhere (verification's 2-source rule), just applied
+ * to image selection instead of fact-checking.
+ */
+function extractMetaImageCandidates(html: string, pageUrl: string, festivalName: string | null): ImageCandidate[] {
+  const candidates: ImageCandidate[] = [];
+  const metaPatterns = [
+    /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/gi,
+    /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/gi,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']/gi,
+  ];
+  for (const pattern of metaPatterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(html))) {
+      const rawUrl = match[1];
+      if (!rawUrl) continue;
+      let url: string;
+      try {
+        url = new URL(decodeHtmlEntities(rawUrl), pageUrl).toString();
+      } catch {
+        continue;
+      }
+      const tagStart = match.index;
+      const context = html.slice(Math.max(0, tagStart - CONTEXT_WINDOW), tagStart + match[0].length);
+      const hasKeyword =
+        POSTER_KEYWORD_PATTERN.test(`${url} ${context}`) || (festivalName !== null && festivalNameMatchesUrl(url, festivalName));
+      candidates.push({ url: wixOriginalUrl(url), hasKeyword });
+    }
+  }
+  return candidates;
+}
+
+/**
  * Regex-based image extraction, deliberately NOT LLM-based: verification only confirms a page is the
  * real announcement, it never reports the image URL itself, since an LLM can hallucinate a URL that
  * doesn't actually exist or doesn't actually point at the poster. This mirrors
  * spotify/getPlaylistTracks.ts's approach - a real HTTP fetch and mechanical parse is the only thing
  * trusted to produce a URL that must literally resolve to real bytes.
  *
- * Only ever returns an `<img>`/`<source>` whose alt text, URL, or surrounding HTML context signals it's
- * the designed poster/flyer/artwork graphic (e.g. alt="Coachella 2027 poster", a wrapping `id="poster"`
- * container, or a filename like "Primavera-Sound-2027.jpg" matching the festival's own name - confirmed
- * live necessary: a real press article's hero image used exactly that convention with no "poster"/
- * "flyer"/"artwork" word anywhere) - never the page's og:image/twitter:image social-share meta tag. That
- * meta tag used to be the fallback here, but confirmed live - twice, on this pipeline's first two real
- * posts - that it is very often just a crowd or stage photo from a past event, not the actual poster
- * artwork; the account owner explicitly wants the real poster or nothing, not a photo mislabeled as one.
- * A page with no confidently-identifiable poster image simply returns null here, same as any other
- * extraction failure (see extractPosterImage's doc comment): that festival's poster doesn't post this
- * cycle rather than posting something that's probably wrong.
+ * Only ever returns a candidate whose own URL, alt text, or surrounding HTML context signals it's the
+ * designed poster/flyer/artwork graphic (e.g. alt="Coachella 2027 poster", a wrapping `id="poster"`
+ * container, a filename like "Primavera-Sound-2027.jpg" matching the festival's own name, or - for an
+ * og:image/twitter:image meta tag specifically - independently corroborating nearby text, see
+ * extractMetaImageCandidates). A page's og:image is never trusted just for existing: confirmed live -
+ * twice, on this pipeline's first two real posts - that it is very often just a crowd or stage photo from
+ * a past event, not the actual poster artwork; the account owner explicitly wants the real poster or
+ * nothing, not a photo mislabeled as one. A page with no confidently-identifiable poster image simply
+ * returns null here, same as any other extraction failure (see extractPosterImage's doc comment): that
+ * festival's poster doesn't post this cycle rather than posting something that's probably wrong.
  *
  * A "pick the single largest real image on the page" fallback was tried and rejected: on a real
  * (Wix-built) festival site, a press photographer's photo (6000x4000) outranked the actual poster
@@ -227,7 +267,8 @@ function extractImageCandidates(html: string, pageUrl: string, festivalName: str
  */
 /** Exported for unit testing. festivalName is optional (null skips the name-in-URL signal entirely). */
 export function extractImageUrl(html: string, pageUrl: string, festivalName: string | null = null): string | null {
-  const keywordMatch = extractImageCandidates(html, pageUrl, festivalName).find((c) => c.hasKeyword);
+  const candidates = [...extractImageCandidates(html, pageUrl, festivalName), ...extractMetaImageCandidates(html, pageUrl, festivalName)];
+  const keywordMatch = candidates.find((c) => c.hasKeyword);
   return keywordMatch?.url ?? null;
 }
 

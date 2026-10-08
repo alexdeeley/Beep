@@ -134,6 +134,22 @@ describe("extractImageUrl", () => {
       "https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg"
     );
   });
+
+  it("uses an og:image meta tag when nearby text independently corroborates it's the poster - confirmed live against a real press article whose auto-generated description said '...listed on this year's poster are...' right before the real og:image", () => {
+    const html = `
+      <meta property="og:description" content="Barcelona's festival has unveiled its lineup, and the top three headliners listed on this year's poster are Artist A, Artist B, and Artist C.">
+      <meta property="og:image" content="https://example.com/uploads/2026/10/Festival.jpeg">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Some Festival")).toBe("https://example.com/uploads/2026/10/Festival.jpeg");
+  });
+
+  it("does NOT use an og:image meta tag with no corroborating signal nearby - never reintroduces the blind og:image fallback that was removed after it posted a wrong photo twice in production", () => {
+    const html = `
+      <meta property="og:description" content="Fans enjoyed a great show this weekend.">
+      <meta property="og:image" content="https://example.com/crowd-photo.jpg">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Some Festival")).toBeNull();
+  });
 });
 
 describe("extractPosterImage", () => {
