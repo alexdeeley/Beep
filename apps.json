@@ -1575,5 +1575,14 @@
     "path": "https://soliteam.deeley.org",
     "added": "2026-10-03T06:00:00+00:00",
     "thumbnail": "thumbnails/soliteam.jpg"
+  },
+  {
+    "id": "gazillionaire",
+    "name": "Gazillionaire",
+    "description": "A single-file space trading simulation. Buy low, fly far, sell absurdly high - run a company across the galaxy, from Earth to Zorp, on six difficulties from Easy to Absurd.",
+    "category": "Games",
+    "path": "Gazillionaire.html",
+    "added": "2026-10-07T00:00:00+00:00",
+    "thumbnail": "thumbnails/gazillionaire.jpg"
   }
 ]
