@@ -72,14 +72,22 @@ interface ImageCandidate {
   hasKeyword: boolean;
 }
 
+/** Maximum extra words the URL's filename may carry beyond the festival's own name (+ typically a year) before `festivalNameMatchesUrl` gives up - see its doc comment for why this exists. */
+const MAX_EXTRA_FILENAME_WORDS = 2;
+
 /**
- * True if the festival's own name appears (word-by-word, separator-agnostic) in the candidate's URL -
- * e.g. festivalName "Primavera Sound" matches ".../uploads/2026/10/Primavera-Sound-2027.jpg". Confirmed
- * live: a real press article's hero image was uploaded under exactly this convention (festival name +
- * edition year, no "poster"/"flyer"/"artwork" word anywhere) and was otherwise unfindable. Bounded to
- * the one specific festival this extraction call is already about (never a generic trigger), so the
- * false-positive risk is low. Requires at least 2 words (or one word of 6+ characters) to avoid a short,
- * generic festival name matching unrelated URLs by coincidence.
+ * True if the URL's filename is SUBSTANTIALLY the festival's own name (word-by-word, separator-agnostic,
+ * plus a little slack for an edition year or one extra qualifier) - e.g. festivalName "Primavera Sound"
+ * matches ".../uploads/2026/10/Primavera-Sound-2027.jpg". Confirmed live necessary: a real press
+ * article's hero image was uploaded under exactly this convention, no "poster"/"flyer"/"artwork" word
+ * anywhere, and was otherwise unfindable.
+ *
+ * Deliberately checks only the filename, not the whole URL, and requires it be MOSTLY just the festival
+ * name rather than merely containing it: confirmed live that a naive "festival name appears anywhere in
+ * the URL" version produces a real false positive - some press sites name EVERY image in an article after
+ * the article's own page slug (which can legitimately contain the full festival name among a dozen other
+ * words - artist names, "ticket", "details", etc.) regardless of what that specific image actually shows,
+ * and matched an unrelated editorial photo collage this way.
  */
 function festivalNameMatchesUrl(url: string, festivalName: string): boolean {
   const words = festivalName
@@ -88,8 +96,20 @@ function festivalNameMatchesUrl(url: string, festivalName: string): boolean {
     .filter(Boolean);
   if (words.length === 0) return false;
   if (words.length === 1 && words[0]!.length < 6) return false;
+
+  let filename: string;
+  try {
+    filename = new URL(url).pathname.split("/").pop() ?? "";
+  } catch {
+    return false;
+  }
+  filename = filename.replace(/\.\w+$/, "");
+  const filenameWords = filename.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
   const pattern = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[-_]?"), "i");
-  return pattern.test(url);
+  if (!pattern.test(filename)) return false;
+
+  return filenameWords.length - words.length <= MAX_EXTRA_FILENAME_WORDS;
 }
 
 /**
@@ -106,11 +126,20 @@ function wixOriginalUrl(url: string): string {
   return idMatch ? `https://static.wixstatic.com/media/${idMatch[1]}` : url;
 }
 
-/** Picks the largest-width entry from a `srcset` attribute (e.g. "small.jpg 400w, large.jpg 1200w, huge.jpg 2000w") - the designed poster graphic is usually served at its largest resolution, not the first/smallest variant. */
+/**
+ * Picks the largest-width entry from a `srcset` attribute (e.g. "small.jpg 400w, large.jpg 1200w, huge.jpg
+ * 2000w") - the designed poster graphic is usually served at its largest resolution, not the
+ * first/smallest variant. Splits entries on a comma only when it's immediately followed by what looks
+ * like the start of the next URL (a scheme or an absolute path) - NOT on every comma. Confirmed live
+ * necessary: a real press site served Cloudinary-transformed URLs with unescaped commas INSIDE each URL's
+ * own path (".../w_760,c_limit,f_auto,.../name.jpg"), and candidate entries themselves were also
+ * comma-separated with no surrounding whitespace ("...jpg 220w,https://...") - naive comma-splitting
+ * corrupted every URL into an unrelated 404 by snapping off a path fragment after some mid-URL comma.
+ */
 function pickFromSrcset(srcset: string, pageUrl: string): string | null {
   let bestUrl: string | null = null;
   let bestWidth = -1;
-  for (const entry of srcset.split(",")) {
+  for (const entry of srcset.split(/,(?=\s*(?:https?:\/\/|\/))/)) {
     const [rawUrl, descriptor] = entry.trim().split(/\s+/, 2);
     if (!rawUrl) continue;
     const widthMatch = descriptor ? /^(\d+)w$/.exec(descriptor) : null;

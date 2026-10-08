@@ -115,6 +115,25 @@ describe("extractImageUrl", () => {
     const html = `<img src="https://example.com/hive-of-activity.jpg" alt="">`;
     expect(extractImageUrl(html, "https://example.com/lineup", "Hive")).toBeNull();
   });
+
+  it("does NOT match a filename that merely contains the festival name among many other words (e.g. an article's own URL slug) - confirmed live: a press site named an unrelated editorial photo collage after its article's full slug, which happened to include the festival name", () => {
+    const html = `<img src="https://example.com/2026/10/05/primavera-sound-barcelona-2027-lineup-ticket-details-doechii-caroline-polachek-phoebe-bridgers.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBeNull();
+  });
+
+  it("allows a small amount of slack in the filename (e.g. an edition year) without requiring an exact match", () => {
+    const html = `<img src="https://example.com/primavera-sound-2027-poster-art.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBe(
+      "https://example.com/primavera-sound-2027-poster-art.jpg"
+    );
+  });
+
+  it("resolves a real-world srcset where candidate URLs contain unescaped commas in their own path (Cloudinary-style transform params) without corrupting them - confirmed live: naive comma-splitting on srcset turned a real image URL into an unrelated 404", () => {
+    const html = `<img srcset="https://cdn.example.com/img/w_220,c_limit,f_auto/primavera-sound-poster.jpg 220w,https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg 1800w" alt="festival poster">`;
+    expect(extractImageUrl(html, "https://example.com/lineup")).toBe(
+      "https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg"
+    );
+  });
 });
 
 describe("extractPosterImage", () => {
