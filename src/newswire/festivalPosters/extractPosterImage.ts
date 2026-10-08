@@ -73,6 +73,26 @@ interface ImageCandidate {
 }
 
 /**
+ * True if the festival's own name appears (word-by-word, separator-agnostic) in the candidate's URL -
+ * e.g. festivalName "Primavera Sound" matches ".../uploads/2026/10/Primavera-Sound-2027.jpg". Confirmed
+ * live: a real press article's hero image was uploaded under exactly this convention (festival name +
+ * edition year, no "poster"/"flyer"/"artwork" word anywhere) and was otherwise unfindable. Bounded to
+ * the one specific festival this extraction call is already about (never a generic trigger), so the
+ * false-positive risk is low. Requires at least 2 words (or one word of 6+ characters) to avoid a short,
+ * generic festival name matching unrelated URLs by coincidence.
+ */
+function festivalNameMatchesUrl(url: string, festivalName: string): boolean {
+  const words = festivalName
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (words.length === 0) return false;
+  if (words.length === 1 && words[0]!.length < 6) return false;
+  const pattern = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[-_]?"), "i");
+  return pattern.test(url);
+}
+
+/**
  * Wix (and similarly-built, JS-rendered sites) serve only a tiny cropped placeholder in their SERVER
  * html (e.g. ".../v1/fill/w_46,h_24,.../name.jpg~mv2.ext") - the real, full-resolution image is
  * populated client-side only. Stripping everything after the bare "<mediaId>~mv2.ext" recovers the
@@ -113,11 +133,12 @@ function pickFromSrcset(srcset: string, pageUrl: string): string | null {
  * (preferring `srcset`'s largest variant, then `src`/`data-src`, and normalized to the full-resolution
  * original for recognized Wix media URLs), scored by a poster/flyer/artwork keyword match against its
  * own alt text plus a window of surrounding HTML (catches a wrapping `id="poster"`/`class="*poster*"`
- * container even when the tag's own attributes are generic). `<source>` tags explicitly typed
- * "image/webp" are skipped: Bluesky only accepts jpeg/png, and a webp-only candidate would otherwise
- * block a perfectly good sibling source/img in the same `<picture>`.
+ * container even when the tag's own attributes are generic), or by the festival's own name appearing in
+ * the URL (see festivalNameMatchesUrl). `<source>` tags explicitly typed "image/webp" are skipped:
+ * Bluesky only accepts jpeg/png, and a webp-only candidate would otherwise block a perfectly good
+ * sibling source/img in the same `<picture>`.
  */
-function extractImageCandidates(html: string, pageUrl: string): ImageCandidate[] {
+function extractImageCandidates(html: string, pageUrl: string, festivalName: string | null): ImageCandidate[] {
   const candidates: ImageCandidate[] = [];
   const tagPattern = /<(img|source)\b[^>]*>/gi;
   let match: RegExpExecArray | null;
@@ -144,7 +165,8 @@ function extractImageCandidates(html: string, pageUrl: string): ImageCandidate[]
     }
     if (!url) continue;
 
-    const hasKeyword = POSTER_KEYWORD_PATTERN.test(`${url} ${alt} ${context}`);
+    const hasKeyword =
+      POSTER_KEYWORD_PATTERN.test(`${url} ${alt} ${context}`) || (festivalName !== null && festivalNameMatchesUrl(url, festivalName));
     candidates.push({ url: wixOriginalUrl(url), hasKeyword });
   }
   return candidates;
@@ -159,22 +181,24 @@ function extractImageCandidates(html: string, pageUrl: string): ImageCandidate[]
  *
  * Only ever returns an `<img>`/`<source>` whose alt text, URL, or surrounding HTML context signals it's
  * the designed poster/flyer/artwork graphic (e.g. alt="Coachella 2027 poster", a wrapping `id="poster"`
- * container) - never the page's og:image/twitter:image social-share meta tag. That meta tag used to be
- * the fallback here, but confirmed live - twice, on this pipeline's first two real posts - that it is
- * very often just a crowd or stage photo from a past event, not the actual poster artwork; the account
- * owner explicitly wants the real poster or nothing, not a photo mislabeled as one. A page with no
- * confidently-identifiable poster image simply returns null here, same as any other extraction failure
- * (see extractPosterImage's doc comment): that festival's poster doesn't post this cycle rather than
- * posting something that's probably wrong.
+ * container, or a filename like "Primavera-Sound-2027.jpg" matching the festival's own name - confirmed
+ * live necessary: a real press article's hero image used exactly that convention with no "poster"/
+ * "flyer"/"artwork" word anywhere) - never the page's og:image/twitter:image social-share meta tag. That
+ * meta tag used to be the fallback here, but confirmed live - twice, on this pipeline's first two real
+ * posts - that it is very often just a crowd or stage photo from a past event, not the actual poster
+ * artwork; the account owner explicitly wants the real poster or nothing, not a photo mislabeled as one.
+ * A page with no confidently-identifiable poster image simply returns null here, same as any other
+ * extraction failure (see extractPosterImage's doc comment): that festival's poster doesn't post this
+ * cycle rather than posting something that's probably wrong.
  *
  * A "pick the single largest real image on the page" fallback was tried and rejected: on a real
  * (Wix-built) festival site, a press photographer's photo (6000x4000) outranked the actual poster
  * (4000x2378) by raw pixel area, which would have posted the exact kind of wrong image this function
  * exists to avoid.
  */
-/** Exported for unit testing. */
-export function extractImageUrl(html: string, pageUrl: string): string | null {
-  const keywordMatch = extractImageCandidates(html, pageUrl).find((c) => c.hasKeyword);
+/** Exported for unit testing. festivalName is optional (null skips the name-in-URL signal entirely). */
+export function extractImageUrl(html: string, pageUrl: string, festivalName: string | null = null): string | null {
+  const keywordMatch = extractImageCandidates(html, pageUrl, festivalName).find((c) => c.hasKeyword);
   return keywordMatch?.url ?? null;
 }
 
@@ -187,7 +211,7 @@ export function extractImageUrl(html: string, pageUrl: string): string | null {
  * the rest of the run, and the item stays unrecorded so a later cycle can retry (see
  * postFestivalPosters.ts).
  */
-export async function extractPosterImage(logger: RunLogger, pageUrl: string): Promise<ExtractedPosterImage | null> {
+export async function extractPosterImage(logger: RunLogger, pageUrl: string, festivalName: string | null = null): Promise<ExtractedPosterImage | null> {
   try {
     const pageRes = await fetch(pageUrl, {
       signal: AbortSignal.timeout(10000),
@@ -196,7 +220,7 @@ export async function extractPosterImage(logger: RunLogger, pageUrl: string): Pr
     if (!pageRes.ok) throw new Error(`HTTP ${pageRes.status} fetching announcement page`);
     const html = await pageRes.text();
 
-    const imageUrl = extractImageUrl(html, pageUrl);
+    const imageUrl = extractImageUrl(html, pageUrl, festivalName);
     if (!imageUrl) throw new Error("no usable poster image found on the announcement page");
 
     const imageRes = await fetch(imageUrl, { signal: AbortSignal.timeout(10000) });

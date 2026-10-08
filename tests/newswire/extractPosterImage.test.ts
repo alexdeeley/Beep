@@ -89,6 +89,32 @@ describe("extractImageUrl", () => {
     const html = `<img src="https://static.wixstatic.com/media/abc123~mv2.png/v1/fill/w_46,h_24,al_c,q_85/name.png" alt="festival poster">`;
     expect(extractImageUrl(html, "https://example.com/lineup")).toBe("https://static.wixstatic.com/media/abc123~mv2.png");
   });
+
+  it("matches a filename containing the festival's own name + year, with no poster/flyer/artwork keyword anywhere - confirmed live against a real press article (Clash Music's Primavera Sound 2027 coverage)", () => {
+    const html = `
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Photo-Oct-07-2026.jpg" alt="">
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Primavera-Sound-2027.jpg" alt="">
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Greenpeace.jpg" alt="">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBe(
+      "https://www.clashmusic.com/wp-content/uploads/2026/10/Primavera-Sound-2027.jpg"
+    );
+  });
+
+  it("ignores the festival-name-in-URL signal when no festivalName is passed", () => {
+    const html = `<img src="https://example.com/uploads/Primavera-Sound-2027.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup")).toBeNull();
+  });
+
+  it("does not match on a festival name that isn't actually in the URL", () => {
+    const html = `<img src="https://example.com/uploads/Primavera-Sound-2027.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Glastonbury")).toBeNull();
+  });
+
+  it("requires at least 6 characters for a single-word festival name, to avoid short generic words matching unrelated URLs", () => {
+    const html = `<img src="https://example.com/hive-of-activity.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Hive")).toBeNull();
+  });
 });
 
 describe("extractPosterImage", () => {
