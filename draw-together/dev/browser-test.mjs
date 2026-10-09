@@ -41,6 +41,12 @@ const M = await player('Maisie', { viewport: { width: 390, height: 844 }, device
 await A.page.screenshot({ path: `${OUT}/01-home-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/01-home-phone.png` });
 
+// music starts the moment there's any interaction, even on the home screen -
+// deliberately not gated on being in a game (an ambient audio landmark from
+// the very first screen, not just a gameplay effect).
+await A.page.click('#in-name');
+await sleep(150);
+ok(await A.page.evaluate(() => window.__dt.music.isPlaying()), 'background music starts on the home screen, before any game');
 
 await A.page.fill('#in-name', 'Alex');
 await A.page.click('#btn-create');
@@ -365,6 +371,7 @@ await M.page.waitForSelector('#scr-over:not([hidden])');
 await M.page.screenshot({ path: `${OUT}/16-game-over-phone.png` });
 ok(true, 'reached game over');
 await sleep(400); // let the pause-on-'over' fade finish
+ok(!(await M.page.evaluate(() => window.__dt.music.isPlaying())), 'music pauses on game over (just the chime plays)');
 
 // ── Gallery: the personal filter + remixing another player's drawing ──
 {
@@ -419,6 +426,7 @@ await M.page.click('#btn-again');
 await A.page.waitForFunction(() => window.__dt.S.st.phase === 'choosing' && window.__dt.S.st.round === 1);
 ok(true, 'play again');
 await sleep(400); // let the resume-on-next-round fade finish
+ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes once the next round starts');
 
 // lockGuesses: the drawer can hold guessing back until they say they're ready
 {
@@ -512,7 +520,6 @@ await sleep(400); // let the resume-on-next-round fade finish
   await aDr.page.screenshot({ path: `${OUT}/grid-drawer.png` });
   await aDr.page.click('#btn-grid');
   ok(await aDr.page.evaluate(() => !document.querySelector('.game').classList.contains('grid')), 'and toggles it off again');
-  ok(await P.page.evaluate(() => !document.querySelector('audio')), 'there is no music element anywhere');
   await P.ctx.close(); await Q.ctx.close();
 }
 

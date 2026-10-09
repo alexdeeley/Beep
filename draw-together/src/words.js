@@ -3422,15 +3422,14 @@ export const WORDS = [
 
 // ── Word picking ─────────────────────────────────────────────
 
-// The word-choice card (public/index.html #ov-choose, styled by .big-word
-// in styles.css) is a fixed-width card sized for a normal word or short
-// phrase. A handful of the longest Chaos-mode scenario prompts run past
-// 60 characters and would overflow that card's layout, so pickWord()
-// never offers one - see DECISIONS.md. This excludes only a tiny sliver
-// of Chaos's ~3,000 prompts (well under 1%); nothing is deleted from the
-// word bank itself, so trimming this cap back down would need nothing
-// more than editing this number.
-export const MAX_CLUE_LEN = 60;
+// The longest a clue may be. The word-choice card (public/index.html
+// #ov-choose, styled by .big-word in styles.css) is a fixed-width card sized
+// for a normal word or short phrase, and a clue should be readable at a
+// glance, so pickWord() never offers anything longer than this. No regular
+// word comes close; most Chaos-mode scenario prompts do, so Chaos draws only
+// from its shorter prompts. Nothing is deleted from the word bank itself -
+// changing the cap needs nothing more than editing this number.
+export const MAX_CLUE_LEN = 30;
 
 export function pickWord(settings, used, rand = Math.random) {
   const cats = settings.categories || ['everything'];

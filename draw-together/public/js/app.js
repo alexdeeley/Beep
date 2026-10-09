@@ -1,6 +1,7 @@
 import { Board, replay, drawPatternSwatch } from './board.js';
 import { Net } from './net.js';
 import * as snd from './sound.js';
+import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
@@ -50,8 +51,8 @@ window.visualViewport?.addEventListener('scroll', fitViewport);
 window.addEventListener('resize', fitViewport);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
-document.addEventListener('pointerdown', () => { snd.unlockAudio(); }, { capture: true });
-document.addEventListener('keydown', () => { snd.unlockAudio(); }, { capture: true });
+document.addEventListener('pointerdown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
+document.addEventListener('keydown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
 
 // A clear tap sound on any button/chip/swatch press, anywhere in the app -
 // this is an accessibility game, so every interaction gets audible
@@ -198,6 +199,7 @@ function leaveNet() {
 function goHome(message = '', forget = false) {
   leaveNet();
   S.st = null;
+  music.resume(); // harmless if it wasn't paused; undoes an over-screen pause
   store.del('dt.session', sessionStorage);
   if (forget) store.del('dt.last');
   history.replaceState(null, '', location.pathname);
@@ -299,7 +301,10 @@ function applyState(st) {
     if (st.phase === 'over' && prev) snd.play('over');
     if (st.phase === 'reveal' && st.result?.reason === 'correct' && prev) confetti();
     if (prev && prev.players.length < st.players.length && st.phase === 'lobby') snd.play('join');
+    // Game over gets quiet (just the chime above) instead of the music
     // running under it forever; the next round starting brings it back.
+    if (st.phase === 'over' && prev) music.pause();
+    if (prev?.phase === 'over' && st.phase !== 'over') music.resume();
   }
   // Guessing opening mid-round (lockGuesses) doesn't change phase or round,
   // so it needs its own transition check alongside the one above.
@@ -1183,7 +1188,7 @@ function renderMute() {
   $('btn-mute').setAttribute('aria-label', m ? 'Turn sounds on' : 'Turn sounds off');
   $('btn-mute').setAttribute('aria-pressed', m ? 'true' : 'false');
 }
-$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); });
+$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); music.refreshMute(); });
 
 // Grid: square guide-lines over the sheet, for drawing to proportion. A CSS
 // overlay only - never part of the drawing, never in the gallery. Remembered.
@@ -1272,6 +1277,6 @@ function star(c, r) {
 })();
 
 // For automated tests only: read-only peek at local state.
-window.__dt = { S, hasSketch, clearSketch };
+window.__dt = { S, music, hasSketch, clearSketch };
 
 window.addEventListener('resize', () => document.querySelectorAll('#hud-main .word, #hud-main .who').forEach(fitHud));
