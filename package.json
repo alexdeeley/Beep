@@ -20,9 +20,12 @@
     "daily": "tsx src/cli/index.ts daily",
     "news:preview": "tsx src/cli/index.ts news:preview",
     "news:publish": "tsx src/cli/index.ts news:publish",
+    "news:throwback-preview": "tsx src/cli/index.ts news:throwback-preview",
+    "news:throwback-publish": "tsx src/cli/index.ts news:throwback-publish",
     "news:status": "tsx src/cli/index.ts news:status",
     "news:delete-all-posts": "tsx src/cli/index.ts news:delete-all-posts",
     "news:post-sample": "tsx src/cli/index.ts news:post-sample",
+    "news:post-sample-batch": "tsx src/cli/index.ts news:post-sample-batch",
     "inspect": "tsx src/cli/index.ts inspect",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildAltText } from "../../src/newswire/festivalPosters/postFestivalPosters.js";
-import { buildFestivalKey } from "../../src/newswire/db/festivalPostersRepo.js";
+import { buildFestivalKey, buildThrowbackKey } from "../../src/newswire/db/festivalPostersRepo.js";
 import type { VerifiedFestivalPoster } from "../../src/newswire/types.js";
 
 function makeItem(overrides: Partial<VerifiedFestivalPoster> = {}): VerifiedFestivalPoster {
@@ -60,6 +60,11 @@ describe("buildAltText", () => {
     expect(text.startsWith("FESTIVAL LINEUP: Coachella 2027\n\n")).toBe(true);
     expect(text.endsWith("#Coachella2027 #MusicFestival #FestivalLineup")).toBe(true);
   });
+
+  it("uses a custom header label when given one (postThrowbackPoster.ts passes THROWBACK THURSDAY so a historical repost is never mistaken for a new announcement)", () => {
+    const text = buildAltText(makeItem(), "THROWBACK THURSDAY");
+    expect(text.startsWith("THROWBACK THURSDAY: Coachella 2027\n\n")).toBe(true);
+  });
 });
 
 describe("buildFestivalKey", () => {
@@ -73,5 +78,19 @@ describe("buildFestivalKey", () => {
 
   it("falls back to just the normalized name when eventYear is null", () => {
     expect(buildFestivalKey("Coachella", null)).toBe("coachella");
+  });
+});
+
+describe("buildThrowbackKey", () => {
+  it("never collides with the live pipeline's key for the same festival/year", () => {
+    expect(buildThrowbackKey("Coachella", 2027)).not.toBe(buildFestivalKey("Coachella", 2027));
+  });
+
+  it("is itself namespaced consistently so the same festival/year always maps to the same throwback key", () => {
+    expect(buildThrowbackKey("Coachella", 1999)).toBe(buildThrowbackKey("COACHELLA!!", 1999));
+  });
+
+  it("starts with the literal prefix 'throwback' so a LIKE 'throwback%' query can find all throwback rows", () => {
+    expect(buildThrowbackKey("Coachella", 1999).startsWith("throwback")).toBe(true);
   });
 });

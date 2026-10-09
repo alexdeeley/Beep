@@ -103,4 +103,24 @@ describe("downloadStoryDb / uploadStoryDb (mocked S3Client)", () => {
 
     await expect(uploadStoryDb(handle, logger, localPath)).rejects.toThrow("precondition failed");
   });
+
+  it("advances the handle's own downloadedEtag after a successful upload, so a second upload with the SAME handle uses the fresh etag rather than the stale one from the original download - postSampleFestivalBatch.ts relies on this to persist progress after every item in a long batch", async () => {
+    const localPath = join(dir, "story.db");
+    writeFileSync(localPath, "fake sqlite bytes v1");
+
+    const handle = { client: { send: sendMock } as never, bucket: "test-bucket", key: "newswire/story.db", downloadedEtag: '"original-etag"' };
+    sendMock.mockResolvedValueOnce({ ETag: '"etag-after-first-upload"' });
+
+    await uploadStoryDb(handle, logger, localPath);
+    expect(handle.downloadedEtag).toBe('"etag-after-first-upload"');
+
+    writeFileSync(localPath, "fake sqlite bytes v2");
+    sendMock.mockResolvedValueOnce({ ETag: '"etag-after-second-upload"' });
+    await uploadStoryDb(handle, logger, localPath);
+
+    expect(sendMock).toHaveBeenCalledTimes(2);
+    const secondCallArg = sendMock.mock.calls[1]![0] as { input: { IfMatch?: string } };
+    expect(secondCallArg.input.IfMatch).toBe('"etag-after-first-upload"');
+    expect(handle.downloadedEtag).toBe('"etag-after-second-upload"');
+  });
 });

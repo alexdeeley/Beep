@@ -51,3 +51,24 @@ export function getFestivalPosterCount(db: Database.Database): number {
 export function getRecentFestivalPosterPosts(db: Database.Database, limit: number): FestivalPosterPostRow[] {
   return db.prepare("SELECT * FROM festival_poster_posts ORDER BY id DESC LIMIT ?").all(limit) as FestivalPosterPostRow[];
 }
+
+const THROWBACK_KEY_PREFIX = "throwback:";
+
+/**
+ * Namespaces a festival/year dedup key under a "throwback:" prefix so Throwback Thursday posts
+ * (postThrowbackPoster.ts, any past year) and the live just-announced pipeline (postFestivalPosters.ts,
+ * always the current/upcoming edition) never collide in festival_poster_posts even if they happen to
+ * pick the exact same festival name and year - e.g. a live "Coachella 2027" announcement post and a
+ * hypothetical throwback "Coachella 2027" post (once it's old enough to be a throwback) are tracked
+ * independently. Shares the same table/row shape; only the key is distinguished.
+ */
+export function buildThrowbackKey(festivalName: string, eventYear: number | null): string {
+  return buildFestivalKey(`${THROWBACK_KEY_PREFIX}${festivalName}`, eventYear);
+}
+
+/** Recent Throwback Thursday posts only (by key prefix) - passed to discoverThrowbackPoster.ts so it can avoid picking something just featured. */
+export function getRecentThrowbackPosts(db: Database.Database, limit: number): FestivalPosterPostRow[] {
+  return db
+    .prepare("SELECT * FROM festival_poster_posts WHERE festival_key LIKE 'throwback%' ORDER BY id DESC LIMIT ?")
+    .all(limit) as FestivalPosterPostRow[];
+}

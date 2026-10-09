@@ -5,7 +5,14 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { openStoryDb, closeStoryDb } from "../../src/newswire/db/connection.js";
 import { runMigrations } from "../../src/newswire/db/migrate.js";
-import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost, getFestivalPosterCount } from "../../src/newswire/db/festivalPostersRepo.js";
+import {
+  buildFestivalKey,
+  buildThrowbackKey,
+  hasPostedFestivalPoster,
+  recordFestivalPosterPost,
+  getFestivalPosterCount,
+  getRecentThrowbackPosts,
+} from "../../src/newswire/db/festivalPostersRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
 import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
 
@@ -105,6 +112,30 @@ describe("newswire SQLite DB layer", () => {
       expect(getFestivalPosterCount(db)).toBe(1);
 
       expect(() => recordFestivalPosterPost(db, { festivalKey: key, festivalName: "Coachella", postedInRunId: run.id })).toThrow();
+    });
+
+    it("tracks throwback posts in a separate namespace from live announcement posts, never colliding on the same festival/year", () => {
+      const run = startHourlyRun(db, false);
+      const liveKey = buildFestivalKey("Coachella", 1999);
+      const throwbackKey = buildThrowbackKey("Coachella", 1999);
+      expect(liveKey).not.toBe(throwbackKey);
+
+      recordFestivalPosterPost(db, { festivalKey: liveKey, festivalName: "Coachella", postedInRunId: run.id });
+      expect(hasPostedFestivalPoster(db, throwbackKey)).toBe(false);
+
+      recordFestivalPosterPost(db, { festivalKey: throwbackKey, festivalName: "Coachella", postedInRunId: run.id });
+      expect(hasPostedFestivalPoster(db, throwbackKey)).toBe(true);
+      expect(getFestivalPosterCount(db)).toBe(2);
+    });
+
+    it("getRecentThrowbackPosts only returns throwback-namespaced rows, most recent first", () => {
+      const run = startHourlyRun(db, false);
+      recordFestivalPosterPost(db, { festivalKey: buildFestivalKey("Coachella", 2027), festivalName: "Coachella", postedInRunId: run.id });
+      recordFestivalPosterPost(db, { festivalKey: buildThrowbackKey("Woodstock", 1969), festivalName: "Woodstock", postedInRunId: run.id });
+      recordFestivalPosterPost(db, { festivalKey: buildThrowbackKey("Coachella", 1999), festivalName: "Coachella", postedInRunId: run.id });
+
+      const recent = getRecentThrowbackPosts(db, 10);
+      expect(recent.map((r) => r.festival_name)).toEqual(["Coachella", "Woodstock"]);
     });
   });
 });

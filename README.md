@@ -658,8 +658,20 @@ nothing in the current code reads or writes them.
   never persists database changes back to R2. Safe to run repeatedly.
 - **`news:publish`** — the real thing: full download → run → upload
   cycle, posting any festival poster found.
+- **`news:throwback-preview`** / **`news:throwback-publish`** — same
+  preview/publish split, for the Throwback Thursday cycle (§18.6)
+  instead of the just-announced cycle.
 - **`news:status`** — read-only summary (last run, total posters ever
   posted, the 5 most recent, recent failures).
+- **`news:post-sample --file <path> [--dry-run]`** — manually posts a
+  single, already-researched festival poster (§18.7), bypassing
+  discovery/verification.
+- **`news:post-sample-batch --dir <path> [--dry-run]`** — posts every
+  `SampleFestivalInput` JSON file found recursively under a directory,
+  back-to-back in one run (§18.7) — e.g. firing off a whole festival's
+  retrospective series at once.
+- **`news:delete-all-posts`** — permanently deletes every post on the
+  account (irreversible; gated behind `CONFIRM_DELETE_ALL_POSTS`).
 
 ### 18.5 GitHub Actions (`.github/workflows/news.yml`)
 
@@ -667,11 +679,81 @@ No wall-clock-sensitive "posting hours" gate exists anymore (unlike
 the pipeline this replaced, which needed a DST-hedged 4-cron-per-day
 pattern to reliably hit exact local hours) — a cycle just checks
 what's out there and posts whatever clears the bar, so a plain
-fixed-UTC cron is enough. The workflow is currently **paused**
-(schedule commented out, not deleted) at the account owner's request;
-`workflow_dispatch` stays available for a manual run in the meantime.
+fixed-UTC cron is enough. The schedule runs twice a day (`news:publish`)
+plus once a week on Thursday afternoon UTC for Throwback Thursday
+(detected at runtime via `github.event.schedule`, since GitHub Actions
+doesn't otherwise tell a workflow which of several cron entries fired
+it). `workflow_dispatch` also supports a manual dry run, a manual
+throwback run, posting a single committed sample file, posting a whole
+committed sample directory as a batch, and the destructive delete-all
+path — see the workflow's own `inputs` for each.
 
-### 18.6 Known limitations
+### 18.6 Throwback Thursday
+
+A second, weekly cycle (`runThrowbackCycle.ts`) runs the deliberate
+opposite of the main pipeline's "just announced" framing: once a week
+(Thursday afternoon UTC) it searches for a single real, historically
+notable or visually striking music festival poster from **any past
+year, worldwide** — the older and more interesting as graphic design,
+the better — and reposts the festival's own original artwork.
+
+- **Discovery** (`discovery/discoverThrowbackPoster.ts`) asks the
+  model for exactly one candidate (not a daily sweep), explicitly
+  telling it to favor older eras and genuinely striking poster art
+  over a plain text flyer, and passing along a short list of
+  recently-featured festival/year pairs so it doesn't immediately
+  repeat itself.
+- **Verification** (`verification/verifyThrowbackPoster.ts`) applies
+  the same 2-independent-source-domain rule as the main pipeline, but
+  with **no freshness/staleness check at all** — old is the entire
+  point, so there's nothing to reject an item for being old. It
+  confirms both that the festival edition genuinely happened in the
+  claimed year and that the specific notable fact about it is real,
+  then picks the single best page (an archive, retrospective article,
+  or the festival's own throwback content) for extraction to fetch the
+  poster from.
+- **Image extraction and publishing reuse the exact same machinery as
+  the main pipeline** — `extractPosterImage.ts` mechanically scans the
+  chosen page for a real poster/flyer/artwork signal (never an
+  LLM-reported URL), and the post is image-only with the full caption
+  in alt text (`buildAltText`, headed `THROWBACK THURSDAY:` instead of
+  `FESTIVAL LINEUP:` so a historical repost is never mistaken for a
+  new announcement).
+- **Dedup is namespaced separately from the main pipeline**
+  (`db/festivalPostersRepo.ts`'s `buildThrowbackKey`, a `throwback:`
+  prefix over the same normalized-name-plus-year key) so a throwback
+  post and a live announcement for the same festival/year can never
+  collide or be mistaken for each other.
+- A week with no sufficiently-verifiable candidate is a no-op, exactly
+  like a day with no new announcement — skipping is always preferred
+  over guessing wrong.
+
+### 18.7 Manual and batch sample posting
+
+`postSampleFestival.ts` (`news:post-sample`) lets the account owner
+manually curate a specific festival poster post — e.g. "use this
+week's Primavera Sound announcement for a demo post" — without waiting
+for the autonomous pipeline's own web search to happen to surface it.
+It takes a small JSON file (`festivalName`, `eventYear`, `blurb`,
+`lineupArtists`, `primarySourceUrl`) and still runs the real
+mechanical `extractPosterImage.ts` against that URL, still records the
+same per-edition idempotency row, and still writes the same audit
+trail as a normal cycle — the only thing it skips is discovery/
+verification, because the research was already done by hand.
+
+`postSampleFestivalBatch.ts` (`news:post-sample-batch --dir <path>`)
+is the same idea at scale: it posts every `SampleFestivalInput` JSON
+file found recursively under a directory, back-to-back in one run,
+rather than one CLI invocation per item. This is what powers posting
+an entire festival's retrospective series (e.g. every verifiable year
+of Coachella) "all at once" rather than spread over days — the story
+database is downloaded once and re-uploaded after **every** successful
+post (not just once at the end), so a crash partway through a long
+batch can't lose already-published items' dedup records and risk a
+duplicate on retry. One item failing (extraction miss, network error,
+already posted) never stops the rest of the batch.
+
+### 18.8 Known limitations
 
 - **Posting frequency is intentionally low.** A genuinely major
   festival dropping a new lineup is a rare event — expect long

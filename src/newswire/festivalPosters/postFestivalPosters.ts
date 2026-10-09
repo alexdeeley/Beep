@@ -58,11 +58,14 @@ function buildLineupLine(lineupArtists: string[]): string {
  * site, which always passes an empty string as the actual post text. Alt text has no AT Protocol length
  * limit (unlike the 300-grapheme visible-post cap elsewhere in this pipeline), so this is never
  * truncated.
+ *
+ * headerLabel defaults to "FESTIVAL LINEUP" (the just-announced pipeline's framing); postThrowbackPoster.ts
+ * passes "THROWBACK THURSDAY" instead so a historical repost is never mistaken for a new announcement.
  */
-export function buildAltText(item: VerifiedFestivalPoster): string {
+export function buildAltText(item: VerifiedFestivalPoster, headerLabel: string = "FESTIVAL LINEUP"): string {
   const name = cleanFestivalName(item.festivalName, item.eventYear);
   const label = item.eventYear ? `${name} ${item.eventYear}` : name;
-  const header = `FESTIVAL LINEUP: ${label}\n\n`;
+  const header = `${headerLabel}: ${label}\n\n`;
   const lineupLine = buildLineupLine(item.lineupArtists);
   const hashtagLine = buildHashtagLine(item);
   const blurb = item.blurb!;

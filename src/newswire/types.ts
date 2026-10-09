@@ -50,3 +50,33 @@ export interface VerifiedFestivalPoster {
   facts: VerifiedFact[];
   meetsSourceBar: boolean;
 }
+
+/**
+ * One raw candidate surfaced by discoverThrowbackPoster - a single real, historically notable music
+ * festival poster from ANY past year (deliberately the opposite of FestivalPosterCandidate's "just
+ * announced" framing - there is no freshness requirement here, and in fact the whole point is that it's
+ * old). eventYear is required (not nullable) since a throwback post is meaningless without knowing which
+ * edition it's from.
+ */
+export interface ThrowbackPosterCandidate {
+  festivalName: string;
+  eventYear: number;
+  whyNotable: string;
+  sources: ReportedSource[];
+}
+
+/**
+ * Output of verifyThrowbackPoster: a throwback candidate independently re-confirmed (the festival edition
+ * genuinely happened that year, and the notable fact is real) via the same 2-source rule, but with no
+ * freshness/staleness check at all - unlike VerifiedFestivalPoster, old is the point. `primarySourceUrl`
+ * is the single best page to mechanically extract the actual poster image from (an archive, retrospective
+ * article, or the festival's own throwback content).
+ */
+export interface VerifiedThrowbackPoster {
+  festivalName: string;
+  eventYear: number;
+  blurb: string | null;
+  lineupArtists: string[];
+  primarySourceUrl: string | null;
+  meetsSourceBar: boolean;
+}
