@@ -10,3 +10,6 @@ runs/*
 
 *.log
 .DS_Store
+
+# wrangler dev state
+.wrangler/
