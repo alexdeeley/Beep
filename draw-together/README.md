@@ -85,7 +85,7 @@ dev/                 Local server emulator and test harnesses
 
 **Invert colors (accessibility).** A per-device toggle (home screen, in-game HUD, and the gallery page) that inverts the whole page - `filter: invert(1) hue-rotate(180deg)` on `<html>` - for light sensitivity or low vision, while the drawing itself stays true to its real colors: the `.sheet` canvases and the color/tool pickers get the exact same filter applied a second time, which cancels out precisely (invert-of-invert is the original, pixel for pixel). So if one player draws a yellow sun, it looks yellow on every screen watching, whether or not that screen has inverted colors on. Persisted in `localStorage` (`public/js/a11y.js`), same pattern as the mute button.
 
-**Sound as an accessibility feature, not decoration.** Background music (`public/js/music.js`) plays everywhere in the app - the home screen and lobby included, not just mid-game - as a two-track playlist that alternates forever (track A through, then B, then back to A). It pauses on the game-over screen so a finished game ends on its chime instead of the music running under it forever, and picks the same track back up (not a restart) once the next round actually begins. Every button, chip, and color swatch anywhere in the app gets a clear, deliberately prominent tap sound on press, so an interaction is always confirmed audibly, not just visually. And while a round is being drawn, the guesser hears a soft pencil-scratch texture (filtered noise, not a musical tone, so it doesn't get confused with the other cues) synced to the drawer's actual pen movement - live strokes are audible as they happen, not just visible. All of it shares the same mute button and the same synthesized-sound approach as the rest of the game (no samples for effects; the two music tracks are the only actual audio files, both user-supplied).
+**Sound as an accessibility feature, not decoration.** There is no background music - only short synthesized cues that mean something: a tap registered, a guess was close, the pen is moving on someone else's screen, the round started, guessing opened.
 
 ## Protocol
 
@@ -165,10 +165,10 @@ Server → client: `state` (tailored per player; only the drawer's copy contains
 24. Chaos difficulty surfaces the expansion-pack scenario prompts; Mixed never does.
 25. Gallery: every drawing from the game appears, replays correctly, downloads as a PNG, and the share button + QR code both work.
 26. Invert-colors toggle flips the page's colors and is remembered across reload; the drawing itself (and the color/tool pickers) look identical whether it's on or off.
-27. Background music is audible on the home screen and lobby, not just mid-game, and switches to the other track once the current one finishes.
+27. With "Let people guess" on, guessing opens by itself one minute after the drawer starts if they never press the button, and every screen hears a small bell when that happens.
 28. Every button/chip/swatch press has an audible tap sound.
 29. Guessing while someone draws: a soft pen-movement sound is audible in time with the drawer's strokes, distinct from every other sound cue.
-30. Game over: music pauses (just the chime plays); Play Again brings the music back once the next round starts.
+30. While the drawer is picking a word, guessers get a private scratchpad on the board to doodle on; it is wiped the moment the round starts and is never sent anywhere. A grid button in the HUD overlays square guide-lines on the sheet (a CSS overlay, never part of the drawing).
 31. Choosing a word: "Try another word" cycles through 5 options; going past the 5th pulls a fresh batch of 5 rather than repeating any of the ones just seen.
 32. "Let the drawer finish first" setting: guessers see "Hang tight!" with the guess box disabled and no timer running until the drawer taps "Let people guess"; then the timer starts fresh and guessing opens for everyone at once.
 33. Quick reactions: tapping an emoji shows it on every screen (including the drawer's) and it's gone in about a second - much quicker than a guess bubble.

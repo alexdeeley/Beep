@@ -1,7 +1,6 @@
 import { Board, replay, drawPatternSwatch } from './board.js';
 import { Net } from './net.js';
 import * as snd from './sound.js';
-import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
@@ -51,8 +50,8 @@ window.visualViewport?.addEventListener('scroll', fitViewport);
 window.addEventListener('resize', fitViewport);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
-document.addEventListener('pointerdown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
-document.addEventListener('keydown', () => { snd.unlockAudio(); music.init(); }, { capture: true });
+document.addEventListener('pointerdown', () => { snd.unlockAudio(); }, { capture: true });
+document.addEventListener('keydown', () => { snd.unlockAudio(); }, { capture: true });
 
 // A clear tap sound on any button/chip/swatch press, anywhere in the app -
 // this is an accessibility game, so every interaction gets audible
@@ -199,7 +198,6 @@ function leaveNet() {
 function goHome(message = '', forget = false) {
   leaveNet();
   S.st = null;
-  music.resume(); // harmless if it wasn't paused; undoes an over-screen pause
   store.del('dt.session', sessionStorage);
   if (forget) store.del('dt.last');
   history.replaceState(null, '', location.pathname);
@@ -274,6 +272,7 @@ function onMessage(m) {
       if (m.kind === 'back') { snd.play('join'); }
       if (m.kind === 'left') { flashBanner(`${m.name} left the game.`); }
       if (m.kind === 'saved') { snd.play('pop'); flashBanner(`${m.name} saved the drawing to the gallery 🖼️`); }
+      if (m.kind === 'autoUnlock') { S.autoUnlockedAt = performance.now(); snd.play('ding'); flashBanner('🔔 Ding! Time is up - everyone can guess now'); }
       break;
   }
 }
@@ -300,15 +299,12 @@ function applyState(st) {
     if (st.phase === 'over' && prev) snd.play('over');
     if (st.phase === 'reveal' && st.result?.reason === 'correct' && prev) confetti();
     if (prev && prev.players.length < st.players.length && st.phase === 'lobby') snd.play('join');
-    // Game over gets quiet (just the chime above) instead of the music
     // running under it forever; the next round starting brings it back.
-    if (st.phase === 'over' && prev) music.pause();
-    if (prev?.phase === 'over' && st.phase !== 'over') music.resume();
   }
   // Guessing opening mid-round (lockGuesses) doesn't change phase or round,
   // so it needs its own transition check alongside the one above.
   if (prev?.phase === 'drawing' && st.phase === 'drawing' && prev.guessesLocked && !st.guessesLocked) {
-    snd.play('start');
+    if (!(S.autoUnlockedAt && performance.now() - S.autoUnlockedAt < 2000)) snd.play('start');   // the bell already said it
   }
 
   if (S.wantStudio && st.phase === 'lobby' && st.you === st.host) {
@@ -456,7 +452,7 @@ function leaveGame() {
 
 const gameEl = $('scr-game');
 S.board = new Board($('board-host'), {
-  onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; },
+  onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; sketchCanvas.width = S.board.base.width; sketchCanvas.height = S.board.base.height; drawSketch(); },
 });
 
 // ── Emoji tracing guide (opt-in lobby setting) ────────────────
@@ -487,6 +483,47 @@ ghostCanvas.className = 'layer ghost';
 ghostCanvas.setAttribute('aria-hidden', 'true');
 S.board.sheet.append(ghostCanvas);
 const gctx = ghostCanvas.getContext('2d');
+
+// ── Scratchpad: guessers doodle for themselves while the drawer picks ──
+//
+// Local only: nothing is sent, nothing is saved, and it is wiped the moment
+// the round starts (see renderGame). Its own layer above the real ink.
+const sketchCanvas = document.createElement('canvas');
+sketchCanvas.className = 'layer sketch';
+sketchCanvas.setAttribute('aria-hidden', 'true');
+S.board.sheet.append(sketchCanvas);
+const sctx = sketchCanvas.getContext('2d');
+const sketchNote = document.createElement('div');
+sketchNote.className = 'sketch-note';
+sketchNote.hidden = true;
+sketchNote.innerHTML = '<span>✏️ Scratchpad - just for you, gone when the round starts</span><button class="btn small ghost" id="btn-sketch-clear" type="button">Clear</button>';
+S.board.sheet.append(sketchNote);
+sketchNote.querySelector('#btn-sketch-clear').addEventListener('click', () => { clearSketch(); snd.play('pop'); });
+const sketchStrokes = [];   // [{ pts }] in board coordinates
+function drawSketch() {
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+  sctx.save();
+  sctx.setTransform(S.board.scale, 0, 0, S.board.scale, 0, 0);
+  sctx.strokeStyle = sctx.fillStyle = colorOf(S.st?.you ?? 0);
+  sctx.lineCap = 'round'; sctx.lineJoin = 'round'; sctx.lineWidth = 14;
+  for (const st of sketchStrokes) {
+    const p = S.board.unitPoints(st.pts);
+    const n = p.length / 2;
+    if (n === 1) { sctx.beginPath(); sctx.arc(p[0], p[1], 7, 0, Math.PI * 2); sctx.fill(); continue; }
+    sctx.beginPath(); sctx.moveTo(p[0], p[1]);
+    for (let i = 1; i < n; i++) sctx.lineTo(p[i * 2], p[i * 2 + 1]);
+    sctx.stroke();
+  }
+  sctx.restore();
+}
+function clearSketch() {
+  sketchStrokes.length = 0;
+  S.sketch = null;
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+}
+const hasSketch = () => sketchStrokes.length > 0;
 
 const ghosts = new Map(); // stroke id -> { seat, pts, ended, lastAt, endAt }
 const GHOST_LINGER_MS = 10000; // how long a finished mark hangs around before fading
@@ -613,6 +650,10 @@ function renderGame(prev, phaseChanged) {
   gameEl.classList.toggle('drawer', drawer);
   gameEl.classList.toggle('guesser', !drawer);
   gameEl.classList.toggle('blocked', !(drawer && st.phase === 'drawing'));
+  const sketching = st.phase === 'choosing' && !drawer;
+  gameEl.classList.toggle('sketching', sketching);
+  sketchNote.hidden = !sketching;
+  if (phaseChanged && !sketching) clearSketch();
   $('tray').hidden = !drawer;
   $('guessbar').hidden = drawer;
 
@@ -622,12 +663,15 @@ function renderGame(prev, phaseChanged) {
   const waitingToGuess = st.phase === 'drawing' && st.guessesLocked;
   if (drawer && st.word) {
     main.innerHTML = `<span class="lbl">Draw:</span><span class="word">${esc(st.word.w)} ${st.word.e}</span>` +
-      (waitingToGuess ? `<button class="btn small green" id="btn-unlock" type="button">Let people guess</button>` : '');
+      (waitingToGuess ? `<button class="btn small green" id="btn-unlock" type="button">Let people guess <span id="unlock-left" class="unlock-left"></span></button>` : '');
     fitHud(main.querySelector('.word'));
     $('btn-unlock')?.addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'unlock' }); });
+  } else if (!drawer && st.phase === 'choosing') {
+    main.innerHTML = `<span class="lbl">Doodle while you wait!</span><span class="who">${esc(nameOf(st.drawerSeat))} is picking a word…</span>`;
+    fitHud(main.querySelector('.who'));
   } else if (!drawer) {
     main.innerHTML = waitingToGuess
-      ? `<span class="lbl">Hang tight!</span><span class="who">${esc(nameOf(st.drawerSeat))} is finishing up…</span>`
+      ? `<span class="lbl">Hang tight!</span><span class="who">${esc(nameOf(st.drawerSeat))} is finishing up… <span id="unlock-left" class="unlock-left"></span></span>`
       : `<span class="lbl">Guess it!</span><span class="who">${esc(nameOf(st.drawerSeat))} is drawing…</span>`;
     fitHud(main.querySelector('.who'));
   } else {
@@ -678,11 +722,7 @@ function renderGame(prev, phaseChanged) {
       });
       $('btn-swap').addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'swap' }); });
     } else {
-      $('choose-body').innerHTML = `
-        <p>Round ${st.round}</p>
-        <div class="pencil-bob" aria-hidden="true">✏️</div>
-        <h2>${esc(nameOf(st.drawerSeat))} is getting ready to draw…</h2>
-        <p>Get your guessing brain ready!</p>`;
+      ch.hidden = true;        // guessers get the board as a scratchpad instead of a card over it
     }
   } else ch.hidden = true;
 
@@ -738,6 +778,18 @@ function updateTimer() {
   S.lastTickSec = sec;
 }
 setInterval(updateTimer, 200);
+
+// Guessing opens by itself a minute after the drawer starts (see the
+// server's autoUnlockMs): show everyone how long that is.
+function updateUnlockLeft() {
+  const el = $('unlock-left');
+  if (!el) return;
+  const at = S.st?.unlockAt;
+  if (!at) { el.textContent = ''; return; }
+  const s = Math.max(0, Math.ceil((at - Date.now()) / 1000));
+  el.textContent = `(${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')})`;
+}
+setInterval(updateUnlockLeft, 250);
 
 // ── Drawing tools ───────────────────────────────────────────
 
@@ -858,6 +910,8 @@ const canDraw = () => S.net?.isOpen && ((S.st?.phase === 'drawing' && amDrawer()
 // Anyone who ISN'T the drawer can doodle instead - a separate, ephemeral
 // mark (see the ghost-doodle block above), never the real drawing.
 const canDoodle = () => S.st?.phase === 'drawing' && !amDrawer() && S.net?.isOpen;
+// ...and while the drawer is still choosing, a private scratchpad.
+const canSketch = () => S.st?.phase === 'choosing' && !amDrawer();
 const MIN_STEP = 10; // in 0..10000 board coordinates
 
 sheet.addEventListener('pointerdown', (e) => {
@@ -893,8 +947,27 @@ sheet.addEventListener('pointerdown', (e) => {
     const id = rid();
     S.doodle = { id, pointerId: e.pointerId, lx: x, ly: y, pending: [], raf: 0 };
     S.net.send({ type: 'doodleStart', id, pts: [x, y] });
+  } else if (canSketch() && !S.sketch) {
+    e.preventDefault();
+    try { sheet.setPointerCapture(e.pointerId); } catch {}
+    const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+    const st = { pts: [x, y] };
+    sketchStrokes.push(st);
+    S.sketch = { pointerId: e.pointerId, lx: x, ly: y, st };
+    drawSketch();
   }
 });
+sheet.addEventListener('pointermove', (e) => {
+  const k = S.sketch;
+  if (!k || e.pointerId !== k.pointerId) return;
+  e.preventDefault();
+  const [x, y] = S.board.toBoard(e.clientX, e.clientY);
+  if (Math.abs(x - k.lx) + Math.abs(y - k.ly) < MIN_STEP) return;
+  k.lx = x; k.ly = y;
+  k.st.pts.push(x, y);
+  drawSketch();
+});
+for (const ev of ['pointerup', 'pointercancel']) sheet.addEventListener(ev, (e) => { if (S.sketch && e.pointerId === S.sketch.pointerId) S.sketch = null; });
 
 sheet.addEventListener('pointermove', (e) => {
   if (e.pointerType === 'pen') S.lastPen = performance.now();
@@ -1110,7 +1183,18 @@ function renderMute() {
   $('btn-mute').setAttribute('aria-label', m ? 'Turn sounds on' : 'Turn sounds off');
   $('btn-mute').setAttribute('aria-pressed', m ? 'true' : 'false');
 }
-$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); music.refreshMute(); });
+$('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); });
+
+// Grid: square guide-lines over the sheet, for drawing to proportion. A CSS
+// overlay only - never part of the drawing, never in the gallery. Remembered.
+function setGrid(on) {
+  gameEl.classList.toggle('grid', on);
+  $('btn-grid').setAttribute('aria-pressed', String(on));
+  $('btn-grid').setAttribute('aria-label', on ? 'Hide the grid' : 'Show a grid over the drawing');
+  try { localStorage.setItem('dt.grid', on ? '1' : '0'); } catch {}
+}
+$('btn-grid').addEventListener('click', () => setGrid(!gameEl.classList.contains('grid')));
+try { if (localStorage.getItem('dt.grid') === '1') setGrid(true); } catch {}
 renderMute();
 $('btn-quit').addEventListener('click', () => confirmBox('Leave the game?', leaveGame));
 initInvertToggle($('btn-a11y-home'), $('btn-a11y-hud'));
@@ -1188,6 +1272,6 @@ function star(c, r) {
 })();
 
 // For automated tests only: read-only peek at local state.
-window.__dt = { S, music };
+window.__dt = { S, hasSketch, clearSketch };
 
 window.addEventListener('resize', () => document.querySelectorAll('#hud-main .word, #hud-main .who').forEach(fitHud));

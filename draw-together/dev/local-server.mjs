@@ -7,6 +7,8 @@
 // Object namespace, storage, alarms, and hibernatable WebSockets.
 // For the real thing use `npx wrangler dev` (see README).
 
+if (process.env.AUTO_UNLOCK_MS) globalThis.__DT_AUTO_UNLOCK_MS = Number(process.env.AUTO_UNLOCK_MS);   // tests: a shorter wait before guessing opens by itself
+
 import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
