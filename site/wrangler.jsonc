@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deeley-site",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+
+  // The main site (deeley.org) as static files served straight from
+  // Cloudflare's edge - no origin to stall. `node build.mjs` gathers the
+  // repository root into ./dist, leaving out sources, tooling and the apps
+  // that live on their own subdomains (see build.mjs for the list).
+  // The small Worker in src/worker.js looks files up itself (so /About and
+  // /About.html both serve, with no redirects - as GitHub Pages did).
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+  "build": { "command": "node build.mjs" },
+  "observability": { "enabled": true },
+
+  // A route (not a custom domain) so the existing DNS record is left alone:
+  // remove the route and the site falls straight back to GitHub Pages.
+  "routes": [{ "pattern": "deeley.org/*", "zone_name": "deeley.org" }]
+}
