@@ -13,7 +13,7 @@ on:
       app:
         description: Which app to deploy
         type: choice
-        options: [arkanoid-duel, gallery, soliteam, both, diagnose]
+        options: [arkanoid-duel, gallery, soliteam, draw-together, both, diagnose]
         default: arkanoid-duel
 
 concurrency:
@@ -104,6 +104,30 @@ jobs:
             sleep 10
           done
           echo "::warning::Deployed, but https://soliteam.deeley.org/health did not answer yet (a new custom domain can take a few minutes)"
+
+  draw-together:
+    if: inputs.app == 'draw-together' || inputs.app == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: draw-together
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API (or CLOUDFLARE_API_TOKEN) repository secret first"; exit 1; }
+      - run: npm install
+      - run: npm test
+      - name: Deploy
+        run: npx wrangler deploy
+      - name: Smoke test
+        run: curl -fsS -o /dev/null https://draw.deeley.org/ && echo "draw.deeley.org answers"
 
   # Read-only checks: what can the token actually do? Prints results only, never the token.
   diagnose:
