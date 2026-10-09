@@ -1,0 +1,14 @@
+{
+  "festivalName": "Woodstock",
+  "eventYear": 1994,
+  "blurb": "Woodstock '94, the 25th-anniversary edition promoted as \"2 More Days of Peace and Music,\" was held August 12-14, 1994 at Winston Farm near Saugerties, New York, headlined by Peter Gabriel, Bob Dylan, Nine Inch Nails, Metallica, Aerosmith, and Red Hot Chili Peppers.",
+  "lineupArtists": [
+    "Peter Gabriel",
+    "Bob Dylan",
+    "Nine Inch Nails",
+    "Metallica",
+    "Aerosmith",
+    "Red Hot Chili Peppers"
+  ],
+  "primarySourceUrl": "https://en.wikipedia.org/wiki/Woodstock_%2794"
+}
