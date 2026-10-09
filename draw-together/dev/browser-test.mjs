@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = await import(process.env.PW || 'playwright');
-const PORT = 8797, URL0 = `http://localhost:${PORT}/`;
+const PORT = Number(process.env.PORT || 8797), URL0 = `http://localhost:${PORT}/`;
 const OUT = process.env.SHOTS || '/tmp/shots';
 fs.mkdirSync(OUT, { recursive: true });
 let pass = 0, fail = 0;
@@ -16,7 +16,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Whole-word match, so a short secret word ("Cat") isn't "found" inside ordinary protocol text ("categories").
 const leaks = (text, w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text);
 
-const srv = spawn('node', [path.join(ROOT, 'dev/local-server.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'inherit'] });
+const srv = spawn('node', [path.join(ROOT, 'dev/local-server.mjs')], { env: { ...process.env, PORT: String(PORT), AUTO_UNLOCK_MS: '4000' }, stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((r) => srv.stdout.once('data', r));
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -73,7 +73,7 @@ await A.page.screenshot({ path: `${OUT}/04-lobby-host-tablet.png` });
 // Round 1: Alex draws on the tablet
 await A.page.click('#btn-start');
 await A.page.waitForSelector('#ov-choose:not([hidden]) #btn-ready');
-await M.page.waitForSelector('#ov-choose:not([hidden])');
+await M.page.waitForFunction(() => document.querySelector('.game')?.classList.contains('sketching'));   // the guesser's board is a scratchpad while the drawer picks
 await A.page.screenshot({ path: `${OUT}/05-your-word-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/05-waiting-phone.png` });
 // word choices: 5 cycling options; running past the 5th pulls a fresh batch
@@ -460,6 +460,67 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   await Gu.page.click('#btn-guess');
   await Gu.page.waitForSelector('#ov-reveal:not([hidden])');
   ok(true, 'guessing works normally once the drawer unlocks it');
+}
+
+// Guessing opens by itself (with a bell) when the drawer never presses the
+// button; a private scratchpad for guessers while the drawer picks; the grid.
+{
+  const P = await player('Pat', { viewport: { width: 1000, height: 800 } });
+  const Q = await player('Quinn', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await P.page.fill('#in-name', 'Pat');
+  await P.page.click('#btn-create');
+  await P.page.waitForSelector('#scr-lobby:not([hidden])');
+  const autoCode = (await P.page.textContent('#lobby-code')).trim();
+  await P.page.click('#set-lock button:text("Let the drawer finish first")');
+  await Q.page.fill('#in-name', 'Quinn');
+  await Q.page.click('#btn-join');
+  await Q.page.fill('#in-code', autoCode);
+  await Q.page.click('#btn-join-go');
+  await P.page.waitForSelector('#btn-start:not([hidden])');
+  await P.page.click('#btn-start');
+  await P.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing');
+  await Q.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing');
+  const drawerIsPat = await P.page.evaluate(() => window.__dt.S.st.you === window.__dt.S.st.drawerSeat);
+  const aDr = drawerIsPat ? P : Q, aGu = drawerIsPat ? Q : P;
+
+  // scratchpad while the drawer is choosing
+  ok(await aGu.page.evaluate(() => document.getElementById('ov-choose').hidden && document.querySelector('.game').classList.contains('sketching')), 'guesser gets the board as a scratchpad, not a card over it, while the drawer picks');
+  ok((await aGu.page.textContent('#hud-main')).includes('Doodle while you wait'), 'and is invited to doodle');
+  const sheet = await aGu.page.locator('.sheet').boundingBox();
+  const touch = aGu === Q;
+  const cx = sheet.x + sheet.width * 0.4, cy = sheet.y + sheet.height * 0.4;
+  await aGu.page.mouse.move(cx, cy); await aGu.page.mouse.down(); await aGu.page.mouse.move(cx + 60, cy + 40, { steps: 6 }); await aGu.page.mouse.move(cx + 120, cy + 10, { steps: 6 }); await aGu.page.mouse.up();
+  void touch;
+  ok(await aGu.page.evaluate(() => window.__dt.hasSketch()), 'the guesser can doodle on it');
+  ok(await aGu.page.evaluate(() => { const c = document.querySelector('.layer.sketch'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; }), 'and the doodle is actually on the scratchpad layer');
+  ok(await aDr.page.evaluate(() => !window.__dt.hasSketch()), 'nothing of it reaches the drawer');
+
+  // the round starts: the doodle is gone, and the clock to auto-open is shown
+  await aDr.page.click('#btn-ready');
+  await aGu.page.waitForFunction(() => window.__dt.S.st.phase === 'drawing');
+  await sleep(200);
+  ok(await aGu.page.evaluate(() => !window.__dt.hasSketch() && !document.querySelector('.game').classList.contains('sketching')), 'the scratchpad is wiped the moment the round starts');
+  ok(await aGu.page.evaluate(() => window.__dt.S.st.guessesLocked === true && typeof window.__dt.S.st.unlockAt === 'number'), 'guessing is locked, with a time it will open by itself');
+  await sleep(400);
+  ok(/\(\d:\d\d\)/.test(await aGu.page.textContent('#hud-main')), `the guesser sees the countdown (${(await aGu.page.textContent('#hud-main')).trim().replace(/\s+/g, ' ')})`);
+  ok(/\(\d:\d\d\)/.test(await aDr.page.textContent('#btn-unlock')), 'and so does the drawer, on the button');
+
+  // the drawer never presses it: guessing opens anyway, and both hear the bell
+  await aGu.page.waitForFunction(() => window.__dt.S.st.guessesLocked === false, null, { timeout: 15000 });
+  ok(true, 'guessing opened by itself without the drawer pressing anything');
+  await sleep(200);
+  ok(await aGu.page.evaluate(() => !!window.__dt.S.autoUnlockedAt) && await aDr.page.evaluate(() => !!window.__dt.S.autoUnlockedAt), 'both screens got the bell event');
+  ok(!(await aGu.page.evaluate(() => document.getElementById('in-guess').disabled)), 'and the guesser can guess');
+  ok(await aGu.page.evaluate(() => !document.getElementById('banner').hidden && /Ding/.test(document.getElementById('banner').textContent)), 'with a banner saying so');
+
+  // the grid
+  ok(await aDr.page.evaluate(() => !document.querySelector('.game').classList.contains('grid')), 'the grid is off to begin with');
+  await aDr.page.click('#btn-grid');
+  ok(await aDr.page.evaluate(() => document.querySelector('.game').classList.contains('grid') && document.getElementById('btn-grid').getAttribute('aria-pressed') === 'true' && localStorage.getItem('dt.grid') === '1'), 'the grid button overlays a grid and remembers it');
+  await aDr.page.screenshot({ path: `${OUT}/grid-drawer.png` });
+  await aDr.page.click('#btn-grid');
+  ok(await aDr.page.evaluate(() => !document.querySelector('.game').classList.contains('grid')), 'and toggles it off again');
+  await P.ctx.close(); await Q.ctx.close();
 }
 
 // Emoji tracing guide: drawer-only, never leaked to the guesser

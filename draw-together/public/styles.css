@@ -579,3 +579,38 @@ html.a11y-invert #sizes .blob {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ── Grid: an optional guide over the sheet (a CSS overlay, never part of
+   the drawing or the gallery). Square cells, whatever the board's shape. ── */
+.game.grid #board-host .sheet::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  --cell: clamp(28px, 7vmin, 56px);
+  background-image:
+    linear-gradient(to right, rgba(20, 24, 60, .16) 1.5px, transparent 1.5px),
+    linear-gradient(to bottom, rgba(20, 24, 60, .16) 1.5px, transparent 1.5px);
+  background-size: var(--cell) var(--cell);
+  background-position: center center;
+}
+.game.grid #board-host .sheet::before {
+  /* a heavier line every fourth cell, so the eye can count */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  --cell: clamp(28px, 7vmin, 56px);
+  background-image:
+    linear-gradient(to right, rgba(20, 24, 60, .28) 2px, transparent 2px),
+    linear-gradient(to bottom, rgba(20, 24, 60, .28) 2px, transparent 2px);
+  background-size: calc(var(--cell) * 4) calc(var(--cell) * 4);
+  background-position: center center;
+}
+#btn-grid[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+/* ── Scratchpad: guessers doodle for themselves while the drawer picks a
+   word. Local only, never sent, wiped the moment the round starts. ── */
+.sheet .layer.sketch { pointer-events: none; }
+.game.sketching .sheet { cursor: crosshair; }
+.sketch-note {
+  position: absolute; left: 10px; top: 10px; z-index: 6; display: flex; gap: 8px; align-items: center;
+  background: var(--ink); color: var(--paper); font-weight: 800; font-size: .85rem; letter-spacing: .02em;
+  padding: 6px 10px; border-radius: 999px; pointer-events: none; opacity: .92;
+}
+.sketch-note .btn { pointer-events: auto; padding: 2px 8px; min-height: 0; font-size: .8rem; }
+.sketch-note[hidden] { display: none; }

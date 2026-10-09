@@ -82,6 +82,15 @@ const SOUNDS = {
     [523, 587, 659, 784, 880, 1047].forEach((f, i) => tone(f, i * 0.11, 0.35, { type: 'triangle', vol: 0.22 }));
   },
   pop() { tone(700, 0, 0.06, { type: 'sine', vol: 0.12, slide: 1.6 }); },
+  // A small, bright bell - "guessing is open now" when the clock opened it
+  // rather than the drawer. Deliberately unlike 'start' so the two are not
+  // confused: one clear strike with a shimmer on top, not a rising run.
+  ding() {
+    tone(1319, 0, 0.55, { type: 'sine', vol: 0.3 });
+    tone(1760, 0.015, 0.7, { type: 'sine', vol: 0.14 });
+    tone(2637, 0.03, 0.45, { type: 'sine', vol: 0.07 });
+    tone(1319, 0.42, 0.5, { type: 'sine', vol: 0.18 });
+  },
   // A clear, confident click for any button press - deliberately more
   // prominent than the other cues, since it's the main auditory confirmation
   // that a tap actually registered.

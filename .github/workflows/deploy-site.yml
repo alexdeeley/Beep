@@ -1,0 +1,57 @@
+name: Deploy site to Cloudflare
+
+# Publishes the main site (the repository root) to Cloudflare as static
+# assets on deeley.org - see site/README.md. Runs on every push to main
+# that touches site content, and by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "src/**"
+      - "tests/**"
+      - "samples/**"
+      - "templates/**"
+      - "runs/**"
+      - "arkanoid-duel/**"
+      - "soliteam/**"
+      - "draw-together/**"
+      - "gallery/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+      - ".env.example"
+      - "README.md"
+      - ".github/workflows/daily.yml"
+      - ".github/workflows/news.yml"
+      - ".github/workflows/deploy-workers.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: cloudflare-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API (or CLOUDFLARE_API_TOKEN) repository secret first"; exit 1; }
+      - run: npm install
+      - name: Deploy
+        run: npx wrangler deploy
+      - name: Smoke test
+        run: |
+          curl -fsS -D - -o /dev/null https://deeley.org/ | tr -d '\r' | grep -iE '^(HTTP|server|cf-cache-status)'
+          curl -fsS -o /dev/null https://deeley.org/apps.json && echo "deeley.org answers"

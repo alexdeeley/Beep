@@ -1,0 +1,15 @@
+{
+  "name": "deeley-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "deeley.org - the main site, served as static files from Cloudflare.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

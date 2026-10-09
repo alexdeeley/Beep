@@ -15,6 +15,10 @@ import {
 
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;   // idle rooms are wiped after 12 hours
 const MAX_OPS_PER_ROUND = 4000;
+// With lockGuesses on, a drawer who never presses "Let people guess" has
+// guessing opened for them after this long (the local dev server shortens it
+// for the tests).
+const autoUnlockMs = () => globalThis.__DT_AUTO_UNLOCK_MS ?? 60_000;
 const MAX_STUDIO_OPS = 6000;
 const MAX_INTS_PER_STROKE = 40000;
 const MAX_GUESS_LEN = 40;
@@ -245,6 +249,10 @@ export class GameRoom {
       await this.endRound('timeout');
       return;
     }
+    if (this.room.phase === 'drawing' && this.room.guessesLocked && this.room.unlockAt && now >= this.room.unlockAt - 50) {
+      await this.openGuessing(true);
+      return;
+    }
     if (this.connectedIds().size === 0 && now - this.room.lastActive >= ROOM_TTL_MS) {
       await this.ctx.storage.deleteAll();
       this.room = null;
@@ -260,7 +268,24 @@ export class GameRoom {
     const t = this.room.timer;
     let when = Date.now() + ROOM_TTL_MS;
     if (this.room.phase === 'drawing' && t.running) when = Math.min(when, t.endsAt);
+    if (this.room.phase === 'drawing' && this.room.guessesLocked && this.room.unlockAt) when = Math.min(when, this.room.unlockAt);
     await this.ctx.storage.setAlarm(when);
+  }
+
+  // Opens guessing: by the drawer's hand, or by the clock when they never got
+  // round to it (`auto`) - then everyone is told, so their screens can ding.
+  async openGuessing(auto) {
+    const r = this.room;
+    if (r.phase !== 'drawing' || !r.guessesLocked) return;
+    r.guessesLocked = false;
+    r.unlockAt = null;
+    const ms = r.settings.timer * 1000;
+    if (ms) r.timer = { running: true, endsAt: Date.now() + r.timer.remaining, remaining: r.timer.remaining };
+    this.syncPause();
+    this.save();
+    if (auto) this.relay({ type: 'event', kind: 'autoUnlock' });
+    this.broadcastState();
+    await this.scheduleAlarm();
   }
 
   // ── Connection bookkeeping ───────────────────────────────
@@ -328,6 +353,7 @@ export class GameRoom {
       wordShape: !isDrawer && r.phase === 'drawing' && !r.guessesLocked ? wordShape(WORDS[r.wordIndex].w) : null,
       choiceIdx: isDrawer ? r.choiceIdx : 0,
       guessesLocked: r.phase === 'drawing' && r.guessesLocked,
+      unlockAt: r.phase === 'drawing' && r.guessesLocked ? r.unlockAt ?? null : null,
       aspect: r.aspect,
       timer: { ...r.timer, duration: r.settings.timer * 1000 },
       serverNow: Date.now(),
@@ -681,6 +707,7 @@ const HANDLERS = {
     r.aspect = Number.isFinite(a) ? Math.min(ASPECT_MAX, Math.max(ASPECT_MIN, a)) : 1;
     r.phase = 'drawing';
     r.guessesLocked = !!r.settings.lockGuesses;
+    r.unlockAt = r.guessesLocked ? Date.now() + autoUnlockMs() : null;
     const ms = r.settings.timer * 1000;
     // Locked: the timer is left paused (full duration in `remaining`) until
     // the drawer unlocks it - see `unlock` - so nobody's clock burns down
@@ -699,14 +726,9 @@ const HANDLERS = {
   async unlock(me) {
     const r = this.room;
     if (r.phase !== 'drawing' || me.seat !== r.drawerSeat || !r.guessesLocked) return;
-    r.guessesLocked = false;
-    const ms = r.settings.timer * 1000;
-    if (ms) r.timer = { running: true, endsAt: Date.now() + r.timer.remaining, remaining: r.timer.remaining };
-    this.syncPause();
-    this.save();
-    this.broadcastState();
-    await this.scheduleAlarm();
+    await this.openGuessing(false);
   },
+
 
   async strokeStart(me, msg, ws) {
     const r = this.room;
