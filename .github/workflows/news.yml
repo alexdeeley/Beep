@@ -59,7 +59,10 @@ concurrency:
 jobs:
   run-cycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30 rather than a tighter cap specifically to give news:post-sample-batch headroom - a large
+    # one-off retrospective batch (dozens of items, each a real network fetch/upload plus a persisted
+    # DB upload after every successful post) can run considerably longer than a normal cycle.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
