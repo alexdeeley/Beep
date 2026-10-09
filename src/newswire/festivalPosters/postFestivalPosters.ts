@@ -120,7 +120,7 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
       continue;
     }
 
-    const image = await extractPosterImage(ctx.logger, item.primarySourceUrl);
+    const image = await extractPosterImage(ctx.logger, item.primarySourceUrl, cleanFestivalName(item.festivalName, item.eventYear));
     if (!image) continue; // already logged inside extractPosterImage; left unrecorded so a later cycle retries
 
     const key = buildFestivalKey(item.festivalName, item.eventYear);

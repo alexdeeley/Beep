@@ -89,6 +89,67 @@ describe("extractImageUrl", () => {
     const html = `<img src="https://static.wixstatic.com/media/abc123~mv2.png/v1/fill/w_46,h_24,al_c,q_85/name.png" alt="festival poster">`;
     expect(extractImageUrl(html, "https://example.com/lineup")).toBe("https://static.wixstatic.com/media/abc123~mv2.png");
   });
+
+  it("matches a filename containing the festival's own name + year, with no poster/flyer/artwork keyword anywhere - confirmed live against a real press article (Clash Music's Primavera Sound 2027 coverage)", () => {
+    const html = `
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Photo-Oct-07-2026.jpg" alt="">
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Primavera-Sound-2027.jpg" alt="">
+      <img src="https://www.clashmusic.com/wp-content/uploads/2026/10/Greenpeace.jpg" alt="">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBe(
+      "https://www.clashmusic.com/wp-content/uploads/2026/10/Primavera-Sound-2027.jpg"
+    );
+  });
+
+  it("ignores the festival-name-in-URL signal when no festivalName is passed", () => {
+    const html = `<img src="https://example.com/uploads/Primavera-Sound-2027.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup")).toBeNull();
+  });
+
+  it("does not match on a festival name that isn't actually in the URL", () => {
+    const html = `<img src="https://example.com/uploads/Primavera-Sound-2027.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Glastonbury")).toBeNull();
+  });
+
+  it("requires at least 6 characters for a single-word festival name, to avoid short generic words matching unrelated URLs", () => {
+    const html = `<img src="https://example.com/hive-of-activity.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Hive")).toBeNull();
+  });
+
+  it("does NOT match a filename that merely contains the festival name among many other words (e.g. an article's own URL slug) - confirmed live: a press site named an unrelated editorial photo collage after its article's full slug, which happened to include the festival name", () => {
+    const html = `<img src="https://example.com/2026/10/05/primavera-sound-barcelona-2027-lineup-ticket-details-doechii-caroline-polachek-phoebe-bridgers.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBeNull();
+  });
+
+  it("allows a small amount of slack in the filename (e.g. an edition year) without requiring an exact match", () => {
+    const html = `<img src="https://example.com/primavera-sound-2027-poster-art.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Primavera Sound")).toBe(
+      "https://example.com/primavera-sound-2027-poster-art.jpg"
+    );
+  });
+
+  it("resolves a real-world srcset where candidate URLs contain unescaped commas in their own path (Cloudinary-style transform params) without corrupting them - confirmed live: naive comma-splitting on srcset turned a real image URL into an unrelated 404", () => {
+    const html = `<img srcset="https://cdn.example.com/img/w_220,c_limit,f_auto/primavera-sound-poster.jpg 220w,https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg 1800w" alt="festival poster">`;
+    expect(extractImageUrl(html, "https://example.com/lineup")).toBe(
+      "https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg"
+    );
+  });
+
+  it("uses an og:image meta tag when nearby text independently corroborates it's the poster - confirmed live against a real press article whose auto-generated description said '...listed on this year's poster are...' right before the real og:image", () => {
+    const html = `
+      <meta property="og:description" content="Barcelona's festival has unveiled its lineup, and the top three headliners listed on this year's poster are Artist A, Artist B, and Artist C.">
+      <meta property="og:image" content="https://example.com/uploads/2026/10/Festival.jpeg">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Some Festival")).toBe("https://example.com/uploads/2026/10/Festival.jpeg");
+  });
+
+  it("does NOT use an og:image meta tag with no corroborating signal nearby - never reintroduces the blind og:image fallback that was removed after it posted a wrong photo twice in production", () => {
+    const html = `
+      <meta property="og:description" content="Fans enjoyed a great show this weekend.">
+      <meta property="og:image" content="https://example.com/crowd-photo.jpg">
+    `;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Some Festival")).toBeNull();
+  });
 });
 
 describe("extractPosterImage", () => {

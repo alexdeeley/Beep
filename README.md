@@ -550,19 +550,30 @@ Each run of `runNewswireCycle.ts` does, in order:
    links to is ever fetched.
 
    Only an image whose alt text, URL, or surrounding HTML context
-   (e.g. a wrapping `id="poster"` container) signals it's the actual
-   designed poster/flyer/artwork graphic is ever used — confirmed live
-   that the page's generic `og:image`/`twitter:image` social-share
-   meta tag, which this step used to fall back to, is very often just
-   a crowd or stage photo from a past event, not the poster itself (it
-   produced this pipeline's first two real posts, both wrong). There
-   is deliberately no "pick the biggest image on the page" fallback
-   either — tried that against a real site and it picked a press
-   photographer's photo over the actual poster purely because the
-   photo had more pixels. **If no image on the page carries a genuine
-   poster signal, this step returns nothing and that festival's poster
-   simply doesn't post this cycle** — skipping is always preferred
-   over guessing wrong.
+   (e.g. a wrapping `id="poster"` container, or a filename that's
+   substantially just the festival's own name, like
+   "Primavera-Sound-2027.jpg") signals it's the actual designed
+   poster/flyer/artwork graphic is ever used. A page's generic
+   `og:image`/`twitter:image` social-share meta tag is only ever used
+   under the exact same bar — its own nearby text has to independently
+   signal "poster" too, e.g. an auto-generated description that
+   happens to say "...listed on this year's poster are..." right next
+   to it; confirmed live that *blindly* trusting it (the original
+   behavior here) produced this pipeline's first two real posts, both
+   a crowd or stage photo from a past event, not the poster itself.
+   There is deliberately no "pick the biggest image on the page"
+   fallback either — tried that against a real site and it picked a
+   press photographer's photo over the actual poster purely because
+   the photo had more pixels. Filename matching also deliberately
+   requires the filename be MOSTLY just the festival's name (plus a
+   little slack for an edition year), not merely containing it
+   somewhere — confirmed live that some press sites name every image
+   in an article after the article's own URL slug regardless of what
+   that image shows, which otherwise matched an unrelated photo
+   collage. **If no image on the page carries a genuine poster signal,
+   this step returns nothing and that festival's poster simply doesn't
+   post this cycle** — skipping is always preferred over guessing
+   wrong.
 
    A JS-rendered site builder (Wix, confirmed live) serves only a tiny
    cropped placeholder in its server-rendered HTML; the real
@@ -572,9 +583,13 @@ Each run of `runNewswireCycle.ts` does, in order:
    Bluesky's 2,000,000-byte blob limit — so an oversized-but-correctly-
    identified poster is progressively downscaled/recompressed to JPEG
    via `sharp` (already a dependency of the daily art pipeline) until
-   it fits, rather than discarded for being "too big." `og:image`
-   content is also frequently HTML-entity escaped (`&amp;` instead of
-   `&`) even inside the URL itself — a `decodeHtmlEntities` fix handles
+   it fits, rather than discarded for being "too big." Candidate URLs
+   are also resolved from `srcset` with care for real-world markup
+   that puts unescaped commas inside a URL's own path (confirmed live
+   on a Cloudinary-backed site) — a naive comma-split would otherwise
+   corrupt the URL into an unrelated 404. `og:image`/image URL content
+   is also frequently HTML-entity escaped (`&amp;` instead of `&`)
+   even inside the URL itself — a `decodeHtmlEntities` fix handles
    this. Only `image/jpeg`/`image/png` are ultimately posted (a
    `<source type="image/webp">` candidate is skipped in favor of a
    sibling non-webp source/`<img>`, since Bluesky doesn't accept

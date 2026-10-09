@@ -27,6 +27,7 @@ import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
 import { createBlueskySession } from "../bluesky/threadPublish.js";
 import { listAllPosts, deleteAllPosts } from "../bluesky/deleteAllPosts.js";
+import { postSampleFestival, type SampleFestivalInput } from "../newswire/festivalPosters/postSampleFestival.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -213,6 +214,30 @@ program
       }
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+program
+  .command("news:post-sample")
+  .description(
+    "Manually posts a single, already-researched festival poster, bypassing discovery/verification - for curating " +
+      "specific sample/demo posts. Takes a JSON file with: festivalName, eventYear, blurb, lineupArtists, " +
+      "primarySourceUrl. The poster image is still only ever the real, mechanically-extracted bytes from that " +
+      "exact URL (see extractPosterImage.ts) - this never posts a hand-picked image."
+  )
+  .requiredOption("--file <path>", "Path to a JSON file with the pre-researched festival data (SampleFestivalInput shape)")
+  .option("--dry-run", "Never actually publish; just report what would happen", false)
+  .action(async (opts) => {
+    const { readFileSync } = await import("node:fs");
+    const input = JSON.parse(readFileSync(opts.file, "utf8")) as SampleFestivalInput;
+    const result = await postSampleFestival(config, input, { dryRun: Boolean(opts.dryRun) });
+    if (result.published) {
+      console.log(`Published: ${result.uri}`);
+    } else if (opts.dryRun) {
+      console.log("Dry run complete - see logs above for what would have been posted.");
+    } else {
+      console.log(`Not published: ${result.reason ?? "unknown reason"}`);
+      process.exitCode = 1;
     }
   });
 
