@@ -1,0 +1,18 @@
+{
+  "festivalName": "Woodstock",
+  "eventYear": 1969,
+  "blurb": "The original Woodstock Music & Art Fair ran August 15-17, 1969 on Max Yasgur's farm near White Lake/Bethel, New York, headlined by Jimi Hendrix, The Who, Janis Joplin, Santana, Creedence Clearwater Revival, and Crosby, Stills & Nash.",
+  "lineupArtists": [
+    "Jimi Hendrix",
+    "The Who",
+    "Janis Joplin",
+    "Santana",
+    "Creedence Clearwater Revival",
+    "Grateful Dead",
+    "Crosby, Stills & Nash",
+    "Sly and the Family Stone",
+    "Joan Baez",
+    "The Band"
+  ],
+  "primarySourceUrl": "https://en.wikipedia.org/wiki/File:Woodstock_poster.jpg"
+}

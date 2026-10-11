@@ -1,0 +1,18 @@
+{
+  "festivalName": "Bonnaroo",
+  "eventYear": 2019,
+  "blurb": "Bonnaroo ran June 13-16, 2019 in Manchester, Tennessee, headlined by Phish, Childish Gambino, Post Malone, and Odesza.",
+  "lineupArtists": [
+    "Phish",
+    "Childish Gambino",
+    "Post Malone",
+    "Odesza",
+    "Cardi B",
+    "Solange",
+    "Kacey Musgraves",
+    "The National",
+    "Brandi Carlile",
+    "Brockhampton"
+  ],
+  "primarySourceUrl": "https://www.thewrap.com/bonnaroo-2019-phish-childish-gambino-post-malone-to-headline-festival/"
+}

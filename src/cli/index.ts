@@ -22,12 +22,14 @@ import type { VerificationOutput } from "../verification/verifyAgent.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
+import { runThrowbackCycle } from "../newswire/runThrowbackCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
 import { createBlueskySession } from "../bluesky/threadPublish.js";
 import { listAllPosts, deleteAllPosts } from "../bluesky/deleteAllPosts.js";
 import { postSampleFestival, type SampleFestivalInput } from "../newswire/festivalPosters/postSampleFestival.js";
+import { postSampleFestivalBatch } from "../newswire/festivalPosters/postSampleFestivalBatch.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -239,6 +241,80 @@ program
       console.log(`Not published: ${result.reason ?? "unknown reason"}`);
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("news:throwback-preview")
+  .description(
+    "Run the Throwback Thursday finder for real (real web search, real model calls) but NEVER publish and NEVER " +
+      "persist story database changes back to R2 - safe to run repeatedly while iterating"
+  )
+  .action(async () => {
+    const summary = await runThrowbackCycle(config, { dryRun: true });
+    console.log(`\n=== Throwback preview (run ${summary.hourlyRunId}) ===`);
+    console.log(`Publish status: ${summary.publishStatus}`);
+    console.log(`Posts that would publish: ${summary.publishedPostCount}`);
+  });
+
+program
+  .command("news:throwback-publish")
+  .description(
+    "Find a single real, historically notable festival poster from any past year and repost it to Bluesky " +
+      "(Throwback Thursday)"
+  )
+  .action(async () => {
+    const summary = await runThrowbackCycle(config, { dryRun: false });
+    console.log(`\n=== Throwback run ${summary.hourlyRunId} ===`);
+    console.log(`Publish status: ${summary.publishStatus}`);
+    console.log(`Posts published: ${summary.publishedPostCount}`);
+  });
+
+program
+  .command("news:post-sample-batch")
+  .description(
+    "Posts every already-researched festival poster JSON file in a directory (recursively), back-to-back in one " +
+      "run - for firing off a whole retrospective series (e.g. every verifiable year of a festival) at once " +
+      "rather than one news:post-sample invocation per item. Each file must have the SampleFestivalInput shape " +
+      "(festivalName, eventYear, blurb, lineupArtists, primarySourceUrl). Same mechanical, never-hand-picked image " +
+      "extraction and per-edition idempotency as news:post-sample."
+  )
+  .requiredOption("--dir <path>", "Directory containing SampleFestivalInput *.json files (searched recursively)")
+  .option("--dry-run", "Never actually publish; just report what would happen for each item", false)
+  .action(async (opts) => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const { join: joinPath } = await import("node:path");
+    const entries = readdirSync(opts.dir, { recursive: true, withFileTypes: true }) as unknown as {
+      name: string;
+      parentPath?: string;
+      path?: string;
+      isFile(): boolean;
+    }[];
+    const files = entries
+      .filter((e) => e.isFile() && e.name.endsWith(".json"))
+      .map((e) => joinPath(e.parentPath ?? e.path ?? opts.dir, e.name))
+      .sort();
+    if (files.length === 0) {
+      console.error(`No .json files found under ${opts.dir}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`Found ${files.length} sample file(s) under ${opts.dir}`);
+    const inputs = files.map((f) => JSON.parse(readFileSync(f, "utf8")) as SampleFestivalInput);
+    const results = await postSampleFestivalBatch(config, inputs, { dryRun: Boolean(opts.dryRun) });
+
+    let published = 0;
+    for (const r of results) {
+      const label = `${r.festivalName}${r.eventYear ? ` ${r.eventYear}` : ""}`;
+      if (r.published) {
+        published++;
+        console.log(`  PUBLISHED  ${label}: ${r.uri}`);
+      } else if (opts.dryRun) {
+        console.log(`  DRY RUN    ${label}`);
+      } else {
+        console.log(`  SKIPPED    ${label}: ${r.reason ?? "unknown reason"}`);
+      }
+    }
+    console.log(`\n${published} of ${results.length} published.`);
   });
 
 program

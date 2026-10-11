@@ -104,7 +104,12 @@ export async function uploadStoryDb(handle: StoryDbHandle, logger: RunLogger, lo
   });
 
   try {
-    await handle.client.send(put);
+    const result = await handle.client.send(put);
+    // Advances the handle's own ETag so a second uploadStoryDb() call with this SAME handle (e.g.
+    // postSampleFestivalBatch.ts persisting progress after each item in a long batch) uses the
+    // just-written ETag as its own IfMatch precondition, rather than the stale one from the original
+    // download - otherwise every upload after the first would wrongly fail with PreconditionFailed.
+    if (result.ETag) handle.downloadedEtag = result.ETag;
     logger.info("db-sync", `Uploaded story database to r2://${handle.bucket}/${handle.key}`);
   } catch (err) {
     const code = (err as { name?: string }).name;

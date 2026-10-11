@@ -7,6 +7,11 @@ name: Newswire
 # replaced) - a cycle just checks and posts whatever it finds, so a plain fixed-UTC cron is fine; no
 # DST-hedge cron pairing is needed.
 #
+# A separate weekly "Throwback Thursday" cycle (the third cron entry below, detected at runtime via
+# github.event.schedule) runs the opposite search: one real, historically notable festival poster from
+# ANY past year, with the same verification rigor but no freshness requirement at all - see
+# festivalPosters/postThrowbackPoster.ts.
+#
 # The concurrency group below is load-bearing, not just an overlap-prevention nicety: it's what keeps
 # concurrent runs of this workflow from racing each other's read-modify-write of the shared R2-hosted
 # story database (which here only remembers which festival editions have already posted).
@@ -15,10 +20,16 @@ on:
   schedule:
     - cron: "0 14 * * *" # ~once in the morning, UTC
     - cron: "0 2 * * *" # ~once in the evening, UTC
+    - cron: "0 16 * * 4" # Throwback Thursday: once a week, UTC Thursday afternoon - see github.event.schedule check below
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Preview only: run for real but never publish or persist story database changes (same as news:preview)"
+        description: "Preview only: run for real but never publish or persist story database changes (same as news:preview / news:throwback-preview)"
+        required: false
+        type: boolean
+        default: false
+      throwback:
+        description: "Run a Throwback Thursday cycle (one historical festival poster from any past year) instead of a normal just-announced cycle"
         required: false
         type: boolean
         default: false
@@ -29,6 +40,11 @@ on:
         default: ""
       sample_festival_file:
         description: "Path to a committed samples/festivals/*.json file to post via news:post-sample (bypasses discovery/verification for a manually-curated demo post). Leave blank for a normal run."
+        required: false
+        type: string
+        default: ""
+      sample_festival_dir:
+        description: "Path to a committed directory of samples/festivals/*.json files to post via news:post-sample-batch, back-to-back in one run (e.g. a festival's whole retrospective series). Leave blank for a normal run."
         required: false
         type: string
         default: ""
@@ -43,7 +59,10 @@ concurrency:
 jobs:
   run-cycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30 rather than a tighter cap specifically to give news:post-sample-batch headroom - a large
+    # one-off retrospective batch (dozens of items, each a real network fetch/upload plus a persisted
+    # DB upload after every successful post) can run considerably longer than a normal cycle.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,6 +89,7 @@ jobs:
           R2_BUCKET: ${{ vars.R2_BUCKET }}
           CONFIRM_DELETE_ALL_POSTS: ${{ inputs.confirm_delete_all_posts }}
           SAMPLE_FESTIVAL_FILE: ${{ inputs.sample_festival_file }}
+          SAMPLE_FESTIVAL_DIR: ${{ inputs.sample_festival_dir }}
         run: |
           if [ "${{ inputs.confirm_delete_all_posts }}" = "yes-delete-everything" ]; then
             CMD="news:delete-all-posts"
@@ -78,6 +98,18 @@ jobs:
             ARGS="-- --file $SAMPLE_FESTIVAL_FILE"
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               ARGS="$ARGS --dry-run"
+            fi
+          elif [ -n "$SAMPLE_FESTIVAL_DIR" ]; then
+            CMD="news:post-sample-batch"
+            ARGS="-- --dir $SAMPLE_FESTIVAL_DIR"
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              ARGS="$ARGS --dry-run"
+            fi
+          elif [ "${{ github.event.schedule }}" = "0 16 * * 4" ] || [ "${{ inputs.throwback }}" = "true" ]; then
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              CMD="news:throwback-preview"
+            else
+              CMD="news:throwback-publish"
             fi
           elif [ "${{ inputs.dry_run }}" = "true" ]; then
             CMD="news:preview"

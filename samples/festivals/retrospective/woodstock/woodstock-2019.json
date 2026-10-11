@@ -1,0 +1,15 @@
+{
+  "festivalName": "Woodstock",
+  "eventYear": 2019,
+  "blurb": "Woodstock 50, the planned 50th-anniversary edition, announced a full lineup (Jay-Z, Dead & Company, The Killers, Santana, Miley Cyrus) for August 16-18, 2019 at Watkins Glen, New York, but collapsed amid financial, permit, and production problems and was officially cancelled on July 31, 2019 before it ever took place.",
+  "lineupArtists": [
+    "Jay-Z",
+    "Dead & Company",
+    "The Killers",
+    "Santana",
+    "Miley Cyrus",
+    "Imagine Dragons",
+    "Chance the Rapper"
+  ],
+  "primarySourceUrl": "https://www.rollingstone.com/music/music-news/woodstock-50-details-full-lineup-with-jay-z-dead-company-killers-809290/"
+}

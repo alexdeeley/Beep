@@ -1,0 +1,18 @@
+{
+  "festivalName": "Bonnaroo",
+  "eventYear": 2023,
+  "blurb": "Bonnaroo ran June 15-18, 2023 in Manchester, Tennessee, headlined by Kendrick Lamar, Odesza, and Foo Fighters, with Lil Nas X and Paramore also topping the bill.",
+  "lineupArtists": [
+    "Kendrick Lamar",
+    "Odesza",
+    "Foo Fighters",
+    "Lil Nas X",
+    "Paramore",
+    "Zeds Dead",
+    "Liquid Stranger",
+    "My Morning Jacket",
+    "Korn",
+    "Tyler Childers"
+  ],
+  "primarySourceUrl": "https://eastof8th.com/2023/01/12/bonnaroo-2023-lineup-announced/"
+}
