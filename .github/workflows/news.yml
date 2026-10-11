@@ -1,11 +1,11 @@
 name: Newswire
 
-# The festival-poster finder: each cycle searches the web, worldwide, for major music festivals that
-# have JUST announced their lineup/poster, independently re-verifies each candidate
-# (2-corroborating-source rule), and posts the festival's own official poster image for each one that
-# clears the bar. There is no wall-clock-sensitive "posting hours" gate (unlike the pipeline this
-# replaced) - a cycle just checks and posts whatever it finds, so a plain fixed-UTC cron is fine; no
-# DST-hedge cron pairing is needed.
+# The gig-poster finder: each cycle searches the web, worldwide, for notable music events - festivals,
+# but equally an individual artist's tour, a one-off gig, or a residency - that have JUST announced their
+# poster, independently re-verifies each candidate (2-corroborating-source rule), and posts the event's
+# own official poster image for each one that clears the bar. There is no wall-clock-sensitive "posting
+# hours" gate (unlike the pipeline this replaced) - a cycle just checks and posts whatever it finds, so a
+# plain fixed-UTC cron is fine; no DST-hedge cron pairing is needed.
 #
 # A separate weekly "Throwback Thursday" cycle (the third cron entry below, detected at runtime via
 # github.event.schedule) runs the opposite search: one real, historically notable festival poster from

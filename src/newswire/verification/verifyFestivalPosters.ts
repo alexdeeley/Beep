@@ -11,7 +11,7 @@ interface RawVerificationResult {
   facts: VerifiedFact[];
 }
 
-const MAX_CANDIDATES_TO_VERIFY = 6;
+const MAX_CANDIDATES_TO_VERIFY = 10; // matches discovery's MAX_ITEMS (festivalPostersPrompts.ts) - now that scope includes any gig, not just festivals, a cycle can more often surface more than one real candidate
 
 function buildFestivalPostersVerificationUserPrompt(festivalName: string, headline: string, nowIso: string): string {
   return [
@@ -27,8 +27,8 @@ function buildFestivalPostersVerificationUserPrompt(festivalName: string, headli
  * Independently re-verifies discoverFestivalPosters's candidates - same 2-corroborating-source rule as
  * the rest of the pipeline, plus the shared staleness check (itemFreshness.ts) so a genuinely old
  * announcement can't surface as if it happened today. Also carries forward the primary fact's primary
- * source URL (verification's own pick of the most authoritative source, e.g. the festival's own site) -
- * festivalPosters/extractPosterImage.ts fetches THIS URL to find the real poster image.
+ * source URL (verification's own pick of the most authoritative source, e.g. the event's or artist's own
+ * site) - festivalPosters/extractPosterImage.ts fetches THIS URL to find the real poster image.
  */
 export async function verifyFestivalPosters(ctx: NewsRunContext, candidates: FestivalPosterCandidate[]): Promise<VerifiedFestivalPoster[]> {
   const toVerify = candidates.slice(0, MAX_CANDIDATES_TO_VERIFY);

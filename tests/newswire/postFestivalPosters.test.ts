@@ -21,7 +21,7 @@ describe("buildAltText", () => {
   it("includes the festival name and year in the header", () => {
     expect(buildAltText(makeItem())).toBe(
       "FESTIVAL LINEUP: Coachella 2027\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
-        "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella2027 #MusicFestival #FestivalLineup"
+        "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella2027 #LiveMusic #GigPoster"
     );
   });
 
@@ -36,14 +36,14 @@ describe("buildAltText", () => {
   it("omits the year when eventYear is null", () => {
     expect(buildAltText(makeItem({ eventYear: null }))).toBe(
       "FESTIVAL LINEUP: Coachella\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
-        "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella #MusicFestival #FestivalLineup"
+        "\n\nLineup: Artist A, Artist B, Artist C\n\n#Coachella #LiveMusic #GigPoster"
     );
   });
 
   it("omits the lineup line when no artists were independently confirmed", () => {
     expect(buildAltText(makeItem({ lineupArtists: [] }))).toBe(
       "FESTIVAL LINEUP: Coachella 2027\n\nCoachella 2027 lineup announced, headlined by Artist A, Artist B, and Artist C." +
-        "\n\n#Coachella2027 #MusicFestival #FestivalLineup"
+        "\n\n#Coachella2027 #LiveMusic #GigPoster"
     );
   });
 
@@ -58,7 +58,7 @@ describe("buildAltText", () => {
     const text = buildAltText(makeItem({ blurb: longBlurb }));
     expect(text).toContain(longBlurb);
     expect(text.startsWith("FESTIVAL LINEUP: Coachella 2027\n\n")).toBe(true);
-    expect(text.endsWith("#Coachella2027 #MusicFestival #FestivalLineup")).toBe(true);
+    expect(text.endsWith("#Coachella2027 #LiveMusic #GigPoster")).toBe(true);
   });
 
   it("uses a custom header label when given one (postThrowbackPoster.ts passes THROWBACK THURSDAY so a historical repost is never mistaken for a new announcement)", () => {

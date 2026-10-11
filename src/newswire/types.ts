@@ -17,11 +17,15 @@ export interface VerifiedFact {
 }
 
 /**
- * One raw candidate surfaced by discoverFestivalPosters, before independent verification - a major
- * music festival that has JUST announced its lineup/poster, anywhere in the world (LLM-judged "major" -
- * internationally/nationally recognized festivals only, not local shows). eventYear is the festival's
- * own edition year (e.g. 2027 for "Coachella 2027"), used as part of the dedup key alongside
- * festivalName so next year's poster for the same festival isn't treated as a duplicate.
+ * One raw candidate surfaced by discoverFestivalPosters, before independent verification - a notable
+ * music event that has JUST announced its poster, anywhere in the world (LLM-judged "notable" -
+ * internationally/nationally recognized artists, tours, and festivals only, not local shows). Despite the
+ * type/field names (kept for historical reasons - this started as a festival-only pipeline), this is NOT
+ * restricted to festivals: an individual artist's tour, a one-off gig, or a residency is an equally valid
+ * candidate - see discovery/festivalPostersPrompts.ts. `festivalName` holds the festival OR artist/tour
+ * name either way. eventYear is the event's own edition/tour year (e.g. 2027 for "Coachella 2027"), used
+ * as part of the dedup key alongside festivalName so next year's poster for the same event isn't treated
+ * as a duplicate.
  */
 export interface FestivalPosterCandidate {
   festivalName: string;
@@ -33,11 +37,11 @@ export interface FestivalPosterCandidate {
 }
 
 /**
- * Output of verifyFestivalPosters: a festival-poster candidate independently re-confirmed with the
- * 2-source rule. `blurb` is verification's own short caption (never discovery's wording), and
- * `primarySourceUrl` is verification's own most-authoritative source for the announcement (an official
- * festival page preferred) - festivalPosters/extractPosterImage.ts fetches THIS specific URL's og:image
- * to get the real poster image, never an LLM-reported image URL (which could be hallucinated).
+ * Output of verifyFestivalPosters: a candidate independently re-confirmed with the 2-source rule. `blurb`
+ * is verification's own short caption (never discovery's wording), and `primarySourceUrl` is
+ * verification's own most-authoritative source for the announcement (the event's or artist's own official
+ * page preferred) - festivalPosters/extractPosterImage.ts fetches THIS specific URL's og:image to get the
+ * real poster image, never an LLM-reported image URL (which could be hallucinated).
  */
 export interface VerifiedFestivalPoster {
   festivalName: string;
