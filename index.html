@@ -237,6 +237,23 @@
   .soli-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #dfe9e2; line-height: 1.35; font-weight: 600; letter-spacing: 0.04em; }
   .soli-banner .sb-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #fffdf6; padding: 2px 8px; border-radius: 3px; }
 
+  /* GAZILLIONAIRE: its own title screen, framed in gold on deep space. */
+  .gaz-banner {
+    display: flex; align-items: center; gap: 18px; padding: 14px 16px; text-decoration: none; color: #fff;
+    background: radial-gradient(120% 100% at 50% 0%, #1b1f55 0%, #06071a 100%);
+    border: 3px solid #f0a23a; border-radius: 14px; box-shadow: 0 0 0 2px #000, 0 0 20px rgba(240, 162, 58, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .gaz-banner:hover, .gaz-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 0 30px rgba(240, 162, 58, 0.6); }
+  .gaz-banner .gz-art { flex: 0 0 auto; display: block; width: 46%; max-width: 300px; height: auto; border-radius: 8px; box-shadow: 0 0 0 2px #000, 0 0 0 4px #f0a23a; }
+  @media (max-width: 560px) { .gaz-banner { flex-direction: column; align-items: stretch; gap: 12px; } .gaz-banner .gz-art { width: 100%; max-width: none; } }
+  @media (min-width: 700px) { .banner-grid > a.gaz-banner { grid-column: 1 / -1; } }
+  .gaz-banner .gz-text { min-width: 0; flex: 1 1 auto; }
+  .gaz-banner h2 { margin: 0; font-weight: 900; font-style: italic; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.03em; line-height: 1.05; color: #ffb347; text-shadow: 0 2px 0 #7a3a00, 0 0 14px rgba(255, 179, 71, 0.35); }
+  .gaz-banner .gz-tag { margin: 4px 0 0; font-size: 0.78rem; letter-spacing: 0.22em; text-transform: uppercase; color: #7fe3ff; font-weight: 700; }
+  .gaz-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #dfe8ff; line-height: 1.35; font-weight: 500; }
+  .gaz-banner .gz-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #f0a23a; padding: 2px 10px; border-radius: 3px; }
+
   /* ── Section headings ─────────────────────────────── */
   .section-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
   .list-heading { color: var(--muted); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -411,6 +428,15 @@
         <p class="sb-live" id="soliMeta">THE SOLITAIRE GAME THAT NEVER ENDS.</p>
         <p class="sb-sub">One game. Everyone. Forever. This is the actual table, right now.</p>
         <span class="sb-cta">soliteam.deeley.org &#8599;</span>
+      </span>
+    </a>
+    <a class="gaz-banner" href="Gazillionaire.html">
+      <img class="gz-art" src="thumbnails/gazillionaire.jpg" alt="" width="900" height="600" loading="lazy" decoding="async" />
+      <span class="gz-text">
+        <h2>GAZILLIONAIRE</h2>
+        <p class="gz-tag">The universe is your market</p>
+        <p>Buy low, fly far, sell absurdly high &mdash; run a trading company across the galaxy, from Earth to Zorp, on six difficulties from Easy to Absurd.</p>
+        <span class="gz-cta">Play &#8599;</span>
       </span>
     </a>
   </div>
