@@ -1,0 +1,18 @@
+{
+  "festivalName": "Monterey International Pop Festival",
+  "eventYear": 1967,
+  "blurb": "The Monterey International Pop Festival ran June 16-18, 1967 at the Monterey County Fairgrounds in California, a landmark Summer of Love event remembered for The Jimi Hendrix Experience's explosive US breakthrough, Janis Joplin's star-making set with Big Brother and the Holding Company, and performances by The Who, Otis Redding, Ravi Shankar, and The Mamas and the Papas.",
+  "lineupArtists": [
+    "The Jimi Hendrix Experience",
+    "The Who",
+    "Janis Joplin",
+    "Otis Redding",
+    "Ravi Shankar",
+    "The Mamas and the Papas",
+    "Simon and Garfunkel",
+    "The Byrds",
+    "Grateful Dead",
+    "Jefferson Airplane"
+  ],
+  "primarySourceUrl": "https://en.wikipedia.org/wiki/Monterey_Pop_Festival"
+}

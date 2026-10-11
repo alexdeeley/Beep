@@ -1,0 +1,16 @@
+{
+  "festivalName": "Toronto Rock and Roll Revival",
+  "eventYear": 1969,
+  "blurb": "The Toronto Rock and Roll Revival ran September 13, 1969 at Varsity Stadium, originally billed as an oldies show with Chuck Berry, Little Richard, Jerry Lee Lewis, and Bo Diddley, but now remembered above all for John Lennon's surprise, unannounced live debut with the Plastic Ono Band alongside Eric Clapton - the performance that led Lennon to leave The Beatles.",
+  "lineupArtists": [
+    "John Lennon & The Plastic Ono Band",
+    "The Doors",
+    "Chuck Berry",
+    "Little Richard",
+    "Jerry Lee Lewis",
+    "Bo Diddley",
+    "Alice Cooper",
+    "Chicago Transit Authority"
+  ],
+  "primarySourceUrl": "https://en.wikipedia.org/wiki/Toronto_Rock_and_Roll_Revival"
+}
