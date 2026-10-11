@@ -13,3 +13,6 @@ runs/*
 
 # wrangler dev state
 .wrangler/
+
+# browser-test screenshots
+**/dev/shots/

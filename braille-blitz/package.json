@@ -1,0 +1,16 @@
+{
+  "name": "braille-blitz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Learn to read Braille letters and numbers in quick rounds. Big, high-contrast, built for low vision.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node dev/browser-test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

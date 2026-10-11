@@ -1593,5 +1593,14 @@
     "path": "CastleMaze.html",
     "added": "2026-10-11T01:37:32+00:00",
     "thumbnail": "thumbnails/castle-maze.jpg"
+  },
+  {
+    "id": "braille-blitz",
+    "name": "Braille Blitz",
+    "description": "Learn to read Braille letters and numbers in quick rounds: one big six-dot cell, three enormous answers, instant feedback, and statistics that remember what you find hard. Black and white, built for low vision.",
+    "category": "Games",
+    "path": "https://braille.deeley.org",
+    "added": "2026-10-11T01:58:20+00:00",
+    "thumbnail": "thumbnails/braille-blitz.jpg"
   }
 ]
