@@ -220,22 +220,20 @@
   .duel-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #cfeaff; line-height: 1.35; font-weight: 500; }
   .duel-banner .dl-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #18d4e8; border: 2px solid #18d4e8; border-radius: 3px; padding: 1px 8px; }
 
-  /* SOLITEAM: a strip of casino felt with a cream card edge. */
-  .soli-banner {
-    display: flex; align-items: center; gap: 16px; padding: 16px 18px; text-decoration: none; color: #f4efe2;
-    background: radial-gradient(120% 90% at 50% 0%, #0f5a3a 0%, #083d27 100%);
-    border: 4px solid #fffdf6; border-radius: 10px; box-shadow: 0 0 0 2px #000, 0 8px 22px rgba(0, 0, 0, 0.5);
+  /* CASTLE MAZE: its own splash art, set in a weathered stone frame. */
+  .castle-banner {
+    display: flex; align-items: center; gap: 16px; padding: 14px 16px; text-decoration: none; color: #fff;
+    background: linear-gradient(160deg, #0d3b4f 0%, #071e2b 100%);
+    border: 4px solid #a9b08a; border-radius: 12px; box-shadow: 0 0 0 2px #000, 0 8px 22px rgba(0, 0, 0, 0.5);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .soli-banner:hover, .soli-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 12px 28px rgba(0, 0, 0, 0.6); }
-  .soli-banner .sb-mini { flex: 0 0 auto; width: 132px; height: auto; border-radius: 6px; background: #0b4a30; box-shadow: 0 0 0 2px #000; }
-  @media (max-width: 560px) { .soli-banner { flex-direction: column; align-items: stretch; gap: 12px; } .soli-banner .sb-mini { width: 100%; } }
-  .soli-banner .sb-text { min-width: 0; flex: 1 1 auto; }
-  .soli-banner .sb-live { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.8rem; letter-spacing: 0.08em; color: #fff; font-variant-numeric: tabular-nums; }
-  .soli-banner .sb-sub { font-size: 0.82rem; color: #cfdcd4; letter-spacing: 0.02em; font-weight: 600; }
-  .soli-banner h2 { margin: 0; font-weight: 800; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.14em; line-height: 1.05; color: #fff; }
-  .soli-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #dfe9e2; line-height: 1.35; font-weight: 600; letter-spacing: 0.04em; }
-  .soli-banner .sb-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #fffdf6; padding: 2px 8px; border-radius: 3px; }
+  .castle-banner:hover, .castle-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 22px rgba(169, 176, 138, 0.45); }
+  .castle-banner .cm-art { flex: 0 0 auto; display: block; width: 46%; max-width: 220px; height: auto; border-radius: 8px; box-shadow: 0 0 0 2px #000, 0 0 0 4px #a9b08a; }
+  @media (max-width: 560px) { .castle-banner { flex-direction: column; align-items: stretch; gap: 12px; } .castle-banner .cm-art { width: 100%; max-width: none; } }
+  .castle-banner .cm-text { min-width: 0; flex: 1 1 auto; }
+  .castle-banner h2 { margin: 0; font-weight: 900; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.06em; line-height: 1.05; color: #e8ecd2; text-shadow: 0 2px 0 #2f3a1f, 0 0 14px rgba(169, 176, 138, 0.35); }
+  .castle-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #d6ecf2; line-height: 1.35; font-weight: 500; }
+  .castle-banner .cm-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #e8ecd2; padding: 2px 10px; border-radius: 3px; }
 
   /* GAZILLIONAIRE: its own title screen, framed in gold on deep space. */
   .gaz-banner {
@@ -421,13 +419,12 @@
         <span class="dl-cta">duel.deeley.org &#8599;</span>
       </span>
     </a>
-    <a class="soli-banner" id="soliBoard" href="https://soliteam.deeley.org" target="_blank" rel="noopener noreferrer" aria-label="SOLITEAM, the Solitaire game that never ends. Live view of the shared table.">
-      <svg class="sb-mini" id="soliMini" viewBox="0 0 312 236" aria-hidden="true"></svg>
-      <span class="sb-text">
-        <h2>SOLITEAM</h2>
-        <p class="sb-live" id="soliMeta">THE SOLITAIRE GAME THAT NEVER ENDS.</p>
-        <p class="sb-sub">One game. Everyone. Forever. This is the actual table, right now.</p>
-        <span class="sb-cta">soliteam.deeley.org &#8599;</span>
+    <a class="castle-banner" href="CastleMaze.html">
+      <img class="cm-art" src="thumbnails/castle-maze.jpg" alt="" width="900" height="672" decoding="async" />
+      <span class="cm-text">
+        <h2>CASTLE MAZE</h2>
+        <p>Twisting mazes, stars in every dead end, and three unicorn sisters hiding behind secret walls. Pick a hero and tap to move.</p>
+        <span class="cm-cta">Play &#8599;</span>
       </span>
     </a>
     <a class="gaz-banner" href="Gazillionaire.html">
@@ -480,7 +477,7 @@ const CATEGORIES = { Games: ["Games"], Art: ["Art"] };
 
 // Things that already have a banner at the top, so they don't also get a tile
 // in the Games grid.
-const BANNER_HOSTS = new Set(["draw.deeley.org", "duel.deeley.org", "soliteam.deeley.org"]);
+const BANNER_HOSTS = new Set(["draw.deeley.org", "duel.deeley.org"]);
 
 // Bold, saturated tile colours, each with the text colour that reads best on it.
 const PALETTE = [
@@ -498,52 +495,8 @@ let activeTab = "Games";
 let searchQuery = "";
 const LAST_STATE_KEY = "deeley_last_state";
 
-// The SOLITEAM board: a small, true picture of the shared table, refreshed
-// while the page is open. Reads the game's public /api/table.
-const SOLI_API = "https://soliteam.deeley.org/api/table";
-function drawSoliBoard(t) {
-  const svg = document.getElementById("soliMini");
-  const s = t.state;
-  const W = 300, w = 36, h = 50, g = 8, x0 = 6;
-  const red = (c) => { const su = Math.floor(c / 13); return su === 1 || su === 2; };
-  const RANK = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"], SUIT = ["\u2663","\u2666","\u2665","\u2660"];
-  const face = (x, y, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#fffdf6" stroke="#111" stroke-width="1.5"/><text x="${x + 4}" y="${y + 15}" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="800" fill="${red(c) ? "#c8102e" : "#111"}">${RANK[c % 13]}${SUIT[Math.floor(c / 13)]}</text>`;
-  const back = (x, y) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#1b2a4a" stroke="#111" stroke-width="1.5"/><rect x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" rx="2" fill="none" stroke="#f4efe2" stroke-width="1.2" opacity=".8"/>`;
-  const slot = (x, y, t2) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="rgba(0,0,0,.15)" stroke="rgba(244,239,226,.5)" stroke-width="1.5" stroke-dasharray="3 3"/>${t2 ? `<text x="${x + w / 2}" y="${y + h / 2 + 6}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="16" fill="rgba(244,239,226,.55)">${t2}</text>` : ""}`;
-  let out = "";
-  const col = (i) => x0 + i * (w + g);
-  out += s.stock.length ? back(col(0), 6) : slot(col(0), 6, "\u21bb");
-  out += s.waste.length ? face(col(1), 6, s.waste[s.waste.length - 1]) : "";
-  s.found.forEach((f, i) => { out += f.length ? face(col(3 + i), 6, f[f.length - 1]) : slot(col(3 + i), 6, SUIT[i]); });
-  const top = 6 + h + 12;
-  s.tab.forEach((c, i) => {
-    let y = top;
-    if (!c.down.length && !c.up.length) { out += slot(col(i), y, "K"); return; }
-    for (let k = 0; k < c.down.length; k++) { out += back(col(i), y); y += 7; }
-    c.up.forEach((card) => { out += face(col(i), y, card); y += 17; });
-  });
-  svg.innerHTML = out;
-}
-async function loadSoliBoard() {
-  const meta = document.getElementById("soliMeta");
-  try {
-    const t = await (await fetch(SOLI_API, { cache: "no-store" })).json();
-    drawSoliBoard(t);
-    const n = t.players;
-    meta.textContent = `GAME #${String(t.game).padStart(11, "0")} \u00b7 ${t.moves.toLocaleString("en-US")} ${t.moves === 1 ? "MOVE" : "MOVES"} \u00b7 ${t.resetting ? "RESETTING\u2026" : n === 0 ? "NOBODY IS PLAYING RIGHT NOW" : n === 1 ? "1 PERSON IS PLAYING" : `${n} PEOPLE ARE PLAYING`}`;
-  } catch (e) {
-    meta.textContent = "THE GAME CONTINUES. (THE BOARD COULD NOT BE REACHED.)";
-  }
-}
-function startSoliBoard() {
-  loadSoliBoard();
-  setInterval(() => { if (document.visibilityState === "visible" && !document.getElementById("banners").classList.contains("hidden")) loadSoliBoard(); }, 15000);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") loadSoliBoard(); });
-}
-
 async function main() {
   restoreLastTab();
-  startSoliBoard();
   const res = await fetch("./apps.json");
   apps = await res.json();
   buildTabs();

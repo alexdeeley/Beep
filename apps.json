@@ -1584,5 +1584,14 @@
     "path": "Gazillionaire.html",
     "added": "2026-10-07T00:00:00+00:00",
     "thumbnail": "thumbnails/gazillionaire.jpg"
+  },
+  {
+    "id": "castle-maze",
+    "name": "Castle Maze",
+    "description": "Explore a castle full of twisting mazes, collect the stars in every dead end, and find the three unicorn sisters hiding behind secret walls. Pick your hero, then tap to move.",
+    "category": "Games",
+    "path": "CastleMaze.html",
+    "added": "2026-10-11T01:37:32+00:00",
+    "thumbnail": "thumbnails/castle-maze.jpg"
   }
 ]
