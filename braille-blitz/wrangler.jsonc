@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "braille-blitz",
+  "compatibility_date": "2025-06-01",
+
+  // A static site: everything in ./public is served as-is from Cloudflare's
+  // edge. There is no server code - progress lives in the browser.
+  "assets": { "directory": "./public", "html_handling": "auto-trailing-slash", "not_found_handling": "none" },
+  "observability": { "enabled": true },
+
+  "routes": [{ "pattern": "braille.deeley.org", "custom_domain": true }]
+}

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Braille Blitz</title>
+<meta name="description" content="Learn to read Braille letters and numbers in quick rounds. Big, high-contrast, built for low vision.">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Braille Blitz">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#app">Skip to the game</a>
+<header class="top">
+  <a class="site-back" href="https://deeley.org" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+  <p class="brand" aria-hidden="true">BRAILLE <span>BLITZ</span></p>
+  <button class="icon-btn" id="btn-mute" aria-pressed="false" aria-label="Mute all sound and vibration">&#128266;</button>
+</header>
+
+<main id="app">
+  <!-- HOME -->
+  <section class="screen" id="scr-home" aria-labelledby="home-h">
+    <h1 id="home-h">Braille Blitz</h1>
+    <p class="tagline">Read Braille, one quick round at a time.</p>
+    <nav class="modes" aria-label="Learning modes" id="modes"></nav>
+    <section class="path" aria-labelledby="path-h">
+      <h2 id="path-h">Your path</h2>
+      <ol class="path-list" id="path"></ol>
+      <p class="path-note">Practise in any order you like. The path only shows how far you have come.</p>
+    </section>
+    <div class="row three">
+      <button class="btn" id="btn-stats">Statistics</button>
+      <button class="btn" id="btn-settings">Settings</button>
+      <button class="btn" id="btn-help">How to play</button>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section class="screen" id="scr-play" hidden aria-labelledby="hud-mode">
+    <div class="hud">
+      <h2 class="hud-mode" id="hud-mode">Letters</h2>
+      <p class="hud-q" id="hud-q">Question 1 of 20</p>
+      <p class="hud-score" id="hud-score" aria-label="Score"><span class="ok">0 right</span> <span class="sep">&middot;</span> <span class="streak">streak 0</span></p>
+    </div>
+    <div class="progress" role="progressbar" aria-label="Session progress" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" id="progress"><div class="progress-fill" id="prog-fill"></div></div>
+    <div class="stage" id="stage">
+      <div class="question">
+        <p class="prompt" id="prompt">Which letter is this?</p>
+        <p class="instruction" id="instruction"></p>
+        <figure class="cells" id="cells" role="img" aria-label=""></figure>
+        <p class="feedback" id="feedback" aria-hidden="true"></p>
+      </div>
+      <div class="answers" id="answers" role="group" aria-label="Answers"></div>
+    </div>
+    <div class="controls">
+      <button class="btn small" id="btn-pause">Pause</button>
+      <button class="btn small" id="btn-restart">Restart</button>
+      <button class="btn small" id="btn-quit">Exit</button>
+    </div>
+    <div class="overlay" id="pause-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pause-h">
+      <div class="overlay-card">
+        <h2 id="pause-h">Paused</h2>
+        <p>Take your time. Nothing is counted while you rest.</p>
+        <button class="btn big" id="btn-resume" data-autofocus>Resume</button>
+        <button class="btn" id="btn-pause-quit">Exit to menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="screen" id="scr-summary" hidden aria-labelledby="sum-h">
+    <h2 id="sum-h" data-autofocus>Round complete</h2>
+    <div class="tiles" id="sum-tiles"></div>
+    <p class="sum-note" id="sum-note"></p>
+    <div class="row">
+      <button class="btn big" id="btn-again">Play again</button>
+      <button class="btn" id="btn-sum-review">Review mistakes</button>
+      <button class="btn" id="btn-sum-home">Menu</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="screen" id="scr-stats" hidden aria-labelledby="stats-h">
+    <h2 id="stats-h" data-autofocus>Statistics</h2>
+    <div class="tiles" id="stats-tiles"></div>
+    <h3>Letters</h3>
+    <div class="char-grid" id="grid-letters"></div>
+    <h3>Numbers</h3>
+    <div class="char-grid" id="grid-digits"></div>
+    <h3>Most missed</h3>
+    <ol class="missed" id="missed"></ol>
+    <h3>Last 20 answers</h3>
+    <div class="recent-strip" id="recent" aria-label="Recent answers"></div>
+    <p class="legend">Mastered means at least 5 right in total and 9 of the last 10 right.</p>
+    <div class="row">
+      <button class="btn" id="btn-stats-back">Back</button>
+      <button class="btn danger" id="btn-reset">Reset statistics</button>
+    </div>
+    <div class="overlay" id="reset-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="reset-h">
+      <div class="overlay-card">
+        <h2 id="reset-h">Reset everything?</h2>
+        <p>All your scores, streaks and mastery will be erased. This cannot be undone.</p>
+        <button class="btn big danger" id="btn-reset-yes" data-autofocus>Yes, reset</button>
+        <button class="btn" id="btn-reset-no">Keep my statistics</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="screen" id="scr-settings" hidden aria-labelledby="set-h">
+    <h2 id="set-h" data-autofocus>Settings</h2>
+    <div class="settings" id="settings"></div>
+    <div class="row"><button class="btn" id="btn-settings-back">Back</button></div>
+  </section>
+
+  <!-- HELP -->
+  <section class="screen" id="scr-help" hidden aria-labelledby="help-h">
+    <h2 id="help-h" data-autofocus>How to play</h2>
+    <p>A Braille character appears. Tap the answer that matches it. You get an answer straight away, then the next one comes along by itself.</p>
+    <h3>How a cell works</h3>
+    <div class="help-cell" id="help-cell"></div>
+    <p>A cell has six dot positions: 1, 2, 3 down the left and 4, 5, 6 down the right. A big solid dot is raised. A small hollow ring is an empty position.</p>
+    <h3>Numbers</h3>
+    <p>Braille has no separate cells for digits. A <strong>number sign</strong> (dots 3-4-5-6) <span class="uni">&#x283C;</span> comes first, and the cells that follow are read as numbers: A is 1, B is 2 &hellip; I is 9 and J is 0. So <span class="uni">&#x283C;&#x2801;</span> is 1 and <span class="uni">&#x283C;&#x2801;&#x2803;</span> is 12.</p>
+    <h3>Modes</h3>
+    <ul id="help-modes"></ul>
+    <h3>Keyboard</h3>
+    <ul>
+      <li><strong>1, 2, 3</strong> choose the first, second or third answer.</li>
+      <li>A <strong>letter or digit key</strong> chooses that answer when it is on screen.</li>
+      <li><strong>Arrow keys</strong> move between answers, <strong>Enter</strong> or <strong>Space</strong> picks one.</li>
+      <li><strong>P</strong> pauses. <strong>Escape</strong> goes back.</li>
+    </ul>
+    <h3>Screen readers</h3>
+    <p>Each cell is described by its raised dots, never by its answer. Results are read out as they happen.</p>
+    <div class="row"><button class="btn" id="btn-help-back">Back</button></div>
+  </section>
+</main>
+<footer class="foot"><a href="https://deeley.org">deeley.org</a> &middot; works offline once loaded &middot; nothing leaves your device</footer>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
