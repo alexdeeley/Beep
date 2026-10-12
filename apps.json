@@ -1606,7 +1606,7 @@
   {
     "id": "bent-square",
     "name": "Bent Square",
-    "description": "A ball bounces inside a white square. Every hit breaks the wall at the exact contact point and bends it outward, and the ball gets 1% faster each time.",
+    "description": "Four white squares, each with a bouncing ball that breaks and bends the wall wherever it hits. All four are identical except the ball speeds up 1%, 2%, 3% or 4% per hit.",
     "category": "Art",
     "path": "BentSquare.html",
     "added": "2026-10-12T18:30:00+00:00"
