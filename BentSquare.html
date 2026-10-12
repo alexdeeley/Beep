@@ -189,28 +189,31 @@ function centroid(){
   return {x:x/pts.length, y:y/pts.length};
 }
 
-// Camera eases to keep the whole (growing) shape on screen.
-function updateView(){
+// Camera starts with the square at half size and slowly zooms in until it
+// fills the screen. If the shape grows past the edge it zooms out quickly.
+var ZOOM_IN_TIME = 8;      // seconds (time constant of the slow zoom in)
+function updateView(dt){
   var bb = bounds();
   var cx = (bb.x0+bb.x1)/2, cy = (bb.y0+bb.y1)/2;
   var pad = Math.min(W,H) < 500 ? 24 : 70;
   var topPad = pad + 40;
   var scale = Math.min((W-pad*2)/(bb.x1-bb.x0), (H-topPad-pad-40)/(bb.y1-bb.y0));
   var target = {cx:cx, cy:cy, s:scale};
-  if (!view) view = target;
+  if (!view) view = {cx:cx, cy:cy, s:scale*0.5};
   else {
     view.cx += (target.cx-view.cx)*.08;
     view.cy += (target.cy-view.cy)*.08;
-    view.s  += (target.s -view.s )*.08;
+    if (target.s < view.s) view.s += (target.s-view.s)*.08;
+    else view.s += (target.s-view.s)*(1-Math.exp(-dt/ZOOM_IN_TIME));
   }
   view.oy = (topPad - 40)/2;
 }
 
-function draw(){
+function draw(dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle = '#000';
   ctx.fillRect(0,0,W,H);
-  updateView();
+  updateView(dt);
   var s = view.s;
   ctx.setTransform(dpr*s,0,0,dpr*s, dpr*(W/2 - view.cx*s), dpr*(H/2 + view.oy - view.cy*s));
 
@@ -250,7 +253,7 @@ function frame(t){
   var dt = last ? Math.min(.05, (t-last)/1000) : 0;
   last = t;
   step(dt);
-  draw();
+  draw(dt);
   requestAnimationFrame(frame);
 }
 
