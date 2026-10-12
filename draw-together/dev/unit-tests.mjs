@@ -27,6 +27,19 @@ for (const w of WORDS) {
   ok(checkGuess(w.w.toUpperCase() + '  ', w) === 'correct', `case/space-insensitive: ${w.w}`);
 }
 const find = (s) => WORDS.find((w) => w.w === s);
+// Maisie's category: opt-in only.
+{
+  const maisie = WORDS.filter((w) => w.c.includes('maisie'));
+  ok(maisie.length >= 700, `Maisie's list is big (${maisie.length})`);
+  let leaked = 0;
+  for (let i = 0; i < 2000; i++) { const w = WORDS[pickWord({ categories: ['everything'], difficulty: 'mixed' }, []).index]; if (w.c.length === 1 && w.c[0] === 'maisie') leaked++; }
+  ok(leaked === 0, 'a Maisie-only word never comes up under Everything');
+  let hers = 0;
+  for (let i = 0; i < 500; i++) { const w = WORDS[pickWord({ categories: ['maisie'], difficulty: 'mixed' }, []).index]; if (w.c.includes('maisie')) hers++; }
+  ok(hers === 500, 'with the Maisie chip picked, every word is hers');
+  ok(find('Cat').c.includes('maisie') && find('Cat').c.includes('animals'), 'a word on both lists stays in Everything too');
+  ok(find('Michael Jackson Moonwalk').e === '🕺' && find('Bluey as a Unicorn').e === '🐕', 'her words have emoji');
+}
 ok(checkGuess('ice-cream cone', find('Ice cream cone')) === 'correct', 'ice-cream cone');
 ok(checkGuess('icecream', find('Ice cream cone')) === 'correct', 'icecream alias');
 ok(checkGuess('t rex', find('T-Rex')) === 'correct', 't rex');
