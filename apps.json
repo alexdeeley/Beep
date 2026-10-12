@@ -1602,5 +1602,13 @@
     "path": "https://braille.deeley.org",
     "added": "2026-10-11T01:58:20+00:00",
     "thumbnail": "thumbnails/braille-blitz.jpg"
+  },
+  {
+    "id": "bent-square",
+    "name": "Bent Square",
+    "description": "A ball bounces inside a white square. Every hit breaks the wall at the exact contact point and bends it outward, and the ball gets 1% faster each time.",
+    "category": "Art",
+    "path": "BentSquare.html",
+    "added": "2026-10-12T18:30:00+00:00"
   }
 ]
