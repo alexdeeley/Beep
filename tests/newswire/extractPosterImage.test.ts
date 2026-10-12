@@ -128,6 +128,13 @@ describe("extractImageUrl", () => {
     );
   });
 
+  it("strips a Wikimedia thumbnail's '<width>px-' filename prefix before counting extra words - confirmed live: a real, otherwise-exact filename match was pushed over MAX_EXTRA_FILENAME_WORDS purely by Wikipedia's '250px-' thumbnail-rewriting prefix, producing a false negative", () => {
+    const html = `<img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/b/Monterey-Pop-Festival-1967.jpg/250px-Monterey-Pop-Festival-1967.jpg" alt="">`;
+    expect(extractImageUrl(html, "https://example.com/lineup", "Monterey Pop Festival")).toBe(
+      "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/b/Monterey-Pop-Festival-1967.jpg/250px-Monterey-Pop-Festival-1967.jpg"
+    );
+  });
+
   it("resolves a real-world srcset where candidate URLs contain unescaped commas in their own path (Cloudinary-style transform params) without corrupting them - confirmed live: naive comma-splitting on srcset turned a real image URL into an unrelated 404", () => {
     const html = `<img srcset="https://cdn.example.com/img/w_220,c_limit,f_auto/primavera-sound-poster.jpg 220w,https://cdn.example.com/img/w_1800,c_limit,f_auto/primavera-sound-poster.jpg 1800w" alt="festival poster">`;
     expect(extractImageUrl(html, "https://example.com/lineup")).toBe(
