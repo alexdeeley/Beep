@@ -504,16 +504,29 @@ and whatever gets added later), published together as a static site via
 
 ---
 
-## 18. The festival-poster finder
+## 18. The gig-poster finder
 
 A second, independent pipeline lives in `src/newswire/` and is now the
-account's primary posting cadence. It has one job: find major music
-festivals, anywhere in the world, that have just announced their
-lineup, and post the festival's own official poster image. It replaced
-an earlier, much larger music-news wire (artist-watchlist tracking,
-new-release announcements, a weekly roundup, daily music history,
-birthdays, regional show listings, Spotify playlist-watch) — all of
-that was deliberately removed; this pipeline does exactly one thing.
+account's primary posting cadence. It has one job: find notable live
+music events, anywhere in the world — festivals, but equally an
+individual artist's newly-announced tour, a one-off gig, or a
+residency — that have just announced their poster, and post the
+event's own official poster image. It is **not** restricted to
+festivals (an earlier version of this pipeline was); any notable gig
+poster qualifies, as long as it clears the same high notability bar —
+see `discovery/festivalPostersPrompts.ts`. It replaced an earlier,
+much larger music-news wire (artist-watchlist tracking, new-release
+announcements, a weekly roundup, daily music history, birthdays,
+regional show listings, Spotify playlist-watch) — all of that was
+deliberately removed; this pipeline does one job, now broadened once
+from "festivals only" to "any notable gig."
+
+Internal type/field/file names (`FestivalPosterCandidate`,
+`festivalName`, `festival_key`, `festivalPosters/`, …) still say
+"festival" throughout the codebase for historical reasons — renaming
+them was judged not worth the blast radius for a wording change. They
+hold an artist/tour name just as readily as a festival's name; treat
+"festival" in an identifier as "event" when reading the code.
 
 ### 18.1 How one cycle works
 
@@ -521,14 +534,17 @@ Each run of `runNewswireCycle.ts` does, in order:
 
 1. **Discovery** (`discovery/discoverFestivalPosters.ts`) — one
    industry-wide, worldwide web-search sweep asking specifically for
-   festivals that have *just* announced a lineup/poster, in the last
-   few days. "Major" is a deliberately high bar judged by the model
-   itself (Coachella/Glastonbury/Tomorrowland tier), not a fixed list —
-   see `discovery/festivalPostersPrompts.ts` for the calibration
-   examples, which span North America, Europe, South America, and Asia
-   on purpose, with an explicit instruction not to default to
-   English-language US/UK results. Most days should find nothing at
-   all; that's the expected, correct outcome, not a failure.
+   notable music events — festivals, individual artists' tours,
+   one-off gigs, residencies — that have *just* announced a poster, in
+   the last few days. "Notable" is a deliberately high bar judged by
+   the model itself (Coachella/Glastonbury/Tomorrowland tier for a
+   festival; an internationally/nationally recognized touring act for
+   an individual gig), not a fixed list — see
+   `discovery/festivalPostersPrompts.ts` for the calibration examples,
+   which span North America, Europe, South America, and Asia on
+   purpose, with an explicit instruction not to default to
+   English-language US/UK results. Most days should find very little;
+   that's the expected, correct outcome, not a failure.
 2. **Verification** (`verification/verifyFestivalPosters.ts`) —
    independently re-researches each candidate from scratch (never
    trusting discovery's claims or sources), requiring at least 2
@@ -537,7 +553,7 @@ Each run of `runNewswireCycle.ts` does, in order:
    `NEWS_MAX_ITEM_AGE_DAYS`) so a lineup announced months ago can't
    resurface as if it just happened. Verification also picks the
    single most authoritative source for the announcement — the
-   festival's own official site, when available — since that URL is
+   event's own official site, when available — since that URL is
    what the next step fetches.
 3. **Image extraction** (`festivalPosters/extractPosterImage.ts`) —
    **the only part of this pipeline that handles a third party's
@@ -571,7 +587,7 @@ Each run of `runNewswireCycle.ts` does, in order:
    in an article after the article's own URL slug regardless of what
    that image shows, which otherwise matched an unrelated photo
    collage. **If no image on the page carries a genuine poster signal,
-   this step returns nothing and that festival's poster simply doesn't
+   this step returns nothing and that event's poster simply doesn't
    post this cycle** — skipping is always preferred over guessing
    wrong.
 
@@ -604,11 +620,12 @@ Each run of `runNewswireCycle.ts` does, in order:
    from the daily art pipeline's own `bluesky/publish.ts`. The post is
    **image-only: no visible caption text**, at the account owner's
    explicit request — just the poster in the feed, nothing else. The
-   full descriptive caption (`buildAltText`: festival name/year,
+   full descriptive caption (`buildAltText`: event name/year,
    verification's blurb, the independently-confirmed lineup names, and
-   a few hashtags) still goes into the image's alt text, so it remains
-   accessible to screen readers and searchable, it just never appears
-   as visible post text.
+   a few hashtags, headed `NEW POSTER:` for this automated pipeline)
+   still goes into the image's alt text, so it remains accessible to
+   screen readers and searchable, it just never appears as visible
+   post text.
 
 (the real poster image, with no visible post text — the full caption
 lives only in the image's alt text)
@@ -657,7 +674,7 @@ nothing in the current code reads or writes them.
   verification/image-extraction for real, but never publishes and
   never persists database changes back to R2. Safe to run repeatedly.
 - **`news:publish`** — the real thing: full download → run → upload
-  cycle, posting any festival poster found.
+  cycle, posting any notable gig/tour/festival poster found.
 - **`news:throwback-preview`** / **`news:throwback-publish`** — same
   preview/publish split, for the Throwback Thursday cycle (§18.6)
   instead of the just-announced cycle.
@@ -755,15 +772,15 @@ already posted) never stops the rest of the batch.
 
 ### 18.8 Known limitations
 
-- **Posting frequency is intentionally low.** A genuinely major
-  festival dropping a new lineup is a rare event — expect long
-  stretches of silence between posts. That's the deliberate scope of
-  this account now, not a malfunction.
+- **Posting frequency is intentionally low.** A genuinely notable gig,
+  tour, or festival poster drop is still a comparatively rare event —
+  expect long stretches of silence between posts. That's the
+  deliberate scope of this account now, not a malfunction.
 - **The image-extraction step is a heuristic, not a guarantee, and
   deliberately errs toward silence.** It only posts an image it finds
-  a real poster/flyer/artwork signal for; a festival whose site never
+  a real poster/flyer/artwork signal for; an event whose site never
   textually marks its poster as such (no matching alt text, filename,
-  or wrapping container) simply won't get a post for that lineup drop,
+  or wrapping container) simply won't get a post for that announcement,
   even though a human glancing at the same page would recognize the
   poster instantly. This is an accepted tradeoff — the account owner
   explicitly wants the real poster or nothing, never a photo mislabeled

@@ -32,9 +32,15 @@ function slugifyForHashtag(name: string): string {
     .join("");
 }
 
+/**
+ * Fixed tags are deliberately generic ("LiveMusic"/"GigPoster") rather than festival-specific
+ * ("MusicFestival"/"FestivalLineup") - this pipeline now covers any notable gig/tour poster, not just
+ * festivals (see discovery/festivalPostersPrompts.ts), so a fixed tag claiming every post is a "festival"
+ * would be wrong for a solo artist's tour or one-off gig.
+ */
 function buildHashtagLine(item: VerifiedFestivalPoster): string {
   const slug = slugifyForHashtag(cleanFestivalName(item.festivalName, item.eventYear));
-  const tags = [slug ? (item.eventYear ? `${slug}${item.eventYear}` : slug) : null, "MusicFestival", "FestivalLineup"].filter(
+  const tags = [slug ? (item.eventYear ? `${slug}${item.eventYear}` : slug) : null, "LiveMusic", "GigPoster"].filter(
     (t): t is string => Boolean(t)
   );
   return `\n\n${tags.map((t) => `#${t}`).join(" ")}`;
@@ -59,8 +65,10 @@ function buildLineupLine(lineupArtists: string[]): string {
  * limit (unlike the 300-grapheme visible-post cap elsewhere in this pipeline), so this is never
  * truncated.
  *
- * headerLabel defaults to "FESTIVAL LINEUP" (the just-announced pipeline's framing); postThrowbackPoster.ts
- * passes "THROWBACK THURSDAY" instead so a historical repost is never mistaken for a new announcement.
+ * headerLabel defaults to "FESTIVAL LINEUP", kept for explicit festival-curation callers (postSampleFestival.ts,
+ * postSampleFestivalBatch.ts); postFestivalPosters.ts's own automated loop passes "NEW POSTER" instead since
+ * its scope now covers any notable gig/tour, not just festivals, and postThrowbackPoster.ts passes
+ * "THROWBACK THURSDAY" so a historical repost is never mistaken for a new announcement.
  */
 export function buildAltText(item: VerifiedFestivalPoster, headerLabel: string = "FESTIVAL LINEUP"): string {
   const name = cleanFestivalName(item.festivalName, item.eventYear);
@@ -73,27 +81,27 @@ export function buildAltText(item: VerifiedFestivalPoster, headerLabel: string =
 }
 
 /**
- * Every cycle, searches industry-wide for major music festivals that have just announced their
- * lineup/poster - "major" is an LLM judgment call (see discovery/festivalPostersPrompts.ts's high bar
- * and calibration examples), not a fixed watchlist. Unlike the daily recaps above, this is NOT a
- * once-a-day digest: each distinct festival edition (see db/festivalPostersRepo.ts's festival_key) gets
- * its own standalone post as soon as it's found, and there is no cap on how many can post in one cycle.
+ * Every cycle, searches industry-wide for notable music events - festivals, but equally an individual
+ * artist's tour, a one-off gig, or a residency - that have just announced their poster. "Notable" is an
+ * LLM judgment call (see discovery/festivalPostersPrompts.ts's high bar and calibration examples), not a
+ * fixed watchlist, and is NOT restricted to festivals. Unlike the daily recaps above, this is NOT a
+ * once-a-day digest: each distinct event edition (see db/festivalPostersRepo.ts's festival_key) gets its
+ * own standalone post as soon as it's found, and there is no cap on how many can post in one cycle.
  *
- * Posts the festival's OWN official poster image, not a generated graphic, and with no visible caption
- * text - just the poster, at the account owner's explicit request (the rich caption still goes into the
- * image's alt text; see buildAltText). The image is never sourced from anything the model reports
- * directly - verifyFestivalPosters.ts only confirms the announcement is real and picks the single most
- * authoritative source URL (preferring the festival's own site); extractPosterImage.ts then does a plain
- * HTTP fetch of that exact page and mechanically looks for an image that's actually signalled as the
- * poster/flyer/artwork graphic (never a generic social-share photo), so the image that gets posted is
- * always something that genuinely, verifiably exists at a URL a real page actually links to - never a
- * hallucinated one. If no such image can be mechanically found (no poster signal anywhere on the page,
- * wrong content-type, too large even after compression, network failure), that item is simply skipped
- * and left unrecorded, so a later cycle can retry rather than posting nothing or posting something
- * guessed.
+ * Posts the event's OWN official poster image, not a generated graphic, and with no visible caption text -
+ * just the poster, at the account owner's explicit request (the rich caption still goes into the image's
+ * alt text; see buildAltText). The image is never sourced from anything the model reports directly -
+ * verifyFestivalPosters.ts only confirms the announcement is real and picks the single most authoritative
+ * source URL (preferring the event's own site); extractPosterImage.ts then does a plain HTTP fetch of that
+ * exact page and mechanically looks for an image that's actually signalled as the poster/flyer/artwork
+ * graphic (never a generic social-share photo), so the image that gets posted is always something that
+ * genuinely, verifiably exists at a URL a real page actually links to - never a hallucinated one. If no
+ * such image can be mechanically found (no poster signal anywhere on the page, wrong content-type, too
+ * large even after compression, network failure), that item is simply skipped and left unrecorded, so a
+ * later cycle can retry rather than posting nothing or posting something guessed.
  *
- * Reposting a festival's own promotional artwork is a deliberate choice made explicitly by the account
- * owner (this pipeline never posts anything without independent 2-source verification that the
+ * Reposting an artist's or festival's own promotional artwork is a deliberate choice made explicitly by
+ * the account owner (this pipeline never posts anything without independent 2-source verification that the
  * announcement itself is real) - see README §18.15.
  *
  * A no-op (0, no Bluesky calls) when nothing new is found. Returns the number of physical posts actually
@@ -107,7 +115,7 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
   const newItems = verified.filter((v) => !hasPostedFestivalPoster(ctx.db, buildFestivalKey(v.festivalName, v.eventYear)));
   if (newItems.length === 0) return 0;
 
-  ctx.logger.info(TAG, `${newItems.length} new major festival lineup announcement(s) found`);
+  ctx.logger.info(TAG, `${newItems.length} new notable gig/tour/festival poster announcement(s) found`);
 
   if (!ctx.dryRun && (!ctx.config.bluesky.identifier || !ctx.config.bluesky.appPassword)) {
     ctx.logger.warn(TAG, "BLUESKY_IDENTIFIER / BLUESKY_APP_PASSWORD not configured; skipping");
@@ -128,9 +136,11 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
 
     const key = buildFestivalKey(item.festivalName, item.eventYear);
     // The post itself is image-only, no visible body text - the account owner wants just the poster in
-    // the feed. The rich caption (festival/blurb/lineup/hashtags) still goes into altText (accessibility
-    // + search) and is what's recorded as this row's "text" for an audit trail that's actually useful.
-    const altText = buildAltText(item);
+    // the feed. The rich caption (event/blurb/lineup/hashtags) still goes into altText (accessibility +
+    // search) and is what's recorded as this row's "text" for an audit trail that's actually useful.
+    // "NEW POSTER" (not buildAltText's "FESTIVAL LINEUP" default) since this item could just as easily be
+    // a solo artist's tour or a one-off gig as an actual festival.
+    const altText = buildAltText(item, "NEW POSTER");
 
     if (ctx.dryRun) {
       ctx.logger.info(

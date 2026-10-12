@@ -22,11 +22,12 @@ interface RawDiscoveryResult {
 }
 
 /**
- * One industry-wide web-search sweep for major festivals that have just announced their lineup/poster -
- * only ever called from postFestivalPosters.ts. "Major" is judged by the model itself (see
- * festivalPostersPrompts.ts's high bar and calibration examples), not restricted to any fixed list.
+ * One industry-wide web-search sweep for notable music events - festivals, but equally an individual
+ * artist's tour, a one-off gig, or a residency - that have just announced their poster. Only ever called
+ * from postFestivalPosters.ts. "Notable" is judged by the model itself (see festivalPostersPrompts.ts's
+ * high bar and calibration examples), not restricted to any fixed list or to festivals specifically.
  * Errors are caught and logged rather than thrown: a hiccup here must never sink the rest of the cycle,
- * it just means no festival posters found this cycle.
+ * it just means nothing found this cycle.
  */
 export async function discoverFestivalPosters(ctx: NewsRunContext): Promise<FestivalPosterCandidate[]> {
   ctx.logger.info("festival-posters-discovery", "Starting daily FESTIVAL LINEUP discovery sweep");
