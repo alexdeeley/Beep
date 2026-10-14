@@ -1602,5 +1602,13 @@
     "path": "https://braille.deeley.org",
     "added": "2026-10-11T01:58:20+00:00",
     "thumbnail": "thumbnails/braille-blitz.jpg"
+  },
+  {
+    "id": "bent-square",
+    "name": "Bent Square",
+    "description": "Four white squares, each with a bouncing ball that breaks and bends the wall wherever it hits. All four are identical except the ball speeds up 1%, 2%, 3% or 4% per hit.",
+    "category": "Art",
+    "path": "BentSquare.html",
+    "added": "2026-10-12T18:30:00+00:00"
   }
 ]
