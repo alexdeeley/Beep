@@ -30,6 +30,7 @@ import { createBlueskySession } from "../bluesky/threadPublish.js";
 import { listAllPosts, deleteAllPosts } from "../bluesky/deleteAllPosts.js";
 import { postSampleFestival, type SampleFestivalInput } from "../newswire/festivalPosters/postSampleFestival.js";
 import { postSampleFestivalBatch } from "../newswire/festivalPosters/postSampleFestivalBatch.js";
+import { removeBadPost } from "../newswire/festivalPosters/removeBadPost.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -315,6 +316,29 @@ program
       }
     }
     console.log(`\n${published} of ${results.length} published.`);
+  });
+
+program
+  .command("news:remove-post")
+  .description(
+    "Corrects a single wrongly-published post found on human review (e.g. extraction matched an unrelated press " +
+      "photo, not the real poster): deletes the live Bluesky post, and removes both its audit-trail row and its " +
+      "dedup row so a later cycle can retry that same festival/year with a better source instead of being " +
+      "permanently blocked. Never run automatically - this is a manual correction tool."
+  )
+  .requiredOption("--uri <at-uri>", "The post's at:// URI")
+  .requiredOption("--festival-name <name>", "The exact festivalName this pipeline recorded for the post")
+  .option("--event-year <year>", "The event year, if any (omit for null)")
+  .action(async (opts) => {
+    const result = await removeBadPost(config, {
+      uri: opts.uri,
+      festivalName: opts.festivalName,
+      eventYear: opts.eventYear ? Number(opts.eventYear) : null,
+    });
+    console.log(`Post deleted: ${result.postDeleted}`);
+    console.log(`Dedup row removed: ${result.dedupRowDeleted}`);
+    console.log(`Audit row removed: ${result.auditRowDeleted}`);
+    if (!result.postDeleted) process.exitCode = 1;
   });
 
 program

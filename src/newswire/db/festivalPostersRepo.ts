@@ -66,6 +66,17 @@ export function buildThrowbackKey(festivalName: string, eventYear: number | null
   return buildFestivalKey(`${THROWBACK_KEY_PREFIX}${festivalName}`, eventYear);
 }
 
+/**
+ * Removes a dedup row by its key - used by removeBadPost.ts when a mechanically-extracted image turns
+ * out, on human review, to not actually be the poster (e.g. extraction matched an unrelated press photo).
+ * Without this, hasPostedFestivalPoster would keep blocking every future cycle from retrying that same
+ * festival/year with a better source, even after the wrong post has been deleted from Bluesky.
+ */
+export function deleteFestivalPosterPost(db: Database.Database, festivalKey: string): boolean {
+  const result = db.prepare("DELETE FROM festival_poster_posts WHERE festival_key = ?").run(festivalKey);
+  return result.changes > 0;
+}
+
 /** Recent Throwback Thursday posts only (by key prefix) - passed to discoverThrowbackPoster.ts so it can avoid picking something just featured. */
 export function getRecentThrowbackPosts(db: Database.Database, limit: number): FestivalPosterPostRow[] {
   return db

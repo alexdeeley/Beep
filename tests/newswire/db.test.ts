@@ -12,9 +12,10 @@ import {
   recordFestivalPosterPost,
   getFestivalPosterCount,
   getRecentThrowbackPosts,
+  deleteFestivalPosterPost,
 } from "../../src/newswire/db/festivalPostersRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
-import { insertBlueskyPost, findPostByContentHash } from "../../src/newswire/db/postsRepo.js";
+import { insertBlueskyPost, findPostByContentHash, deleteBlueskyPostByUri } from "../../src/newswire/db/postsRepo.js";
 
 describe("newswire SQLite DB layer", () => {
   let dir: string;
@@ -136,6 +137,42 @@ describe("newswire SQLite DB layer", () => {
 
       const recent = getRecentThrowbackPosts(db, 10);
       expect(recent.map((r) => r.festival_name)).toEqual(["Coachella", "Woodstock"]);
+    });
+
+    it("deleteFestivalPosterPost removes a dedup row so a later cycle can retry that festival/year", () => {
+      const run = startHourlyRun(db, false);
+      const key = buildFestivalKey("Coachella", 2027);
+      recordFestivalPosterPost(db, { festivalKey: key, festivalName: "Coachella", postedInRunId: run.id });
+      expect(hasPostedFestivalPoster(db, key)).toBe(true);
+
+      expect(deleteFestivalPosterPost(db, key)).toBe(true);
+      expect(hasPostedFestivalPoster(db, key)).toBe(false);
+      expect(getFestivalPosterCount(db)).toBe(0);
+
+      expect(deleteFestivalPosterPost(db, key)).toBe(false);
+    });
+  });
+
+  describe("deleteBlueskyPostByUri", () => {
+    it("removes a post's audit row by its Bluesky URI", () => {
+      const run = startHourlyRun(db, false);
+      const post = insertBlueskyPost(db, {
+        runId: run.id,
+        threadPosition: 0,
+        text: "hello",
+        contentHash: "abc123",
+        uri: "at://did:plc:x/app.bsky.feed.post/1",
+        cid: "bafy...",
+        rootUri: null,
+        parentUri: null,
+        dryRun: false,
+      });
+      expect(findPostByContentHash(db, "abc123")?.id).toBe(post.id);
+
+      expect(deleteBlueskyPostByUri(db, "at://did:plc:x/app.bsky.feed.post/1")).toBe(true);
+      expect(findPostByContentHash(db, "abc123")).toBeUndefined();
+
+      expect(deleteBlueskyPostByUri(db, "at://did:plc:x/app.bsky.feed.post/1")).toBe(false);
     });
   });
 });

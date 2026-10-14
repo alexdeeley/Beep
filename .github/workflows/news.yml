@@ -48,6 +48,21 @@ on:
         required: false
         type: string
         default: ""
+      remove_post_uri:
+        description: "at:// URI of a single wrongly-published post to correct via news:remove-post (e.g. extraction matched an unrelated photo, not the real poster). Requires remove_post_festival_name too. Leave blank for a normal run."
+        required: false
+        type: string
+        default: ""
+      remove_post_festival_name:
+        description: "The exact festivalName this pipeline recorded for the post being removed (see its alt text's header line, with any trailing year stripped) - needed to find and clear its dedup row."
+        required: false
+        type: string
+        default: ""
+      remove_post_event_year:
+        description: "The event year recorded for the post being removed, if any. Leave blank if the post had no year."
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -90,9 +105,18 @@ jobs:
           CONFIRM_DELETE_ALL_POSTS: ${{ inputs.confirm_delete_all_posts }}
           SAMPLE_FESTIVAL_FILE: ${{ inputs.sample_festival_file }}
           SAMPLE_FESTIVAL_DIR: ${{ inputs.sample_festival_dir }}
+          REMOVE_POST_URI: ${{ inputs.remove_post_uri }}
+          REMOVE_POST_FESTIVAL_NAME: ${{ inputs.remove_post_festival_name }}
+          REMOVE_POST_EVENT_YEAR: ${{ inputs.remove_post_event_year }}
         run: |
           if [ "${{ inputs.confirm_delete_all_posts }}" = "yes-delete-everything" ]; then
             CMD="news:delete-all-posts"
+          elif [ -n "$REMOVE_POST_URI" ]; then
+            CMD="news:remove-post"
+            ARGS="-- --uri \"$REMOVE_POST_URI\" --festival-name \"$REMOVE_POST_FESTIVAL_NAME\""
+            if [ -n "$REMOVE_POST_EVENT_YEAR" ]; then
+              ARGS="$ARGS --event-year $REMOVE_POST_EVENT_YEAR"
+            fi
           elif [ -n "$SAMPLE_FESTIVAL_FILE" ]; then
             CMD="news:post-sample"
             ARGS="-- --file $SAMPLE_FESTIVAL_FILE"
@@ -117,7 +141,10 @@ jobs:
             CMD="news:publish"
           fi
           echo "Running: npm run $CMD $ARGS"
-          npm run $CMD $ARGS
+          # eval (not a plain unquoted expansion) because the news:remove-post branch embeds its own
+          # double-quotes in $ARGS to safely carry a --festival-name value that can contain spaces -
+          # a plain `npm run $CMD $ARGS` would word-split that apart instead of honoring the quoting.
+          eval "npm run $CMD $ARGS"
 
       - name: Upload run artifacts
         if: always()
