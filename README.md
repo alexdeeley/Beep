@@ -788,3 +788,71 @@ already posted) never stops the rest of the batch.
 - **This is the one place in the pipeline that republishes someone
   else's copyrighted media**, not just facts stated in the wire's own
   words. That was a deliberate, informed choice by the account owner.
+
+### 18.9 Threads cross-posting (optional)
+
+Every live poster post (just-announced, Throwback Thursday, and both
+manual sample commands) is also, independently, cross-posted to
+Threads if it's configured — same image, same image-only convention
+(no visible caption, full caption in Threads' own `alt_text` field).
+This is entirely best-effort: a Threads outage, a missing/expired
+token, or incomplete config just means that one cross-post is skipped
+and logged — it can never block, delay, or roll back the Bluesky post,
+which stays the pipeline's primary, fully independent posting target.
+If `THREADS_USER_ID` is never set, this is a complete no-op and
+nothing about existing behavior changes.
+
+**One-time setup (steps only the account owner can do — no browser or
+computer-use access exists here to do this on their behalf):**
+
+1. Create a Meta developer app at
+   [developers.facebook.com/apps](https://developers.facebook.com/apps)
+   (type "Other" → "Business" is fine) and add the **Threads API**
+   product to it. Note the app's **App ID** and **App secret** from
+   its dashboard.
+2. The Threads/Instagram account to post from must be added as an
+   **Admin, Developer, or Tester** on that app (Meta's own "Threads
+   API Settings" / Roles page). This step is what lets posting to
+   *your own* account work immediately — Meta's App Review is only
+   required to let posts be made to *other* people's accounts, which
+   this pipeline never needs.
+3. Complete Threads' OAuth consent flow once, in your own browser, to
+   get a **short-lived (1h) user access token** and your numeric
+   **Threads user ID** — Meta's [Threads API Get
+   Started](https://developers.facebook.com/docs/threads) guide walks
+   through the authorize URL and redirect. (This is the one step that
+   genuinely requires a human in a browser; nothing here can automate
+   consenting to your own OAuth grant.)
+4. Exchange that short-lived token for a long-lived (60-day) one and
+   seed it into R2, by running this **locally on your own machine**
+   (not via `workflow_dispatch` — its inputs aren't masked in GitHub's
+   own run logs, so a secret typed there would be visible to anyone
+   who can see the workflow run):
+
+   ```bash
+   npm run news:threads-setup -- --short-lived-token "<token from step 3>" --app-secret "<App secret from step 1>"
+   ```
+
+5. Add `THREADS_USER_ID` (from step 3) as a GitHub Actions **secret**
+   on the repo. `R2_PUBLIC_BASE_URL` must also be set as a repo
+   **variable** (already required for the daily pipeline's own
+   archival uploads; `news.yml` now wires it through too) — Threads'
+   API fetches the poster image itself from a public URL rather than
+   accepting uploaded bytes directly, unlike Bluesky's `uploadBlob`.
+
+**Token lifecycle:** the long-lived token is stored in R2
+(`THREADS_TOKEN_R2_KEY`, default `newswire/threads-token.json`) and
+self-refreshes on every pipeline run once it's at least 24h old and
+within 10 days of its 60-day expiry (`threads/threadsAuth.ts`) — so as
+long as the pipeline runs at least once every ~50 days, no further
+manual steps are needed. If it's ever allowed to fully expire
+unrefreshed, there is no recovery — re-run steps 3–4 above to
+re-authenticate.
+
+- `src/threads/threadsAuth.ts` — token load/refresh/persist.
+- `src/threads/threadsPublish.ts` — image re-hosting (via the same R2
+  bucket, under a throwaway `threads/images/` key — unrelated to the
+  daily infographic's own `on-this-day/<date>/` archival key scheme)
+  and the two-step media-container create + publish calls.
+- `src/threads/postToThreads.ts` — `postToThreadsIfConfigured`, the
+  never-throws wrapper every posting call site uses.

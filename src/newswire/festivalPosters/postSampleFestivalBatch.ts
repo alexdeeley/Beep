@@ -10,6 +10,7 @@ import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } f
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { contentHash } from "../contentHash.js";
 import { createBlueskySession, postImageMessage, type BlueskySession } from "../../bluesky/threadPublish.js";
+import { postToThreadsIfConfigured } from "../../threads/postToThreads.js";
 import { extractPosterImage } from "./extractPosterImage.js";
 import { buildAltText } from "./postFestivalPosters.js";
 import type { SampleFestivalInput } from "./postSampleFestival.js";
@@ -129,6 +130,8 @@ export async function postSampleFestivalBatch(
         recordFestivalPosterPost(db, { festivalKey: key, festivalName: item.festivalName, postedInRunId: hourlyRun.id });
         logger.info("post-sample-batch", `Published ${label}: ${ref.uri}`);
         results.push({ festivalName: input.festivalName, eventYear: input.eventYear, published: true, uri: ref.uri });
+
+        await postToThreadsIfConfigured(config, logger, { imageBytes: image.imageBytes, mimeType: image.mimeType, altText });
 
         // Persisted after every successful post, not just at the end - see function doc comment.
         await uploadStoryDb(handle, logger, dbPath);

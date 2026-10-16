@@ -11,6 +11,88 @@ export interface UploadResult {
 }
 
 /**
+ * Shared credential/endpoint check used by every uploader below - factored out so a new uploader
+ * (e.g. threads/threadsPublish.ts's image hosting, which has nothing to do with the daily
+ * infographic) doesn't have to re-derive the R2-vs-S3 endpoint logic, and so all callers report
+ * missing-config the same way.
+ */
+function resolveStorageClient(
+  config: AppConfig,
+  logger: RunLogger
+): { client: S3Client; bucket: string } | { client: null; bucket: null; skippedReason: string } {
+  if (config.storage.provider === "local") {
+    logger.info("storage", "STORAGE_PROVIDER=local; skipping remote upload, file stays local only");
+    return { client: null, bucket: null, skippedReason: "local storage provider configured" };
+  }
+
+  const { bucket, accessKeyId, secretAccessKey, publicBaseUrl } = config.storage;
+  if (!bucket || !accessKeyId || !secretAccessKey || !publicBaseUrl) {
+    logger.warn("storage", "Storage credentials incomplete; skipping remote upload.");
+    return { client: null, bucket: null, skippedReason: "missing storage credentials" };
+  }
+
+  const endpoint =
+    config.storage.endpoint ??
+    (config.storage.provider === "r2" && config.storage.accountId
+      ? `https://${config.storage.accountId}.r2.cloudflarestorage.com`
+      : undefined);
+  if (!endpoint) {
+    logger.warn("storage", "No storage endpoint could be determined (missing R2_ACCOUNT_ID or S3_ENDPOINT); skipping upload");
+    return { client: null, bucket: null, skippedReason: "missing endpoint" };
+  }
+
+  const client = new S3Client({
+    region: config.storage.region,
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+    // R2 requires path-style addressing rather than the AWS SDK v3 default of virtual-hosted-style
+    // - see the identical, more detailed comment in src/newswire/db/sync.ts, where this was
+    // actually observed failing (this pipeline's own upload failures are non-fatal, so the same
+    // underlying DNS issue could have been silently skipping archival uploads without being noticed).
+    forcePathStyle: true,
+  });
+  return { client, bucket };
+}
+
+/**
+ * Uploads raw bytes to the configured object storage under `key` and returns the public HTTPS URL.
+ * This is the primitive `uploadImage` below now builds on; it also backs threads/threadsPublish.ts's
+ * image hosting, which - unlike Bluesky's direct blob upload - requires Threads' API to fetch the
+ * image from a publicly reachable URL, so this is the one place both pipelines share.
+ */
+export async function uploadBytes(
+  config: AppConfig,
+  logger: RunLogger,
+  key: string,
+  body: Buffer,
+  contentType: string
+): Promise<UploadResult> {
+  const resolved = resolveStorageClient(config, logger);
+  if (!resolved.client) {
+    return { publicUrl: null, provider: config.storage.provider, skippedReason: resolved.skippedReason };
+  }
+
+  try {
+    await resolved.client.send(
+      new PutObjectCommand({
+        Bucket: resolved.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000, immutable",
+      })
+    );
+  } catch (err) {
+    logger.error("storage", "Upload to object storage failed", { error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+
+  const publicUrl = `${config.storage.publicBaseUrl!.replace(/\/$/, "")}/${key}`;
+  logger.info("storage", `Uploaded ${key} -> ${publicUrl}`);
+  return { publicUrl, provider: config.storage.provider };
+}
+
+/**
  * Uploads the rendered infographic to public object storage (Cloudflare
  * R2 or any S3-compatible bucket) and returns the public HTTPS URL. This
  * gives you a durable public archival copy of what was actually
@@ -28,61 +110,8 @@ export async function uploadImage(
   filePath: string,
   date: string
 ): Promise<UploadResult> {
-  if (config.storage.provider === "local") {
-    logger.info("storage", "STORAGE_PROVIDER=local; skipping remote upload, image stays on local disk only");
-    return { publicUrl: null, provider: "local", skippedReason: "local storage provider configured" };
-  }
-
-  const { bucket, accessKeyId, secretAccessKey, publicBaseUrl } = config.storage;
-  if (!bucket || !accessKeyId || !secretAccessKey || !publicBaseUrl) {
-    logger.warn(
-      "storage",
-      "Storage credentials incomplete; skipping remote upload. Publishing can still proceed (Bluesky uploads the local file directly), but there will be no public archival copy."
-    );
-    return { publicUrl: null, provider: config.storage.provider, skippedReason: "missing storage credentials" };
-  }
-
-  const endpoint =
-    config.storage.endpoint ??
-    (config.storage.provider === "r2" && config.storage.accountId
-      ? `https://${config.storage.accountId}.r2.cloudflarestorage.com`
-      : undefined);
-  if (!endpoint) {
-    logger.warn("storage", "No storage endpoint could be determined (missing R2_ACCOUNT_ID or S3_ENDPOINT); skipping upload");
-    return { publicUrl: null, provider: config.storage.provider, skippedReason: "missing endpoint" };
-  }
-
-  const client = new S3Client({
-    region: config.storage.region,
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
-    // R2 requires path-style addressing rather than the AWS SDK v3 default of virtual-hosted-style
-    // - see the identical, more detailed comment in src/newswire/db/sync.ts, where this was
-    // actually observed failing (this pipeline's own upload failures are non-fatal, so the same
-    // underlying DNS issue could have been silently skipping archival uploads without being noticed).
-    forcePathStyle: true,
-  });
-
   const key = `on-this-day/${date}/${basename(filePath)}`;
   const body = readFileSync(filePath);
   const contentType = filePath.endsWith(".jpg") || filePath.endsWith(".jpeg") ? "image/jpeg" : "image/png";
-
-  try {
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-        CacheControl: "public, max-age=31536000, immutable",
-      })
-    );
-  } catch (err) {
-    logger.error("storage", "Upload to object storage failed", { error: err instanceof Error ? err.message : String(err) });
-    throw err;
-  }
-
-  const publicUrl = `${publicBaseUrl.replace(/\/$/, "")}/${key}`;
-  logger.info("storage", `Uploaded ${filePath} -> ${publicUrl}`);
-  return { publicUrl, provider: config.storage.provider };
+  return uploadBytes(config, logger, key, body, contentType);
 }

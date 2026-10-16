@@ -3,6 +3,7 @@ import { verifyFestivalPosters } from "../verification/verifyFestivalPosters.js"
 import { extractPosterImage } from "./extractPosterImage.js";
 import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } from "../db/festivalPostersRepo.js";
 import { createBlueskySession, postImageMessage, type BlueskySession } from "../../bluesky/threadPublish.js";
+import { postToThreadsIfConfigured } from "../../threads/postToThreads.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { contentHash } from "../contentHash.js";
 import type { NewsRunContext } from "../runContext.js";
@@ -186,6 +187,8 @@ export async function postFestivalPosters(ctx: NewsRunContext): Promise<number> 
       recordFestivalPosterPost(ctx.db, { festivalKey: key, festivalName: item.festivalName, postedInRunId: ctx.hourlyRunId });
       ctx.logger.info(TAG, `Published: ${ref.uri}`);
       published++;
+
+      await postToThreadsIfConfigured(ctx.config, ctx.logger, { imageBytes: image.imageBytes, mimeType: image.mimeType, altText });
     } catch (err) {
       ctx.logger.error(TAG, `Failed to publish poster for "${item.festivalName}" - will retry next cycle`, {
         error: err instanceof Error ? err.message : String(err),

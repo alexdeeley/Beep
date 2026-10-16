@@ -122,6 +122,21 @@ export interface AppConfig {
     maxPublishAttempts: number;
   };
 
+  /**
+   * Optional cross-post to Threads - entirely separate credential surface from Bluesky, and never
+   * required: see threads/postToThreads.ts, which no-ops cleanly when userId isn't set. There is no
+   * access-token field here - the live long-lived token is self-refreshed and persisted to R2
+   * (tokenR2Key) on every run (since Threads tokens expire after 60 days and must be refreshed
+   * before then), seeded once via the news:threads-setup CLI command, which takes the initial
+   * short-lived OAuth token directly as a flag rather than through config/env - see
+   * threads/threadsAuth.ts.
+   */
+  threads: {
+    userId: string | undefined;
+    tokenR2Key: string;
+    apiBase: string;
+  };
+
   qa: {
     enableVisionCheck: boolean;
   };
@@ -215,6 +230,12 @@ export function loadConfig(): AppConfig {
       appPassword: envStr("BLUESKY_APP_PASSWORD"),
       service: envStr("BLUESKY_SERVICE", "https://bsky.social")!,
       maxPublishAttempts: envInt("BLUESKY_MAX_PUBLISH_ATTEMPTS", 3),
+    },
+
+    threads: {
+      userId: envStr("THREADS_USER_ID"),
+      tokenR2Key: envStr("THREADS_TOKEN_R2_KEY", "newswire/threads-token.json")!,
+      apiBase: envStr("THREADS_API_BASE", "https://graph.threads.net/v1.0")!,
     },
 
     qa: {

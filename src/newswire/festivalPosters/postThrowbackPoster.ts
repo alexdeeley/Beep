@@ -4,6 +4,7 @@ import { extractPosterImage } from "./extractPosterImage.js";
 import { buildAltText } from "./postFestivalPosters.js";
 import { buildThrowbackKey, hasPostedFestivalPoster, recordFestivalPosterPost, getRecentThrowbackPosts } from "../db/festivalPostersRepo.js";
 import { createBlueskySession, postImageMessage, type BlueskySession } from "../../bluesky/threadPublish.js";
+import { postToThreadsIfConfigured } from "../../threads/postToThreads.js";
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { contentHash } from "../contentHash.js";
 import type { NewsRunContext } from "../runContext.js";
@@ -109,6 +110,9 @@ export async function postThrowbackPoster(ctx: NewsRunContext): Promise<number> 
     });
     recordFestivalPosterPost(ctx.db, { festivalKey: key, festivalName: verified.festivalName, postedInRunId: ctx.hourlyRunId });
     ctx.logger.info(TAG, `Published: ${ref.uri}`);
+
+    await postToThreadsIfConfigured(ctx.config, ctx.logger, { imageBytes: image.imageBytes, mimeType: image.mimeType, altText });
+
     return 1;
   } catch (err) {
     ctx.logger.error(TAG, `Failed to publish throwback poster for "${verified.festivalName}" ${verified.eventYear} - will retry next cycle`, {
