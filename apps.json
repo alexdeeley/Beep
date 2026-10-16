@@ -1619,5 +1619,14 @@
     "path": "https://drop.deeley.org",
     "added": "2026-10-16T05:20:29+00:00",
     "thumbnail": "thumbnails/drop-wall.jpg"
+  },
+  {
+    "id": "dual-oscillator",
+    "name": "Dual Oscillator",
+    "description": "A two-voice touch instrument and oscilloscope. Slide a finger on each pad for pitch and loudness, pick sine, triangle or saw, lock the two into simple ratios, and watch the waves, their sum, a Lissajous figure or the phase plot.",
+    "category": "Music Tools",
+    "path": "DualOscillator.html",
+    "added": "2026-10-16T05:23:06+00:00",
+    "thumbnail": "thumbnails/dual-oscillator.jpg"
   }
 ]

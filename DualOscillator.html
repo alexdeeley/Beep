@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="description" content="DUAL OSCILLATOR — a two-voice touch instrument and oscilloscope.">
+<title>DUAL OSCILLATOR</title>
+<style>
+:root{
+  --gap:6px;
+  --strip:50px;
+  --font:"Helvetica Neue",Helvetica,Arial,"Nimbus Sans","Liberation Sans",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:#fff;overflow:hidden;overscroll-behavior:none}
+body{
+  font-family:var(--font);font-weight:700;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;
+}
+#app{
+  position:fixed;inset:0;display:grid;gap:var(--gap);
+  padding:max(var(--gap),env(safe-area-inset-top)) max(var(--gap),env(safe-area-inset-right)) max(var(--gap),env(safe-area-inset-bottom)) max(var(--gap),env(safe-area-inset-left));
+  /* phone portrait: stacked */
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:var(--strip) minmax(0,1fr) minmax(0,.9fr) var(--strip) minmax(0,1fr) auto;
+  grid-template-areas:"sa" "pa" "scope" "sb" "pb" "ctl";
+}
+/* tablet portrait: pads side by side, scope beneath */
+@media (min-width:700px) and (max-aspect-ratio:5/4){
+  #app{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:var(--strip) minmax(0,1fr) minmax(0,1fr) auto;
+    grid-template-areas:"sa sb" "pa pb" "scope scope" "ctl ctl";
+  }
+}
+/* landscape / desktop: pad | scope | pad */
+@media (min-aspect-ratio:5/4){
+  #app{
+    grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);
+    grid-template-rows:var(--strip) minmax(0,1fr) auto;
+    grid-template-areas:"sa scope sb" "pa scope pb" "ctl ctl ctl";
+  }
+}
+@media (max-height:430px){ :root{--strip:44px;--gap:4px} }
+
+.strip{display:flex;gap:var(--gap);align-items:stretch;min-width:0}
+.strip .id{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  min-width:44px;font-size:30px;line-height:1;letter-spacing:-.02em;
+  border:2px solid #fff;
+}
+.strip .waves{display:flex;flex:1 1 auto;min-width:0;gap:var(--gap)}
+.strip .waves button{flex:1 1 0}
+.strip .play{flex:0 0 auto;min-width:82px}
+
+button{
+  font:inherit;font-weight:800;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+  color:#fff;background:#000;border:2px solid #fff;border-radius:0;
+  min-height:44px;padding:0 8px;cursor:pointer;touch-action:manipulation;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+button[aria-pressed="true"],button.on{background:#fff;color:#000}
+button:focus-visible,.pad:focus-visible,#scope:focus-visible{outline:3px solid #fff;outline-offset:3px}
+button:active{background:#fff;color:#000}
+
+.pad{position:relative;min-width:0;min-height:0;touch-action:none;cursor:crosshair;outline:none}
+.pad canvas,#scope canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.readout{position:absolute;left:14px;top:10px;pointer-events:none;line-height:.95}
+.readout .num{font-size:clamp(34px,min(11vw,9vh),76px);font-weight:800;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.readout .unit{font-size:clamp(16px,min(4.4vw,3.6vh),28px);font-weight:800;margin-left:6px;letter-spacing:0}
+.readout .sub{margin-top:6px;font-size:clamp(13px,min(3.6vw,2.4vh),18px);letter-spacing:.08em}
+
+#pa{grid-area:pa}#pb{grid-area:pb}#sa{grid-area:sa}#sb{grid-area:sb}
+#scope{grid-area:scope;position:relative;min-width:0;min-height:0;border:2px solid #fff;touch-action:none;cursor:pointer;outline:none}
+
+#ctl{
+  grid-area:ctl;display:grid;gap:var(--gap);
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+#ctl .mode{grid-column:span 2}
+@media (min-width:860px),(min-aspect-ratio:5/4) and (min-width:640px){
+  #ctl{grid-template-columns:repeat(9,minmax(0,1fr))}
+}
+/* the way back to deeley.org: one more cell in the toolbar, styled like the buttons */
+#ctl a.home{
+  display:flex;align-items:center;justify-content:center;text-decoration:none;
+  font:inherit;font-weight:800;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+  color:#fff;background:#000;border:2px solid #fff;min-height:44px;padding:0 8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+}
+#ctl a.home:active{background:#fff;color:#000}
+@media (max-width:859px) and (max-aspect-ratio:5/4){ #ctl a.home{grid-column:span 4} }
+.vol{display:flex;border:2px solid #fff;min-height:44px;min-width:0}
+.vol button{border:0;flex:0 0 30%;font-size:22px;padding:0;letter-spacing:0}
+.vol output{flex:1 1 auto;display:flex;align-items:center;justify-content:center;font-size:15px;white-space:nowrap;letter-spacing:.04em;font-variant-numeric:tabular-nums;border-left:2px solid #fff;border-right:2px solid #fff;min-width:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<main id="app" aria-label="Dual Oscillator instrument">
+
+  <div class="strip" id="sa">
+    <div class="id" aria-hidden="true">A</div>
+    <button class="play" data-voice="0" aria-pressed="false" aria-keyshortcuts="A" title="Play / stop oscillator A (key A)">PLAY</button>
+    <div class="waves" role="group" aria-label="Oscillator A waveform">
+      <button data-voice="0" data-wave="sine" aria-pressed="true" title="Sine (key W cycles)">SIN</button>
+      <button data-voice="0" data-wave="triangle" aria-pressed="false">TRI</button>
+      <button data-voice="0" data-wave="sawtooth" aria-pressed="false">SAW</button>
+    </div>
+  </div>
+
+  <div class="pad" id="pa" tabindex="0" role="slider" aria-label="Oscillator A pad. Left and right arrows: frequency. Up and down: amplitude. Enter: play or stop." aria-valuemin="1" aria-valuemax="10000" aria-valuenow="220">
+    <canvas aria-hidden="true"></canvas>
+    <div class="readout" aria-hidden="true"><span class="num">220.0</span><span class="unit">Hz</span><div class="sub">AMP 70%</div></div>
+  </div>
+
+  <div id="scope" tabindex="0" role="button" aria-label="Oscilloscope. Activate to change display mode.">
+    <canvas aria-hidden="true"></canvas>
+  </div>
+
+  <div class="strip" id="sb">
+    <div class="id" aria-hidden="true">B</div>
+    <button class="play" data-voice="1" aria-pressed="false" aria-keyshortcuts="B" title="Play / stop oscillator B (key B)">PLAY</button>
+    <div class="waves" role="group" aria-label="Oscillator B waveform">
+      <button data-voice="1" data-wave="sine" aria-pressed="true" title="Sine (key E cycles)">SIN</button>
+      <button data-voice="1" data-wave="triangle" aria-pressed="false">TRI</button>
+      <button data-voice="1" data-wave="sawtooth" aria-pressed="false">SAW</button>
+    </div>
+  </div>
+
+  <div class="pad" id="pb" tabindex="0" role="slider" aria-label="Oscillator B pad. Left and right arrows: frequency. Up and down: amplitude. Enter: play or stop." aria-valuemin="1" aria-valuemax="10000" aria-valuenow="330">
+    <canvas aria-hidden="true"></canvas>
+    <div class="readout" aria-hidden="true"><span class="num">330.0</span><span class="unit">Hz</span><div class="sub">AMP 70%</div></div>
+  </div>
+
+  <div id="ctl" role="toolbar" aria-label="Master controls">
+    <button id="mute" aria-pressed="false" aria-keyshortcuts="M" title="Master mute (M)">MUTE</button>
+    <div class="vol" role="group" aria-label="Master volume">
+      <button id="volDn" aria-label="Volume down" title="Volume down (-)">−</button>
+      <output id="volOut" aria-live="off">VOL 50</output>
+      <button id="volUp" aria-label="Volume up" title="Volume up (+)">+</button>
+    </div>
+    <button id="mode" class="mode" aria-keyshortcuts="V 1 2 3 4" title="Display mode (V or 1–4)">LISSAJOUS</button>
+    <button id="lock" aria-pressed="false" aria-keyshortcuts="L" title="Phase lock (L)">FREE</button>
+    <button id="dir" aria-pressed="false" aria-keyshortcuts="D" title="Frequency direction (D)">LO → HI</button>
+    <button id="clear" aria-keyshortcuts="C" title="Clear display (C)">CLEAR</button>
+    <button id="reset" title="Reset everything to defaults">RESET</button>
+    <a class="home" id="home" href="https://deeley.org" title="Back to deeley.org">&larr; deeley.org</a>
+  </div>
+
+  <div id="live" class="sr" aria-live="polite"></div>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   CONSTANTS + HELPERS
+   ===================================================================== */
+const FMIN = 1, FMAX = 10000, LOGSPAN = Math.log10(FMAX / FMIN); // 4 decades
+const TAU_F   = 0.012;  // frequency glide time-constant (s) — removes zipper noise
+const TAU_ATK = 0.006;  // attack
+const TAU_AMP = 0.012;  // amplitude moves while held
+const TAU_REL = 0.045;  // release (~0.2 s to silence)
+const VOICE_MAX = 0.5;  // per-voice peak gain before master
+const WAVES = ['sine', 'triangle', 'sawtooth'];
+const WAVE_SHORT = { sine: 'SIN', triangle: 'TRI', sawtooth: 'SAW' };
+const MODES = [
+  { id: 'waves',     name: 'OVERLAID WAVES' },
+  { id: 'lissajous', name: 'LISSAJOUS' },
+  { id: 'sum',       name: 'COMBINED SIGNAL' },
+  { id: 'xy',        name: 'XY PHASE' },
+];
+const DEFAULTS = { freq: [220, 330], amp: 0.7, volume: 0.5, mode: 1 };
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const frac = x => x - Math.floor(x);
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const TWO_PI = Math.PI * 2;
+
+/* Waveform shapes as functions of phase (in cycles). They match the phase
+   convention of the Web Audio OscillatorNode: value 0 at phase 0, rising. */
+const WF = {
+  sine: p => Math.sin(TWO_PI * p),
+  triangle: p => { const q = frac(p + 0.25); return 1 - 4 * Math.abs(q - 0.5); },
+  sawtooth: p => 2 * frac(p + 0.5) - 1,
+};
+
+function fmtFreq(f) {
+  if (f >= 999.95) return { num: (f / 1000).toFixed(f >= 9999.5 ? 2 : 3), unit: 'kHz' };
+  if (f < 10) return { num: f.toFixed(3), unit: 'Hz' };
+  if (f < 100) return { num: f.toFixed(2), unit: 'Hz' };
+  return { num: f.toFixed(1), unit: 'Hz' };
+}
+const fmtFreqStr = f => { const o = fmtFreq(f); return o.num + ' ' + o.unit; };
+function fmtTime(T) {
+  if (T < 1) return (T * 1000).toFixed(T < 0.01 ? 2 : 1) + ' ms';
+  return T.toFixed(2) + ' s';
+}
+
+/* =====================================================================
+   APPLICATION STATE
+   ===================================================================== */
+function makeVoice(id, f) {
+  return {
+    id, freq: f, amp: DEFAULTS.amp, wave: 'sine',
+    latched: false,          // PLAY button hold
+    pointers: [],            // active touches on this pad [{id,x,y}]
+    m: { phase: 0, f, target: f, t: 0 }, // analytic mirror of the oscillator
+    visAmp: 0,               // smoothed display amplitude (mirrors gain envelope)
+  };
+}
+const State = {
+  voices: [makeVoice('A', DEFAULTS.freq[0]), makeVoice('B', DEFAULTS.freq[1])],
+  mode: DEFAULTS.mode, lock: false, reversed: false, muted: false,
+  volume: DEFAULTS.volume, touched: false,
+  reducedMotion: false,
+};
+const isOn = v => v.latched || v.pointers.length > 0;
+
+/* Phase lock: snap B to the nearest simple ratio p:q of A (q ≤ 8) when close. */
+function lockSnap(fa, fb) {
+  const r = Math.log(fb / fa);
+  let best = null, bd = Infinity;
+  for (let q = 1; q <= 8; q++) for (let p = 1; p <= 16; p++) {
+    if (gcd(p, q) !== 1) continue;
+    const d = Math.abs(r - Math.log(p / q));
+    if (d < bd) { bd = d; best = [p, q]; }
+  }
+  if (best && bd < 0.035) {
+    const f = fa * best[0] / best[1];
+    if (f >= FMIN && f <= FMAX) return { f, p: best[0], q: best[1] };
+  }
+  return { f: fb, p: 0, q: 0 };
+}
+function effFreq(i) {
+  const [A, B] = State.voices;
+  if (i === 0) return A.freq;
+  return State.lock ? lockSnap(A.freq, B.freq).f : B.freq;
+}
+const xToFreq = x => FMIN * Math.pow(10, (State.reversed ? 1 - x : x) * LOGSPAN);
+const freqToX = f => { const x = Math.log10(f / FMIN) / LOGSPAN; return State.reversed ? 1 - x : x; };
+
+/* =====================================================================
+   AUDIO ENGINE  (one AudioContext, two oscillator → gain chains,
+   master gain → limiter → output)
+   ===================================================================== */
+const Audio = {
+  ctx: null, master: null, nodes: [null, null],
+
+  now() { return this.ctx ? this.ctx.currentTime : performance.now() / 1000; },
+
+  /* Must be called from inside a user gesture. Creates / resumes the context. */
+  ensure() {
+    if (this.ctx) {
+      if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+      return;
+    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { announce('Web Audio is not supported in this browser.'); return; }
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    let ctx;
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
+
+    // Peak protection: fast, hard-knee compressor acting as a limiter.
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -12; lim.knee.value = 0; lim.ratio.value = 20;
+    lim.attack.value = 0.002; lim.release.value = 0.12;
+    const post = ctx.createGain(); post.gain.value = 0.9;
+    const master = ctx.createGain(); master.gain.value = masterTarget();
+    master.connect(lim); lim.connect(post); post.connect(ctx.destination);
+
+    // iOS unlock: play one silent sample inside the gesture.
+    try {
+      const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+      s.buffer = b; s.connect(ctx.destination); s.start(0);
+    } catch (e) {}
+
+    this.ctx = ctx; this.master = master;
+    for (let i = 0; i < 2; i++) {
+      const g = ctx.createGain(); g.gain.value = 0; g.connect(master);
+      this.nodes[i] = { gain: g, osc: null, lastOn: false };
+    }
+    this.restartOscs(ctx.currentTime + 0.005);
+    for (let i = 0; i < 2; i++) applyVoice(i);
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
+  },
+
+  /* (Re)create both oscillators starting at the same instant → phases aligned. */
+  restartOscs(at) {
+    const ctx = this.ctx;
+    State.voices.forEach((v, i) => {
+      const n = this.nodes[i];
+      if (n.osc) { const old = n.osc; try { old.stop(at); } catch (e) {} old.onended = () => old.disconnect(); }
+      const o = ctx.createOscillator();
+      o.type = v.wave;
+      const f = effFreq(i);
+      o.frequency.setValueAtTime(f, at);
+      o.connect(n.gain); o.start(at);
+      n.osc = o;
+      v.m = { phase: 0, f, target: f, t: at };
+    });
+  },
+
+  /* Phase sync with a short gain dip so the restart is click-free. */
+  resync() {
+    if (!this.ctx) { State.voices.forEach(v => { v.m.phase = 0; }); return; }
+    const now = this.ctx.currentTime, at = now + 0.03;
+    this.nodes.forEach((n, i) => {
+      n.gain.gain.setTargetAtTime(0, now, 0.004);
+      n.gain.gain.setTargetAtTime(voiceGain(State.voices[i]), at, TAU_ATK);
+    });
+    this.restartOscs(at);
+  },
+
+  setFreq(i, f) {
+    const n = this.nodes[i], v = State.voices[i];
+    if (!this.ctx || !n) return;
+    n.osc.frequency.setTargetAtTime(f, Math.max(this.ctx.currentTime, v.m.t), TAU_F);
+  },
+  setGain(i, g, on) {
+    const n = this.nodes[i];
+    if (!this.ctx || !n) return;
+    const tau = on && !n.lastOn ? TAU_ATK : (on ? TAU_AMP : TAU_REL);
+    n.gain.gain.setTargetAtTime(g, this.ctx.currentTime, tau);
+    n.lastOn = on;
+  },
+  setWave(i, w) { const n = this.nodes[i]; if (n && n.osc) n.osc.type = w; },
+  setMaster() {
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(masterTarget(), this.ctx.currentTime, State.muted ? 0.005 : 0.015);
+  },
+};
+const voiceGain = v => isOn(v) ? v.amp * v.amp * VOICE_MAX : 0;
+const masterTarget = () => State.muted ? 0 : State.volume * State.volume * 1.2;
+
+/* Analytic phase model: integrates exactly the same exponential frequency
+   glide that setTargetAtTime applies, so the scope draws the oscillators'
+   real phase and frequency rather than a decorative animation. */
+function advance(v, t) {
+  const m = v.m, dt = t - m.t;
+  if (dt <= 0) return;
+  const d = m.f - m.target, e = Math.exp(-dt / TAU_F);
+  m.phase = frac(m.phase + m.target * dt + d * TAU_F * (1 - e));
+  m.f = m.target + d * e;
+  m.t = t;
+}
+
+/* Push a voice's state (freq + gain) into the model and the audio graph. */
+function applyVoice(i) {
+  const v = State.voices[i], f = effFreq(i), t = Audio.now();
+  advance(v, t);
+  v.m.target = f;
+  Audio.setFreq(i, f);
+  Audio.setGain(i, voiceGain(v), isOn(v));
+  UI.padDirty[i] = true;
+}
+function applyBoth() { applyVoice(0); applyVoice(1); }
+
+/* =====================================================================
+   INTERFACE + CONTROLS
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const UI = { pads: [], padDirty: [true, true] };
+const liveEl = $('#live');
+let liveTimer = 0;
+function announce(msg) {
+  clearTimeout(liveTimer);
+  liveEl.textContent = '';
+  liveTimer = setTimeout(() => { liveEl.textContent = msg; }, 30);
+}
+
+['#pa', '#pb'].forEach((sel, i) => {
+  const el = $(sel), canvas = el.querySelector('canvas');
+  UI.pads[i] = {
+    el, canvas, g: canvas.getContext('2d'), W: 0, H: 0, dpr: 1,
+    num: el.querySelector('.num'), unit: el.querySelector('.unit'), sub: el.querySelector('.sub'),
+    play: document.querySelector(`.play[data-voice="${i}"]`),
+    waves: [...document.querySelectorAll(`.waves [data-voice="${i}"]`)],
+  };
+});
+const scopeEl = $('#scope');
+const Scope = { el: scopeEl, canvas: scopeEl.querySelector('canvas'), g: null, W: 0, H: 0, dpr: 1, history: [] };
+Scope.g = Scope.canvas.getContext('2d');
+
+function fitCanvas(obj) {
+  const r = obj.canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (obj.canvas.width !== w || obj.canvas.height !== h) { obj.canvas.width = w; obj.canvas.height = h; }
+  obj.W = r.width; obj.H = r.height; obj.dpr = dpr;
+  obj.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function fitAll() {
+  UI.pads.forEach((p, i) => { fitCanvas(p); UI.padDirty[i] = true; });
+  fitCanvas(Scope); Scope.history.length = 0;
+}
+if (window.ResizeObserver) {
+  const ro = new ResizeObserver(() => fitAll());
+  UI.pads.forEach(p => ro.observe(p.el)); ro.observe(scopeEl);
+} else window.addEventListener('resize', fitAll);
+
+function updateReadout(i) {
+  const v = State.voices[i], p = UI.pads[i], f = effFreq(i), o = fmtFreq(f);
+  p.num.textContent = o.num; p.unit.textContent = o.unit;
+  let sub = (isOn(v) ? '● ON' : '○ OFF') + '   AMP ' + Math.round(v.amp * 100) + '%';
+  if (i === 1 && State.lock) { const s = lockSnap(State.voices[0].freq, v.freq); if (s.p) sub += '   ' + s.p + ':' + s.q; }
+  p.sub.textContent = sub;
+  p.el.setAttribute('aria-valuenow', f.toFixed(2));
+  p.el.setAttribute('aria-valuetext', `${fmtFreqStr(f).replace('Hz', 'hertz')}, amplitude ${Math.round(v.amp * 100)} percent, ${isOn(v) ? 'playing' : 'stopped'}`);
+  p.play.textContent = v.latched ? 'STOP' : 'PLAY';
+  p.play.setAttribute('aria-pressed', String(v.latched));
+  p.waves.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wave === v.wave)));
+}
+
+function syncControls() {
+  $('#mute').setAttribute('aria-pressed', String(State.muted));
+  $('#mute').textContent = State.muted ? 'MUTED' : 'MUTE';
+  $('#volOut').textContent = (innerWidth < 1400 ? '' : 'VOL ') + Math.round(State.volume * 100);   // the toolbar has nine cells here, so the word only fits on wide screens
+  $('#mode').textContent = MODES[State.mode].name;
+  $('#lock').textContent = State.lock ? 'LOCKED' : 'FREE';
+  $('#lock').setAttribute('aria-pressed', String(State.lock));
+  $('#dir').textContent = State.reversed ? 'HI ← LO' : 'LO → HI';
+  $('#dir').setAttribute('aria-pressed', String(State.reversed));
+  UI.padDirty[0] = UI.padDirty[1] = true;
+}
+
+/* ---------- actions ---------- */
+const Actions = {
+  toggleLatch(i) {
+    Audio.ensure();
+    const v = State.voices[i];
+    v.latched = !v.latched; State.touched = true;
+    applyVoice(i);
+    announce(`Oscillator ${v.id} ${v.latched ? 'playing' : 'stopped'}`);
+  },
+  setWave(i, w) {
+    const v = State.voices[i]; v.wave = w; Audio.setWave(i, w);
+    UI.padDirty[i] = true;
+    announce(`Oscillator ${v.id} ${w}`);
+  },
+  cycleWave(i) { const v = State.voices[i]; this.setWave(i, WAVES[(WAVES.indexOf(v.wave) + 1) % 3]); },
+  setMode(k) { State.mode = (k + MODES.length) % MODES.length; Scope.history.length = 0; syncControls(); announce('Display: ' + MODES[State.mode].name); },
+  nextMode() { this.setMode(State.mode + 1); },
+  toggleMute() { Audio.ensure(); State.muted = !State.muted; Audio.setMaster(); syncControls(); announce(State.muted ? 'Muted' : 'Unmuted'); },
+  volume(d) {
+    Audio.ensure();
+    State.volume = Math.round(clamp(State.volume + d, 0, 1) * 10) / 10;
+    Audio.setMaster(); syncControls(); announce('Volume ' + Math.round(State.volume * 100));
+  },
+  toggleLock() {
+    Audio.ensure();
+    State.lock = !State.lock;
+    applyVoice(1);
+    if (State.lock) Audio.resync();
+    Scope.history.length = 0; syncControls();
+    announce(State.lock ? 'Phase locked' : 'Free running');
+  },
+  toggleDir() { State.reversed = !State.reversed; syncControls(); announce(State.reversed ? 'High frequencies on the left' : 'Low frequencies on the left'); },
+  clear() {
+    Scope.history.length = 0;
+    Scope.g.fillStyle = '#000'; Scope.g.fillRect(0, 0, Scope.W, Scope.H);
+    if (State.lock && Audio.ctx) Audio.resync();
+    announce('Display cleared');
+  },
+  stopAll() { State.voices.forEach((v, i) => { v.latched = false; applyVoice(i); }); announce('All stopped'); },
+  reset() {
+    State.voices.forEach((v, i) => {
+      v.latched = false; v.freq = DEFAULTS.freq[i]; v.amp = DEFAULTS.amp;
+      if (v.wave !== 'sine') { v.wave = 'sine'; Audio.setWave(i, 'sine'); }
+    });
+    State.mode = DEFAULTS.mode; State.lock = false; State.reversed = false;
+    State.muted = false; State.volume = DEFAULTS.volume;
+    Audio.setMaster(); applyBoth();
+    if (Audio.ctx) Audio.resync();
+    Scope.history.length = 0; syncControls();
+    announce('Instrument reset');
+  },
+};
+
+/* ---------- control wiring ---------- */
+UI.pads.forEach((p, i) => {
+  p.play.addEventListener('click', () => Actions.toggleLatch(i));
+  p.waves.forEach(b => b.addEventListener('click', () => { Audio.ensure(); Actions.setWave(i, b.dataset.wave); }));
+});
+$('#mute').addEventListener('click', () => Actions.toggleMute());
+$('#volDn').addEventListener('click', () => Actions.volume(-0.1));
+$('#volUp').addEventListener('click', () => Actions.volume(0.1));
+$('#mode').addEventListener('click', () => Actions.nextMode());
+$('#lock').addEventListener('click', () => Actions.toggleLock());
+$('#dir').addEventListener('click', () => Actions.toggleDir());
+$('#clear').addEventListener('click', () => Actions.clear());
+$('#reset').addEventListener('click', () => Actions.reset());
+
+/* =====================================================================
+   TOUCH + POINTER INPUT
+   ===================================================================== */
+function padPos(el, e) {
+  const r = el.getBoundingClientRect();
+  return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
+}
+function followPointer(i) {
+  const v = State.voices[i], p = v.pointers[v.pointers.length - 1]; // newest finger controls the voice
+  if (p) { v.freq = xToFreq(p.x); v.amp = 1 - p.y; }
+  applyVoice(i);
+  if (i === 0 && State.lock) applyVoice(1);
+}
+UI.pads.forEach((pad, i) => {
+  const el = pad.el, v = State.voices[i];
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    Audio.ensure(); State.touched = true;
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    v.pointers = v.pointers.filter(p => p.id !== e.pointerId);
+    v.pointers.push({ id: e.pointerId, ...padPos(el, e) });
+    followPointer(i);
+  });
+  el.addEventListener('pointermove', e => {
+    const p = v.pointers.find(p => p.id === e.pointerId);
+    if (!p) return;
+    e.preventDefault();
+    Object.assign(p, padPos(el, e));
+    if (p === v.pointers[v.pointers.length - 1]) followPointer(i);
+  });
+  const end = e => {
+    const n = v.pointers.length;
+    v.pointers = v.pointers.filter(p => p.id !== e.pointerId);
+    if (v.pointers.length !== n) followPointer(i);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('lostpointercapture', end);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+
+  // keyboard play on a focused pad
+  el.addEventListener('keydown', e => {
+    const semis = e.shiftKey ? 0.1 : (e.altKey ? 12 : 1);
+    const dx = Math.log10(Math.pow(2, semis / 12)) / LOGSPAN;
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowRight': v.freq = xToFreq(clamp(freqToX(v.freq) + dx, 0, 1)); break;
+      case 'ArrowLeft':  v.freq = xToFreq(clamp(freqToX(v.freq) - dx, 0, 1)); break;
+      case 'ArrowUp':    v.amp = clamp(Math.round((v.amp + 0.05) * 100) / 100, 0, 1); break;
+      case 'ArrowDown':  v.amp = clamp(Math.round((v.amp - 0.05) * 100) / 100, 0, 1); break;
+      case 'Enter': case ' ': Actions.toggleLatch(i); break;
+      default: handled = false;
+    }
+    if (handled) { e.preventDefault(); e.stopPropagation(); Audio.ensure(); applyVoice(i); if (i === 0 && State.lock) applyVoice(1); }
+  });
+});
+
+// scope: tap to change mode
+let scopeDown = null;
+scopeEl.addEventListener('pointerdown', e => { scopeDown = { x: e.clientX, y: e.clientY }; });
+scopeEl.addEventListener('pointerup', e => {
+  if (scopeDown && Math.hypot(e.clientX - scopeDown.x, e.clientY - scopeDown.y) < 12) Actions.nextMode();
+  scopeDown = null;
+});
+scopeEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); Actions.nextMode(); } });
+
+// keep iOS from scrolling / zooming / rubber-banding inside the instrument
+document.addEventListener('touchmove', e => { if (e.target.closest('.pad, #scope')) e.preventDefault(); }, { passive: false });
+document.addEventListener('gesturestart', e => { if (e.target.closest && e.target.closest('.pad, #scope')) e.preventDefault(); });
+document.addEventListener('dblclick', e => { if (e.target.closest('.pad, #scope')) e.preventDefault(); });
+// belt-and-braces audio unlock for older Safari, which only unlocks on touchend/click
+['touchend', 'click', 'keydown'].forEach(t => document.addEventListener(t, () => { if (State.touched || Audio.ctx) Audio.ensure(); }, { passive: true }));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Audio.ctx && Audio.ctx.state !== 'running') Audio.ctx.resume().catch(() => {});
+});
+
+// global keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const map = {
+    a: () => Actions.toggleLatch(0), b: () => Actions.toggleLatch(1),
+    w: () => Actions.cycleWave(0),   e: () => Actions.cycleWave(1),
+    m: () => Actions.toggleMute(),   v: () => Actions.nextMode(),
+    '1': () => Actions.setMode(0), '2': () => Actions.setMode(1), '3': () => Actions.setMode(2), '4': () => Actions.setMode(3),
+    l: () => Actions.toggleLock(), d: () => Actions.toggleDir(), c: () => Actions.clear(),
+    escape: () => Actions.stopAll(),
+    '-': () => Actions.volume(-0.1), '_': () => Actions.volume(-0.1),
+    '=': () => Actions.volume(0.1),  '+': () => Actions.volume(0.1),
+  };
+  if (map[k]) { e.preventDefault(); State.touched = true; Audio.ensure(); map[k](); }
+});
+
+const rm = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+if (rm) { State.reducedMotion = rm.matches; (rm.addEventListener ? rm.addEventListener('change', e => { State.reducedMotion = e.matches; }) : 0); }
+
+/* =====================================================================
+   PAD RENDERER
+   ===================================================================== */
+function drawPad(i) {
+  const P = UI.pads[i], g = P.g, W = P.W, H = P.H, v = State.voices[i];
+  if (W < 2 || H < 2) return;
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  const fs = clamp(Math.min(W, H) / 16, 12, 16);
+  const wedgeW = clamp(W * 0.035, 12, 20), wedgeX = W - wedgeW - 10;
+
+  // decade gridlines + labels (logarithmic axis)
+  g.save();
+  g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 1; g.setLineDash([2, 6]);
+  for (let d = 1; d < 4; d++) { const x = Math.round(freqToX(Math.pow(10, d)) * W) + 0.5; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  g.setLineDash([]);
+  g.fillStyle = 'rgba(255,255,255,.8)'; g.font = `700 ${fs}px ${getComputedStyle(document.body).fontFamily}`; g.textBaseline = 'bottom';
+  const labels = ['1', '10', '100', '1k', '10k'];
+  labels.forEach((t, d) => {
+    let x = freqToX(Math.pow(10, d)) * W;
+    g.textAlign = x < 4 ? 'left' : x > W - 4 ? 'right' : 'center';
+    if (x > W - 4) x = W - 8 - (State.reversed ? 0 : wedgeW + 14); else if (x < 4) x = 8;
+    g.fillText(t, x, H - 6);
+  });
+  // amplitude wedge (top = max, bottom = silence), filled up to current level
+  const ay = (1 - v.amp) * H;
+  g.beginPath(); g.moveTo(wedgeX, 8); g.lineTo(wedgeX + wedgeW, 8); g.lineTo(wedgeX + wedgeW, H - 8); g.closePath();
+  g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2; g.stroke();
+  g.save(); g.clip();
+  g.fillStyle = isOn(v) ? '#fff' : 'rgba(255,255,255,.45)';
+  g.fillRect(wedgeX, clamp(ay, 8, H - 8), wedgeW + 1, H);
+  g.restore();
+  g.textAlign = 'right'; g.textBaseline = 'top';
+  g.fillText('AMP', wedgeX - 6, 8);
+  g.restore();
+
+  // border
+  g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.strokeRect(1, 1, W - 2, H - 2);
+
+  // crosshair at the controlling position
+  const on = isOn(v);
+  const x = freqToX(v.freq) * W, y = (1 - v.amp) * H;
+  g.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.45)';
+  g.lineWidth = on ? 1.5 : 1;
+  g.setLineDash(on ? [] : [4, 5]);
+  g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+  g.setLineDash([]);
+  g.beginPath(); g.arc(x, y, on ? 13 : 10, 0, TWO_PI);
+  if (on) { g.fillStyle = '#fff'; g.fill(); } else { g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke(); }
+
+  // phase-lock: mark where B actually sounds
+  if (i === 1 && State.lock) {
+    const ef = effFreq(1);
+    if (Math.abs(ef - v.freq) > 1e-9) {
+      const ex = freqToX(ef) * W;
+      g.strokeStyle = '#fff'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(ex, 0); g.lineTo(ex, 16); g.moveTo(ex, H - 16); g.lineTo(ex, H); g.stroke();
+      g.beginPath(); g.moveTo(ex, y - 9); g.lineTo(ex + 9, y); g.lineTo(ex, y + 9); g.lineTo(ex - 9, y); g.closePath(); g.lineWidth = 2; g.stroke();
+    }
+  }
+  // extra fingers on the same pad
+  for (let k = 0; k < v.pointers.length - 1; k++) {
+    const p = v.pointers[k];
+    g.beginPath(); g.arc(p.x * W, p.y * H, 9, 0, TWO_PI); g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.6)'; g.stroke();
+  }
+  updateReadout(i);
+}
+
+/* =====================================================================
+   OSCILLOSCOPE RENDERER
+   ===================================================================== */
+const FONT = () => getComputedStyle(document.body).fontFamily;
+let fontCache = '';
+
+function voiceView(i) {
+  const v = State.voices[i];
+  return { v, i, f: v.m.f, ph: v.m.phase, a: v.visAmp, wf: WF[v.wave], on: isOn(v) };
+}
+
+/* Value range of one component over [t0, t0+span]. Dense components (≥1 cycle
+   inside one pixel column) are represented by their exact extremes instead of
+   aliased point samples. */
+function compRange(o, t0, span, amp) {
+  if (o.f * span >= 1) return [-amp, amp, true];
+  let mn = Infinity, mx = -Infinity;
+  for (let k = 0; k <= 8; k++) {
+    const y = o.wf(o.ph + o.f * (t0 + span * k / 8));
+    if (y < mn) mn = y; if (y > mx) mx = y;
+  }
+  return [mn * amp, mx * amp, false];
+}
+
+function strokeSeries(g, pts) {
+  g.beginPath(); let pen = false;
+  for (let k = 0; k < pts.length; k += 2) {
+    const x = pts[k], y = pts[k + 1];
+    if (x !== x) { pen = false; continue; } // NaN = break
+    if (pen) g.lineTo(x, y); else { g.moveTo(x, y); pen = true; }
+  }
+  g.stroke();
+}
+
+/* One trace in OVERLAID WAVES. style 0 = solid / filled band, style 1 = dashed / hatched band */
+function drawTrace(g, o, amp, d0, T, x0, w, cy, hA, style, alpha, lw) {
+  const colDur = T / w;
+  g.save();
+  g.globalAlpha = alpha;
+  g.strokeStyle = g.fillStyle = '#fff';
+  g.lineWidth = lw; g.lineJoin = 'round';
+  if (style === 1) g.globalCompositeOperation = 'difference';
+  if (o.f * colDur < 0.15) {
+    g.setLineDash(style === 1 ? [11, 7] : []);
+    g.beginPath();
+    for (let px = 0; px <= w; px++) {
+      const y = cy - o.wf(o.ph + o.f * (d0 + px * colDur)) * amp * hA;
+      px ? g.lineTo(x0 + px, y) : g.moveTo(x0 + px, y);
+    }
+    g.stroke();
+  } else {
+    const step = 2, top = [], bot = [];
+    for (let px = 0; px < w; px += step) {
+      const r = compRange(o, d0 + px * colDur, step * colDur, amp);
+      const yT = cy - r[1] * hA, yB = cy - r[0] * hA;
+      if (style === 0) g.fillRect(x0 + px, yT, step, Math.max(1, yB - yT));
+      else if ((px / step) % 3 === 0) g.fillRect(x0 + px, yT, 1, Math.max(1, yB - yT));
+      top.push(x0 + px, yT); bot.push(x0 + px, yB);
+    }
+    if (style === 1) { g.setLineDash([11, 7]); strokeSeries(g, top); strokeSeries(g, bot); }
+  }
+  g.restore();
+}
+
+/* Choose a timebase: ~3 cycles of the lowest sounding frequency. Above 4 Hz
+   the sweep is triggered on that oscillator's rising zero-crossing so the
+   picture holds still; below that it rolls. */
+function timebase(pool) {
+  let lo = pool[0];
+  pool.forEach(o => { if (o.f < lo.f) lo = o; });
+  const T = clamp(3 / lo.f, 0.0015, 2.5);
+  if (lo.f >= 4) return { T, d0: -T - frac(lo.ph - lo.f * T) / lo.f, trig: lo };
+  return { T, d0: -T, trig: null };
+}
+
+function graticule(g, x0, y0, w, h) {
+  g.save();
+  g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; g.setLineDash([1, 5]);
+  g.beginPath();
+  for (let k = 1; k < 10; k++) { const x = Math.round(x0 + w * k / 10) + .5; g.moveTo(x, y0); g.lineTo(x, y0 + h); }
+  for (let k = 1; k < 4; k++) { const y = Math.round(y0 + h * k / 4) + .5; g.moveTo(x0, y); g.lineTo(x0 + w, y); }
+  g.stroke(); g.setLineDash([]);
+  g.strokeStyle = 'rgba(255,255,255,.32)';
+  g.beginPath(); g.moveTo(x0, Math.round(y0 + h / 2) + .5); g.lineTo(x0 + w, Math.round(y0 + h / 2) + .5); g.stroke();
+  g.restore();
+}
+
+const HISTORY_LEN = 9;
+function pushHistory(path) {
+  Scope.history.push(path);
+  const max = State.reducedMotion ? 1 : HISTORY_LEN;
+  while (Scope.history.length > max) Scope.history.shift();
+}
+function drawHistory(g, lw) {
+  const n = Scope.history.length;
+  g.save(); g.strokeStyle = '#fff'; g.lineJoin = 'round';
+  Scope.history.forEach((h, k) => {
+    if (!h) return;
+    const age = (k + 1) / n;
+    g.globalAlpha = h.alpha * (k === n - 1 ? 1 : age * age * 0.55);
+    g.lineWidth = k === n - 1 ? lw : lw * 0.8;
+    strokeSeries(g, h.pts);
+  });
+  g.restore();
+}
+
+function drawScope() {
+  const g = Scope.g, W = Scope.W, H = Scope.H;
+  if (W < 2 || H < 2) return;
+  const font = fontCache || (fontCache = FONT());
+  const fs = clamp(Math.min(W / 30, H / 14), 12, 16);
+  const A = voiceView(0), B = voiceView(1), V = [A, B];
+  const active = V.filter(o => o.on || o.a > 0.004);
+  const mode = MODES[State.mode].id;
+  const padT = fs + 16, padB = fs + 16;
+  let info = '';
+
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+
+  if (mode === 'waves' || mode === 'sum') {
+    const x0 = 12, w = Math.max(10, Math.floor(W - 24)), y0 = padT, h = H - padT - padB, cy = y0 + h / 2, hA = h / 2 - 4;
+    graticule(g, x0, y0, w, h);
+    const pool = active.length ? active : V;
+    let { T, d0, trig } = timebase(pool);
+
+    if (mode === 'waves') {
+      // latent ghost of both oscillators, then the sounding traces
+      V.forEach((o, k) => drawTrace(g, o, 0.92, d0, T, x0, w, cy, hA, k, 0.2, 1));
+      V.forEach((o, k) => { if (o.a > 0.002) drawTrace(g, o, o.a, d0, T, x0, w, cy, hA, k, 1, 3); });
+    } else {
+      // COMBINED: sum of both signals. Close frequencies → widen the window to show the beat.
+      const comps = active.length ? active : V;
+      if (comps.length === 2) {
+        const df = Math.abs(A.f - B.f);
+        // only true beating (close frequencies) widens the window; otherwise stay triggered
+        if (df > 1e-6 && df < 0.2 * Math.min(A.f, B.f) && 2.5 / df > T) { T = Math.min(2.5 / df, 4); d0 = -T; trig = null; }
+      }
+      const ghost = !active.length;
+      const amps = comps.map(o => ghost ? 0.5 : o.a);
+      const scale = hA / Math.max(1, amps.reduce((s, a) => s + a, 0));
+      const colDur = T / w;
+      const fmax = Math.max(...comps.map(o => o.f));
+      g.save(); g.strokeStyle = g.fillStyle = '#fff'; g.globalAlpha = ghost ? 0.22 : 1;
+      if (fmax * colDur < 0.15) {
+        g.lineWidth = ghost ? 1 : 3; g.lineJoin = 'round'; g.beginPath();
+        for (let px = 0; px <= w; px++) {
+          const t = d0 + px * colDur;
+          let s = 0; comps.forEach((o, k) => { s += o.wf(o.ph + o.f * t) * amps[k]; });
+          px ? g.lineTo(x0 + px, cy - s * scale) : g.moveTo(x0 + px, cy - s * scale);
+        }
+        g.stroke();
+      } else {
+        const step = 1, span = step * colDur;
+        for (let px = 0; px < w; px += step) {
+          const t0 = d0 + px * colDur;
+          let mn = 0, mx = 0;
+          const rs = comps.map((o, k) => compRange(o, t0, span, amps[k]));
+          if (comps.length === 2 && rs[0][2] && rs[1][2] && Math.abs(A.f - B.f) * span < 0.25) {
+            // two dense, nearly-equal frequencies: relative phase is ~constant across
+            // this column, so the true extremes are the beat envelope
+            const tc = t0 + span / 2;
+            const delta = (comps[1].ph + comps[1].f * tc) - (comps[0].ph + comps[0].f * tc);
+            mn = Infinity; mx = -Infinity;
+            for (let q = 0; q < 32; q++) {
+              const th = q / 32;
+              const s = comps[0].wf(th) * amps[0] + comps[1].wf(th + delta) * amps[1];
+              if (s < mn) mn = s; if (s > mx) mx = s;
+            }
+          } else if (rs.every(r => !r[2])) {
+            mn = Infinity; mx = -Infinity;
+            for (let q = 0; q <= 8; q++) {
+              const t = t0 + span * q / 8; let s = 0;
+              comps.forEach((o, k) => { s += o.wf(o.ph + o.f * t) * amps[k]; });
+              if (s < mn) mn = s; if (s > mx) mx = s;
+            }
+          } else { rs.forEach(r => { mn += r[0]; mx += r[1]; }); }
+          const yT = cy - mx * scale, yB = cy - mn * scale;
+          g.fillRect(x0 + px, yT, step, Math.max(1.5, yB - yT));
+        }
+      }
+      g.restore();
+    }
+    info = fmtTime(T) + (trig ? ' · TRIG ' + trig.v.id : ' · ROLL');
+  }
+
+  else if (mode === 'lissajous') {
+    const cx = W / 2, cy = padT + (H - padT - padB) / 2;
+    const R = Math.max(10, Math.min(W / 2 - 16, (H - padT - padB) / 2 - 4));
+    const fMin = Math.min(A.f, B.f), fMax = Math.max(A.f, B.f);
+    const T = Math.min(2 / fMin, 90 / fMax);
+    const N = clamp(Math.ceil(fMax * T * 26), 240, 2600);
+    const build = (aA, aB) => {
+      const pts = new Float32Array(2 * (N + 1));
+      for (let k = 0; k <= N; k++) {
+        const dt = -T + T * k / N;
+        pts[2 * k] = cx + A.wf(A.ph + A.f * dt) * aA * R;
+        pts[2 * k + 1] = cy - B.wf(B.ph + B.f * dt) * aB * R;
+      }
+      return pts;
+    };
+    // frame + axes
+    g.save(); g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; g.setLineDash([1, 5]);
+    g.beginPath(); g.moveTo(cx - R, cy + .5); g.lineTo(cx + R, cy + .5); g.moveTo(cx + .5, cy - R); g.lineTo(cx + .5, cy + R); g.stroke();
+    g.setLineDash([]); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
+    const c = 14;
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
+      const x = cx + sx * R, y = cy + sy * R; g.beginPath(); g.moveTo(x - sx * c, y); g.lineTo(x, y); g.lineTo(x, y - sy * c); g.stroke();
+    });
+    // latent figure (both at full amplitude)
+    g.globalAlpha = 0.17; g.strokeStyle = '#fff'; g.lineWidth = 1; strokeSeries(g, build(0.94, 0.94));
+    g.restore();
+    pushHistory(A.a > 0.002 || B.a > 0.002 ? { pts: build(A.a * 0.94, B.a * 0.94), alpha: 1 } : null);
+    drawHistory(g, 2.4);
+    info = 'WINDOW ' + fmtTime(T);
+  }
+
+  else { // XY PHASE: φA horizontal, φB vertical, on the phase torus
+    const s = Math.max(10, Math.min(W - 40, H - padT - padB - 8));
+    const x0 = (W - s) / 2, y0 = padT + (H - padT - padB - s) / 2;
+    const fMin = Math.min(A.f, B.f), fMax = Math.max(A.f, B.f);
+    const T = Math.min(3 / fMin, 28 / fMax);
+    const N = clamp(Math.ceil(fMax * T * 34), 200, 3000);
+    const pts = new Float32Array(2 * (N + 1) * 2);
+    let j = 0, px = NaN, py = NaN;
+    for (let k = 0; k <= N; k++) {
+      const dt = -T + T * k / N;
+      const x = x0 + frac(A.ph + A.f * dt) * s, y = y0 + s - frac(B.ph + B.f * dt) * s;
+      if (k && (Math.abs(x - px) > s / 2 || Math.abs(y - py) > s / 2)) { pts[j++] = NaN; pts[j++] = NaN; }
+      pts[j++] = x; pts[j++] = y; px = x; py = y;
+    }
+    g.save();
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2; g.strokeRect(x0, y0, s, s);
+    g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; g.setLineDash([1, 5]); g.beginPath();
+    for (let k = 1; k < 4; k++) { g.moveTo(x0 + s * k / 4, y0); g.lineTo(x0 + s * k / 4, y0 + s); g.moveTo(x0, y0 + s * k / 4); g.lineTo(x0 + s, y0 + s * k / 4); }
+    g.stroke(); g.restore();
+    const level = Math.max(A.a, B.a);
+    pushHistory({ pts: pts.subarray(0, j), alpha: 0.3 + 0.7 * clamp(level / 0.7, 0, 1) });
+    drawHistory(g, 2.2);
+    // head: the present instant
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(px, py, 6, 0, TWO_PI); g.fill();
+    g.font = `700 ${fs - 1}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'top';
+    g.fillText('φA →', x0 + s / 2, y0 + s + 2);
+    info = 'WINDOW ' + fmtTime(T);
+  }
+
+  // ---------- labels ----------
+  g.save();
+  g.fillStyle = '#fff'; g.font = `800 ${fs}px ${font}`; g.textBaseline = 'top';
+  g.textAlign = 'left'; g.fillText(MODES[State.mode].name, 10, 8);
+  g.textAlign = 'right'; g.font = `700 ${fs}px ${font}`; g.fillText(info, W - 10, 8);
+  // legend: A solid, B dashed
+  const yb = H - fs - 8;
+  g.textBaseline = 'top'; g.strokeStyle = '#fff'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(10, yb + fs / 2); g.lineTo(28, yb + fs / 2); g.stroke();
+  g.textAlign = 'left'; g.fillText('A ' + fmtFreqStr(effFreq(0)), 34, yb);
+  const bTxt = 'B ' + fmtFreqStr(effFreq(1));
+  g.textAlign = 'right'; g.fillText(bTxt, W - 10, yb);
+  const bw = g.measureText(bTxt).width;
+  g.setLineDash([5, 4]); g.beginPath(); g.moveTo(W - 34 - bw, yb + fs / 2); g.lineTo(W - 16 - bw, yb + fs / 2); g.stroke(); g.setLineDash([]);
+  let mid;
+  const fa = effFreq(0), fb = effFreq(1);
+  if (State.lock) { const sn = lockSnap(State.voices[0].freq, State.voices[1].freq); mid = sn.p ? `LOCK ${sn.p}:${sn.q}` : 'LOCK —'; }
+  else mid = 'B/A ' + (fb / fa).toFixed(fb / fa < 10 ? 3 : 1);
+  g.textAlign = 'center';
+  const leftEnd = 34 + g.measureText('A ' + fmtFreqStr(fa)).width, rightStart = W - 34 - bw;
+  if (rightStart - leftEnd > g.measureText(mid).width + 20) g.fillText(mid, (leftEnd + rightStart) / 2, yb);
+  if (!State.touched) {
+    g.font = `800 ${clamp(W / 16, 18, 30)}px ${font}`; g.textBaseline = 'middle';
+    const t = 'TOUCH A PAD', tw = g.measureText(t).width;
+    g.fillStyle = '#000'; g.fillRect(W / 2 - tw / 2 - 12, H / 2 - 22, tw + 24, 44);
+    g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(W / 2 - tw / 2 - 12, H / 2 - 22, tw + 24, 44);
+    g.fillStyle = '#fff'; g.fillText(t, W / 2, H / 2 + 1);
+  }
+  g.restore();
+}
+
+/* =====================================================================
+   MAIN LOOP
+   ===================================================================== */
+let lastWall = performance.now();
+function frame(nowWall) {
+  requestAnimationFrame(frame);
+  const dtw = Math.min(0.1, Math.max(0, (nowWall - lastWall) / 1000)); lastWall = nowWall;
+  const t = Audio.now();
+  State.voices.forEach((v, i) => {
+    advance(v, t);
+    // mirror the gain envelope for display
+    const target = isOn(v) ? v.amp : 0;
+    const tau = target > v.visAmp ? (v.visAmp < 0.01 ? TAU_ATK : TAU_AMP) : (isOn(v) ? TAU_AMP : TAU_REL);
+    v.visAmp = target + (v.visAmp - target) * Math.exp(-dtw / tau);
+    if (Math.abs(v.visAmp - target) < 1e-4) v.visAmp = target;
+    if (UI.padDirty[i]) { UI.padDirty[i] = false; drawPad(i); }
+  });
+  drawScope();
+}
+
+/* ---------- boot ---------- */
+State.voices.forEach(v => { v.m.t = Audio.now(); });
+fitAll(); syncControls(); updateReadout(0); updateReadout(1);
+requestAnimationFrame(frame);
+
+// test / debugging hook (read-only snapshot)
+window.DualOsc = {
+  state: State, audio: Audio, actions: Actions, xToFreq, freqToX, lockSnap,
+};
+})();
+</script>
+</body>
+</html>
