@@ -27,6 +27,7 @@
     "news:remove-post": "tsx src/cli/index.ts news:remove-post",
     "news:post-sample": "tsx src/cli/index.ts news:post-sample",
     "news:post-sample-batch": "tsx src/cli/index.ts news:post-sample-batch",
+    "news:threads-setup": "tsx src/cli/index.ts news:threads-setup",
     "inspect": "tsx src/cli/index.ts inspect",
     "test": "vitest run",
     "test:watch": "vitest"

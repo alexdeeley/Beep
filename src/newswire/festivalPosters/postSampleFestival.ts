@@ -10,6 +10,7 @@ import { buildFestivalKey, hasPostedFestivalPoster, recordFestivalPosterPost } f
 import { insertBlueskyPost } from "../db/postsRepo.js";
 import { contentHash } from "../contentHash.js";
 import { createBlueskySession, postImageMessage } from "../../bluesky/threadPublish.js";
+import { postToThreadsIfConfigured } from "../../threads/postToThreads.js";
 import { extractPosterImage } from "./extractPosterImage.js";
 import { buildAltText } from "./postFestivalPosters.js";
 import type { VerifiedFestivalPoster } from "../types.js";
@@ -133,6 +134,9 @@ export async function postSampleFestival(
     });
     recordFestivalPosterPost(db, { festivalKey: key, festivalName: item.festivalName, postedInRunId: hourlyRun.id });
     logger.info("post-sample", `Published: ${ref.uri}`);
+
+    await postToThreadsIfConfigured(config, logger, { imageBytes: image.imageBytes, mimeType: image.mimeType, altText });
+
     finishHourlyRun(db, hourlyRun.id, {
       status: "success",
       quiet_hours_outcome: null,

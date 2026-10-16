@@ -14,7 +14,15 @@ name: Newswire
 #
 # The concurrency group below is load-bearing, not just an overlap-prevention nicety: it's what keeps
 # concurrent runs of this workflow from racing each other's read-modify-write of the shared R2-hosted
-# story database (which here only remembers which festival editions have already posted).
+# story database (which here only remembers which festival editions have already posted) and, now, the
+# R2-hosted Threads token (see threads/threadsAuth.ts).
+#
+# Every live post made here is also, independently, cross-posted to Threads if THREADS_USER_ID is set
+# (see threads/postToThreads.ts) - entirely best-effort and never able to affect the Bluesky post above
+# it: a Threads outage or an unrefreshed/expired token just means that one cross-post is skipped, logged,
+# and retried next cycle once the Threads token is next. Run `npm run news:threads-setup` locally, once,
+# to seed the initial long-lived token (see README) - never via workflow_dispatch, since its secret
+# inputs would be visible, unmasked, in this workflow's own run logs.
 #
 on:
   schedule:
@@ -102,6 +110,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           CONFIRM_DELETE_ALL_POSTS: ${{ inputs.confirm_delete_all_posts }}
           SAMPLE_FESTIVAL_FILE: ${{ inputs.sample_festival_file }}
           SAMPLE_FESTIVAL_DIR: ${{ inputs.sample_festival_dir }}

@@ -31,6 +31,7 @@ import { listAllPosts, deleteAllPosts } from "../bluesky/deleteAllPosts.js";
 import { postSampleFestival, type SampleFestivalInput } from "../newswire/festivalPosters/postSampleFestival.js";
 import { postSampleFestivalBatch } from "../newswire/festivalPosters/postSampleFestivalBatch.js";
 import { removeBadPost } from "../newswire/festivalPosters/removeBadPost.js";
+import { exchangeForLongLivedToken, seedThreadsToken } from "../threads/threadsAuth.js";
 
 const program = new Command();
 program.name("on-this-day").description("Autonomous On This Day historical infographic pipeline");
@@ -373,6 +374,28 @@ program
     const deleted = await deleteAllPosts(config, logger, session, posts);
     console.log(`Deleted ${deleted} of ${posts.length} post(s).`);
     if (deleted !== posts.length) process.exitCode = 1;
+  });
+
+program
+  .command("news:threads-setup")
+  .description(
+    "One-time setup to enable Threads cross-posting: exchanges a short-lived Threads user access token " +
+      "(obtained once by the account owner via Meta's OAuth consent flow, in their own browser - see README) " +
+      "for a long-lived (60-day) one, and stores it in R2 so the regular pipeline can load and self-refresh it " +
+      "on every run. Re-run this if the stored token is ever allowed to fully expire (60 days with no run)."
+  )
+  .requiredOption("--short-lived-token <token>", "The short-lived (1h) user access token from Meta's OAuth redirect")
+  .requiredOption("--app-secret <secret>", "The Meta developer app's client secret (from the app dashboard) - required by Threads' token-exchange endpoint")
+  .action(async (opts) => {
+    const { join } = await import("node:path");
+    const runDir = join(config.paths.runsDir, "news", `threads-setup-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+    const logger = new RunLogger(runDir);
+    const longLived = await exchangeForLongLivedToken(config, opts.shortLivedToken, opts.appSecret);
+    await seedThreadsToken(config, logger, longLived);
+    console.log(`Long-lived Threads token stored in R2 (key: ${config.threads.tokenR2Key}), expires ${longLived.expiresAt}`);
+    if (!config.threads.userId) {
+      console.log("Note: THREADS_USER_ID is not set - the pipeline will not cross-post until it is.");
+    }
   });
 
 program
