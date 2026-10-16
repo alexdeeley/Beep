@@ -3,10 +3,22 @@
 // forever: track A plays through, then track B, then back to A. Pauses on
 // the game-over screen (see pause()/resume() - app.js calls these) so a
 // finished game ends on its chime instead of the music running forever
-// underneath it. Shares the sound effects' mute state (see sound.js) - one
-// mute button silences both - call refreshMute() whenever that toggles so
-// an already-playing track responds immediately.
+// underneath it. OFF by default: it has its own switch (the note button,
+// remembered per device as dt.music), and it also respects the shared mute
+// (see sound.js) - call refreshMute() whenever either toggles so an
+// already-playing track responds immediately.
 import { isMuted } from './sound.js';
+
+let wanted = false;
+try { wanted = localStorage.getItem('dt.music') === '1'; } catch {}
+export const isOn = () => wanted;
+export function setOn(on) {
+  wanted = !!on;
+  try { localStorage.setItem('dt.music', wanted ? '1' : '0'); } catch {}
+  if (wanted) init();
+  refreshMute();
+}
+const audible = () => wanted && !isMuted();
 
 const TRACKS = ['/audio/music-1.mp3', '/audio/music-2.mp3'];
 const VOLUME = 0.35;
@@ -43,14 +55,14 @@ function playCurrent() {
   const el = els[idx];
   el.currentTime = 0;
   el.play().catch(() => {});
-  fade(el, isMuted() ? 0 : VOLUME);
+  fade(el, audible() ? VOLUME : 0);
 }
 
-// Called once, on first user interaction (same moment sound.js unlocks its
-// AudioContext) - starts the playlist and keeps it advancing to the next
-// track whenever the current one finishes.
+// Called on first user interaction (same moment sound.js unlocks its
+// AudioContext) - starts the playlist, if music is switched on, and keeps it
+// advancing to the next track whenever the current one finishes.
 export function init() {
-  if (started) return;
+  if (started || !wanted) return;
   started = true;
   els.forEach((el, i) => {
     el.addEventListener('ended', () => { idx = (i + 1) % els.length; playCurrent(); });
@@ -59,7 +71,7 @@ export function init() {
 }
 
 export function refreshMute() {
-  if (started) fade(els[idx], isMuted() ? 0 : VOLUME, 150);
+  if (started) fade(els[idx], audible() ? VOLUME : 0, 150);
 }
 
 // Game-over gets quiet (just the "over" chime) instead of the music
@@ -75,8 +87,8 @@ export function resume() {
   if (!started) return;
   const el = els[idx];
   if (el.paused) el.play().catch(() => {});
-  fade(el, isMuted() ? 0 : VOLUME, 250);
+  fade(el, audible() ? VOLUME : 0, 250);
 }
 
 // For tests/debugging only.
-export function isPlaying() { return started && !els[idx].paused; }
+export function isPlaying() { return started && wanted && !els[idx].paused; }

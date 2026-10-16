@@ -1190,6 +1190,19 @@ function renderMute() {
 }
 $('btn-mute').addEventListener('click', () => { snd.setMuted(!snd.isMuted()); renderMute(); music.refreshMute(); });
 
+// Background music: off unless you switch it on (remembered on this device).
+function renderMusic() {
+  const on = music.isOn();
+  for (const id of ['btn-music', 'btn-music-home']) {
+    const b = $(id);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.setAttribute('aria-label', on ? 'Turn background music off' : 'Turn background music on');
+  }
+  $('btn-music-home').innerHTML = `<svg width="20" height="20" aria-hidden="true"><use href="#i-music"/></svg> Music: ${on ? 'on' : 'off'}`;
+}
+for (const id of ['btn-music', 'btn-music-home']) $(id).addEventListener('click', () => { snd.unlockAudio(); music.setOn(!music.isOn()); renderMusic(); });
+renderMusic();
+
 // Grid: square guide-lines over the sheet, for drawing to proportion. A CSS
 // overlay only - never part of the drawing, never in the gallery. Remembered.
 function setGrid(on) {

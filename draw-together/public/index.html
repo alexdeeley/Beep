@@ -36,6 +36,7 @@
     <symbol id="i-undo" viewBox="0 0 48 48"><path d="M14 20h18a9 9 0 0 1 0 18H20" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round"/><path d="M20 10L10 20l10 10" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-trash" viewBox="0 0 48 48"><path d="M12 15h24l-2 26H14z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M8 15h32M19 15v-5h10v5M20 22v13M28 22v13" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
     <symbol id="i-sound" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M32 17c3 4 3 10 0 14M37 12c6 7 6 17 0 24" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-music" viewBox="0 0 48 48"><path d="M19 36V13l18-4v22" fill="none" stroke="#000" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="14" cy="36" r="5.5" fill="#fff" stroke="#000" stroke-width="3.2"/><circle cx="32" cy="31" r="5.5" fill="#fff" stroke="#000" stroke-width="3.2"/></symbol>
     <symbol id="i-mute" viewBox="0 0 48 48"><path d="M8 19h8l10-8v26l-10-8H8z" fill="#fff" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 19l10 10M43 19L33 29" stroke="#000" stroke-width="3.6" stroke-linecap="round"/></symbol>
     <symbol id="i-close" viewBox="0 0 48 48"><path d="M13 13l22 22M35 13L13 35" stroke="#000" stroke-width="5" stroke-linecap="round"/></symbol>
     <symbol id="i-invert" viewBox="0 0 48 48"><circle cx="24" cy="24" r="17" fill="none" stroke="#000" stroke-width="3.2"/><path d="M24 7a17 17 0 0 1 0 34z" fill="#000"/></symbol>
@@ -61,6 +62,9 @@
     <p id="home-err" class="err" role="alert"></p>
     <button id="btn-a11y-home" class="btn small ghost a11y-btn" type="button" aria-pressed="false" aria-label="Invert colors for readability">
       <svg width="20" height="20" aria-hidden="true"><use href="#i-invert"/></svg> Invert colors
+    </button>
+    <button id="btn-music-home" class="btn small ghost" type="button" aria-pressed="false" aria-label="Turn background music on">
+      <svg width="20" height="20" aria-hidden="true"><use href="#i-music"/></svg> Music: off
     </button>
   </section>
 
@@ -134,6 +138,7 @@
         <button class="btn icon mini" id="btn-hud-gallery" type="button" aria-label="Open the gallery" hidden>🖼️</button>
         <button class="btn icon mini a11y-btn" id="btn-a11y-hud" type="button" aria-pressed="false" aria-label="Invert colors for readability"><svg><use href="#i-invert"/></svg></button>
         <button class="btn icon mini" id="btn-grid" type="button" aria-pressed="false" aria-label="Show a grid over the drawing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+        <button class="btn icon mini" id="btn-music" type="button" aria-pressed="false" aria-label="Turn background music on"><svg><use href="#i-music"/></svg></button>
         <button class="btn icon mini" id="btn-mute" aria-label="Mute sounds"><svg><use href="#i-sound"/></svg></button>
         <button class="btn icon mini" id="btn-quit" aria-label="Leave game"><svg><use href="#i-close"/></svg></button>
       </div>
