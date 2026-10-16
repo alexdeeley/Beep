@@ -1610,5 +1610,14 @@
     "category": "Art",
     "path": "BentSquare.html",
     "added": "2026-10-12T18:30:00+00:00"
+  },
+  {
+    "id": "drop-wall",
+    "name": "The Drop Wall",
+    "description": "A million-point peg machine. Pick a lane, drop the ball, and chase the centre - Classic, Jackpot, Endurance, a Daily board and Pass & Play, with shared high scores for every mode.",
+    "category": "Games",
+    "path": "https://drop.deeley.org",
+    "added": "2026-10-16T05:20:29+00:00",
+    "thumbnail": "thumbnails/drop-wall.jpg"
   }
 ]

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "drop-wall",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+
+  // The game is one static page in ./public; only /api/* runs the Worker.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+
+  // One Durable Object holds every high-score board.
+  "durable_objects": { "bindings": [{ "name": "SCORES", "class_name": "DropWallScores" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DropWallScores"] }],
+
+  "observability": { "enabled": true },
+  "routes": [{ "pattern": "drop.deeley.org", "custom_domain": true }]
+}
