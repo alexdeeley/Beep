@@ -1586,15 +1586,6 @@
     "thumbnail": "thumbnails/gazillionaire.jpg"
   },
   {
-    "id": "castle-maze",
-    "name": "Castle Maze",
-    "description": "Explore a castle full of twisting mazes, collect the stars in every dead end, and find the three unicorn sisters hiding behind secret walls. Pick your hero, then tap to move.",
-    "category": "Games",
-    "path": "CastleMaze.html",
-    "added": "2026-10-11T01:37:32+00:00",
-    "thumbnail": "thumbnails/castle-maze.jpg"
-  },
-  {
     "id": "braille-blitz",
     "name": "Braille Blitz",
     "description": "Learn to read Braille letters and numbers in quick rounds: one big six-dot cell, three enormous answers, instant feedback, and statistics that remember what you find hard. Black and white, built for low vision.",

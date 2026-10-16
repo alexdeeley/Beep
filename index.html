@@ -220,21 +220,6 @@
   .duel-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #cfeaff; line-height: 1.35; font-weight: 500; }
   .duel-banner .dl-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #18d4e8; border: 2px solid #18d4e8; border-radius: 3px; padding: 1px 8px; }
 
-  /* CASTLE MAZE: its own splash art, set in a weathered stone frame. */
-  .castle-banner {
-    display: flex; align-items: center; gap: 16px; padding: 14px 16px; text-decoration: none; color: #fff;
-    background: linear-gradient(160deg, #0d3b4f 0%, #071e2b 100%);
-    border: 4px solid #a9b08a; border-radius: 12px; box-shadow: 0 0 0 2px #000, 0 8px 22px rgba(0, 0, 0, 0.5);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .castle-banner:hover, .castle-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 22px rgba(169, 176, 138, 0.45); }
-  .castle-banner .cm-art { flex: 0 0 auto; display: block; width: 46%; max-width: 220px; height: auto; border-radius: 8px; box-shadow: 0 0 0 2px #000, 0 0 0 4px #a9b08a; }
-  @media (max-width: 560px) { .castle-banner { flex-direction: column; align-items: stretch; gap: 12px; } .castle-banner .cm-art { width: 100%; max-width: none; } }
-  .castle-banner .cm-text { min-width: 0; flex: 1 1 auto; }
-  .castle-banner h2 { margin: 0; font-weight: 900; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.06em; line-height: 1.05; color: #e8ecd2; text-shadow: 0 2px 0 #2f3a1f, 0 0 14px rgba(169, 176, 138, 0.35); }
-  .castle-banner p { margin: 5px 0 0; font-size: 0.88rem; color: #d6ecf2; line-height: 1.35; font-weight: 500; }
-  .castle-banner .cm-cta { display: inline-block; margin-top: 7px; font-weight: 800; font-size: 0.82rem; color: #000; background: #e8ecd2; padding: 2px 10px; border-radius: 3px; }
-
   /* GAZILLIONAIRE: its own title screen, framed in gold on deep space. */
   .gaz-banner {
     display: flex; align-items: center; gap: 18px; padding: 14px 16px; text-decoration: none; color: #fff;
@@ -243,9 +228,8 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .gaz-banner:hover, .gaz-banner:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 0 30px rgba(240, 162, 58, 0.6); }
-  .gaz-banner .gz-art { flex: 0 0 auto; display: block; width: 46%; max-width: 300px; height: auto; border-radius: 8px; box-shadow: 0 0 0 2px #000, 0 0 0 4px #f0a23a; }
+  .gaz-banner .gz-art { flex: 0 0 auto; display: block; width: 46%; max-width: 220px; height: auto; border-radius: 8px; box-shadow: 0 0 0 2px #000, 0 0 0 4px #f0a23a; }
   @media (max-width: 560px) { .gaz-banner { flex-direction: column; align-items: stretch; gap: 12px; } .gaz-banner .gz-art { width: 100%; max-width: none; } }
-  @media (min-width: 700px) { .banner-grid > a.gaz-banner { grid-column: 1 / -1; } }
   .gaz-banner .gz-text { min-width: 0; flex: 1 1 auto; }
   .gaz-banner h2 { margin: 0; font-weight: 900; font-style: italic; font-size: clamp(1.3rem, 5.6vw, 1.8rem); letter-spacing: 0.03em; line-height: 1.05; color: #ffb347; text-shadow: 0 2px 0 #7a3a00, 0 0 14px rgba(255, 179, 71, 0.35); }
   .gaz-banner .gz-tag { margin: 4px 0 0; font-size: 0.78rem; letter-spacing: 0.22em; text-transform: uppercase; color: #7fe3ff; font-weight: 700; }
@@ -417,14 +401,6 @@
         <h2>ARKANOID <i>//</i> DUEL</h2>
         <p>Two players. One ball. One wall. Tap to find an opponent &mdash; or play the computer.</p>
         <span class="dl-cta">duel.deeley.org &#8599;</span>
-      </span>
-    </a>
-    <a class="castle-banner" href="CastleMaze.html">
-      <img class="cm-art" src="thumbnails/castle-maze.jpg" alt="" width="900" height="672" decoding="async" />
-      <span class="cm-text">
-        <h2>CASTLE MAZE</h2>
-        <p>Twisting mazes, stars in every dead end, and three unicorn sisters hiding behind secret walls. Pick a hero and tap to move.</p>
-        <span class="cm-cta">Play &#8599;</span>
       </span>
     </a>
     <a class="gaz-banner" href="Gazillionaire.html">
