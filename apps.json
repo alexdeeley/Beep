@@ -1452,8 +1452,8 @@
   },
   {
     "id": "instruments",
-    "name": "Instruments",
-    "description": "A synthesized drum machine and acid bass synth you can play solo or combine in a shared workspace.",
+    "name": "Sound",
+    "description": "Browser instruments: 34 of them, each playable on its own - keys, drums, bass, synths, generative and experimental - plus the Studio, which runs four together with a shared clock, mixer and effects.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
@@ -1610,5 +1610,23 @@
     "category": "Art",
     "path": "BentSquare.html",
     "added": "2026-10-12T18:30:00+00:00"
+  },
+  {
+    "id": "drop-wall",
+    "name": "The Drop Wall",
+    "description": "A million-point peg machine. Pick a lane, drop the ball, and chase the centre - Classic, Jackpot, Endurance, a Daily board and Pass & Play, with shared high scores for every mode.",
+    "category": "Games",
+    "path": "https://drop.deeley.org",
+    "added": "2026-10-16T05:20:29+00:00",
+    "thumbnail": "thumbnails/drop-wall.jpg"
+  },
+  {
+    "id": "dual-oscillator",
+    "name": "Dual Oscillator",
+    "description": "A two-voice touch instrument and oscilloscope. Slide a finger on each pad for pitch and loudness, pick sine, triangle or saw, lock the two into simple ratios, and watch the waves, their sum, a Lissajous figure or the phase plot.",
+    "category": "Music Tools",
+    "path": "DualOscillator.html",
+    "added": "2026-10-16T05:23:06+00:00",
+    "thumbnail": "thumbnails/dual-oscillator.jpg"
   }
 ]

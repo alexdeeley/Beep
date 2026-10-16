@@ -41,12 +41,18 @@ const M = await player('Maisie', { viewport: { width: 390, height: 844 }, device
 await A.page.screenshot({ path: `${OUT}/01-home-tablet.png` });
 await M.page.screenshot({ path: `${OUT}/01-home-phone.png` });
 
-// music starts the moment there's any interaction, even on the home screen -
-// deliberately not gated on being in a game (an ambient audio landmark from
-// the very first screen, not just a gameplay effect).
+// music is off by default; the note button switches it on, and from then on
+// it plays everywhere, even on the home screen - not gated on being in a game.
 await A.page.click('#in-name');
 await sleep(150);
-ok(await A.page.evaluate(() => window.__dt.music.isPlaying()), 'background music starts on the home screen, before any game');
+ok(!(await A.page.evaluate(() => window.__dt.music.isPlaying())), 'background music is OFF by default');
+ok((await A.page.textContent('#btn-music-home')).includes('Music: off'), 'the home screen says so');
+await A.page.click('#btn-music-home');
+await sleep(150);
+ok(await A.page.evaluate(() => window.__dt.music.isPlaying()), 'the note button switches music on, right there on the home screen');
+ok(await M.page.evaluate(() => localStorage.getItem('dt.music') !== '1'), 'that is per device: the other phone still has it off');
+await M.page.click('#btn-music-home');   // Maisie turns hers on too, so the pause/resume checks below have music to pause
+await sleep(150);
 
 await A.page.fill('#in-name', 'Alex');
 await A.page.click('#btn-create');

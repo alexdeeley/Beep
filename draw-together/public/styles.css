@@ -602,6 +602,7 @@ html.a11y-invert #sizes .blob {
   background-position: center center;
 }
 #btn-grid[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+#btn-music[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
 /* ── Scratchpad: guessers doodle for themselves while the drawer picks a
    word. Local only, never sent, wiped the moment the round starts. ── */

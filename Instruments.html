@@ -3,105 +3,208 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Instruments — Deeley.org</title>
-<link rel="stylesheet" href="instruments/styles/instruments.css">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="description" content="Sound on deeley.org: browser instruments you can play one at a time, a Studio that combines four, and more sound tools.">
+<title>Sound — Deeley.org</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <style>
-  .im-landing-header {
-    padding: 20px 16px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  /* Same page chrome as the home page: follows the system's light/dark
+     setting; the Studio banner and the tiles keep their own colours. */
+  :root {
+    color-scheme: dark;
+    --bg: #000; --ink: #f2f2f5; --ink-2: #b8b8c2; --muted: #8c8c9a; --faint: #5c5c68;
+    --line: #1c1c20; --line-2: #2a2a30; --panel: #0c0c0e; --panel-2: #141418;
+    --tile-shadow: rgba(0, 0, 0, 0.55);
   }
-  .im-landing-title { font-size: 1.4rem; font-weight: 700; }
-  .im-landing-sub { color: rgba(242, 242, 245, 0.7); font-size: 0.9rem; max-width: 640px; }
-  .im-landing-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
-  .im-landing-cta {
-    display: inline-block;
-    align-self: flex-start;
-    background: #4d7cff;
-    color: #fff;
-    border: none;
-    text-decoration: none;
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #fff; --ink: #0c0c10; --ink-2: #3a3a44; --muted: #4a4a54; --faint: #6b6b78;
+      --line: #e2e2e8; --line-2: #c8c8d2; --panel: #f4f4f7; --panel-2: #e8e8ee;
+      --tile-shadow: rgba(0, 0, 0, 0.25);
+    }
   }
-  .im-landing-cta-alt { background: #ff3b6b; }
-  .im-landing-footer {
-    padding: 24px 16px 40px;
-    text-align: center;
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 20px 90px; }
+  a { color: inherit; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .back { width: 44px; height: 44px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--panel); border: 1px solid var(--line-2); text-decoration: none; font-size: 26px; line-height: 1; padding-bottom: 3px; }
+  h1 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { color: var(--muted); font-weight: 700; font-size: 0.95rem; }
+  .tagline { margin: 0 0 18px; color: var(--ink-2); font-size: 1.05rem; line-height: 1.4; max-width: 640px; }
+
+  /* The Studio: the one thing on this page that is not a single instrument. */
+  .studio {
+    display: flex; align-items: center; gap: 18px; padding: 18px 20px; margin: 0 0 26px; text-decoration: none; color: #fff;
+    background: linear-gradient(135deg, #2b1055 0%, #5a1d9e 55%, #c724b1 130%);
+    border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 2px #000, 0 10px 28px rgba(123, 47, 247, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .im-landing-footer a {
-    color: rgba(242, 242, 245, 0.55);
-    font-size: 0.8rem;
-    text-decoration: underline;
+  .studio:hover, .studio:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 14px 34px rgba(123, 47, 247, 0.55); }
+  .studio .s-icon { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 16px; background: #000; border: 4px solid #fff; box-shadow: 0 0 0 2px #000; }
+  .studio .s-icon svg { display: block; width: 100%; height: 100%; }
+  @media (max-width: 420px) { .studio .s-icon { width: 80px; height: 80px; } }
+  .studio .s-text { min-width: 0; flex: 1 1 auto; }
+  .studio h2 { margin: 0; font-size: clamp(1.3rem, 5.6vw, 1.8rem); font-weight: 900; letter-spacing: 0.04em; line-height: 1.05; }
+  .studio h2 small { display: block; font-size: 0.72rem; letter-spacing: 0.18em; color: #e6c8ff; font-weight: 800; margin-bottom: 4px; }
+  .studio p { margin: 6px 0 0; font-size: 0.92rem; color: #f0e4ff; line-height: 1.35; font-weight: 500; }
+  .studio .s-cta { display: inline-block; margin-top: 8px; font-weight: 800; font-size: 0.82rem; color: #000; background: #fff; padding: 3px 10px; border-radius: 4px; }
+
+  .section-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 22px 0 10px; flex-wrap: wrap; }
+  .list-heading { color: var(--muted); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .section-bar .sub { color: var(--faint); font-size: 0.82rem; font-weight: 600; }
+  .cats { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
+  .cats a { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.04em; text-decoration: none; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 12px; }
+  .cats a:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* The tiles: one instrument each, bold colour, big icon, playable on its own. */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  a.tile {
+    position: relative; display: flex; flex-direction: column; justify-content: space-between; aspect-ratio: 1 / 1; overflow: hidden; padding: 12px;
+    text-decoration: none; color: var(--ink); background: var(--c); border: 3px solid var(--c); border-radius: 20px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
+  a.tile:hover, a.tile:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 22px var(--tile-shadow); }
+  a.tile:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  a.tile .t-icon { font-size: clamp(2.2rem, 7vw, 3rem); line-height: 1; }
+  a.tile .t-text { display: block; min-width: 0; }
+  a.tile .t-name { display: block; font-weight: 900; font-size: 1.05rem; line-height: 1.1; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  a.tile .t-cat { display: block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; margin-top: 3px; }
+  a.tile .t-play { position: absolute; right: 10px; top: 10px; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--c); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
+  a.tile .t-play::before { content: ""; border-left: 11px solid currentColor; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+  .featured .tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  @media (min-width: 560px) { .featured .tiles { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
+  .featured a.tile .t-desc { display: block; font-size: 0.8rem; font-weight: 600; line-height: 1.25; opacity: 0.9; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .group { margin-top: 22px; }
+  .group h3 { margin: 0 0 10px; font-size: 1.05rem; font-weight: 900; letter-spacing: 0.02em; }
+  .group h3 span { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin-left: 8px; }
+
+  /* Other sound tools: tiles with a picture, like the Games grid. */
+  a.tile.tool { padding: 0; justify-content: flex-start; }
+  a.tile.tool img { display: block; flex: 1 1 0; min-height: 0; width: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
+  a.tile.tool .t-name { padding: 9px 11px 11px; }
+  .classic { margin-top: 32px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); font-size: 0.92rem; color: var(--ink-2); }
+  .classic a { font-weight: 800; }
+  .empty { color: var(--muted); font-style: italic; }
+  .site-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 0.8rem; text-align: center; }
 </style>
 </head>
 <body>
-<!-- beep-back-button -->
-<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
-<style>
-#beep-back{
-  position:fixed;
-  top:max(8px, env(safe-area-inset-top));
-  left:max(8px, env(safe-area-inset-left));
-  z-index:2147483647;
-  width:34px;height:34px;
-  border-radius:50%;
-  background:rgba(10,10,18,0.62);
-  color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  text-decoration:none;
-  border:1px solid rgba(255,255,255,0.25);
-  backdrop-filter:blur(4px);
-  -webkit-backdrop-filter:blur(4px);
-  box-shadow:0 2px 8px rgba(0,0,0,0.4);
-  touch-action:manipulation;
-  -webkit-tap-highlight-color:transparent;
-}
-#beep-back:active{ transform:scale(0.92); }
-</style>
-<script>
-(function(){
-  var b = document.getElementById('beep-back');
-  if(!b) return;
-  var go = function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = b.getAttribute('href');
-  };
-  b.addEventListener('click', go, {capture:true});
-  b.addEventListener('touchstart', go, {capture:true, passive:false});
-})();
-</script>
-
-<div class="im-landing-header">
-  <div class="im-landing-title">Instruments</div>
-  <div class="im-landing-sub">A small, expandable collection of browser-based instruments. Play one on its own, or open the workspace to combine up to four at once.</div>
-  <div class="im-landing-ctas">
-    <a class="im-btn im-landing-cta" href="InstrumentsWorkspace.html">Open Workspace &rarr;</a>
-    <a class="im-btn im-landing-cta im-landing-cta-alt" href="DrumLooper.html">Drum Looper &rarr;</a>
+<main>
+  <div class="topbar">
+    <a class="back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+    <div><h1>Sound</h1><div class="crumb">deeley.org</div></div>
   </div>
-</div>
-<div id="root"></div>
+  <p class="tagline">Browser instruments. Tap one and play it on its own, or open the Studio and run up to four together with a shared clock, mixer and effects.</p>
+
+  <a class="studio" href="InstrumentsWorkspace.html" id="studio">
+    <span class="s-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="14" width="72" height="68" rx="6"/><path d="M12 36h72M36 36v46M60 36v46"/></g><g fill="#fff"><circle cx="24" cy="25" r="4"/><circle cx="36" cy="25" r="4"/><circle cx="48" cy="25" r="4"/><rect x="20" y="48" width="8" height="26" rx="2"/><rect x="44" y="56" width="8" height="18" rx="2"/><rect x="68" y="44" width="8" height="30" rx="2"/></g></svg></span>
+    <span class="s-text">
+      <h2><small>THE STUDIO</small>Instruments Workspace</h2>
+      <p>Four instruments at once, side by side: one transport, a mixer, distortion, delay and reverb on every channel, and your session saved as you go.</p>
+      <span class="s-cta">Open the Studio &#8599;</span>
+    </span>
+  </a>
+
+  <section class="featured" aria-labelledby="featured-h">
+    <div class="section-bar"><span class="list-heading" id="featured-h">Featured instruments</span><span class="sub">each one plays on its own</span></div>
+    <div class="tiles" id="featured"></div>
+  </section>
+
+  <section aria-labelledby="all-h">
+    <div class="section-bar"><span class="list-heading" id="all-h">All instruments</span><span class="sub" id="all-count"></span></div>
+    <nav class="cats" id="cats" aria-label="Jump to a category"></nav>
+    <div id="groups"></div>
+  </section>
+
+  <section aria-labelledby="tools-h">
+    <div class="section-bar"><span class="list-heading" id="tools-h">More sound tools</span><span class="sub">newest first</span></div>
+    <div class="tiles" id="tools"></div>
+  </section>
+
+  <p class="classic">Looking for the old one-off toys? <a href="Classic.html">The classic collection</a> is still here.</p>
+  <footer class="site-footer"><a href="index.html">deeley.org</a></footer>
+</main>
 
 <script type="module">
-  import { createLibraryView } from "./instruments/components/library.js";
+  import { listInstruments } from "./instruments/core/registry.js";
 
-  const STANDALONE_PAGES = {
-    "drum-machine": "InstrumentsDrumMachine.html",
-    "acid-303": "InstrumentsAcid303.html",
+  // A hand-picked first row: the most immediate things to tap on.
+  const FEATURED = ["piano", "drum-machine", "acid-303", "kit-909", "bloom", "rain", "accordion", "playground"];
+  const CATEGORY_ORDER = ["Keys", "Drums", "Bass", "Synths", "Generative", "Experimental"];
+  const PALETTE = {
+    Keys: [["#ffd43b", "#000"], ["#ff8a1f", "#000"]],
+    Drums: [["#ff3d5a", "#000"], ["#ff4fb0", "#000"]],
+    Bass: [["#2f5bff", "#fff"], ["#18d4e8", "#000"]],
+    Synths: [["#b24bff", "#000"], ["#7b2ff7", "#fff"]],
+    Generative: [["#2bd97a", "#000"], ["#8ce66a", "#000"]],
+    Experimental: [["#c8c8d2", "#000"], ["#f2f2f5", "#000"]],
   };
+  const TOOL_PALETTE = [["#18d4e8", "#000"], ["#ffd43b", "#000"], ["#ff8a1f", "#000"], ["#2bd97a", "#000"], ["#b24bff", "#000"], ["#ff3d5a", "#000"]];
 
-  const root = document.getElementById("root");
-  const library = createLibraryView({
-    hrefFor: (manifest) => STANDALONE_PAGES[manifest.id] || "InstrumentsWorkspace.html",
-    actionLabel: "Open",
-  });
-  root.appendChild(library.el);
+  const all = listInstruments();
+  const byId = Object.fromEntries(all.map((m) => [m.id, m]));
+  const playHref = (m) => `Instrument.html?id=${encodeURIComponent(m.id)}`;
+
+  function tile(m, [bg, ink], withDesc) {
+    const a = document.createElement("a");
+    a.className = "tile";
+    a.href = playHref(m);
+    a.title = `${m.name}: ${m.description}`;
+    a.setAttribute("aria-label", `Play ${m.name} on its own. ${m.category}.`);
+    a.style.setProperty("--c", bg);
+    a.style.setProperty("--ink", ink);
+    a.innerHTML = `<span class="t-play" aria-hidden="true"></span><span class="t-icon" aria-hidden="true">${m.icon}</span><span class="t-text"><span class="t-name">${m.name}</span>${withDesc ? `<span class="t-desc">${m.description}</span>` : ""}<span class="t-cat">${m.category}</span></span>`;
+    return a;
+  }
+
+  // featured row
+  const fEl = document.getElementById("featured");
+  FEATURED.map((id) => byId[id]).filter(Boolean).forEach((m, i) => fEl.appendChild(tile(m, PALETTE[m.category][i % 2], true)));
+
+  // every instrument, by category
+  document.getElementById("all-count").textContent = `${all.length} instruments`;
+  const cats = CATEGORY_ORDER.filter((c) => all.some((m) => m.category === c)).concat([...new Set(all.map((m) => m.category))].filter((c) => !CATEGORY_ORDER.includes(c)));
+  const catsEl = document.getElementById("cats"), groups = document.getElementById("groups");
+  for (const c of cats) {
+    const list = all.filter((m) => m.category === c).sort((a, b) => a.name.localeCompare(b.name));
+    const link = document.createElement("a"); link.href = `#cat-${c.toLowerCase()}`; link.textContent = `${c} · ${list.length}`; catsEl.appendChild(link);
+    const g = document.createElement("section"); g.className = "group"; g.id = `cat-${c.toLowerCase()}`;
+    g.innerHTML = `<h3>${c}<span>${list.length}</span></h3>`;
+    const grid = document.createElement("div"); grid.className = "tiles";
+    list.forEach((m, i) => grid.appendChild(tile(m, (PALETTE[c] || PALETTE.Experimental)[i % 2], false)));
+    g.appendChild(grid); groups.appendChild(g);
+  }
+
+  // the other sound tools: everything in Music Tools on the home page that is
+  // not this collection, plus the Drum Looper, newest first.
+  const toolsEl = document.getElementById("tools");
+  try {
+    const apps = await (await fetch("./apps.json")).json();
+    const tools = apps.filter((a) => a.category === "Music Tools" && !a.archived && a.id !== "instruments");
+    tools.push({ id: "drum-looper", name: "Drum Looper", description: "Tap out a loop on the pads and let it run.", path: "DrumLooper.html", added: "2026-09-19T00:00:00+00:00", thumbnail: "thumbnails/drum-looper.jpg" });
+    tools.sort((a, b) => new Date(b.added) - new Date(a.added) || a.name.localeCompare(b.name));
+    tools.forEach((t, i) => {
+      const [bg, ink] = TOOL_PALETTE[i % TOOL_PALETTE.length];
+      const a = document.createElement("a");
+      a.className = "tile tool"; a.href = t.path; a.title = t.description;
+      a.style.setProperty("--c", bg); a.style.setProperty("--ink", ink);
+      if (t.thumbnail) { const img = document.createElement("img"); img.src = t.thumbnail; img.alt = ""; img.loading = "lazy"; img.addEventListener("error", () => img.remove()); a.appendChild(img); }
+      const n = document.createElement("span"); n.className = "t-name"; n.textContent = t.name; a.appendChild(n);
+      toolsEl.appendChild(a);
+    });
+    if (!tools.length) toolsEl.innerHTML = '<p class="empty">Nothing else yet.</p>';
+  } catch (e) {
+    toolsEl.innerHTML = '<p class="empty">Could not load the list.</p>';
+  }
+
+  // for tests
+  window.__sound = { count: all.length, featured: FEATURED, cats };
 </script>
-
-<div class="im-landing-footer">
-  <a href="Classic.html">Looking for the classic collection of one-off toys?</a>
-</div>
 </body>
 </html>
