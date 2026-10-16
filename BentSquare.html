@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Bent Square</title>
+<style>
+  :root{ --bg:#000; --fg:#fff; --dim:rgba(255,255,255,.55); color-scheme:dark; }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:Helvetica,Arial,sans-serif;touch-action:none;user-select:none;}
+  canvas{display:block;position:fixed;inset:0;width:100%;height:100%;background:var(--bg);}
+  #reset{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));z-index:2;background:transparent;color:var(--fg);border:1px solid var(--dim);border-radius:999px;padding:9px 20px;font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}
+  #reset:hover{border-color:var(--fg);}
+  #reset:focus-visible{outline:2px solid var(--fg);outline-offset:3px;}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{
+  position:fixed;
+  top:max(8px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  z-index:2147483647;
+  width:34px;height:34px;
+  border-radius:50%;
+  background:rgba(10,10,18,0.62);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.25);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){
+  var b = document.getElementById('beep-back');
+  if(!b) return;
+  var go = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = b.getAttribute('href');
+  };
+  b.addEventListener('click', go, {capture:true});
+  b.addEventListener('touchstart', go, {capture:true, passive:false});
+})();
+</script>
+
+<canvas id="c"></canvas>
+<button id="reset" type="button">Reset</button>
+<script>
+(function(){
+'use strict';
+
+// Four identical machines. The only difference is how much faster the ball
+// gets on each wall hit: +1%, +2%, +3% and +4%.
+var RATES = [1, 2, 3, 4];
+
+// World units: each square starts 600 wide, centred on its own origin.
+var HALF = 300;
+var BALL_R = 9;
+var BASE_SPEED = 320;      // world units per second
+var BEND = 7;              // how far a hit pushes the wall outward
+var SNAP = 3;              // hits closer than this to a joint bend that joint instead of splitting
+var ZOOM_IN_TIME = 8;      // seconds (time constant of the slow zoom in)
+var MAX_STEPS = 1500;      // physics sub-steps per machine per frame
+
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var sims, W, H, dpr;
+
+function makeSim(rate, angle){
+  return {
+    rate: rate,
+    mult: 1 + rate/100,
+    pts: [{x:-HALF,y:-HALF},{x:HALF,y:-HALF},{x:HALF,y:HALF},{x:-HALF,y:HALF}],
+    ball: {x:0, y:0, vx:Math.cos(angle)*BASE_SPEED, vy:Math.sin(angle)*BASE_SPEED},
+    hits: 0,
+    flashes: [],
+    view: null
+  };
+}
+
+function reset(){
+  var a = Math.random()*Math.PI*2;
+  // avoid starting perfectly axis-aligned
+  if (Math.abs(Math.cos(a)) < .2 || Math.abs(Math.sin(a)) < .2) a += .6;
+  // every machine gets the same starting direction
+  sims = RATES.map(function(r){ return makeSim(r, a); });
+}
+
+function resize(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+}
+
+// Closest point on segment ab to p, with t in [0,1].
+function closest(p, a, b){
+  var dx = b.x-a.x, dy = b.y-a.y;
+  var len2 = dx*dx + dy*dy;
+  var t = len2 ? ((p.x-a.x)*dx + (p.y-a.y)*dy)/len2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return {x:a.x+dx*t, y:a.y+dy*t, t:t};
+}
+
+function collide(sim){
+  var pts = sim.pts, ball = sim.ball;
+  var best = null, bestD = BALL_R, n = pts.length;
+  for (var i = 0; i < n; i++){
+    var a = pts[i], b = pts[(i+1)%n];
+    var q = closest(ball, a, b);
+    var dx = q.x-ball.x, dy = q.y-ball.y;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    if (d < bestD && d > 1e-9){
+      var nx = dx/d, ny = dy/d;
+      // only count it if the ball is moving into the wall
+      if (ball.vx*nx + ball.vy*ny > 0){ bestD = d; best = {i:i, q:q, nx:nx, ny:ny}; }
+    }
+  }
+  if (!best) return;
+
+  // Bounce: reflect velocity across the wall's surface, then speed up.
+  var dot = ball.vx*best.nx + ball.vy*best.ny;
+  ball.vx = (ball.vx - 2*dot*best.nx) * sim.mult;
+  ball.vy = (ball.vy - 2*dot*best.ny) * sim.mult;
+  ball.x = best.q.x - best.nx*(BALL_R+0.01);
+  ball.y = best.q.y - best.ny*(BALL_R+0.01);
+
+  // Break the wall at the exact contact point and bend it outward there.
+  var i = best.i, a = pts[i], b = pts[(i+1)%n];
+  var segLen = Math.hypot(b.x-a.x, b.y-a.y);
+  var joint;
+  if (best.q.t*segLen < SNAP) joint = a;
+  else if ((1-best.q.t)*segLen < SNAP) joint = b;
+  else { joint = {x:best.q.x, y:best.q.y}; pts.splice(i+1, 0, joint); }
+  joint.x += best.nx*BEND;
+  joint.y += best.ny*BEND;
+
+  sim.hits++;
+  sim.flashes.push({x:best.q.x, y:best.q.y, life:1});
+}
+
+function step(sim, dt){
+  var ball = sim.ball;
+  var sp = Math.hypot(ball.vx, ball.vy);
+  // Sub-step so the ball never moves more than a third of its radius at once.
+  var steps = Math.min(MAX_STEPS, Math.max(1, Math.ceil(sp*dt/(BALL_R/3))));
+  var h = dt/steps;
+  for (var s = 0; s < steps; s++){
+    ball.x += ball.vx*h; ball.y += ball.vy*h;
+    collide(sim);
+  }
+  // Safety net: if the ball ever escapes the shape's bounds, put it back in the middle.
+  var bb = bounds(sim.pts);
+  if (ball.x < bb.x0-50 || ball.x > bb.x1+50 || ball.y < bb.y0-50 || ball.y > bb.y1+50){
+    var c = centroid(sim.pts); ball.x = c.x; ball.y = c.y;
+  }
+  for (var k = sim.flashes.length-1; k >= 0; k--){
+    sim.flashes[k].life -= dt*2.2;
+    if (sim.flashes[k].life <= 0) sim.flashes.splice(k,1);
+  }
+}
+
+function bounds(pts){
+  var x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for (var i=0;i<pts.length;i++){
+    var p=pts[i];
+    if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y;
+  }
+  return {x0:x0,y0:y0,x1:x1,y1:y1};
+}
+function centroid(pts){
+  var x=0,y=0;
+  for (var i=0;i<pts.length;i++){ x+=pts[i].x; y+=pts[i].y; }
+  return {x:x/pts.length, y:y/pts.length};
+}
+
+// Each camera starts with its square at half size and slowly zooms in until
+// the square fills its cell. If the shape grows past the edge it zooms out quickly.
+function updateView(sim, cell, dt){
+  var bb = bounds(sim.pts);
+  var cx = (bb.x0+bb.x1)/2, cy = (bb.y0+bb.y1)/2;
+  var pad = Math.min(cell.w, cell.h) < 260 ? 14 : 28;
+  var scale = Math.min((cell.w-pad*2)/(bb.x1-bb.x0), (cell.h-cell.top-pad*2)/(bb.y1-bb.y0));
+  var v = sim.view;
+  if (!v){ sim.view = {cx:cx, cy:cy, s:scale*0.5}; return; }
+  v.cx += (cx-v.cx)*.08;
+  v.cy += (cy-v.cy)*.08;
+  if (scale < v.s) v.s += (scale-v.s)*.08;
+  else v.s += (scale-v.s)*(1-Math.exp(-dt/ZOOM_IN_TIME));
+}
+
+function fmtSpeed(m){ return m < 100 ? m.toFixed(2) : m < 1e6 ? Math.round(m) : m.toExponential(1); }
+
+function cells(){
+  var bottom = 64;           // room for the Reset button
+  var cw = W/2, ch = (H-bottom)/2;
+  var narrow = cw < 330;     // phones: stats go on a second line
+  var top = narrow ? 58 : 42; // room for each machine's label
+  return [0,1,2,3].map(function(i){
+    return {x:(i%2)*cw, y:Math.floor(i/2)*ch, w:cw, h:ch, top:top, narrow:narrow};
+  });
+}
+
+function drawSim(sim, cell, dt){
+  updateView(sim, cell, dt);
+  var v = sim.view, s = v.s;
+
+  ctx.save();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.beginPath();
+  ctx.rect(cell.x, cell.y, cell.w, cell.h);
+  ctx.clip();
+
+  var ox = cell.x + cell.w/2, oy = cell.y + cell.top + (cell.h-cell.top)/2;
+  ctx.setTransform(dpr*s,0,0,dpr*s, dpr*(ox - v.cx*s), dpr*(oy - v.cy*s));
+
+  // Each piece is drawn on its own with a hairline gap, so every break shows.
+  var pts = sim.pts, n = pts.length, gap = 1.4/s;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2.5/s;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  for (var i = 0; i < n; i++){
+    var a = pts[i], b = pts[(i+1)%n];
+    var len = Math.hypot(b.x-a.x, b.y-a.y);
+    if (len <= gap*2) continue;
+    var ux = (b.x-a.x)/len, uy = (b.y-a.y)/len;
+    ctx.moveTo(a.x+ux*gap, a.y+uy*gap);
+    ctx.lineTo(b.x-ux*gap, b.y-uy*gap);
+  }
+  ctx.stroke();
+
+  for (var k = 0; k < sim.flashes.length; k++){
+    var f = sim.flashes[k];
+    ctx.strokeStyle = 'rgba(255,255,255,'+(f.life*.8)+')';
+    ctx.lineWidth = 1.5/s;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, (1-f.life)*30 + 4, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(sim.ball.x, sim.ball.y, BALL_R, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Label: rate on the left (clear of the back button), stats on the right.
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  var lx = cell.x + (cell.x === 0 && cell.y === 0 ? 54 : 14);
+  var ly = cell.y + 28;
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.font = '900 20px Helvetica, Arial, sans-serif';
+  ctx.fillText('+' + sim.rate + '%', lx, ly);
+  ctx.font = '700 12px Helvetica, Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.6)';
+  var m = Math.pow(sim.mult, sim.hits);
+  var stats = sim.hits + ' hits · ' + fmtSpeed(m) + '× · ' + pts.length + ' pieces';
+  if (cell.narrow) ctx.fillText(stats, lx, ly + 20);
+  else { ctx.textAlign = 'right'; ctx.fillText(stats, cell.x + cell.w - 14, ly); }
+}
+
+function draw(dt){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  var cs = cells();
+  for (var i = 0; i < sims.length; i++) drawSim(sims[i], cs[i], dt);
+
+  // Hairline dividers between the four machines.
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(W/2, 0); ctx.lineTo(W/2, cs[2].y + cs[2].h);
+  ctx.moveTo(0, cs[2].y); ctx.lineTo(W, cs[2].y);
+  ctx.moveTo(0, cs[2].y + cs[2].h); ctx.lineTo(W, cs[2].y + cs[2].h);
+  ctx.stroke();
+}
+
+var last = 0;
+function frame(t){
+  var dt = last ? Math.min(.05, (t-last)/1000) : 0;
+  last = t;
+  for (var i = 0; i < sims.length; i++) step(sims[i], dt);
+  draw(dt);
+  requestAnimationFrame(frame);
+}
+
+document.getElementById('reset').addEventListener('click', reset);
+window.addEventListener('resize', resize);
+resize();
+reset();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

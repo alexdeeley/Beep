@@ -65,3 +65,9 @@ export function getRecentPosts(db: Database.Database, limit: number): BlueskyPos
     .prepare("SELECT * FROM bluesky_posts WHERE dry_run = 0 ORDER BY created_at DESC LIMIT ?")
     .all(limit) as BlueskyPostRow[];
 }
+
+/** Removes a post's audit-trail row by its Bluesky URI - used by removeBadPost.ts after the live post itself is deleted, so the audit trail doesn't keep a record of a post that no longer exists. */
+export function deleteBlueskyPostByUri(db: Database.Database, uri: string): boolean {
+  const result = db.prepare("DELETE FROM bluesky_posts WHERE uri = ?").run(uri);
+  return result.changes > 0;
+}

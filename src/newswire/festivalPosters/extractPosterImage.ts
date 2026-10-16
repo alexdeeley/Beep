@@ -104,6 +104,12 @@ function festivalNameMatchesUrl(url: string, festivalName: string): boolean {
     return false;
   }
   filename = filename.replace(/\.\w+$/, "");
+  // Wikimedia thumbnail URLs prefix the original filename with "<width>px-" (e.g.
+  // "250px-John_Coltrane_-_Blue_Train.jpg") - confirmed live this single rewriting artifact pushed an
+  // otherwise-exact filename match over MAX_EXTRA_FILENAME_WORDS and produced a false negative for a real,
+  // correctly-named cover image. Stripped here since it's a CDN resizing convention, not a real extra
+  // word describing the image's content.
+  filename = filename.replace(/^\d+px-/i, "");
   const filenameWords = filename.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
   const pattern = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[-_]?"), "i");
