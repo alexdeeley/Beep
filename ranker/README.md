@@ -46,16 +46,13 @@ the phases listed in `docs/ROADMAP.md`.
 
 ## The look
 
-A white marker on a black board, after the hand-drawn sketch the design
-came from: RANKER.DEELEY.ORG with LOGIN and MENU top right; a filter row
-of CATEGORY, NEW, POPULAR, TAGS, a round + and a search box; lists as
-numbered rows with ▲ ▼ ✕ and a SAVE MY ORDER button that writes the new
-order only when pressed. No colour anywhere. Boxes are drawn with uneven
-CSS border radii, rules are inline SVG strokes, and the lettering is
-Permanent Marker (chrome) and Patrick Hand (body) from Google Fonts,
-falling back to the system's cursive face when offline. The sort and tag
-filters are real: `GET /api/entities?sort=new|popular&tag=rock` and
-`GET /api/tags`.
+White on black, bold capitals, boxed controls, no colour, after the sketch
+the design came from: RANKER.DEELEY.ORG with LOGIN and MENU top right; a
+filter row of CATEGORY, NEW, POPULAR, TAGS, a round + and a search box;
+lists as numbered rows with ▲ ▼ ✕ and a SAVE MY ORDER button that writes
+the new order only when pressed. Clean edges and the system's own type,
+no external fonts. The sort and tag filters are real:
+`GET /api/entities?sort=new|popular&tag=rock` and `GET /api/tags`.
 
 ## Running it
 
