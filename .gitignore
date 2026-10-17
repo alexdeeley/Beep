@@ -16,3 +16,7 @@ runs/*
 
 # browser-test screenshots
 **/dev/shots/
+
+# ranker: built client and local database
+ranker/public/
+ranker/dev/ranker.sqlite*

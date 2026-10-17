@@ -1619,5 +1619,14 @@
     "path": "DualOscillator.html",
     "added": "2026-10-16T05:23:06+00:00",
     "thumbnail": "thumbnails/dual-oscillator.jpg"
+  },
+  {
+    "id": "ranker",
+    "name": "Ranker",
+    "description": "The TASTE MACHINE: a catalog of albums, films, books, games and the people and scenes around them, the connections between them, collections, and a discovery engine that explains every suggestion. Phase 1 of a cultural discovery and community-curation platform.",
+    "category": "Art",
+    "path": "https://ranker.deeley.org",
+    "added": "2026-10-17T01:45:09+00:00",
+    "thumbnail": "thumbnails/ranker.jpg"
   }
 ]

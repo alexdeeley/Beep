@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ranker",
+  "main": "server/worker.ts",
+  "compatibility_date": "2025-06-01",
+
+  // The browser app is static (built into ./public by build.mjs); every
+  // client-side route falls back to index.html. /api/* always reaches the
+  // Worker. See docs/ARCHITECTURE.md.
+  "build": { "command": "node build.mjs --prod" },
+  "assets": { "directory": "./public", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+
+  // ONE SQLite-backed Durable Object holds the whole relational database:
+  // real tables, foreign keys, indexes and versioned migrations
+  // (server/db/migrations.ts). docs/DECISIONS.md explains the choice and
+  // the migration path to D1 / Postgres.
+  "durable_objects": { "bindings": [{ "name": "CATALOG", "class_name": "Catalog" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Catalog"] }],
+
+  // Secrets (wrangler secret put): EDIT_KEY - when set, every change needs
+  // it; when unset the installation is a personal, open one (docs/SECURITY.md).
+  "vars": { "ENVIRONMENT": "production" },
+  "observability": { "enabled": true },
+  "routes": [{ "pattern": "ranker.deeley.org", "custom_domain": true }]
+}
