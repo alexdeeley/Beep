@@ -199,7 +199,8 @@ jobs:
       - name: Deploy
         run: npx wrangler deploy
       - name: Smoke test
-        run: curl -fsS https://ranker.deeley.org/api/health && echo " ranker.deeley.org answers"
+        # a brand-new custom domain can take a minute to resolve after its first deploy
+        run: for i in $(seq 1 12); do curl -fsS https://ranker.deeley.org/api/health && { echo " ranker.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::ranker.deeley.org did not answer"; exit 1
 
   # Read-only checks: what can the token actually do? Prints results only, never the token.
   diagnose:
