@@ -49,6 +49,7 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
+            --exclude='inkprint' \
             --exclude='_site' \
             --exclude='src' \
             --exclude='tests' \
