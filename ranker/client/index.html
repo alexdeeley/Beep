@@ -3,18 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="description" content="RANKER, the TASTE MACHINE: a cultural discovery engine, personal taste map and community curation platform. Phase 1: the catalog, relationships, collections and connection trails.">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="RANKER, the TASTE MACHINE: a cultural discovery engine, personal taste map and community curation platform. Lists of albums, films, books, games and more, built from a topic, ranked by you.">
 <title>Ranker</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23000'/%3E%3Cpath d='M14 46V18h14a9 9 0 0 1 0 18H22l14 10' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Cpath d='M14 46V18h14a9 9 0 0 1 0 18H22l14 10' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Patrick+Hand&display=swap">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
-  <a class="brand" href="/" data-link><span class="brand-r" aria-hidden="true">R</span><span>Ranker</span><small>taste machine</small></a>
-  <nav class="nav" id="nav" aria-label="Main"></nav>
+  <a class="brand" href="/" data-link>Ranker.deeley.org</a>
+  <nav class="nav" id="nav" aria-label="Main">
+    <a class="btn" href="/settings" data-link id="login-btn">Login</a>
+    <button class="btn" type="button" id="menu-btn" aria-expanded="false" aria-controls="menu">Menu</button>
+    <div id="menu" class="menu" hidden></div>
+  </nav>
 </header>
 <main id="main" class="main" tabindex="-1"></main>
 <footer class="foot"><a href="https://deeley.org">deeley.org</a> · <a href="/roadmap" data-link>what is built, what is next</a> · <a href="/settings" data-link>settings</a></footer>

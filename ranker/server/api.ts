@@ -64,7 +64,8 @@ export async function handle(request: Request, svc: Services, opts: ApiOptions =
     if (path === '/types') return json({ mediaTypes: MEDIA_TYPES, relationshipTypes: RELATIONSHIP_TYPES });
 
     // entities
-    if (path === '/entities' && method === 'GET') return json(svc.catalog.search(url.searchParams.get('q') ?? '', { type: url.searchParams.get('type') || undefined, limit: num(url.searchParams.get('limit')), offset: num(url.searchParams.get('offset')) }));
+    if (path === '/entities' && method === 'GET') { const sort = url.searchParams.get('sort'); return json(svc.catalog.search(url.searchParams.get('q') ?? '', { type: url.searchParams.get('type') || undefined, tag: url.searchParams.get('tag') || undefined, sort: sort === 'new' || sort === 'popular' ? sort : 'name', limit: num(url.searchParams.get('limit')), offset: num(url.searchParams.get('offset')) })); }
+    if (path === '/tags') return json(svc.catalog.tags(url.searchParams.get('type') || undefined));
     if (path === '/entities/recent') return json(svc.catalog.recent(num(url.searchParams.get('limit')) ?? 12));
     if (path === '/entities/check' && method === 'POST') { const b = await body() as Record<string, unknown>; return json({ candidates: svc.catalog.findDuplicates(entityInput(b, true) as never, typeof b.excludeId === 'string' ? b.excludeId : undefined) }); }
     if (path === '/entities' && method === 'POST') {

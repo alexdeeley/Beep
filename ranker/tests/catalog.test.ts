@@ -126,3 +126,16 @@ test('persistence: data survives a restart of the service layer on the same data
   assert.equal(second.catalog.get(e.id).name, 'Deus Ex');
   second.db.db.close();
 });
+
+test('search can sort by newest or popularity and filter by a genre tag', () => {
+  const { catalog } = buildServices(new NodeDriver(':memory:'));
+  const a = catalog.create({ type: 'album', name: 'Alpha', attributes: { popularity: 40, genres: ['rock', 'pop'] } });
+  const b = catalog.create({ type: 'album', name: 'Beta', attributes: { popularity: 90, genres: ['Rock'] } });
+  const c = catalog.create({ type: 'album', name: 'Gamma' });
+  assert.deepEqual(catalog.search('', { sort: 'popular' }).items.map((x) => x.id), [b.id, a.id, c.id], 'popular: highest first, unrated last');
+  assert.deepEqual(catalog.search('', { sort: 'new' }).items.map((x) => x.name), ['Gamma', 'Beta', 'Alpha']);
+  assert.deepEqual(catalog.search('', { tag: 'rock' }).items.map((x) => x.name), ['Alpha', 'Beta']);
+  assert.deepEqual(catalog.search('', { tag: 'pop' }).items.map((x) => x.name), ['Alpha']);
+  assert.deepEqual(catalog.tags(), [{ tag: 'rock', count: 2 }, { tag: 'pop', count: 1 }]);
+  assert.equal(catalog.search('al', {}).items[0].name, 'Alpha', 'name search still puts prefix matches first');
+});

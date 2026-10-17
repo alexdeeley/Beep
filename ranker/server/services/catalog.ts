@@ -108,22 +108,36 @@ export class CatalogService {
 
   count(): number { return Number(one(this.db.query('SELECT COUNT(*) AS n FROM entities'))?.n ?? 0); }
 
-  // Search by name or alias, optionally within a type. Prefix matches rank
-  // above contains matches; ties by name.
-  search(q: string, opts: { type?: string; limit?: number; offset?: number } = {}): { items: EntitySummary[]; total: number } {
+  // Search by name or alias, optionally within a type or a genre tag.
+  // sort: 'name' (default; prefix matches first when searching), 'new'
+  // (latest added first) or 'popular' (highest popularity estimate first,
+  // unrated last).
+  search(q: string, opts: { type?: string; tag?: string; sort?: 'name' | 'new' | 'popular'; limit?: number; offset?: number } = {}): { items: EntitySummary[]; total: number } {
     const limit = Math.min(Math.max(1, opts.limit ?? 50), 200), offset = Math.max(0, opts.offset ?? 0);
     const n = normalize(q);
     const where: string[] = [], params: unknown[] = [];
     if (opts.type) { where.push('e.type = ?'); params.push(opts.type); }
+    if (opts.tag) { where.push("EXISTS (SELECT 1 FROM entity_attributes g WHERE g.entity_id = e.id AND g.key = 'genres' AND g.value LIKE ?)"); params.push(`%${JSON.stringify(opts.tag).slice(1, -1).replace(/[%_]/g, '')}%`); }
     if (n) {
       where.push('(e.sort_name LIKE ? OR EXISTS (SELECT 1 FROM entity_aliases a WHERE a.entity_id = e.id AND a.alias_norm LIKE ?))');
       params.push(`%${n}%`, `%${n}%`);
     }
     const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const total = Number(one(this.db.query(`SELECT COUNT(*) AS n FROM entities e ${w}`, params))?.n ?? 0);
-    const order = n ? `CASE WHEN e.sort_name LIKE ? THEN 0 ELSE 1 END, e.sort_name` : 'e.sort_name';
-    const rows = this.db.query(`SELECT e.id, e.type, e.name, e.year, e.image_url FROM entities e ${w} ORDER BY ${order} LIMIT ? OFFSET ?`, n ? [...params, `${n}%`, limit, offset] : [...params, limit, offset]);
+    const pop = "(SELECT CAST(p.value AS REAL) FROM entity_attributes p WHERE p.entity_id = e.id AND p.key = 'popularity')";
+    const order = opts.sort === 'new' ? 'e.created_at DESC, e.rowid DESC' : opts.sort === 'popular' ? `${pop} IS NULL, ${pop} DESC, e.sort_name` : n ? 'CASE WHEN e.sort_name LIKE ? THEN 0 ELSE 1 END, e.sort_name' : 'e.sort_name';
+    const extra = opts.sort !== 'new' && opts.sort !== 'popular' && n ? [`${n}%`] : [];
+    const rows = this.db.query(`SELECT e.id, e.type, e.name, e.year, e.image_url FROM entities e ${w} ORDER BY ${order} LIMIT ? OFFSET ?`, [...params, ...extra, limit, offset]);
     return { items: rows.map((r) => this.summary(r)), total };
+  }
+
+  // Every genre tag in use, most used first.
+  tags(type?: string): { tag: string; count: number }[] {
+    const counts = new Map<string, number>();
+    for (const r of this.db.query(`SELECT a.value FROM entity_attributes a JOIN entities e ON e.id = a.entity_id WHERE a.key = 'genres'${type ? ' AND e.type = ?' : ''}`, type ? [type] : [])) {
+      try { for (const g of JSON.parse(String(r.value)) as string[]) { const k = String(g).trim().toLowerCase(); if (k) counts.set(k, (counts.get(k) ?? 0) + 1); } } catch { /* skip */ }
+    }
+    return [...counts.entries()].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
   }
 
   recent(limit = 12): EntitySummary[] {

@@ -12,8 +12,33 @@ const GROUPS: Record<string, string> = { music: 'Music', film: 'Film & TV', book
 const groupOf = (type: string) => mt(type)?.group ?? 'other';
 const typeOptions = () => TYPES.mediaTypes.map((t) => ({ value: t.id, label: t.label, group: GROUPS[t.group] }));
 
-const NAV = [['/', 'Home'], ['/library', 'Library'], ['/discover', 'Discover'], ['/collections', 'Collections'], ['/data', 'Data'], ['/roadmap', 'Roadmap']];
-document.getElementById('nav')!.replaceChildren(...NAV.map(([href, label]) => link(href, { 'data-nav': '1' }, label)));
+// The MENU: everything lives behind one button, as in the sketch. LOGIN
+// goes to Settings (the edit key) until accounts arrive in Phase 2.
+const NAV = [['/', 'Home'], ['/library', 'Library'], ['/collections', 'Lists'], ['/lists/new', 'New list from a topic'], ['/discover', 'Discover'], ['/data', 'Data'], ['/roadmap', 'Roadmap'], ['/settings', 'Settings']];
+const menu = document.getElementById('menu')!, menuBtn = document.getElementById('menu-btn') as HTMLButtonElement;
+const menuOpen = (open: boolean) => { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); if (open) (menu.querySelector('a') as HTMLElement | null)?.focus(); };
+menu.replaceChildren(...NAV.map(([href, label]) => link(href, { 'data-nav': '1', onClick: () => menuOpen(false) }, label, h('span', { 'aria-hidden': 'true' }, '→'))));
+menuBtn.addEventListener('click', () => menuOpen(menu.hidden));
+document.addEventListener('click', (e) => { if (!menu.hidden && !(e.target as HTMLElement).closest('#nav')) menuOpen(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { menuOpen(false); menuBtn.focus(); } });
+window.addEventListener('popstate', () => menuOpen(false));
+
+// The filter bar from the sketch: [CATEGORY ▾] [NEW] [POPULAR] [TAGS] (+) [SEARCH BOX…]
+function filterBar(o: { categories: { value: string; label: string; group?: string }[]; category: string; categoryLabel: string; sort: string; q: string; tags?: { tag: string; count: number }[]; tag?: string; showTags?: boolean; plusHref: string; plusLabel: string; searchLabel: string; go: (patch: Record<string, string>) => void }): HTMLElement {
+  const cat = select([{ value: '', label: o.categoryLabel }, ...o.categories], o.category, { 'aria-label': o.categoryLabel });
+  cat.addEventListener('change', () => o.go({ category: cat.value }));
+  const q = h('input', { type: 'search', value: o.q, placeholder: 'Search box…', 'aria-label': o.searchLabel }) as HTMLInputElement;
+  const sortChip = (id: string, label: string) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(o.sort === id), onClick: () => o.go({ sort: o.sort === id ? '' : id }) }, label);
+  const tagsOpen = o.showTags || !!o.tag;
+  return h('div', null,
+    h('div', { class: 'fbar' },
+      cat, sortChip('new', 'New'), sortChip('popular', 'Popular'),
+      o.tags ? h('button', { type: 'button', class: 'chip', 'aria-pressed': String(tagsOpen), onClick: () => o.go({ tags: tagsOpen ? '' : '1', tag: '' }) }, 'Tags') : null,
+      link(o.plusHref, { class: 'btn round plus', 'aria-label': o.plusLabel, title: o.plusLabel }, '+'),
+      h('form', { onSubmit: (e: Event) => { e.preventDefault(); o.go({ q: q.value.trim() }); } }, q, h('button', { class: 'btn', type: 'submit' }, 'Go'))),
+    o.tags && tagsOpen ? h('div', { class: 'chips tagrow' }, o.tags.length ? o.tags.slice(0, 40).map((t) => h('button', { type: 'button', class: `chip ${o.tag === t.tag ? 'on' : ''}`, onClick: () => o.go({ tag: o.tag === t.tag ? '' : t.tag, tags: '1' }) }, `${t.tag} · ${t.count}`)) : h('span', { class: 'muted' }, 'No tags yet: genres arrive with lists built from a topic.')) : null);
+}
+const qs = (base: Record<string, string>, patch: Record<string, string>): string => { const u = new URLSearchParams(); for (const [k, v] of Object.entries({ ...base, ...patch })) if (v) u.set(k, v); const str = u.toString(); return str ? '?' + str : ''; };
 
 const entityLink = (e: EntitySummary, cls = '') => link(`/entity/${e.id}`, { class: `ent ${cls} g-${groupOf(e.type)}` }, h('span', { class: 'ent-name' }, e.name), ' ', pill(typeLabel(e.type)), e.year ? h('span', { class: 'muted' }, ` ${e.year}`) : null);
 const section = (title: string, ...children: Parameters<typeof h>[2][]) => h('section', { class: 'section' }, h('h2', null, title), ...children);
@@ -27,18 +52,18 @@ route(/^\/$/, async () => {
   return h('div', null,
     h('div', { class: 'hero' },
       h('h1', null, 'A map of what you love, and what sits next to it.'),
-      h('p', { class: 'lead' }, 'Ranker is the TASTE MACHINE: a catalog of albums, films, books, games and the people and scenes around them, the connections between them, and a discovery engine that explains every suggestion. This is Phase 1, the working foundation: the library, the relationship graph, collections and notes, connection trails, import/export, and lists built from a topic ("Beatles albums") with AI-gathered, reviewed context.'),
+      h('p', { class: 'lead' }, 'Ranker is the TASTE MACHINE: lists of albums, films, books, games and the people and scenes around them, the connections between them, and a discovery engine that explains every suggestion. Type a topic and the AI gathers the list; you rank it.'),
       h('div', { class: 'row' },
-        link('/library/new', { class: 'btn primary' }, 'Add something'),
-        link('/lists/new', { class: 'btn' }, 'Build a list from a topic'),
+        link('/lists/new', { class: 'btn primary' }, '+ List from a topic'),
+        link('/library/new', { class: 'btn' }, 'Add something'),
         link('/discover', { class: 'btn' }, 'Discover'),
         fresh ? h('button', { class: 'btn', onClick: async () => { try { await api('POST', '/sample'); toast('Sample data loaded', 'ok'); void render(); } catch (e) { onErr(e); } } }, 'Load sample data to try it') : null)),
     h('div', { class: 'stats' },
-      stat(st.entities, 'in the library'), stat(st.relationships, 'connections'), stat(st.collections, 'collections'),
-      h('div', { class: 'stat' }, h('b', null, st.locked ? 'Locked' : 'Open'), h('span', null, st.locked ? 'edit key needed to change things' : 'anyone with the link can edit (see Settings)'))),
-    fresh ? h('div', { class: 'card' }, h('h2', null, 'Empty so far'), h('p', null, 'Add an album, a film, a person, anything, and connect it to something else. Or load the labelled sample data to see trails, adjacency and collections working, and remove it later from the Data page.')) : null,
+      stat(st.entities, 'in the library'), stat(st.relationships, 'connections'), stat(st.collections, 'lists'),
+      h('div', { class: 'stat' }, h('b', null, st.locked ? 'Locked' : 'Open'), h('span', null, st.locked ? 'edit key needed to change things' : 'anyone with the link can edit'))),
+    fresh ? h('div', { class: 'card' }, h('h2', null, 'Empty so far'), h('p', null, 'Add an album, a film, a person, anything, and connect it to something else. Or load the labelled sample data to see trails, adjacency and lists working, and remove it later from the Data page.')) : null,
+    cols.length ? section('Lists', h('ol', { class: 'items' }, ...cols.slice(0, 8).map((c, i) => h('li', { class: 'item' }, h('span', { class: 'pos' }, `${i + 1}.`), h('div', { class: 'item-body' }, link(`/collections/${c.id}`, { class: 'ent' }, h('span', { class: 'ent-name' }, c.title)), h('span', { class: 'meta' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'}${c.template ? ' · ' + c.template : ''}`))))), cols.length > 8 ? h('p', null, link('/collections', null, 'All lists →')) : null) : null,
     recent.length ? section('Recently added', h('div', { class: 'ent-grid' }, ...recent.map((e) => entityLink(e, 'tile')))) : null,
-    cols.length ? section('Collections', h('ul', { class: 'list' }, ...cols.slice(0, 6).map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title), ' ', h('span', { class: 'muted' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'} · ${c.visibility}`))))) : null,
     !fresh ? section('One at random', await randomCard()) : null,
   );
 });
@@ -50,22 +75,22 @@ async function randomCard(): Promise<HTMLElement> {
 
 // ── Library ──
 route(/^\/library$/, async (_p, q) => {
-  const query = q.get('q') ?? '', type = q.get('type') ?? '', page = Number(q.get('page') ?? '0');
+  const query = q.get('q') ?? '', type = q.get('type') ?? '', sort = q.get('sort') ?? '', tag = q.get('tag') ?? '', showTags = q.get('tags') === '1', page = Number(q.get('page') ?? '0');
   const LIMIT = 40;
-  const r = await api<{ items: EntitySummary[]; total: number }>('GET', `/entities?q=${encodeURIComponent(query)}${type ? '&type=' + type : ''}&limit=${LIMIT}&offset=${page * LIMIT}`);
-  const st = await api<Status>('GET', '/status');
-  const input = h('input', { type: 'search', value: query, placeholder: 'Search by name or alias…', 'aria-label': 'Search the library' }) as HTMLInputElement;
-  const go = (p = 0) => navigate(`/library?q=${encodeURIComponent(input.value.trim())}${type ? '&type=' + type : ''}${p ? '&page=' + p : ''}`);
-  const chips = h('div', { class: 'chips' },
-    link(`/library?q=${encodeURIComponent(query)}`, { class: `chip ${!type ? 'on' : ''}` }, `All · ${st.entities}`),
-    ...TYPES.mediaTypes.filter((t) => st.types[t.id]).map((t) => link(`/library?q=${encodeURIComponent(query)}&type=${t.id}`, { class: `chip ${type === t.id ? 'on' : ''}` }, `${t.plural} · ${st.types[t.id]}`)));
+  const base = { q: query, type, sort, tag, tags: showTags ? '1' : '' };
+  const [r, st, tags] = await Promise.all([
+    api<{ items: EntitySummary[]; total: number }>('GET', `/entities${qs(base, { tags: '', limit: String(LIMIT), offset: String(page * LIMIT) })}`),
+    api<Status>('GET', '/status'),
+    api<{ tag: string; count: number }[]>('GET', `/tags${type ? '?type=' + type : ''}`)]);
+  const go = (patch: Record<string, string>) => navigate(`/library${qs(base, { page: '', ...('category' in patch ? { type: patch.category } : {}), ...patch })}`);
   const pages = Math.ceil(r.total / LIMIT);
+  const what = type ? (mt(type)?.plural ?? type) : 'everything';
   return h('div', null,
-    h('div', { class: 'page-head' }, h('h1', null, 'Library'), link('/library/new', { class: 'btn primary' }, 'Add something')),
-    h('form', { class: 'search-row', onSubmit: (e: Event) => { e.preventDefault(); go(); } }, input, h('button', { class: 'btn', type: 'submit' }, 'Search')),
-    chips,
-    r.items.length ? h('ul', { class: 'list ent-list' }, ...r.items.map((e) => h('li', null, entityLink(e)))) : empty(query ? `Nothing matches "${query}".` : 'The library is empty. Add something, or load the sample data from the Data page.'),
-    pages > 1 ? h('div', { class: 'row' }, page > 0 ? h('button', { class: 'btn small', onClick: () => go(page - 1) }, 'Previous') : null, h('span', { class: 'muted' }, `Page ${page + 1} of ${pages}`), page + 1 < pages ? h('button', { class: 'btn small', onClick: () => go(page + 1) }, 'Next') : null) : null);
+    filterBar({ categories: TYPES.mediaTypes.map((t) => ({ value: t.id, label: `${t.plural}${st.types[t.id] ? ' · ' + st.types[t.id] : ''}`, group: GROUPS[t.group] })), category: type, categoryLabel: 'Category', sort, q: query, tags, tag, showTags, plusHref: '/library/new', plusLabel: 'Add something to the library', searchLabel: 'Search the library', go }),
+    h('div', { class: 'list-head' }, h('h1', null, h('span', { class: 'kicker' }, 'Library:'), what, tag ? ` · ${tag}` : '', query ? ` · "${query}"` : ''), h('span', { class: 'muted' }, `${r.total} ${sort === 'new' ? 'newest first' : sort === 'popular' ? 'most popular first' : 'A to Z'}`)),
+    h('div', { class: 'list-rule', 'aria-hidden': 'true' }),
+    r.items.length ? h('ul', { class: 'list ent-list', style: `counter-reset: row ${page * LIMIT}` }, ...r.items.map((e) => h('li', null, entityLink(e)))) : empty(query || tag ? 'Nothing matches that.' : 'The library is empty. Add something, build a list from a topic, or load the sample data from the Data page.'),
+    pages > 1 ? h('div', { class: 'row' }, page > 0 ? h('button', { class: 'btn small', onClick: () => navigate(`/library${qs(base, { page: String(page - 1) })}`) }, 'Previous') : null, h('span', { class: 'muted' }, `Page ${page + 1} of ${pages}`), page + 1 < pages ? h('button', { class: 'btn small', onClick: () => navigate(`/library${qs(base, { page: String(page + 1) })}`) }, 'Next') : null) : null);
 });
 
 // ── Entity form (new and edit) ──
@@ -146,14 +171,14 @@ route(/^\/entity\/([^/]+)$/, async ([id]) => {
   for (const r of e.relationships) groups.set(r.label, [...(groups.get(r.label) ?? []), r]);
   const relForm = relationshipForm(e);
   const noteBox = h('textarea', { rows: 3, placeholder: 'A private note: where you heard of it, what you thought…' }) as HTMLTextAreaElement;
-  const colSel = select([{ value: '', label: 'Add to a collection…' }, ...cols.filter((c) => !e.collections.some((x) => x.id === c.id)).map((c) => ({ value: c.id, label: c.title }))], '', { 'aria-label': 'Add to a collection' });
+  const colSel = select([{ value: '', label: 'Add to a list…' }, ...cols.filter((c) => !e.collections.some((x) => x.id === c.id)).map((c) => ({ value: c.id, label: c.title }))], '', { 'aria-label': 'Add to a list' });
   colSel.addEventListener('change', async () => { if (!colSel.value) return; try { await api('POST', `/collections/${colSel.value}/items`, { entityId: e.id }); toast('Added', 'ok'); void render(); } catch (err) { onErr(err); } });
   return h('div', { class: `entity g-${groupOf(e.type)}` },
     h('div', { class: 'ent-head' },
       e.imageUrl ? h('img', { class: 'ent-img', src: e.imageUrl, alt: '' }) : h('div', { class: 'ent-img placeholder', 'aria-hidden': 'true' }, (t?.label ?? e.type).slice(0, 1)),
       h('div', null, h('div', { class: 'crumb' }, link('/library', null, 'Library'), ' › ', link(`/library?type=${e.type}`, null, t?.plural ?? e.type)), h('h1', null, e.name, e.year ? h('span', { class: 'year' }, ` ${e.year}`) : null),
         e.aliases.length ? h('p', { class: 'muted' }, 'Also known as ', e.aliases.join(', ')) : null,
-        h('div', { class: 'row' }, link(`/discover?strategy=trail&start=${e.id}`, { class: 'btn primary' }, 'Explore from here'), link(`/entity/${e.id}/edit`, { class: 'btn' }, 'Edit'), h('button', { class: 'btn danger', onClick: async () => { if (!confirmBox(`Delete ${e.name} and its connections? Collections and notes that point at it go too.`)) return; try { await api('DELETE', `/entities/${e.id}`); toast('Deleted', 'ok'); navigate('/library'); } catch (err) { onErr(err); } } }, 'Delete')),
+        h('div', { class: 'row' }, link(`/discover?strategy=trail&start=${e.id}`, { class: 'btn primary' }, 'Explore from here'), link(`/entity/${e.id}/edit`, { class: 'btn' }, 'Edit'), h('button', { class: 'btn danger', onClick: async () => { if (!confirmBox(`Delete ${e.name} and its connections? Lists and notes that point at it go too.`)) return; try { await api('DELETE', `/entities/${e.id}`); toast('Deleted', 'ok'); navigate('/library'); } catch (err) { onErr(err); } } }, 'Delete')),
         e.origin === 'sample' ? pill('sample data', 'warn') : isAi(e.origin) ? AI_PILL() : null)),
     e.description ? h('p', { class: 'desc' }, e.description) : null,
     attrs.length || e.externalIds.length || e.sources.length ? section('Details',
@@ -163,7 +188,7 @@ route(/^\/entity\/([^/]+)$/, async ([id]) => {
     section('Connections',
       e.relationships.length ? h('div', { class: 'rel-groups' }, ...[...groups.entries()].map(([label, list]) => h('div', { class: 'rel-group' }, h('h3', null, label), h('ul', { class: 'list' }, ...list.map((r) => h('li', { class: 'rel' }, entityLink(r.other), ' ', pill(r.kind, `kind-${r.kind}`), r.confidence != null ? h('span', { class: 'muted' }, ` ${Math.round(r.confidence * 100)}% sure`) : null, r.note ? h('span', { class: 'muted' }, ` — ${r.note}`) : null, ' ', h('button', { class: 'btn tiny', 'aria-label': `Remove connection to ${r.other.name}`, onClick: async () => { try { await api('DELETE', `/relationships/${r.id}`); void render(); } catch (err) { onErr(err); } } }, '×'))))))) : empty('No connections yet. Add one below and the discovery engine has something to follow.'),
       h('details', { class: 'card', open: !e.relationships.length }, h('summary', null, 'Add a connection'), relForm)),
-    section('Collections', e.collections.length ? h('ul', { class: 'list' }, ...e.collections.map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title)))) : empty('Not in any collection yet.'), cols.length ? colSel : link('/collections', null, 'Make a collection')),
+    section('Lists', e.collections.length ? h('ul', { class: 'list' }, ...e.collections.map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title)))) : empty('Not on any list yet.'), cols.length ? colSel : link('/collections', null, 'Make a list')),
     section('Notes', e.notes.length ? h('ul', { class: 'list notes' }, ...e.notes.map((n) => noteItem(n))) : null,
       h('form', { class: 'row', onSubmit: async (ev: Event) => { ev.preventDefault(); if (!noteBox.value.trim()) return; try { await api('POST', `/entities/${e.id}/notes`, { body: noteBox.value.trim() }); void render(); } catch (err) { onErr(err); } } }, noteBox, h('button', { class: 'btn', type: 'submit' }, 'Add note'))),
     h('p', { class: 'muted small' }, `Added ${fmtDate(e.createdAt)} · updated ${fmtDate(e.updatedAt)} · origin: ${e.origin}`));
@@ -193,51 +218,66 @@ function relationshipForm(e: EntityFull): HTMLElement {
   } }, field('Other end', picker), chosen, h('div', { class: 'row' }, field('Direction', dir), field('Relationship', typeSel)), h('div', { class: 'row' }, field('Kind', kind), field('Confidence', conf)), field('Note', note), field('Source', src), h('button', { class: 'btn primary', type: 'submit' }, 'Connect'));
 }
 
-// ── Collections ──
-route(/^\/collections$/, async () => {
-  const cols = await api<Collection[]>('GET', '/collections');
+// ── Lists (collections) ──
+route(/^\/collections$/, async (_p, q) => {
+  const [cols, T] = await Promise.all([api<Collection[]>('GET', '/collections'), templates()]);
+  const query = q.get('q') ?? '', kind = q.get('kind') ?? '', sort = q.get('sort') ?? '';
+  const base = { q: query, kind, sort };
+  const go = (patch: Record<string, string>) => navigate(`/collections${qs(base, { ...('category' in patch ? { kind: patch.category } : {}), ...patch })}`);
+  const n = query.toLowerCase();
+  let shown = cols.filter((c) => (!kind || c.template === kind || (kind === 'plain' && !c.template)) && (!n || c.title.toLowerCase().includes(n) || c.topic.toLowerCase().includes(n)));
+  if (sort === 'new') shown = [...shown].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  else if (sort === 'popular') shown = [...shown].sort((a, b) => b.itemCount - a.itemCount);
   const title = h('input', { type: 'text', placeholder: 'Title', required: true, maxlength: 200 }) as HTMLInputElement;
   const vis = select([{ value: 'private', label: 'private' }, { value: 'unlisted', label: 'unlisted' }, { value: 'public', label: 'public' }], 'private', { 'aria-label': 'Visibility' });
-  return h('div', null, h('h1', null, 'Collections'),
-    h('p', { class: 'lead' }, 'Ordered, annotated groups of things from the library. Rankings, with their own order, commentary and publication, arrive in Phase 3 on top of these.'),
-    h('div', { class: 'row' }, link('/lists/new', { class: 'btn primary' }, 'New list from a topic'), h('span', { class: 'muted small' }, 'Type "Beatles albums" and the AI gathers the items with year, artist, popularity and genres for you to review.')),
-    cols.length ? h('ul', { class: 'list' }, ...cols.map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title), ' ', c.template ? pill(c.template) : null, ' ', h('span', { class: 'muted' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'} · ${c.visibility} · updated ${fmtDate(c.updatedAt)}`)))) : empty('No collections yet.'),
-    section('Or start an empty collection', h('form', { class: 'row', onSubmit: async (ev: Event) => { ev.preventDefault(); try { const c = await api<Collection>('POST', '/collections', { title: title.value.trim(), visibility: vis.value }); navigate(`/collections/${c.id}`); } catch (err) { onErr(err); } } }, title, vis, h('button', { class: 'btn', type: 'submit' }, 'New collection'))),
+  return h('div', null,
+    filterBar({ categories: [...T.templates.map((t) => ({ value: t.id, label: t.label })), { value: 'plain', label: 'Made by hand' }], category: kind, categoryLabel: 'Category', sort, q: query, plusHref: '/lists/new', plusLabel: 'New list from a topic', searchLabel: 'Search lists', go }),
+    h('div', { class: 'list-head' }, h('h1', null, h('span', { class: 'kicker' }, 'Lists:'), kind ? (T.templates.find((t) => t.id === kind)?.label ?? 'made by hand') : 'all'), h('span', { class: 'muted' }, `${shown.length} of ${cols.length}${sort === 'new' ? ' · newest first' : sort === 'popular' ? ' · biggest first' : ''}`)),
+    h('div', { class: 'list-rule', 'aria-hidden': 'true' }),
+    shown.length ? h('ol', { class: 'items' }, ...shown.map((c, i) => h('li', { class: 'item' }, h('span', { class: 'pos' }, `${i + 1}.`), h('div', { class: 'item-body' }, link(`/collections/${c.id}`, { class: 'ent' }, h('span', { class: 'ent-name' }, c.title)), h('span', { class: 'meta' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'} · ${c.visibility}${c.template ? ' · ' + c.template : ''} · ${fmtDate(c.updatedAt)}`))))) : empty(cols.length ? 'No list matches that.' : 'No lists yet. Press + to build one from a topic, or start an empty one below.'),
+    section('Or start an empty list', h('form', { class: 'row', onSubmit: async (ev: Event) => { ev.preventDefault(); try { const c = await api<Collection>('POST', '/collections', { title: title.value.trim(), visibility: vis.value }); navigate(`/collections/${c.id}`); } catch (err) { onErr(err); } } }, title, vis, h('button', { class: 'btn', type: 'submit' }, 'New list'))),
     h('p', { class: 'muted small' }, 'Visibility is recorded now and enforced once accounts exist (Phase 2). Today everything on this installation is visible to whoever can open it.'));
 });
 route(/^\/collections\/([^/]+)$/, async ([id]) => {
   const [c, T] = await Promise.all([api<Collection & { items: CollectionItem[] }>('GET', `/collections/${id}`), templates()]);
   const cols = columnsFor(T, c.template);
-  const asTable = !!c.template || c.items.some((i) => i.entity.attributes.popularity != null || i.entity.attributes.creator != null);
-  const view: 'table' | 'plain' = VIEW.get(id) ?? (asTable ? 'table' : 'plain');
-  const order = c.items.map((i) => i.entity.id);
-  const saveOrder = async () => { try { await api('PUT', `/collections/${id}/order`, { entityIds: order }); void render(); } catch (err) { onErr(err); } };
-  const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= order.length) return; [order[i], order[j]] = [order[j], order[i]]; void saveOrder(); };
+  const view: 'table' | 'plain' = VIEW.get(id) ?? 'plain';
+  // The order is edited here and written only when "Save my order" is pressed.
+  let items = [...c.items];
+  const dirty = () => items.map((i) => i.entity.id).join() !== c.items.map((i) => i.entity.id).join();
+  const saveBtn = h('button', { class: 'btn primary', disabled: true, onClick: async () => { try { await api('PUT', `/collections/${id}/order`, { entityIds: items.map((i) => i.entity.id) }); toast('Order saved', 'ok'); void render(); } catch (err) { onErr(err); } } }, 'Save my order') as HTMLButtonElement;
+  const listBox = h('div');
+  const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= items.length) return; [items[i], items[j]] = [items[j], items[i]]; draw(); };
+  const removeItem = async (it: CollectionItem) => { try { await api('DELETE', `/collections/${id}/items/${it.entity.id}`); items = items.filter((x) => x !== it); c.items = c.items.filter((x) => x !== it); draw(); } catch (err) { onErr(err); } };
+  const ctl = (it: CollectionItem, i: number) => [
+    h('button', { type: 'button', class: 'ctl-tri', 'aria-label': `Move ${it.entity.name} up`, disabled: i === 0, onClick: () => move(i, -1) }, '▲'),
+    h('button', { type: 'button', class: 'ctl-tri', 'aria-label': `Move ${it.entity.name} down`, disabled: i === items.length - 1, onClick: () => move(i, 1) }, '▼'),
+    h('button', { type: 'button', class: 'ctl-tri note', 'aria-label': `Note on ${it.entity.name}`, onClick: async () => { const v = window.prompt('Note for this item', it.note); if (v == null) return; try { await api('PATCH', `/collections/${id}/items/${it.entity.id}`, { note: v }); it.note = v; draw(); } catch (err) { onErr(err); } } }, 'note'),
+    h('button', { type: 'button', class: 'ctl-tri x', 'aria-label': `Remove ${it.entity.name}`, onClick: () => void removeItem(it) }, '✕'),
+  ];
+  const draw = () => {
+    saveBtn.disabled = !dirty(); saveBtn.classList.toggle('dirty', dirty());
+    listBox.replaceChildren(!items.length ? empty('Nothing in it yet.') : view === 'table'
+      ? listTable(cols, items.map(rowFromItem), groupOf, { extra: (_r, i) => h('div', { class: 'item-ctl' }, ...ctl(items[i], i)) })
+      : h('ol', { class: 'items' }, ...items.map((it, i) => { const a = it.entity.attributes; const meta = typeof a.creator === 'string' ? a.creator : ''; return h('li', { class: 'item' }, h('span', { class: 'pos' }, `${i + 1}.`), h('div', { class: 'item-body' }, entityLink(it.entity), meta ? h('span', { class: 'meta' }, meta) : null, it.note ? h('p', { class: 'muted' }, it.note) : null), h('div', { class: 'item-ctl' }, ...ctl(it, i))); })));
+  };
+  draw();
   const title = h('input', { type: 'text', value: c.title, maxlength: 200, 'aria-label': 'Title' }) as HTMLInputElement;
   const desc = h('textarea', { rows: 2, placeholder: 'What holds these together?' }, c.description) as HTMLTextAreaElement;
   const vis = select([{ value: 'private', label: 'private' }, { value: 'unlisted', label: 'unlisted' }, { value: 'public', label: 'public' }], c.visibility, { 'aria-label': 'Visibility' });
   return h('div', null,
-    h('div', { class: 'crumb' }, link('/collections', null, 'Collections')),
-    h('h1', null, c.title),
-    h('details', { class: 'card' }, h('summary', null, 'Edit title, description, visibility'), h('form', { class: 'form compact', onSubmit: async (ev: Event) => { ev.preventDefault(); try { await api('PATCH', `/collections/${id}`, { title: title.value.trim(), description: desc.value, visibility: vis.value }); toast('Saved', 'ok'); void render(); } catch (err) { onErr(err); } } }, field('Title', title), field('Description', desc), field('Visibility', vis), h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'submit' }, 'Save'), h('button', { type: 'button', class: 'btn danger', onClick: async () => { if (!confirmBox('Delete this collection? The things in it stay in the library.')) return; try { await api('DELETE', `/collections/${id}`); navigate('/collections'); } catch (err) { onErr(err); } } }, 'Delete collection')))),
+    h('div', { class: 'crumb' }, link('/collections', null, 'Lists')),
+    h('div', { class: 'list-head' }, h('h1', null, h('span', { class: 'kicker' }, 'List:'), c.title), saveBtn,
+      h('div', { class: 'row tight view-row' }, h('button', { type: 'button', class: `chip ${view === 'plain' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'plain'); void render(); } }, 'Plain list'), h('button', { type: 'button', class: `chip ${view === 'table' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'table'); void render(); } }, 'Details'))),
+    h('div', { class: 'list-rule', 'aria-hidden': 'true' }),
     provenance(c),
     c.description ? h('p', { class: 'desc' }, c.description) : null,
-    c.items.length ? h('div', { class: 'row tight view-row' }, h('button', { type: 'button', class: `chip ${view === 'table' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'table'); void render(); } }, 'Table'), h('button', { type: 'button', class: `chip ${view === 'plain' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'plain'); void render(); } }, 'Plain list')) : null,
-    c.items.length ? (view === 'table'
-      ? listTable(cols, c.items.map(rowFromItem), groupOf, { extra: (_r, i) => { const it = c.items[i]; return h('div', { class: 'item-ctl' }, itemControls(id, it, i, c.items.length, move)); } })
-      : h('ol', { class: 'items' }, ...c.items.map((it, i) => h('li', { class: 'item' }, h('span', { class: 'pos' }, String(i + 1)), h('div', { class: 'item-body' }, entityLink(it.entity), it.note ? h('p', { class: 'muted' }, it.note) : null), h('div', { class: 'item-ctl' }, ...itemControls(id, it, i, c.items.length, move)))))) : empty('Nothing in it yet.'),
-    section('Add something', entityPicker(async (p) => { try { await api('POST', `/collections/${id}/items`, { entityId: p.id }); void render(); } catch (err) { onErr(err); } }, { exclude: order })),
+    listBox,
+    section('Add something', entityPicker(async (p) => { try { await api('POST', `/collections/${id}/items`, { entityId: p.id }); void render(); } catch (err) { onErr(err); } }, { exclude: items.map((i) => i.entity.id) })),
+    h('details', { class: 'card' }, h('summary', null, 'Edit title, description, visibility'), h('form', { class: 'form compact', onSubmit: async (ev: Event) => { ev.preventDefault(); try { await api('PATCH', `/collections/${id}`, { title: title.value.trim(), description: desc.value, visibility: vis.value }); toast('Saved', 'ok'); void render(); } catch (err) { onErr(err); } } }, field('Title', title), field('Description', desc), field('Visibility', vis), h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'submit' }, 'Save'), h('button', { type: 'button', class: 'btn danger', onClick: async () => { if (!confirmBox('Delete this list? The things in it stay in the library.')) return; try { await api('DELETE', `/collections/${id}`); navigate('/collections'); } catch (err) { onErr(err); } } }, 'Delete list')))),
     h('p', { class: 'muted small' }, `${c.visibility} · created ${fmtDate(c.createdAt)}`));
 });
 const VIEW = new Map<string, 'table' | 'plain'>();   // table or plain list per collection, for this visit
-function itemControls(id: string, it: CollectionItem, i: number, n: number, move: (i: number, d: number) => void): HTMLElement[] {
-  return [
-    h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} up`, disabled: i === 0, onClick: () => move(i, -1) }, '↑'),
-    h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} down`, disabled: i === n - 1, onClick: () => move(i, 1) }, '↓'),
-    h('button', { class: 'btn tiny', 'aria-label': `Note on ${it.entity.name}`, onClick: async () => { const v = window.prompt('Note for this item', it.note); if (v == null) return; try { await api('PATCH', `/collections/${id}/items/${it.entity.id}`, { note: v }); void render(); } catch (err) { onErr(err); } } }, 'note'),
-    h('button', { class: 'btn tiny', 'aria-label': `Remove ${it.entity.name}`, onClick: async () => { try { await api('DELETE', `/collections/${id}/items/${it.entity.id}`); void render(); } catch (err) { onErr(err); } } }, '×'),
-  ];
-}
 
 // ── Discover ──
 route(/^\/discover$/, async (_p, q) => {

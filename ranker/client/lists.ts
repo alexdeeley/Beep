@@ -84,7 +84,7 @@ export function registerListPages(deps: { groupOf: (type: string) => string; onE
         out.querySelector<HTMLElement>('h2')?.scrollIntoView({ block: 'start' });
       } catch (e) {
         const msg = e instanceof ApiError && e.status === 503 ? `${e.message} ` : e instanceof Error ? e.message : String(e);
-        out.replaceChildren(h('div', { class: 'card error-card' }, h('h3', null, 'Could not gather the list'), h('p', null, msg), e instanceof ApiError && e.status === 503 ? h('p', { class: 'muted small' }, 'You can still make a collection by hand from the Collections page.') : null));
+        out.replaceChildren(h('div', { class: 'card error-card' }, h('h3', null, 'Could not gather the list'), h('p', null, msg), e instanceof ApiError && e.status === 503 ? h('p', { class: 'muted small' }, 'You can still make a list by hand from the Lists page.') : null));
       } finally { go.disabled = !T.ai.configured; go.textContent = label; }
     } },
       field('Topic', topic, 'What the list is of: a band\'s albums, a director\'s films, a prize\'s winners, a scene, a decade…'),
@@ -92,11 +92,11 @@ export function registerListPages(deps: { groupOf: (type: string) => string; onE
       field('Anything to add?', guidance),
       h('div', { class: 'row' }, go, link('/collections', { class: 'btn' }, 'Cancel')));
     return h('div', null,
-      h('div', { class: 'crumb' }, link('/collections', null, 'Collections')),
+      h('div', { class: 'crumb' }, link('/collections', null, 'Lists')),
       h('h1', null, 'New list from a topic'),
       h('p', { class: 'lead' }, 'Type a topic such as "Beatles albums". The AI gathers the items with their context: year released, who made it, how well known it is, genres, and the details the kind of list calls for. You review every row, fix or drop what is wrong, and only then is it saved as a list in the library.'),
       T.ai.configured ? h('p', { class: 'muted small' }, `AI provider: ${T.ai.provider} / ${T.ai.model}. Everything it returns is marked AI-gathered and unverified until you add a source.`)
-        : h('div', { class: 'card warn' }, h('h3', null, 'AI gathering is not set up on this installation'), h('p', null, 'Set the ANTHROPIC_API_KEY secret on the Worker (in ranker/: npx wrangler secret put ANTHROPIC_API_KEY) and redeploy. See ranker/docs/PROVIDERS.md. Lists can still be made by hand from the Collections page.')),
+        : h('div', { class: 'card warn' }, h('h3', null, 'AI gathering is not set up on this installation'), h('p', null, 'Set the ANTHROPIC_API_KEY secret on the Worker (in ranker/: npx wrangler secret put ANTHROPIC_API_KEY) and redeploy. See ranker/docs/PROVIDERS.md. Lists can still be made by hand from the Lists page.')),
       form, out, stylesheet);
   });
 }
