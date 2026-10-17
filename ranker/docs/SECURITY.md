@@ -17,8 +17,15 @@
 - **Audit trail.** `audit_events` records creates, updates and deletes.
 - **Images.** Only URLs are stored, never uploaded files. They are shown with
   `alt=""` and never fetched by the server.
-- **Secrets.** No API keys exist yet. When providers arrive they live in
-  Worker secrets, never in client code or the repository.
+- **Secrets.** `EDIT_KEY` and `ANTHROPIC_API_KEY` are Worker secrets
+  (`wrangler secret put`), read only on the server, never in client code or
+  the repository. AI drafting is a write-class request: on a locked
+  installation it needs the edit key, and it is limited to six a minute per
+  address, so the key's budget cannot be spent by passers-by. Set
+  `EDIT_KEY` whenever `ANTHROPIC_API_KEY` is set.
+- **AI output is never trusted blindly.** Drafts are validated on the
+  server like any other input, reviewed by a person, and marked
+  `provider:anthropic` with an "AI-gathered · unverified" label.
 
 ## Phase 2 plan (accounts and profiles)
 

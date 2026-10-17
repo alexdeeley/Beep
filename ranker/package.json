@@ -1,6 +1,6 @@
 {
   "name": "ranker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "TASTE MACHINE (ranker.deeley.org): a cultural discovery, taste, ranking and community-curation platform. Phase 1: the working foundation.",
@@ -19,5 +19,8 @@
     "esbuild": "^0.25.0",
     "typescript": "^5.6.0",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0"
   }
 }

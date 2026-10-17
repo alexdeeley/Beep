@@ -13,7 +13,7 @@ export class CollectionService {
   constructor(db: SqlDriver, catalog: CatalogService, audit: (action: string, subjectType: string, subjectId: string, detail?: string) => void = () => {}) { this.db = db; this.catalog = catalog; this.audit = audit; }
 
   private row(r: Row): Collection {
-    return { id: String(r.id), title: String(r.title), description: String(r.description), visibility: r.visibility as Visibility, itemCount: Number(r.item_count ?? 0), createdAt: String(r.created_at), updatedAt: String(r.updated_at) };
+    return { id: String(r.id), title: String(r.title), description: String(r.description), visibility: r.visibility as Visibility, itemCount: Number(r.item_count ?? 0), template: String(r.template ?? ''), topic: String(r.topic ?? ''), generatedBy: String(r.generated_by ?? ''), createdAt: String(r.created_at), updatedAt: String(r.updated_at) };
   }
   private readonly select = 'SELECT c.*, (SELECT COUNT(*) FROM collection_items i WHERE i.collection_id = c.id) AS item_count FROM collections c';
 
@@ -25,9 +25,9 @@ export class CollectionService {
     return this.row(r);
   }
 
-  create(input: { title: string; description?: string; visibility?: Visibility }, id = newId('col')): Collection {
+  create(input: { title: string; description?: string; visibility?: Visibility; template?: string; topic?: string; generatedBy?: string }, id = newId('col')): Collection {
     const t = now();
-    this.db.query('INSERT INTO collections (id, title, description, visibility, created_at, updated_at) VALUES (?,?,?,?,?,?)', [id, input.title, input.description ?? '', input.visibility ?? 'private', t, t]);
+    this.db.query('INSERT INTO collections (id, title, description, visibility, template, topic, generated_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)', [id, input.title, input.description ?? '', input.visibility ?? 'private', input.template ?? '', input.topic ?? '', input.generatedBy ?? '', t, t]);
     this.audit('collection.create', 'collection', id, input.title);
     return this.get(id);
   }
@@ -43,8 +43,13 @@ export class CollectionService {
 
   items(id: string): CollectionItem[] {
     this.get(id);
+    const attrs = new Map<string, Record<string, unknown>>();
+    for (const a of this.db.query('SELECT a.entity_id, a.key, a.value FROM entity_attributes a JOIN collection_items i ON i.entity_id = a.entity_id WHERE i.collection_id = ?', [id])) {
+      const e = String(a.entity_id); if (!attrs.has(e)) attrs.set(e, {});
+      try { attrs.get(e)![String(a.key)] = JSON.parse(String(a.value)); } catch { /* skip a bad row */ }
+    }
     return this.db.query('SELECT i.position, i.note, i.added_at, e.id, e.type, e.name, e.year, e.image_url FROM collection_items i JOIN entities e ON e.id = i.entity_id WHERE i.collection_id = ? ORDER BY i.position', [id])
-      .map((r) => ({ entity: this.catalog.summary(r), position: Number(r.position), note: String(r.note), addedAt: String(r.added_at) }));
+      .map((r) => ({ entity: { ...this.catalog.summary(r), attributes: attrs.get(String(r.id)) ?? {} }, position: Number(r.position), note: String(r.note), addedAt: String(r.added_at) }));
   }
 
   addItem(id: string, entityId: string, note = ''): CollectionItem[] {

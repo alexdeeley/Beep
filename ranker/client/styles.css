@@ -121,6 +121,41 @@ details.card summary { cursor: pointer; font-weight: 800; }
 .item-body { flex: 1 1 auto; min-width: 0; } .item-body p { margin: 2px 0 0; }
 .item-ctl { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
+/* lists from a topic */
+.ltable-wrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--line-2); border-radius: 14px; }
+.ltable { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.ltable th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 10px 8px; border-bottom: 1px solid var(--line-2); white-space: nowrap; background: var(--panel); }
+.ltable td { padding: 9px 10px; vertical-align: top; border-top: 1px solid var(--line); }
+.ltable tr.lrow:first-child td { border-top: 0; }
+.ltable .pos { width: 2.5ch; text-align: right; font-weight: 900; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ltable .st-year, .ltable .st-number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ltable .k-name { font-weight: 800; min-width: 160px; }
+.ltable .faint { color: var(--faint); }
+.ltable .pills { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ltable .long { color: var(--ink-2); }
+.pop { display: inline-flex; align-items: center; gap: 6px; width: 110px; height: 10px; border-radius: 999px; background: var(--line-2); position: relative; vertical-align: middle; }
+.pop i { display: block; height: 100%; border-radius: 999px; background: var(--ink); }
+.pop b { position: absolute; left: calc(100% + 6px); top: -6px; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ltable .st-bar { min-width: 150px; }
+.lrow-detail td { border-top: 0; padding-top: 0; color: var(--ink-2); font-size: 0.9rem; }
+.ldetail { margin: 0 0 4px 2.5ch; }
+.ldetail b { color: var(--muted); font-weight: 800; }
+.ltable .ctl { text-align: right; white-space: nowrap; }
+.ltable .ctl .item-ctl { justify-content: flex-end; flex-wrap: nowrap; }
+.ltable tr.skipped td:not(.lead-cell) { opacity: 0.4; text-decoration: line-through; }
+.ltable tr.skipped + tr.lrow-detail td { opacity: 0.4; }
+.lead-cell { min-width: 170px; }
+.decide { min-height: 36px; padding: 4px 8px; font-size: 0.85rem; max-width: 220px; }
+.decide-wrap { display: flex; flex-direction: column; gap: 2px; }
+.warn-text { color: var(--warn); }
+.prov { color: var(--ink-2); border-left: 3px solid var(--warn); padding: 4px 12px; margin: 6px 0 10px; }
+.view-row .chip { background: var(--bg); cursor: pointer; font: inherit; font-weight: 800; font-size: 0.85rem; }
+.view-row .chip.on { background: var(--ink); color: var(--bg); }
+.draft-out .working { border-style: dashed; }
+.error-card { border-color: var(--bad); }
+.review-sec h2 { color: var(--ink); }
+.tpl-list li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+
 /* discover */
 .strategies { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
 .strategy { text-align: left; border: 2px solid var(--line-2); border-radius: 14px; padding: 12px 14px; background: var(--panel); color: var(--ink); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-height: 44px; }
@@ -150,4 +185,4 @@ details.card summary { cursor: pointer; font-weight: 800; }
 .toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 20; width: min(92vw, 440px); }
 .toast { background: var(--ink); color: var(--bg); font-weight: 700; padding: 10px 14px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.4); transition: opacity .4s; }
 .toast.bad { background: var(--bad); color: #000; } .toast.ok { background: var(--good); color: #000; } .toast.out { opacity: 0; }
-@media (max-width: 600px) { .ent-head { flex-direction: column; } .ent-img { width: 96px; height: 96px; } html { font-size: 16px; } .item { flex-wrap: wrap; } }
+@media (max-width: 600px) { .ltable { font-size: 0.88rem; } .ltable th, .ltable td { padding: 7px 6px; } .pop { width: 70px; } .ltable .st-bar { min-width: 110px; } .ent-head { flex-direction: column; } .ent-img { width: 96px; height: 96px; } html { font-size: 16px; } .item { flex-wrap: wrap; } }

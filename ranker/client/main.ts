@@ -2,9 +2,10 @@
 import { api, ApiError, bar, confirmBox, editKey, entityPicker, field, fmtDate, h, link, navigate, pill, render, route, select, setNotFound, toast, typeLabel } from './ui.ts';
 import type { Collection, CollectionItem, Entity, EntitySummary, Note, Recommendation, RelationshipView } from '../server/domain/types.ts';
 import type { MediaType, RelationshipType } from '../server/domain/media-types.ts';
+import { AI_PILL, columnsFor, isAi, listTable, provenance, registerListPages, rowFromItem, templates } from './lists.ts';
 
 type EntityFull = Entity & { relationships: RelationshipView[]; notes: Note[]; collections: Collection[] };
-type Status = { version: string; locked: boolean; entities: number; relationships: number; collections: number; types: Record<string, number>; sample: boolean };
+type Status = { version: string; locked: boolean; entities: number; relationships: number; collections: number; types: Record<string, number>; sample: boolean; ai: { configured: boolean; provider: string | null; model: string | null } };
 let TYPES: { mediaTypes: MediaType[]; relationshipTypes: RelationshipType[] } = { mediaTypes: [], relationshipTypes: [] };
 const mt = (id: string) => TYPES.mediaTypes.find((t) => t.id === id);
 const GROUPS: Record<string, string> = { music: 'Music', film: 'Film & TV', books: 'Books', games: 'Games', other: 'Other' };
@@ -26,9 +27,10 @@ route(/^\/$/, async () => {
   return h('div', null,
     h('div', { class: 'hero' },
       h('h1', null, 'A map of what you love, and what sits next to it.'),
-      h('p', { class: 'lead' }, 'Ranker is the TASTE MACHINE: a catalog of albums, films, books, games and the people and scenes around them, the connections between them, and a discovery engine that explains every suggestion. This is Phase 1, the working foundation: the library, the relationship graph, collections and notes, connection trails, and import/export.'),
+      h('p', { class: 'lead' }, 'Ranker is the TASTE MACHINE: a catalog of albums, films, books, games and the people and scenes around them, the connections between them, and a discovery engine that explains every suggestion. This is Phase 1, the working foundation: the library, the relationship graph, collections and notes, connection trails, import/export, and lists built from a topic ("Beatles albums") with AI-gathered, reviewed context.'),
       h('div', { class: 'row' },
         link('/library/new', { class: 'btn primary' }, 'Add something'),
+        link('/lists/new', { class: 'btn' }, 'Build a list from a topic'),
         link('/discover', { class: 'btn' }, 'Discover'),
         fresh ? h('button', { class: 'btn', onClick: async () => { try { await api('POST', '/sample'); toast('Sample data loaded', 'ok'); void render(); } catch (e) { onErr(e); } } }, 'Load sample data to try it') : null)),
     h('div', { class: 'stats' },
@@ -152,7 +154,7 @@ route(/^\/entity\/([^/]+)$/, async ([id]) => {
       h('div', null, h('div', { class: 'crumb' }, link('/library', null, 'Library'), ' › ', link(`/library?type=${e.type}`, null, t?.plural ?? e.type)), h('h1', null, e.name, e.year ? h('span', { class: 'year' }, ` ${e.year}`) : null),
         e.aliases.length ? h('p', { class: 'muted' }, 'Also known as ', e.aliases.join(', ')) : null,
         h('div', { class: 'row' }, link(`/discover?strategy=trail&start=${e.id}`, { class: 'btn primary' }, 'Explore from here'), link(`/entity/${e.id}/edit`, { class: 'btn' }, 'Edit'), h('button', { class: 'btn danger', onClick: async () => { if (!confirmBox(`Delete ${e.name} and its connections? Collections and notes that point at it go too.`)) return; try { await api('DELETE', `/entities/${e.id}`); toast('Deleted', 'ok'); navigate('/library'); } catch (err) { onErr(err); } } }, 'Delete')),
-        e.origin === 'sample' ? pill('sample data', 'warn') : null)),
+        e.origin === 'sample' ? pill('sample data', 'warn') : isAi(e.origin) ? AI_PILL() : null)),
     e.description ? h('p', { class: 'desc' }, e.description) : null,
     attrs.length || e.externalIds.length || e.sources.length ? section('Details',
       attrs.length ? h('dl', { class: 'dl' }, ...attrs.flatMap((a) => [h('dt', null, a.label), h('dd', null, Array.isArray(e.attributes[a.key]) ? (e.attributes[a.key] as string[]).join(', ') : String(e.attributes[a.key]))])) : null,
@@ -198,12 +200,16 @@ route(/^\/collections$/, async () => {
   const vis = select([{ value: 'private', label: 'private' }, { value: 'unlisted', label: 'unlisted' }, { value: 'public', label: 'public' }], 'private', { 'aria-label': 'Visibility' });
   return h('div', null, h('h1', null, 'Collections'),
     h('p', { class: 'lead' }, 'Ordered, annotated groups of things from the library. Rankings, with their own order, commentary and publication, arrive in Phase 3 on top of these.'),
-    cols.length ? h('ul', { class: 'list' }, ...cols.map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title), ' ', h('span', { class: 'muted' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'} · ${c.visibility} · updated ${fmtDate(c.updatedAt)}`)))) : empty('No collections yet.'),
-    h('form', { class: 'row', onSubmit: async (ev: Event) => { ev.preventDefault(); try { const c = await api<Collection>('POST', '/collections', { title: title.value.trim(), visibility: vis.value }); navigate(`/collections/${c.id}`); } catch (err) { onErr(err); } } }, title, vis, h('button', { class: 'btn primary', type: 'submit' }, 'New collection')),
+    h('div', { class: 'row' }, link('/lists/new', { class: 'btn primary' }, 'New list from a topic'), h('span', { class: 'muted small' }, 'Type "Beatles albums" and the AI gathers the items with year, artist, popularity and genres for you to review.')),
+    cols.length ? h('ul', { class: 'list' }, ...cols.map((c) => h('li', null, link(`/collections/${c.id}`, null, c.title), ' ', c.template ? pill(c.template) : null, ' ', h('span', { class: 'muted' }, `${c.itemCount} item${c.itemCount === 1 ? '' : 's'} · ${c.visibility} · updated ${fmtDate(c.updatedAt)}`)))) : empty('No collections yet.'),
+    section('Or start an empty collection', h('form', { class: 'row', onSubmit: async (ev: Event) => { ev.preventDefault(); try { const c = await api<Collection>('POST', '/collections', { title: title.value.trim(), visibility: vis.value }); navigate(`/collections/${c.id}`); } catch (err) { onErr(err); } } }, title, vis, h('button', { class: 'btn', type: 'submit' }, 'New collection'))),
     h('p', { class: 'muted small' }, 'Visibility is recorded now and enforced once accounts exist (Phase 2). Today everything on this installation is visible to whoever can open it.'));
 });
 route(/^\/collections\/([^/]+)$/, async ([id]) => {
-  const c = await api<Collection & { items: CollectionItem[] }>('GET', `/collections/${id}`);
+  const [c, T] = await Promise.all([api<Collection & { items: CollectionItem[] }>('GET', `/collections/${id}`), templates()]);
+  const cols = columnsFor(T, c.template);
+  const asTable = !!c.template || c.items.some((i) => i.entity.attributes.popularity != null || i.entity.attributes.creator != null);
+  const view: 'table' | 'plain' = VIEW.get(id) ?? (asTable ? 'table' : 'plain');
   const order = c.items.map((i) => i.entity.id);
   const saveOrder = async () => { try { await api('PUT', `/collections/${id}/order`, { entityIds: order }); void render(); } catch (err) { onErr(err); } };
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= order.length) return; [order[i], order[j]] = [order[j], order[i]]; void saveOrder(); };
@@ -214,14 +220,24 @@ route(/^\/collections\/([^/]+)$/, async ([id]) => {
     h('div', { class: 'crumb' }, link('/collections', null, 'Collections')),
     h('h1', null, c.title),
     h('details', { class: 'card' }, h('summary', null, 'Edit title, description, visibility'), h('form', { class: 'form compact', onSubmit: async (ev: Event) => { ev.preventDefault(); try { await api('PATCH', `/collections/${id}`, { title: title.value.trim(), description: desc.value, visibility: vis.value }); toast('Saved', 'ok'); void render(); } catch (err) { onErr(err); } } }, field('Title', title), field('Description', desc), field('Visibility', vis), h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'submit' }, 'Save'), h('button', { type: 'button', class: 'btn danger', onClick: async () => { if (!confirmBox('Delete this collection? The things in it stay in the library.')) return; try { await api('DELETE', `/collections/${id}`); navigate('/collections'); } catch (err) { onErr(err); } } }, 'Delete collection')))),
+    provenance(c),
     c.description ? h('p', { class: 'desc' }, c.description) : null,
-    c.items.length ? h('ol', { class: 'items' }, ...c.items.map((it, i) => h('li', { class: 'item' }, h('span', { class: 'pos' }, String(i + 1)), h('div', { class: 'item-body' }, entityLink(it.entity), it.note ? h('p', { class: 'muted' }, it.note) : null),
-      h('div', { class: 'item-ctl' }, h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} up`, disabled: i === 0, onClick: () => move(i, -1) }, '↑'), h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} down`, disabled: i === c.items.length - 1, onClick: () => move(i, 1) }, '↓'),
-        h('button', { class: 'btn tiny', 'aria-label': `Note on ${it.entity.name}`, onClick: async () => { const n = window.prompt('Note for this item', it.note); if (n == null) return; try { await api('PATCH', `/collections/${id}/items/${it.entity.id}`, { note: n }); void render(); } catch (err) { onErr(err); } } }, 'note'),
-        h('button', { class: 'btn tiny', 'aria-label': `Remove ${it.entity.name}`, onClick: async () => { try { await api('DELETE', `/collections/${id}/items/${it.entity.id}`); void render(); } catch (err) { onErr(err); } } }, '×'))))) : empty('Nothing in it yet.'),
+    c.items.length ? h('div', { class: 'row tight view-row' }, h('button', { type: 'button', class: `chip ${view === 'table' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'table'); void render(); } }, 'Table'), h('button', { type: 'button', class: `chip ${view === 'plain' ? 'on' : ''}`, onClick: () => { VIEW.set(id, 'plain'); void render(); } }, 'Plain list')) : null,
+    c.items.length ? (view === 'table'
+      ? listTable(cols, c.items.map(rowFromItem), groupOf, { extra: (_r, i) => { const it = c.items[i]; return h('div', { class: 'item-ctl' }, itemControls(id, it, i, c.items.length, move)); } })
+      : h('ol', { class: 'items' }, ...c.items.map((it, i) => h('li', { class: 'item' }, h('span', { class: 'pos' }, String(i + 1)), h('div', { class: 'item-body' }, entityLink(it.entity), it.note ? h('p', { class: 'muted' }, it.note) : null), h('div', { class: 'item-ctl' }, ...itemControls(id, it, i, c.items.length, move)))))) : empty('Nothing in it yet.'),
     section('Add something', entityPicker(async (p) => { try { await api('POST', `/collections/${id}/items`, { entityId: p.id }); void render(); } catch (err) { onErr(err); } }, { exclude: order })),
     h('p', { class: 'muted small' }, `${c.visibility} · created ${fmtDate(c.createdAt)}`));
 });
+const VIEW = new Map<string, 'table' | 'plain'>();   // table or plain list per collection, for this visit
+function itemControls(id: string, it: CollectionItem, i: number, n: number, move: (i: number, d: number) => void): HTMLElement[] {
+  return [
+    h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} up`, disabled: i === 0, onClick: () => move(i, -1) }, '↑'),
+    h('button', { class: 'btn tiny', 'aria-label': `Move ${it.entity.name} down`, disabled: i === n - 1, onClick: () => move(i, 1) }, '↓'),
+    h('button', { class: 'btn tiny', 'aria-label': `Note on ${it.entity.name}`, onClick: async () => { const v = window.prompt('Note for this item', it.note); if (v == null) return; try { await api('PATCH', `/collections/${id}/items/${it.entity.id}`, { note: v }); void render(); } catch (err) { onErr(err); } } }, 'note'),
+    h('button', { class: 'btn tiny', 'aria-label': `Remove ${it.entity.name}`, onClick: async () => { try { await api('DELETE', `/collections/${id}/items/${it.entity.id}`); void render(); } catch (err) { onErr(err); } } }, '×'),
+  ];
+}
 
 // ── Discover ──
 route(/^\/discover$/, async (_p, q) => {
@@ -287,7 +303,7 @@ route(/^\/data$/, async () => {
 route(/^\/roadmap$/, () => {
   const phases: [string, string, 'done' | 'next' | 'later', string][] = [
     ['0', 'Repository audit and architecture', 'done', 'Decisions and documentation: Cloudflare Worker + one SQLite Durable Object, TypeScript end to end, no framework, services behind a SQL seam, migrations.'],
-    ['1', 'Working foundation', 'done', 'This release: app shell and navigation, the media-type registry, canonical entities with aliases, typed attributes, external ids and sources, duplicate detection, search, relationships with kinds and confidence, collections and notes, connection-trail / adjacent / random discovery with explanations, export and import, labelled sample data.'],
+    ['1', 'Working foundation', 'done', 'This release: app shell and navigation, the media-type registry, canonical entities with aliases, typed attributes, external ids and sources, duplicate detection, search, relationships with kinds and confidence, collections and notes, connection-trail / adjacent / random discovery with explanations, export and import, labelled sample data. Plus, pulled forward from Phase 7: lists built from a topic, with list templates (the "stylesheet" for a kind of list) and an optional AI gatherer behind a provider adapter, every result reviewed before it is saved and marked AI-gathered.'],
     ['2', 'Accounts and profiles', 'next', 'Registration and sign-in on an established scheme, profile editing, visibility settings enforced on the server, public profile pages, account export and deletion. Replaces the single edit key.'],
     ['3', 'Rankings and categories', 'later', 'The ranking editor, drafts and publication, revisions, remixing with attribution, public ranking pages and search; category proposals, lifecycle, relationships and pages.'],
     ['4', 'Taste profile and feedback', 'later', 'Onboarding from a few favourites, preference dimensions with evidence and confidence, feedback events, an editable profile page.'],
@@ -309,9 +325,14 @@ route(/^\/settings$/, async () => {
   return h('div', null, h('h1', null, 'Settings'),
     section('Who can change things', h('p', null, st.locked ? 'This installation is locked: changes need the edit key, which is kept only on this device.' : 'This installation is open: anyone who can reach it can add and change things. To lock it, set the EDIT_KEY secret on the Worker (see docs/SECURITY.md). Accounts replace this in Phase 2.'),
       h('form', { class: 'row', onSubmit: (ev: Event) => { ev.preventDefault(); editKey.set(key.value.trim()); toast(key.value.trim() ? 'Edit key saved on this device' : 'Edit key cleared', 'ok'); } }, key, h('button', { class: 'btn', type: 'submit' }, 'Save on this device'))),
+    section('AI gathering', st.ai.configured
+      ? h('p', null, `On: lists from a topic are gathered by ${st.ai.provider} / ${st.ai.model}. The key lives only in the Worker secret ANTHROPIC_API_KEY; nothing the AI returns is saved until a person reviews it, and every saved entry is marked AI-gathered and unverified. `, st.locked ? '' : 'This installation is open, so anyone who can reach it can spend the AI budget: set EDIT_KEY too.')
+      : h('p', null, 'Off: no ANTHROPIC_API_KEY secret is set. Lists can still be built by hand. To turn it on, in ranker/ run npx wrangler secret put ANTHROPIC_API_KEY, then redeploy (docs/PROVIDERS.md).')),
     section('Appearance', h('p', null, 'Colours follow your system light or dark setting. Text size follows your browser. Motion is reduced when your system asks for it.')),
     h('p', { class: 'muted small' }, `Ranker ${st.version}`));
 });
+
+registerListPages({ groupOf, onErr, route });
 
 setNotFound(() => h('div', null, h('h1', null, 'Not found'), h('p', null, 'There is nothing at this address. ', link('/', null, 'Go home'))));
 

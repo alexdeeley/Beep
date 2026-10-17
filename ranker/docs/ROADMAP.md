@@ -3,7 +3,8 @@
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Repository audit, architecture, decisions, documentation | done |
-| 1 | Working foundation: shell, navigation, design system, media-type registry, canonical entities, persistent storage, manual entry, search, detail pages, relationships, collections and notes, import/export, labelled sample data, first discovery strategies | **done (this release)** |
+| 1 | Working foundation: shell, navigation, design system, media-type registry, canonical entities, persistent storage, manual entry, search, detail pages, relationships, collections and notes, import/export, labelled sample data, first discovery strategies | done |
+| 1.1 | Lists from a topic (pulled forward from Phase 7): list templates as the stylesheet for a kind of list, the AI provider adapter (Anthropic, optional), draft → review → commit, duplicate linking, AI-gathered labelling | **done (this release)** |
 | 2 | Accounts and profiles: registration and sign-in, profile editing, visibility enforced on the server, public profile pages, settings, export and deletion | next |
 | 3 | Rankings and categories: editor, drafts, publication, ordering, revisions, remixing, public pages, search; category proposals, lifecycle, relationships, pages, attachment to rankings and collections | later |
 | 4 | Taste profile and feedback: onboarding seeds, preference dimensions with evidence and confidence, feedback events, editable profile | later |

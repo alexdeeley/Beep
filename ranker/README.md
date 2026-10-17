@@ -27,6 +27,17 @@ the phases listed in `docs/ROADMAP.md`.
   suggestion carries its strategy, an explanation, the specific connection,
   the evidence (pointing at real relationships), caveats, and relevance /
   novelty / confidence estimates. Dismissals stick for the session.
+- **Lists from a topic.** Type "Beatles albums" (or "Studio Ghibli films",
+  "Booker Prize winners"), and the AI gathers the items with their context:
+  year released, who made it, a popularity estimate, genres, and the details
+  that kind of list calls for. The *list templates* in
+  `server/domain/list-templates.ts` are the stylesheet for lists: one entry
+  per kind of list says what to gather and which columns to show, and
+  drives the gathering prompt, the review table and the saved list page
+  alike. Nothing is saved until you have reviewed every row (fix, link to
+  an existing entry, or skip); saved entries are marked AI-gathered and
+  unverified. Needs the `ANTHROPIC_API_KEY` secret; without it the page
+  says so and lists are made by hand.
 - **Data.** One-click export of everything as JSON; import with a dry run
   first, duplicates skipped; labelled sample data to try the app with.
 - **Access.** With the `EDIT_KEY` secret set, every change needs the key
@@ -44,14 +55,21 @@ npm run typecheck
 ```
 
 Environment: `PORT`, `EDIT_KEY` (lock the local server), `RANKER_DB`
-(`:memory:` for a throwaway database).
+(`:memory:` for a throwaway database), `ANTHROPIC_API_KEY` (real AI list
+gathering) or `RANKER_AI=fake` (the deterministic stand-in the tests use).
 
 ## Deploying
 
 A Cloudflare Worker with one SQLite-backed Durable Object and static assets.
 Run the repository's *Deploy Cloudflare Workers* workflow with the `ranker`
-option, or `npm run deploy` with `CLOUDFLARE_API_TOKEN` set. To lock the
-live installation: `npx wrangler secret put EDIT_KEY`.
+option, or `npm run deploy` with `CLOUDFLARE_API_TOKEN` set. Secrets, set
+once with `npx wrangler secret put <NAME>` in this folder:
+
+- `EDIT_KEY` locks changes to people who have the key.
+- `ANTHROPIC_API_KEY` turns on AI list gathering (`docs/PROVIDERS.md`). Set
+  `EDIT_KEY` as well, or anyone who can reach the site can spend the key's
+  budget. The model defaults to `claude-opus-5-5`; the `AI_MODEL` var
+  overrides it.
 
 ## Documentation
 

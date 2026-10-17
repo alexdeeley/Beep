@@ -198,6 +198,15 @@ jobs:
       - run: npm test
       - name: Deploy
         run: npx wrangler deploy
+      - name: Set Worker secrets from repository secrets (only the ones that exist)
+        # ANTHROPIC_API_KEY turns on AI list gathering; RANKER_EDIT_KEY locks changes.
+        # Values go straight from GitHub's secret store to Cloudflare's; nothing is printed.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RANKER_EDIT_KEY: ${{ secrets.RANKER_EDIT_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY && echo "ANTHROPIC_API_KEY set"; else echo "No ANTHROPIC_API_KEY repository secret: AI list gathering stays off"; fi
+          if [ -n "$RANKER_EDIT_KEY" ]; then printf '%s' "$RANKER_EDIT_KEY" | npx wrangler secret put EDIT_KEY && echo "EDIT_KEY set"; else echo "No RANKER_EDIT_KEY repository secret: the installation stays open"; fi
       - name: Smoke test
         # a brand-new custom domain can take a minute to resolve after its first deploy
         run: for i in $(seq 1 12); do curl -fsS https://ranker.deeley.org/api/health && { echo " ranker.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::ranker.deeley.org did not answer"; exit 1

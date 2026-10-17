@@ -128,6 +128,18 @@ export const MIGRATIONS: { version: number; name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'lists: a collection remembers the template and topic it was built from',
+    sql: `
+      -- template: a list template id (server/domain/list-templates.ts), '' for a plain collection
+      ALTER TABLE collections ADD COLUMN template TEXT NOT NULL DEFAULT '';
+      -- topic: what was typed to build it, e.g. "Beatles albums"
+      ALTER TABLE collections ADD COLUMN topic TEXT NOT NULL DEFAULT '';
+      -- generated_by: '' when built by hand, otherwise ai:<provider>/<model>
+      ALTER TABLE collections ADD COLUMN generated_by TEXT NOT NULL DEFAULT '';
+    `,
+  },
 ];
 
 export function migrate(db: SqlDriver): number {

@@ -16,13 +16,17 @@ import { CollectionService } from './services/collections.ts';
 import { PortabilityService } from './services/portability.ts';
 import { DiscoveryService } from './services/discovery.ts';
 import { loadSample, removeSample } from './services/sample.ts';
+import { ListService } from './services/lists.ts';
+import { GENERIC_COLUMNS } from './domain/list-templates.ts';
+import { AiRefused, AiUnavailable } from './services/ai.ts';
+import type { AiProvider } from './services/ai.ts';
 import { now } from './services/ids.ts';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
-export interface Services { catalog: CatalogService; rels: RelationshipService; cols: CollectionService; port: PortabilityService; disc: DiscoveryService; db: SqlDriver }
+export interface Services { catalog: CatalogService; rels: RelationshipService; cols: CollectionService; port: PortabilityService; disc: DiscoveryService; lists: ListService; db: SqlDriver }
 
-export function buildServices(db: SqlDriver, actor = 'anonymous'): Services {
+export function buildServices(db: SqlDriver, actor = 'anonymous', opts: { ai?: AiProvider | null } = {}): Services {
   migrate(db);
   const audit = (action: string, subjectType: string, subjectId: string, detail = '') => { db.query('INSERT INTO audit_events (at, actor, action, subject_type, subject_id, detail) VALUES (?,?,?,?,?,?)', [now(), actor, action, subjectType, subjectId, detail]); };
   const catalog = new CatalogService(db, audit);
@@ -30,7 +34,8 @@ export function buildServices(db: SqlDriver, actor = 'anonymous'): Services {
   const cols = new CollectionService(db, catalog, audit);
   const port = new PortabilityService(db, catalog, rels, cols);
   const disc = new DiscoveryService(db, catalog, rels);
-  return { catalog, rels, cols, port, disc, db };
+  const lists = new ListService(db, catalog, cols, opts.ai ?? null);
+  return { catalog, rels, cols, port, disc, lists, db };
 }
 
 const json = (data: unknown, status = 200): Response => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -55,7 +60,7 @@ export async function handle(request: Request, svc: Services, opts: ApiOptions =
     let g: RegExpMatchArray | null;
 
     if (path === '/health') return json({ ok: true, version: VERSION });
-    if (path === '/status') return json({ version: VERSION, locked, entities: svc.catalog.count(), relationships: svc.rels.count(), collections: svc.cols.list().length, types: svc.catalog.typeCounts(), sample: !!svc.db.query("SELECT 1 AS x FROM entities WHERE origin = 'sample' LIMIT 1").length });
+    if (path === '/status') return json({ version: VERSION, locked, entities: svc.catalog.count(), relationships: svc.rels.count(), collections: svc.cols.list().length, types: svc.catalog.typeCounts(), sample: !!svc.db.query("SELECT 1 AS x FROM entities WHERE origin = 'sample' LIMIT 1").length, ai: svc.lists.aiStatus() });
     if (path === '/types') return json({ mediaTypes: MEDIA_TYPES, relationshipTypes: RELATIONSHIP_TYPES });
 
     // entities
@@ -101,6 +106,14 @@ export async function handle(request: Request, svc: Services, opts: ApiOptions =
       if (method === 'PATCH') { const b = await body() as Record<string, unknown>; return json(svc.cols.setItemNote(g[1], g[2], str(b.note, 'note', DESC_MAX))); }
     }
 
+    // lists from a topic (the templates are the "stylesheet"; drafting needs the AI provider)
+    if (path === '/lists/templates') return json({ templates: svc.lists.templates(), generic: GENERIC_COLUMNS, ai: svc.lists.aiStatus() });
+    if (path === '/lists/draft' && method === 'POST') {
+      if (!aiLimit(opts.ip ?? 'local')) throw new HttpError(429, 'too many AI drafts in a minute; wait a little');
+      return json(await svc.lists.draft(await body() as Record<string, unknown>));
+    }
+    if (path === '/lists/commit' && method === 'POST') return json(svc.lists.commit(await body()), 201);
+
     // discovery
     if (path === '/discover/strategies') return json(svc.disc.strategies.map(({ id, name, description, needs }) => ({ id, name, description, needs })));
     if ((g = m(/^\/discover\/([a-z]+)$/)) && method === 'GET') {
@@ -120,7 +133,7 @@ export async function handle(request: Request, svc: Services, opts: ApiOptions =
     throw new HttpError(404, 'not found');
   } catch (e) {
     if (e instanceof DuplicateError) return err(e.message, 409, { duplicate: e.match, candidates: e.candidates });
-    if (e instanceof ValidationError || e instanceof NotFound || e instanceof HttpError) return err(e.message, (e as { status: number }).status);
+    if (e instanceof ValidationError || e instanceof NotFound || e instanceof HttpError || e instanceof AiUnavailable || e instanceof AiRefused) return err(e.message, (e as { status: number }).status);
     console.error(e);
     return err('something went wrong on the server', 500);
   }
@@ -128,12 +141,16 @@ export async function handle(request: Request, svc: Services, opts: ApiOptions =
 
 const num = (v: string | null): number | undefined => (v == null || v === '' || !Number.isFinite(Number(v)) ? undefined : Number(v));
 
-// A light in-memory rate limit on writes: 120 changes a minute per address.
+// Light in-memory rate limits per address: 120 changes a minute, and 6 AI
+// drafts a minute (each one costs real money on the installation's key).
 const recent = new Map<string, number[]>();
-function rateLimit(ip: string): boolean {
+const recentAi = new Map<string, number[]>();
+const limiter = (store: Map<string, number[]>, max: number) => (ip: string): boolean => {
   const t = Date.now();
-  const list = (recent.get(ip) ?? []).filter((x) => t - x < 60_000);
-  if (list.length >= 120) return false;
-  list.push(t); recent.set(ip, list);
+  const list = (store.get(ip) ?? []).filter((x) => t - x < 60_000);
+  if (list.length >= max) return false;
+  list.push(t); store.set(ip, list);
   return true;
-}
+};
+const rateLimit = limiter(recent, 120);
+const aiLimit = limiter(recentAi, 6);

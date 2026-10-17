@@ -59,3 +59,19 @@ Taste-profile and community strategies slot in without touching the UI.
 Sample entities carry `origin = 'sample'` and say so in their text; they
 load only on request and leave in one call. No sources or external ids are
 invented for them.
+
+## ADR 8 — AI gathers drafts; people commit; templates are the contract
+
+Lists from a topic were asked for ahead of Phase 7, so the AI adapter
+arrived early, under the spec's rules. The AI never writes to the catalog:
+it returns a draft that the server validates like any input and a person
+reviews row by row. The kinds of list live in one registry, the list
+templates, which define both what is gathered (attribute keys, guidance)
+and how it is shown (columns, styles), so prompt and UI cannot drift apart
+and a new kind of list is one entry. Context shared by every kind (creator,
+genres, popularity) became common attributes on every media type rather
+than list-only fields, so it is searchable and exportable like everything
+else, and `popularity` is documented as an estimate. The provider is the
+official Anthropic SDK behind an interface with a fake for tests; the key
+is a Worker secret, and drafting is gated like a write so a locked
+installation cannot be made to spend it.

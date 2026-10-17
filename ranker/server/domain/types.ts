@@ -49,10 +49,15 @@ export interface Collection {
   description: string;
   visibility: Visibility;
   itemCount: number;
+  template: string;             // list template id ('' for a plain collection) - see domain/list-templates.ts
+  topic: string;                // the topic it was built from, if any
+  generatedBy: string;          // '' by hand, or ai:<provider>/<model>
   createdAt: string;
   updatedAt: string;
 }
-export interface CollectionItem { entity: EntitySummary; position: number; note: string; addedAt: string }
+// Items carry the entity's attributes too, so a list page can lay out
+// year / by / popularity / genres per its template without a request each.
+export interface CollectionItem { entity: EntitySummary & { attributes: Record<string, unknown> }; position: number; note: string; addedAt: string }
 
 export interface Note { id: string; entityId: string; body: string; createdAt: string; updatedAt: string }
 

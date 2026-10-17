@@ -24,6 +24,16 @@ export interface MediaType {
 const year: AttributeDef = { key: 'year', label: 'Year', kind: 'year' };
 const country: AttributeDef = { key: 'country', label: 'Country', kind: 'text' };
 
+// Context every kind of thing can carry, so that lists built from a topic
+// ("Beatles albums", "Studio Ghibli films") have the same shape whatever the
+// type: who made it, what it is like, and how widely known it is.
+// `popularity` is a 0-100 estimate, never shown as an objective measure.
+export const CONTEXT_ATTRIBUTES: AttributeDef[] = [
+  { key: 'creator', label: 'By', kind: 'text', help: 'artist, director, author, studio…' },
+  { key: 'genres', label: 'Genres', kind: 'list' },
+  { key: 'popularity', label: 'Popularity', kind: 'number', help: '0-100 estimate of how widely known it is' },
+];
+
 export const MEDIA_TYPES: MediaType[] = [
   // music
   { id: 'artist', label: 'Artist', plural: 'Artists', group: 'music', attributes: [{ key: 'origin', label: 'Origin', kind: 'text' }, { key: 'active_years', label: 'Active years', kind: 'text', help: 'e.g. 1978-1983' }, { key: 'members', label: 'Members', kind: 'list' }] },
@@ -49,6 +59,8 @@ export const MEDIA_TYPES: MediaType[] = [
   { id: 'art_movement', label: 'Art movement', plural: 'Art movements', group: 'other', attributes: [{ key: 'period', label: 'Period', kind: 'text' }, { key: 'place', label: 'Place', kind: 'text' }] },
   { id: 'event', label: 'Event or exhibition', plural: 'Events and exhibitions', group: 'other', attributes: [{ key: 'date', label: 'Date', kind: 'date' }, { key: 'place', label: 'Place', kind: 'text' }] },
 ];
+
+for (const t of MEDIA_TYPES) for (const a of CONTEXT_ATTRIBUTES) if (!t.attributes.some((x) => x.key === a.key)) t.attributes.push(a);
 
 export const mediaType = (id: string): MediaType | undefined => MEDIA_TYPES.find((t) => t.id === id);
 

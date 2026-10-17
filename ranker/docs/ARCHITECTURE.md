@@ -17,12 +17,14 @@ browser (client/)  ──HTTP /api/*──▶  Worker (server/worker.ts)  ──
   the same code runs in the Worker and in `dev/local-server.mjs` on Node.
 - **server/services/** – the domain logic: `catalog` (entities), `relationships`,
   `collections` (and notes), `discovery` (strategies), `portability`
-  (export/import), `sample`. Services talk to SQL through one interface,
+  (export/import), `sample`, `lists` (topic → draft → reviewed commit) and
+  `ai` (the provider adapter behind it). Services talk to SQL through one interface,
   `SqlDriver` (`server/db/driver.ts`), with two implementations: the Durable
   Object's `storage.sql` in production and `node:sqlite` for tests and local
   development. Services never know which.
 - **server/domain/** – types shared with the client, the media-type and
-  relationship-type registries, and input validation.
+  relationship-type registries, the list templates (the stylesheet for
+  lists: what each kind gathers and how it is laid out), and input validation.
 - **server/db/migrations.ts** – versioned SQL, applied once each on start,
   recorded in `schema_migrations`.
 

@@ -6,8 +6,11 @@ import { DurableObject } from 'cloudflare:workers';
 import type { SqlDriver, Row } from './db/driver.ts';
 import { buildServices, handle } from './api.ts';
 import type { Services } from './api.ts';
+import { providerFromEnv } from './services/ai.ts';
 
-interface Env { CATALOG: DurableObjectNamespace; ASSETS: Fetcher; EDIT_KEY?: string; ENVIRONMENT?: string }
+// Secrets (wrangler secret put): EDIT_KEY locks changes; ANTHROPIC_API_KEY
+// turns on AI list drafting. AI_MODEL (a var) overrides the default model.
+interface Env { CATALOG: DurableObjectNamespace; ASSETS: Fetcher; EDIT_KEY?: string; ANTHROPIC_API_KEY?: string; AI_MODEL?: string; ENVIRONMENT?: string }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -33,7 +36,7 @@ class DoDriver implements SqlDriver {
 export class Catalog extends DurableObject<Env> {
   private svc: Services | null = null;
   private services(): Services {
-    if (!this.svc) this.svc = buildServices(new DoDriver(this.ctx.storage.sql, this.ctx.storage), 'installation');
+    if (!this.svc) this.svc = buildServices(new DoDriver(this.ctx.storage.sql, this.ctx.storage), 'installation', { ai: providerFromEnv(this.env) });
     return this.svc;
   }
   async fetch(request: Request): Promise<Response> {

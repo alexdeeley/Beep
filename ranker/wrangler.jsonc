@@ -19,6 +19,9 @@
 
   // Secrets (wrangler secret put): EDIT_KEY - when set, every change needs
   // it; when unset the installation is a personal, open one (docs/SECURITY.md).
+  // ANTHROPIC_API_KEY - turns on AI list gathering (docs/PROVIDERS.md); set
+  // EDIT_KEY too so only key holders can spend it. AI_MODEL (a var, optional)
+  // overrides the default model, claude-opus-5-5.
   "vars": { "ENVIRONMENT": "production" },
   "observability": { "enabled": true },
   "routes": [{ "pattern": "ranker.deeley.org", "custom_domain": true }]
