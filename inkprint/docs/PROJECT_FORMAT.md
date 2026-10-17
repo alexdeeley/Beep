@@ -23,7 +23,7 @@ original pen stroke. It is **not** a font file; export the font separately.
     "metrics": { "capHeight": 700, "xHeight": 480, "ascender": 740, "descender": -240 },
     "stroke":  { "size": 46, "thinning": 0.45, "smoothing": 0.5, "streamline": 0.35 },
     "layout":  { "glyphScale": 1, "baselineShift": 0, "sidebearing": 50, "spaceWidth": 300, "tracking": 0 },
-    "ghost":   { "visible": true, "opacity": 0.18, "scale": 1, "offsetY": 0 },
+    "ghost":   { "visible": true, "opacity": 0.36, "scale": 1, "offsetY": 0 },
     "canvasTheme": "light",           // light | dark
     "showGuides": true,
     "exportFormat": "ttf",            // ttf | otf

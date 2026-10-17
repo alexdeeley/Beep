@@ -6,7 +6,7 @@
  */
 import { buildInventory, type InventoryEntry } from '../../data/character-sets';
 import { NO_ADJUST, type Contour, type GlyphRecord, type GlyphStatus, type Stroke } from '../../types/glyph';
-import type { Project } from '../../types/project';
+import { DEFAULT_GHOST, PREVIOUS_GHOST_OPACITY, type Project } from '../../types/project';
 import { recordContours } from '../font-generation/build-font';
 import { outlineKey } from '../glyph-processing/process';
 import { putGlyphs, putProject } from './db';
@@ -38,7 +38,8 @@ export class ProjectStore {
   private outlineCache = new Map<string, { key: string; contours: Contour[] }>();
 
   constructor(project: Project, records: GlyphRecord[]) {
-    this.project = project;
+    this.project = upgradeProject(project);
+    if (this.project !== project) this.dirtyProject = true;
     for (const r of records) this.glyphs.set(r.char, r);
     this.inventory = buildInventory(project.groups, project.customChars);
   }
@@ -221,4 +222,10 @@ export class ProjectStore {
   records(): GlyphRecord[] {
     return [...this.glyphs.values()];
   }
+}
+
+/** Settings whose defaults changed: bring a stored project up to date, untouched if nothing applies. */
+export function upgradeProject(p: Project): Project {
+  if (Math.abs(p.ghost.opacity - PREVIOUS_GHOST_OPACITY) < 1e-6) return { ...p, ghost: { ...p.ghost, opacity: DEFAULT_GHOST.opacity } };
+  return p;
 }

@@ -12,7 +12,12 @@ export interface GhostSettings {
   offsetY: number;
 }
 
-export const DEFAULT_GHOST: GhostSettings = { visible: true, opacity: 0.18, scale: 1, offsetY: 0 };
+// Guide-letter opacity: 36% reads clearly for tracing without competing with
+// the ink. Projects saved with the earlier 18% default are raised to this
+// when they open (see modules/storage/project-store.ts); a value someone set
+// on purpose is left alone.
+export const PREVIOUS_GHOST_OPACITY = 0.18;
+export const DEFAULT_GHOST: GhostSettings = { visible: true, opacity: 0.36, scale: 1, offsetY: 0 };
 
 export type ExportFormat = 'ttf' | 'otf';
 

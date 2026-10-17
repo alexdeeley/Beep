@@ -33,3 +33,23 @@ describe('project backup', () => {
     expect(records[0].strokes.length).toBe(recs[0].strokes.length);
   });
 });
+
+describe('project upgrades on open', async () => {
+  const { upgradeProject } = await import('../src/modules/storage/project-store');
+  const { DEFAULT_GHOST, PREVIOUS_GHOST_OPACITY } = await import('../src/types/project');
+
+  it('raises the guide letter from the old 18% default to the current default', () => {
+    const old = testProject({ ghost: { ...DEFAULT_GHOST, opacity: PREVIOUS_GHOST_OPACITY } });
+    const up = upgradeProject(old);
+    expect(up.ghost.opacity).toBe(DEFAULT_GHOST.opacity);
+    expect(DEFAULT_GHOST.opacity).toBeCloseTo(PREVIOUS_GHOST_OPACITY * 2, 2);
+    expect(up).not.toBe(old);
+  });
+
+  it('leaves an opacity someone chose on purpose alone, and returns the same object when nothing applies', () => {
+    const chosen = testProject({ ghost: { ...DEFAULT_GHOST, opacity: 0.25 } });
+    expect(upgradeProject(chosen)).toBe(chosen);
+    const fresh = testProject();
+    expect(upgradeProject(fresh)).toBe(fresh);
+  });
+});
