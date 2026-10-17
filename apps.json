@@ -1628,5 +1628,14 @@
     "path": "https://ranker.deeley.org",
     "added": "2026-10-17T01:45:09+00:00",
     "thumbnail": "thumbnails/ranker.jpg"
+  },
+  {
+    "id": "inkprint",
+    "name": "Inkprint",
+    "description": "Draw your handwriting one character at a time and download it as a real, installable font (.ttf or .otf). Everything happens on your device.",
+    "category": "Art",
+    "path": "https://inkprint.deeley.org",
+    "added": "2026-10-17T03:00:00+00:00",
+    "thumbnail": "thumbnails/inkprint.jpg"
   }
 ]

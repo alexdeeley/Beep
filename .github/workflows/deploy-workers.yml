@@ -13,7 +13,7 @@ on:
       app:
         description: Which app to deploy
         type: choice
-        options: [arkanoid-duel, gallery, soliteam, draw-together, braille-blitz, drop-wall, ranker, both, diagnose]
+        options: [arkanoid-duel, gallery, soliteam, draw-together, braille-blitz, drop-wall, ranker, inkprint, both, diagnose]
         default: arkanoid-duel
 
 concurrency:
@@ -210,6 +210,34 @@ jobs:
       - name: Smoke test
         # a brand-new custom domain can take a minute to resolve after its first deploy
         run: for i in $(seq 1 12); do curl -fsS https://ranker.deeley.org/api/health && { echo " ranker.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::ranker.deeley.org did not answer"; exit 1
+
+  inkprint:
+    if: inputs.app == 'inkprint' || inputs.app == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: inkprint
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: inkprint/package-lock.json
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API (or CLOUDFLARE_API_TOKEN) repository secret first"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck && npm test
+      - name: Deploy
+        # wrangler runs `npm run build` (typecheck + vite build) before uploading ./dist
+        run: npx wrangler deploy
+      - name: Smoke test
+        # a brand-new custom domain can take a minute to resolve after its first deploy
+        run: for i in $(seq 1 12); do curl -fsS https://inkprint.deeley.org/ | grep -q '<div id="root">' && { echo " inkprint.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::inkprint.deeley.org did not answer"; exit 1
 
   # Read-only checks: what can the token actually do? Prints results only, never the token.
   diagnose:

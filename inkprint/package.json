@@ -1,0 +1,36 @@
+{
+  "name": "inkprint",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "INKPRINT (inkprint.deeley.org): draw your handwriting one character at a time and download it as a real, installable TrueType or OpenType font. Runs entirely in the browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:browser": "vite build && node dev/browser-test.mjs",
+    "reference-glyphs": "node scripts/build-reference-glyphs.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "opentype.js": "^1.3.4",
+    "perfect-freehand": "^1.2.2",
+    "polygon-clipping": "^0.15.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/opentype.js": "^1.3.10",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "playwright": "^1.64.1",
+    "typescript": "5.6",
+    "vite": "^6.4.4",
+    "vitest": "^3.2.7",
+    "wrangler": "^4.151.1"
+  }
+}
