@@ -5,8 +5,8 @@
 :root {
   color-scheme: dark;
   --bg: #000; --ink: #fff; --ink-2: #e6e6e6; --muted: #b5b5b5; --faint: #7a7a7a; --line: #fff; --dim: #2a2a2a; --panel: #000;
-  --marker: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --hand: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --marker: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --hand: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --r1: 4px; --r2: 4px; --r3: 4px;
 }
 * { box-sizing: border-box; }
@@ -20,8 +20,8 @@ a { color: inherit; }
 .skip:focus { left: 8px; }
 
 /* the marker hand: every heading, button and label */
-h1, h2, h3, .btn, .chip, .pill, .nav a, .nav button, .brand, label, th, .pos, legend, summary, .stat b, .tabs, .phase-no, .strategy b, .ctl-tri, .menu a, .fbar select, .fbar input::placeholder, input::placeholder, textarea::placeholder { font-family: var(--marker); font-weight: 800; letter-spacing: 0.04em; }
-h1 { font-size: clamp(1.6rem, 4.6vw, 2.4rem); margin: 6px 0 12px; line-height: 1.05; text-transform: uppercase; font-weight: 900; letter-spacing: -0.01em; }
+h1, h2, h3, .btn, .chip, .pill, .nav a, .nav button, .brand, label, th, .pos, legend, summary, .stat b, .tabs, .phase-no, .strategy b, .ctl-tri, .menu a, .fbar select, .fbar input::placeholder, input::placeholder, textarea::placeholder { font-family: var(--marker); font-weight: 700; letter-spacing: 0.02em; }
+h1 { font-size: clamp(1.6rem, 4.6vw, 2.4rem); margin: 6px 0 12px; line-height: 1.05; text-transform: uppercase; font-weight: 700; letter-spacing: 0; }
 h2 { font-size: 1.05rem; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.1em; }
 h3 { font-size: 1.05rem; margin: 0 0 6px; text-transform: uppercase; }
 label, th, legend, summary, .field label { text-transform: uppercase; }
@@ -31,7 +31,7 @@ label, th, legend, summary, .field label { text-transform: uppercase; }
 .section > h2 { padding-bottom: 6px; border-bottom: 2px solid var(--line); }
 .muted { color: var(--muted); } .small { font-size: 0.9rem; } .empty { font-style: italic; } .error { color: var(--ink); text-decoration: underline; }
 .faint { color: var(--faint); }
-.crumb { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; margin-bottom: 2px; text-transform: uppercase; font-family: var(--marker); font-weight: 800; }
+.crumb { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; margin-bottom: 2px; text-transform: uppercase; font-family: var(--marker); font-weight: 700; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
 .row.tight { margin: 4px 0; } .row.tight input { flex: 1 1 160px; }
 .rows { display: flex; flex-direction: column; gap: 4px; }
@@ -40,7 +40,7 @@ label, th, legend, summary, .field label { text-transform: uppercase; }
 /* header: RANKER.DEELEY.ORG  [LOGIN] [MENU] */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
 .top::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 0; height: 2px; background: var(--line); }
-.brand { text-decoration: none; font-size: clamp(1.2rem, 3.8vw, 2rem); font-weight: 900; text-transform: uppercase; white-space: nowrap; line-height: 1; letter-spacing: 0.02em; }
+.brand { text-decoration: none; font-size: clamp(1.2rem, 3.8vw, 2rem); font-weight: 700; text-transform: uppercase; white-space: nowrap; line-height: 1; letter-spacing: 0.01em; }
 .brand small { font-size: 0.6em; color: var(--muted); margin-left: 8px; display: none; }
 .nav { display: flex; gap: 10px; align-items: center; }
 .nav .btn { min-height: 46px; padding: 6px 16px; }
@@ -54,8 +54,8 @@ label, th, legend, summary, .field label { text-transform: uppercase; }
 .foot { text-align: center; color: var(--faint); font-size: 0.9rem; padding: 20px 16px 40px; }
 
 /* hand-drawn boxes */
-.btn, input, select, textarea, .card, .stat, .item, .ltable-wrap, .rec, button.strategy, .phase, .ent.tile, .picker-list, .chip.box { border: 3px solid var(--line); border-radius: var(--r1); background: var(--bg); color: var(--ink); }
-.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 8px 18px; font: inherit; font-family: var(--marker); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
+.btn, input, select, textarea, .card, .stat, .item, .ltable-wrap, .rec, button.strategy, .phase, .ent.tile, .picker-list, .chip.box { border: 2px solid var(--line); border-radius: var(--r1); background: var(--bg); color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 8px 18px; font: inherit; font-family: var(--marker); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
 .btn:hover { background: var(--ink); color: var(--bg); }
 .btn.primary { background: var(--ink); color: var(--bg); }
 .btn.primary:hover { background: var(--bg); color: var(--ink); }
@@ -68,7 +68,7 @@ label, th, legend, summary, .field label { text-transform: uppercase; }
 .btn[disabled]:hover { background: var(--bg); color: var(--ink); }
 input, select, textarea { font: inherit; padding: 8px 14px; min-height: 46px; max-width: 100%; font-size: 1rem; }
 input::placeholder, textarea::placeholder { color: var(--faint); text-transform: none; font-weight: 400; font-size: 1rem; }
-select { appearance: none; -webkit-appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='12' viewBox='0 0 18 12'%3E%3Cpath d='M2 2 L9 10 L16 2' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; font-family: var(--marker); font-weight: 800; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 0.04em; }
+select { appearance: none; -webkit-appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='12' viewBox='0 0 18 12'%3E%3Cpath d='M2 2 L9 10 L16 2' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; font-family: var(--marker); font-weight: 700; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 0.04em; }
 select option { font-family: system-ui, sans-serif; text-transform: none; background: #000; color: #fff; }
 textarea { min-height: 80px; width: 100%; resize: vertical; }
 input[type=search], input[type=text], input[type=url], input[type=number], input[type=password] { width: 100%; }
@@ -100,7 +100,7 @@ details.card[open] summary { margin-bottom: 8px; }
 .list.small { font-size: 0.95rem; }
 .ent-list { counter-reset: row; }
 .ent-list li { padding: 7px 0; display: flex; align-items: baseline; gap: 10px; border-bottom: 2px dotted var(--dim); }
-.ent-list li::before { counter-increment: row; content: counter(row) "."; font-family: var(--marker); font-weight: 800; min-width: 2.2ch; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ent-list li::before { counter-increment: row; content: counter(row) "."; font-family: var(--marker); font-weight: 700; min-width: 2.2ch; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pill { display: inline-block; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border: 2px solid var(--line); border-radius: var(--r2); color: var(--ink); vertical-align: middle; white-space: nowrap; }
 .pill.kind-factual { border-style: solid; }
 .pill.kind-editorial { border-style: dashed; }
@@ -127,7 +127,7 @@ details.card[open] summary { margin-bottom: 8px; }
 .ent.tile { display: block; padding: 12px 16px; min-height: 68px; }
 .ent-head { display: flex; gap: 16px; align-items: flex-start; }
 .ent-img { width: 120px; height: 120px; object-fit: cover; border: 3px solid var(--line); border-radius: var(--r2); flex: 0 0 auto; background: var(--bg); }
-.ent-img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 3rem; font-family: var(--marker); font-weight: 900; }
+.ent-img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 3rem; font-family: var(--marker); font-weight: 700; }
 .entity h1 .year { font-size: 0.6em; color: var(--muted); font-family: var(--hand); }
 .desc { font-size: 1.12rem; max-width: 760px; }
 .dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
@@ -177,7 +177,7 @@ details.card[open] summary { margin-bottom: 8px; }
 .ltable .long { color: var(--ink-2); }
 .pop { display: inline-block; width: 110px; height: 12px; border: 2px solid var(--line); border-radius: 3px; background: var(--bg); position: relative; vertical-align: middle; }
 .pop i { display: block; height: 100%; background: var(--ink); }
-.pop b { position: absolute; left: calc(100% + 8px); top: -5px; font-size: 0.85rem; font-family: var(--marker); font-weight: 800; font-variant-numeric: tabular-nums; }
+.pop b { position: absolute; left: calc(100% + 8px); top: -5px; font-size: 0.85rem; font-family: var(--marker); font-weight: 700; font-variant-numeric: tabular-nums; }
 .ltable .st-bar { min-width: 160px; }
 .lrow-detail td { border-top: 0; padding-top: 0; color: var(--ink-2); font-size: 0.95rem; }
 .ldetail { margin: 0 0 4px 2.5ch; }
@@ -223,7 +223,7 @@ button.strategy b { font-size: 1rem; text-transform: uppercase; } button.strateg
 
 /* toasts */
 .toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 20; width: min(92vw, 460px); }
-.toast { background: var(--ink); color: var(--bg); font-family: var(--marker); font-weight: 800; padding: 10px 16px; border-radius: var(--r2); box-shadow: 0 6px 20px rgba(0,0,0,.6); transition: opacity .4s; }
+.toast { background: var(--ink); color: var(--bg); font-family: var(--marker); font-weight: 700; padding: 10px 16px; border-radius: var(--r2); box-shadow: 0 6px 20px rgba(0,0,0,.6); transition: opacity .4s; }
 .toast.bad { background: var(--ink-2); } .toast.out { opacity: 0; }
 @media (max-width: 640px) {
   html { font-size: 16px; }

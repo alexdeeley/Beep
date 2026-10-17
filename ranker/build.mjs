@@ -3,6 +3,7 @@
 //   node build.mjs --prod   minified
 import esbuild from 'esbuild';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,5 +17,8 @@ await esbuild.build({
   minify: prod, sourcemap: prod ? false : 'inline', logLevel: 'warning',
 });
 fs.copyFileSync(path.join(ROOT, 'client/styles.css'), path.join(OUT, 'styles.css'));
-fs.copyFileSync(path.join(ROOT, 'client/index.html'), path.join(OUT, 'index.html'));
+// Cache-bust the stylesheet and script links with a hash of their contents,
+// so a redeploy is never hidden behind a browser's cached copy.
+const hash = (f) => createHash('sha1').update(fs.readFileSync(path.join(OUT, f))).digest('hex').slice(0, 8);
+fs.writeFileSync(path.join(OUT, 'index.html'), fs.readFileSync(path.join(ROOT, 'client/index.html'), 'utf8').replace('"/styles.css"', `"/styles.css?v=${hash('styles.css')}"`).replace('"/app.js"', `"/app.js?v=${hash('app.js')}"`));
 console.log(`built ${prod ? 'production' : 'development'} client -> public/`);
