@@ -13,7 +13,7 @@ on:
       app:
         description: Which app to deploy
         type: choice
-        options: [arkanoid-duel, gallery, soliteam, draw-together, braille-blitz, drop-wall, ranker, inkprint, both, diagnose]
+        options: [arkanoid-duel, gallery, soliteam, draw-together, braille-blitz, drop-wall, ranker, inkprint, todo, both, diagnose]
         default: arkanoid-duel
 
 concurrency:
@@ -238,6 +238,37 @@ jobs:
       - name: Smoke test
         # a brand-new custom domain can take a minute to resolve after its first deploy
         run: for i in $(seq 1 12); do curl -fsS https://inkprint.deeley.org/ | grep -q '<div id="root">' && { echo " inkprint.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::inkprint.deeley.org did not answer"; exit 1
+
+  todo:
+    if: inputs.app == 'todo' || inputs.app == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: todo
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the token is there
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API (or CLOUDFLARE_API_TOKEN) repository secret first"; exit 1; }
+      - run: npm install
+      - run: npm test
+      - name: Deploy
+        run: npx wrangler deploy
+      - name: Set the recovery key from the repository secret
+        # TODO_RECOVERY_KEY is the only way to set or reset the PIN. The value goes
+        # straight from GitHub's secret store to Cloudflare's; nothing is printed.
+        env:
+          TODO_RECOVERY_KEY: ${{ secrets.TODO_RECOVERY_KEY }}
+        run: |
+          if [ -n "$TODO_RECOVERY_KEY" ]; then printf '%s' "$TODO_RECOVERY_KEY" | npx wrangler secret put TODO_RECOVERY_KEY && echo "TODO_RECOVERY_KEY set"; else echo "::warning::No TODO_RECOVERY_KEY repository secret: nobody can set a PIN until it is added and this workflow is run again"; fi
+      - name: Smoke test
+        run: for i in $(seq 1 12); do curl -fsS https://todo.deeley.org/api/health && { echo " todo.deeley.org answers"; exit 0; }; sleep 10; done; echo "::error::todo.deeley.org did not answer"; exit 1
 
   # Read-only checks: what can the token actually do? Prints results only, never the token.
   diagnose:

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="A private to-do list with reminders.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="To-do">
+<meta name="robots" content="noindex, nofollow">
+<title>To-do</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="app">
+  <header class="top" id="top" hidden>
+    <a class="brand" href="/" data-link>To-do</a>
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
+  </header>
+  <main id="main" class="main" tabindex="-1" aria-live="polite"></main>
+</div>
+<div id="lock" class="lock" hidden></div>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -20,3 +20,7 @@ runs/*
 # ranker: built client and local database
 ranker/public/
 ranker/dev/ranker.sqlite*
+
+# todo: built client and local database
+todo/public/
+todo/dev/todo.sqlite*
