@@ -1453,7 +1453,7 @@
   {
     "id": "instruments",
     "name": "Sound",
-    "description": "Browser instruments: 34 of them, each playable on its own - keys, drums, bass, synths, generative and experimental - plus the Studio, which runs four together with a shared clock, mixer and effects.",
+    "description": "Oscillators and oscilloscopes: the Dual Oscillator you play with two fingers and watch on a scope, plus pure oscillators, Hz experiments, and mic waveform viewers.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
