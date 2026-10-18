@@ -1444,7 +1444,7 @@
   {
     "id": "time-microscope",
     "name": "Time Microscope",
-    "description": "Record two seconds from your mic, then watch it stretch into an evolving granular drone.",
+    "description": "Record two seconds from your mic, then watch and hear it slow down a little more every second, down to 1% speed, with echo and delay to taste.",
     "category": "Music Tools",
     "path": "TimeMicroscope.html",
     "added": "2026-09-19T00:00:00+00:00",

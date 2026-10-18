@@ -1,507 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>time microscope</title>
 <style>
-  :root{
-    color-scheme: dark;
-    --bg: #000;
-    --fg: #fff;
-    --dim: rgba(255,255,255,0.35);
+  :root { --fg:#fff; --dim:#444; --mid:#888; --acc:#3ff; --bg:#000; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden; }
+  body {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    display:flex; flex-direction:column;
+    padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px)
+             calc(env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 16px);
+    -webkit-user-select:none; user-select:none;
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    height: 100%;
-    margin: 0;
-    background: var(--bg);
-    overscroll-behavior: none;
-    touch-action: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  body{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  }
-  #stage{
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #ratioDisplay{
-    position: absolute;
-    top: calc(env(safe-area-inset-top, 0px) + 28px);
-    left: 0;
-    right: 0;
-    text-align: center;
-    color: var(--dim);
-    font-size: 13px;
-    letter-spacing: 0.02em;
-    font-variant-numeric: tabular-nums;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.6s ease;
-  }
-  #ratioDisplay.visible{ opacity: 1; }
-
-  #control{
-    position: relative;
-    width: min(58vw, 58vh, 300px);
-    height: min(58vw, 58vh, 300px);
-    border-radius: 50%;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #ring{
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-  }
-  #ringTrack{
-    fill: none;
-    stroke: rgba(255,255,255,0.12);
-    stroke-width: 2;
-  }
-  #ringProgress{
-    fill: none;
-    stroke: var(--fg);
-    stroke-width: 2;
-    stroke-linecap: round;
-  }
-  #core{
-    width: 78%;
-    height: 78%;
-    border-radius: 50%;
-    background: var(--fg);
-    will-change: transform, opacity;
-  }
-  #hint{
-    position: absolute;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 34px);
-    left: 0;
-    right: 0;
-    text-align: center;
-    color: var(--dim);
-    font-size: 13px;
-    letter-spacing: 0.01em;
-    pointer-events: none;
-    transition: opacity 0.4s ease;
-  }
+  header { display:flex; align-items:center; height:36px; }
+  #back { color:var(--mid); text-decoration:none; font-size:30px; line-height:1; padding:0 12px 0 0; }
+  #readout { text-align:center; margin-top:4px; }
+  #pct { font-size:clamp(56px, 18vw, 120px); font-weight:700; letter-spacing:-0.04em; line-height:1; font-variant-numeric:tabular-nums; }
+  #sub { font-size:13px; color:var(--mid); margin-top:6px; letter-spacing:0.08em; font-variant-numeric:tabular-nums; }
+  #stage { flex:1; position:relative; margin:14px 0 10px; touch-action:manipulation; cursor:pointer; min-height:120px; }
+  #wave, #scope { position:absolute; left:0; width:100%; display:block; }
+  #wave { top:0; height:72%; }
+  #scope { bottom:0; height:24%; }
+  #micBtn { position:absolute; left:50%; top:36%; transform:translate(-50%,-50%); z-index:2;
+    font:inherit; font-size:16px; letter-spacing:0.06em; color:#000; background:#fff; border:none;
+    border-radius:999px; padding:16px 28px; cursor:pointer; }
+  #micBtn[hidden] { display:none; }
+  #hint { position:absolute; left:0; right:0; top:36%; transform:translateY(-50%); text-align:center; font-size:14px; color:var(--mid); letter-spacing:0.06em; pointer-events:none; }
+  .ctl { display:flex; align-items:center; gap:12px; height:44px; }
+  .ctl label { width:52px; font-size:13px; color:var(--mid); letter-spacing:0.06em; }
+  .ctl output { width:70px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums; }
+  input[type=range] { flex:1; -webkit-appearance:none; appearance:none; background:transparent; height:44px; }
+  input[type=range]::-webkit-slider-runnable-track { height:2px; background:#555; }
+  input[type=range]::-moz-range-track { height:2px; background:#555; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:var(--fg); margin-top:-11px; border:none; }
+  input[type=range]::-moz-range-thumb { width:24px; height:24px; border-radius:50%; background:var(--fg); border:none; }
 </style>
 </head>
 <body>
-<!-- beep-back-button -->
-<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
-<style>
-#beep-back{
-  position:fixed;
-  top:max(8px, env(safe-area-inset-top));
-  left:max(8px, env(safe-area-inset-left));
-  z-index:2147483647;
-  width:34px;height:34px;
-  border-radius:50%;
-  background:rgba(10,10,18,0.62);
-  color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  font:400 22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  text-decoration:none;
-  border:1px solid rgba(255,255,255,0.25);
-  backdrop-filter:blur(4px);
-  -webkit-backdrop-filter:blur(4px);
-  box-shadow:0 2px 8px rgba(0,0,0,0.4);
-  touch-action:manipulation;
-  -webkit-tap-highlight-color:transparent;
-}
-#beep-back:active{ transform:scale(0.92); }
-</style>
-<script>
-(function(){
-  var b = document.getElementById('beep-back');
-  if(!b) return;
-  var go = function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = b.getAttribute('href');
-  };
-  b.addEventListener('click', go, {capture:true});
-  b.addEventListener('touchstart', go, {capture:true, passive:false});
-})();
-</script>
+<header><a id="back" href="index.html" title="Back to deeley.org">‹</a></header>
 
-<div id="stage">
-  <div id="ratioDisplay">1.0×</div>
-  <button id="control" aria-label="record two seconds">
-    <svg id="ring" viewBox="0 0 100 100">
-      <circle id="ringTrack" cx="50" cy="50" r="47"></circle>
-      <circle id="ringProgress" cx="50" cy="50" r="47" stroke-dasharray="295.3" stroke-dashoffset="295.3"></circle>
-    </svg>
-    <div id="core"></div>
-  </button>
-  <div id="hint">tap to record two seconds</div>
+<div id="readout">
+  <div id="pct">100%</div>
+  <div id="sub">speed</div>
 </div>
 
+<div id="stage">
+  <canvas id="wave"></canvas>
+  <canvas id="scope"></canvas>
+  <button id="micBtn" type="button">enable microphone</button>
+  <div id="hint" style="top:60%"></div>
+</div>
+
+<div class="ctl"><label for="echo">echo</label><input id="echo" type="range" min="0" max="100" value="0"><output id="echoV">off</output></div>
+<div class="ctl"><label for="delay">delay</label><input id="delay" type="range" min="0" max="1000" value="642"><output id="delayV">300 ms</output></div>
+
 <script>
-(function(){
-  "use strict";
+(() => {
+  const CLIP_SECONDS = 2;
+  const SLOW_PER_SEC = 0.99;          // speed multiplies by this every second (100% → 99% → 98%…)
+  const MIN_RATE = 0.01;              // floor: 1% speed
+  const A = -Math.log(SLOW_PER_SEC);
+  const RAMP_T = Math.log(MIN_RATE) / Math.log(SLOW_PER_SEC); // seconds to reach floor
 
-  // ---------- state ----------
-  var STATE = { IDLE: "idle", RECORDING: "recording", STRETCHING: "stretching", STOPPING: "stopping" };
-  var state = STATE.IDLE;
+  const $ = id => document.getElementById(id);
+  const pctEl = $('pct'), subEl = $('sub'), hint = $('hint');
+  const wave = $('wave'), scope = $('scope'), stage = $('stage');
+  const wctx = wave.getContext('2d'), sctx = scope.getContext('2d');
+  const echoIn = $('echo'), delayIn = $('delay'), echoV = $('echoV'), delayV = $('delayV');
 
-  var audioCtx = null;
-  var mic = { stream: null, ctxNode: null, processor: null };
-  var recordedChunks = [];
-  var recordedSampleCount = 0;
-  var RECORD_SECONDS = 2.0;
+  let ctx, bus, dry, delayNode, fb, tone, wet, comp, analyser, scopeData;
+  let state = 'idle';                 // idle | recording | playing
+  let recBuf = null, recIdx = 0, recStream = null, recNodes = [];
+  let clip = null, source = null, t0 = 0;
+  let peaks = null;                   // [min,max] per device-pixel column
 
-  var doubledBuffer = null;   // source buffer concatenated with itself, for safe wrap reads
-  var sourceDuration = 0;
+  // ---------- slider mapping + persistence ----------
+  const delayMs = v => 10 * Math.pow(200, v / 1000);          // 10 ms … 2000 ms
+  try {
+    const s = JSON.parse(localStorage.getItem('tm-settings') || '{}');
+    if (s.echo != null) echoIn.value = s.echo;
+    if (s.delay != null) delayIn.value = s.delay;
+  } catch (e) {}
+  function save() { try { localStorage.setItem('tm-settings', JSON.stringify({echo:echoIn.value, delay:delayIn.value})); } catch (e) {} }
 
-  var masterGain = null;
-  var limiter = null;
-
-  var schedulerTimer = null;
-  var t0 = 0;              // audioCtx time when stretching began
-  var nextGrainTime = 0;
-  var readPos = 0;
-  var SCHEDULE_AHEAD = 0.15;
-  var TICK_MS = 25;
-
-  var visualRAF = null;
-  var pulsePhaseStart = 0;
-
-  var el = {
-    stage: document.getElementById("stage"),
-    control: document.getElementById("control"),
-    core: document.getElementById("core"),
-    ring: document.getElementById("ring"),
-    ringProgress: document.getElementById("ringProgress"),
-    ratioDisplay: document.getElementById("ratioDisplay"),
-    hint: document.getElementById("hint")
-  };
-
-  var RING_CIRC = 295.3;
-
-  // ---------- helpers ----------
-  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
-
-  function computeRatio(t){
-    // t: seconds elapsed since stretching began. Smooth, unbounded, monotonic.
-    if (t <= 0) return 1.0;
-    return 1 + Math.pow(t / 8, 2.2);
+  function applyFx() {
+    const e = echoIn.value / 100, ms = delayMs(+delayIn.value);
+    echoV.textContent = e === 0 ? 'off' : Math.round(e * 100) + '%';
+    delayV.textContent = ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(2) + ' s';
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    wet.gain.setTargetAtTime(e, now, 0.03);
+    fb.gain.setTargetAtTime(e * 0.88, now, 0.03);
+    delayNode.delayTime.setTargetAtTime(ms / 1000, now, 0.05);
   }
+  echoIn.addEventListener('input', () => { applyFx(); save(); });
+  delayIn.addEventListener('input', () => { applyFx(); save(); });
+  applyFx();
 
-  function computeGrainDur(ratio){
-    var base = 0.06 * (1 + Math.log10(ratio + 1) * 0.3);
-    return clamp(base, 0.04, 0.14);
-  }
+  // ---------- audio graph ----------
+  function ensureCtx() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    bus = ctx.createGain();
+    dry = ctx.createGain();
+    delayNode = ctx.createDelay(2.5);
+    fb = ctx.createGain(); fb.gain.value = 0;
+    tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 5000;
+    wet = ctx.createGain(); wet.gain.value = 0;
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -6; comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.2;
+    analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
+    scopeData = new Float32Array(analyser.fftSize);
 
-  function computeOverlap(ratio){
-    return clamp(0.55 + Math.log10(ratio + 1) * 0.1, 0.55, 0.85);
-  }
-
-  function computePulsePeriod(ratio){
-    return 0.8 * Math.pow(ratio, 0.5);
-  }
-
-  function formatRatio(ratio){
-    if (ratio < 10) return ratio.toFixed(1) + "×";
-    return Math.round(ratio).toLocaleString() + "×";
-  }
-
-  function ensureAudioContext(){
-    if (!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended"){
-      audioCtx.resume();
-    }
+    bus.connect(dry); dry.connect(comp);
+    bus.connect(delayNode);
+    delayNode.connect(tone); tone.connect(fb); fb.connect(delayNode);   // feedback loop, darkening each repeat
+    tone.connect(wet); wet.connect(comp);
+    comp.connect(analyser); analyser.connect(ctx.destination);
+    applyFx();
   }
 
   // ---------- recording ----------
-  function startRecording(){
-    ensureAudioContext();
-    state = STATE.RECORDING;
-    el.hint.style.opacity = "0";
+  const WORKLET = `class R extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor('tm-rec',R)`;
+  let workletReady = null;
 
-    navigator.mediaDevices.getUserMedia({ audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false
-    }}).then(function(stream){
-      mic.stream = stream;
-      mic.ctxNode = audioCtx.createMediaStreamSource(stream);
-      var bufferSize = 4096;
-      mic.processor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
-      recordedChunks = [];
-      recordedSampleCount = 0;
-      var targetSamples = Math.round(audioCtx.sampleRate * RECORD_SECONDS);
+  const micBtn = $('micBtn');
+  let micReady = false;
 
-      mic.processor.onaudioprocess = function(e){
-        if (state !== STATE.RECORDING) return;
-        var input = e.inputBuffer.getChannelData(0);
-        var remaining = targetSamples - recordedSampleCount;
-        if (remaining <= 0) return;
-        var take = Math.min(remaining, input.length);
-        var chunk = new Float32Array(take);
-        chunk.set(input.subarray(0, take));
-        recordedChunks.push(chunk);
-        recordedSampleCount += take;
-        if (recordedSampleCount >= targetSamples){
-          finishRecording(targetSamples);
+  // Called straight from the button's click so the browser sees a real user gesture.
+  function enableMic() {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      hint.textContent = 'mic needs the page opened over https';
+      return;
+    }
+    ensureCtx();
+    ctx.resume();                                   // not awaited: keep getUserMedia inside the gesture
+    micBtn.disabled = true;
+    micBtn.textContent = 'asking…';
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } })
+      .then(async stream => {
+        recStream = stream;
+        const mic = ctx.createMediaStreamSource(stream);
+        const sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+        let node;
+        try {
+          if (!ctx.audioWorklet) throw 0;
+          if (!workletReady) workletReady = ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], {type:'application/javascript'})));
+          await workletReady;
+          node = new AudioWorkletNode(ctx, 'tm-rec');
+          node.port.onmessage = ev => take(ev.data);
+        } catch (e) {
+          node = ctx.createScriptProcessor(2048, 1, 1);
+          node.onaudioprocess = ev => take(ev.inputBuffer.getChannelData(0));
         }
-      };
+        mic.connect(node); node.connect(sink);
+        recNodes = [mic, node, sink];
+        micReady = true;
+        micBtn.hidden = true;
+        hint.style.top = '36%';
+        hint.textContent = 'tap to record two seconds';
+      })
+      .catch(err => {
+        micBtn.disabled = false;
+        micBtn.textContent = 'try again';
+        hint.textContent = err && err.name === 'NotAllowedError'
+          ? 'mic blocked — allow it in browser settings'
+          : 'mic error: ' + (err && (err.name || err.message) || err);
+      });
+  }
+  micBtn.addEventListener('click', e => { e.stopPropagation(); enableMic(); });
 
-      mic.ctxNode.connect(mic.processor);
-      // ScriptProcessor must connect to a destination to run in all browsers.
-      var silentSink = audioCtx.createGain();
-      silentSink.gain.value = 0;
-      mic.processor.connect(silentSink);
-      silentSink.connect(audioCtx.destination);
-      mic._silentSink = silentSink;
-
-      animateRecordingRing();
-    }).catch(function(err){
-      state = STATE.IDLE;
-      el.hint.textContent = "microphone access needed";
-      el.hint.style.opacity = "1";
-      console.error(err);
-    });
+  function record() {
+    if (!micReady || state === 'recording') return;
+    ctx.resume();
+    stopPlayback();
+    recBuf = new Float32Array(Math.round(ctx.sampleRate * CLIP_SECONDS));
+    recIdx = 0; peaks = null;
+    state = 'recording';
+    hint.textContent = '';
   }
 
-  function animateRecordingRing(){
-    var start = performance.now();
-    var duration = RECORD_SECONDS * 1000;
-    function frame(now){
-      if (state !== STATE.RECORDING) return;
-      var progress = clamp((now - start) / duration, 0, 1);
-      el.ringProgress.setAttribute("stroke-dashoffset", (RING_CIRC * (1 - progress)).toFixed(2));
-      if (progress < 1){
-        requestAnimationFrame(frame);
-      }
+  function take(chunk) {
+    if (state !== 'recording' || !recBuf) return;
+    const n = Math.min(chunk.length, recBuf.length - recIdx);
+    recBuf.set(chunk.subarray(0, n), recIdx);
+    recIdx += n;
+    if (recIdx >= recBuf.length) finishRecording();
+  }
+
+  function finishRecording() {
+    state = 'processing';
+
+    // gentle normalize so quiet recordings are audible and the waveform is readable
+    let pk = 0;
+    for (let i = 0; i < recBuf.length; i++) { const v = Math.abs(recBuf[i]); if (v > pk) pk = v; }
+    const g = pk > 0 ? Math.min(0.9 / pk, 20) : 1;
+    // short fades to avoid a click at the loop seam
+    const fade = Math.round(ctx.sampleRate * 0.004);
+    for (let i = 0; i < recBuf.length; i++) {
+      let f = 1;
+      if (i < fade) f = i / fade; else if (i > recBuf.length - fade) f = (recBuf.length - i) / fade;
+      recBuf[i] *= g * f;
     }
+    clip = ctx.createBuffer(1, recBuf.length, ctx.sampleRate);
+    clip.copyToChannel ? clip.copyToChannel(recBuf, 0) : clip.getChannelData(0).set(recBuf);
+    computePeaks();
+    startPlayback();
+  }
+
+  // ---------- playback ----------
+  function startPlayback() {
+    source = ctx.createBufferSource();
+    source.buffer = clip;
+    source.loop = true;
+    source.connect(bus);
+    t0 = ctx.currentTime + 0.03;
+    source.playbackRate.setValueAtTime(1, t0);
+    source.playbackRate.exponentialRampToValueAtTime(MIN_RATE, t0 + RAMP_T);
+    source.start(t0);
+    state = 'playing';
+    hint.textContent = '';
+  }
+
+  function stopPlayback() {
+    if (source) { try { source.stop(); } catch (e) {} source.disconnect(); source = null; }
+  }
+
+  // speed and distance travelled through the clip (seconds of clip time), analytically
+  function playState() {
+    const lat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
+    const t = Math.max(0, ctx.currentTime - lat - t0);
+    if (t < RAMP_T) return { rate: Math.exp(-A * t), dist: (1 - Math.exp(-A * t)) / A };
+    return { rate: MIN_RATE, dist: (1 - MIN_RATE) / A + (t - RAMP_T) * MIN_RATE };
+  }
+
+  // ---------- drawing ----------
+  function fit(c) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; return true; }
+    return false;
+  }
+
+  function computePeaks(upTo) {
+    const data = recBuf, cols = wave.width;
+    if (!data || !cols) return;
+    const end = upTo == null ? data.length : upTo;
+    const per = data.length / cols;
+    peaks = new Float32Array(cols * 2);
+    for (let c = 0; c < cols; c++) {
+      const a = Math.floor(c * per), b = Math.min(end, Math.floor((c + 1) * per));
+      let lo = 0, hi = 0;
+      for (let i = a; i < b; i++) { const v = data[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      peaks[c * 2] = lo; peaks[c * 2 + 1] = hi;
+    }
+  }
+
+  function drawWave(headFrac, recording) {
+    const W = wave.width, H = wave.height, mid = H / 2;
+    wctx.clearRect(0, 0, W, H);
+    wctx.fillStyle = '#222';
+    wctx.fillRect(0, mid, W, Math.max(1, H / 300));
+    if (!peaks) return;
+    const headCol = headFrac * W;
+    const amp = mid * 0.95;
+    for (let c = 0; c < W; c++) {
+      const lo = peaks[c * 2], hi = peaks[c * 2 + 1];
+      if (lo === 0 && hi === 0) continue;
+      wctx.fillStyle = recording ? '#fff' : (c <= headCol ? '#fff' : '#4a4a4a');
+      const y1 = mid - hi * amp, y2 = mid - lo * amp;
+      wctx.fillRect(c, y1, 1, Math.max(1, y2 - y1));
+    }
+    // playhead / record head
+    const lw = Math.max(2, W / 400);
+    wctx.fillStyle = recording ? '#f33' : getComputedStyle(document.documentElement).getPropertyValue('--acc');
+    wctx.shadowColor = wctx.fillStyle; wctx.shadowBlur = 12;
+    wctx.fillRect(headCol - lw / 2, 0, lw, H);
+    wctx.shadowBlur = 0;
+  }
+
+  function drawScope() {
+    const W = scope.width, H = scope.height, mid = H / 2;
+    sctx.clearRect(0, 0, W, H);
+    if (!analyser) return;
+    analyser.getFloatTimeDomainData(scopeData);
+    sctx.strokeStyle = state === 'playing' ? '#3ff' : '#333';
+    sctx.lineWidth = Math.max(1.5, W / 500);
+    sctx.beginPath();
+    const n = scopeData.length;
+    for (let i = 0; i < n; i++) {
+      const x = i / (n - 1) * W, y = mid - scopeData[i] * mid * 0.95;
+      i ? sctx.lineTo(x, y) : sctx.moveTo(x, y);
+    }
+    sctx.stroke();
+  }
+
+  function fmtPct(r) {
+    const p = r * 100;
+    return (p >= 9.95 ? Math.round(p) : p.toFixed(1)) + '%';
+  }
+
+  function frame() {
+    const resized = fit(wave) | fit(scope);
+    if (resized && recBuf) computePeaks(state === 'recording' ? recIdx : undefined);
+
+    if (state === 'recording') {
+      computePeaks(recIdx);
+      drawWave(recIdx / recBuf.length, true);
+      pctEl.textContent = '100%';
+      subEl.textContent = 'recording ' + (recIdx / ctx.sampleRate).toFixed(1) + ' / 2.0 s';
+    } else if (state === 'playing') {
+      const { rate, dist } = playState();
+      const dur = clip.duration;
+      drawWave((dist % dur) / dur, false);
+      pctEl.textContent = fmtPct(rate);
+      const loops = Math.floor(dist / dur) + 1;
+      subEl.textContent = 'speed · ' + (1 / rate).toFixed(rate > 0.1 ? 2 : 1) + '× longer · pass ' + loops;
+    } else {
+      drawWave(0, false);
+    }
+    drawScope();
     requestAnimationFrame(frame);
   }
 
-  function finishRecording(targetSamples){
-    if (mic.ctxNode) mic.ctxNode.disconnect();
-    if (mic.processor) mic.processor.disconnect();
-    if (mic._silentSink) mic._silentSink.disconnect();
-    if (mic.stream) mic.stream.getTracks().forEach(function(tr){ tr.stop(); });
-    mic = {};
-
-    var combined = new Float32Array(targetSamples);
-    var offset = 0;
-    for (var i = 0; i < recordedChunks.length; i++){
-      var c = recordedChunks[i];
-      var len = Math.min(c.length, targetSamples - offset);
-      combined.set(c.subarray(0, len), offset);
-      offset += len;
-      if (offset >= targetSamples) break;
-    }
-    recordedChunks = null;
-
-    normalizeInPlace(combined);
-    buildDoubledBuffer(combined);
-    beginStretching();
-  }
-
-  function normalizeInPlace(samples){
-    var peak = 0;
-    for (var i = 0; i < samples.length; i++){
-      var a = Math.abs(samples[i]);
-      if (a > peak) peak = a;
-    }
-    if (peak < 1e-6) return;
-    var target = 0.9;
-    var gain = clamp(target / peak, 1, 15);
-    for (var j = 0; j < samples.length; j++){
-      samples[j] *= gain;
-    }
-  }
-
-  function buildDoubledBuffer(samples){
-    sourceDuration = samples.length / audioCtx.sampleRate;
-    var buf = audioCtx.createBuffer(1, samples.length * 2, audioCtx.sampleRate);
-    var ch = buf.getChannelData(0);
-    ch.set(samples, 0);
-    ch.set(samples, samples.length);
-    doubledBuffer = buf;
-  }
-
-  // ---------- stretching / granular engine ----------
-  function beginStretching(){
-    state = STATE.STRETCHING;
-
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0;
-    limiter = audioCtx.createDynamicsCompressor();
-    limiter.threshold.value = -3;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.003;
-    limiter.release.value = 0.25;
-
-    masterGain.connect(limiter);
-    limiter.connect(audioCtx.destination);
-    masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.15);
-
-    t0 = audioCtx.currentTime;
-    nextGrainTime = t0;
-    readPos = 0;
-
-    schedulerTimer = setInterval(schedulerTick, TICK_MS);
-    schedulerTick();
-
-    el.control.setAttribute("aria-label", "stop");
-    el.ratioDisplay.classList.add("visible");
-    startVisuals();
-  }
-
-  function schedulerTick(){
-    if (state !== STATE.STRETCHING) return;
-    var now = audioCtx.currentTime;
-    while (nextGrainTime < now + SCHEDULE_AHEAD){
-      var t = nextGrainTime - t0;
-      var ratio = computeRatio(t);
-      var grainDur = computeGrainDur(ratio);
-      var overlap = computeOverlap(ratio);
-      var hop = grainDur * (1 - overlap);
-
-      scheduleGrain(nextGrainTime, readPos, ratio, grainDur);
-
-      readPos = (readPos + hop / ratio) % sourceDuration;
-      if (readPos < 0) readPos += sourceDuration;
-      nextGrainTime += hop;
-    }
-  }
-
-  function scheduleGrain(startTime, basePos, ratio, grainDur){
-    var jitterAmt = Math.min(0.02, 0.002 * Math.log10(ratio + 1) * 10);
-    var jitter = (Math.random() - 0.5) * 2 * jitterAmt;
-    var pos = basePos + jitter;
-    if (pos < 0) pos += sourceDuration;
-    if (pos >= sourceDuration) pos -= sourceDuration;
-
-    var extreme = clamp((ratio - 20) / 500, 0, 1);
-    var rate = 1 + (Math.random() - 0.5) * 0.01 * extreme;
-
-    var src = audioCtx.createBufferSource();
-    src.buffer = doubledBuffer;
-    src.playbackRate.value = rate;
-
-    var g = audioCtx.createGain();
-    src.connect(g);
-    g.connect(masterGain);
-
-    var attack = grainDur * 0.5;
-    g.gain.setValueAtTime(0.0001, startTime);
-    g.gain.linearRampToValueAtTime(1, startTime + attack);
-    g.gain.linearRampToValueAtTime(0.0001, startTime + grainDur);
-
-    var readLen = grainDur * rate;
-    try {
-      src.start(startTime, pos, readLen);
-      src.stop(startTime + grainDur + 0.03);
-    } catch (e){ /* ignore edge scheduling errors */ }
-
-    src.onended = function(){
-      try { src.disconnect(); g.disconnect(); } catch(e){}
-    };
-  }
-
-  // ---------- visuals during stretching ----------
-  function startVisuals(){
-    pulsePhaseStart = performance.now();
-    function frame(now){
-      if (state !== STATE.STRETCHING) return;
-      var t = audioCtx.currentTime - t0;
-      var ratio = computeRatio(t);
-      var period = computePulsePeriod(ratio);
-      var elapsed = (now - pulsePhaseStart) / 1000;
-      var phase = (elapsed % period) / period;
-      var s = Math.sin(phase * Math.PI * 2);
-      var scale = 1 + s * 0.12;
-      var opacity = 0.75 + (s * 0.5 + 0.5) * 0.25;
-      el.core.style.transform = "scale(" + scale.toFixed(4) + ")";
-      el.core.style.opacity = opacity.toFixed(3);
-      el.ratioDisplay.textContent = formatRatio(ratio);
-      visualRAF = requestAnimationFrame(frame);
-    }
-    visualRAF = requestAnimationFrame(frame);
-  }
-
-  function stopVisuals(){
-    if (visualRAF) cancelAnimationFrame(visualRAF);
-    visualRAF = null;
-    el.core.style.transform = "scale(1)";
-    el.core.style.opacity = "1";
-  }
-
-  // ---------- stopping ----------
-  function stopStretching(){
-    state = STATE.STOPPING;
-    clearInterval(schedulerTimer);
-    schedulerTimer = null;
-
-    var now = audioCtx.currentTime;
-    var fadeTime = 0.25;
-    if (masterGain){
-      masterGain.gain.cancelScheduledValues(now);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-      masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
-    }
-
-    setTimeout(function(){
-      if (masterGain){ try { masterGain.disconnect(); } catch(e){} }
-      if (limiter){ try { limiter.disconnect(); } catch(e){} }
-      masterGain = null;
-      limiter = null;
-      doubledBuffer = null;
-      resetToIdle();
-    }, fadeTime * 1000 + 60);
-  }
-
-  function resetToIdle(){
-    state = STATE.IDLE;
-    stopVisuals();
-    el.ringProgress.setAttribute("stroke-dashoffset", RING_CIRC.toFixed(2));
-    el.ratioDisplay.classList.remove("visible");
-    el.ratioDisplay.textContent = "1.0×";
-    el.control.setAttribute("aria-label", "record two seconds");
-    el.hint.textContent = "tap to record two seconds";
-    el.hint.style.opacity = "1";
-  }
-
-  // ---------- interaction ----------
-  el.control.addEventListener("click", function(){
-    if (state === STATE.IDLE){
-      startRecording();
-    } else if (state === STATE.STRETCHING){
-      stopStretching();
-    }
-    // taps during RECORDING / STOPPING are ignored
-  });
-
-  // Prevent iOS gesture interference
-  document.addEventListener("gesturestart", function(e){ e.preventDefault(); });
-  document.addEventListener("touchmove", function(e){ e.preventDefault(); }, { passive: false });
+  stage.addEventListener('click', e => { if (e.target !== micBtn) record(); });
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
