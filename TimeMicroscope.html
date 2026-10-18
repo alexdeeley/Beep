@@ -32,6 +32,10 @@
   .ctl { display:flex; align-items:center; gap:12px; height:44px; }
   .ctl label { width:52px; font-size:13px; color:var(--mid); letter-spacing:0.06em; }
   .ctl output { width:70px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums; }
+  .btns { display:flex; gap:10px; margin:4px 0 6px; }
+  .btns button { flex:1; font:inherit; font-size:15px; letter-spacing:0.06em; color:var(--fg); background:transparent; border:2px solid var(--fg); border-radius:999px; min-height:48px; padding:0 16px; cursor:pointer; }
+  .btns button:active { background:var(--fg); color:#000; }
+  .btns button:disabled { color:var(--dim); border-color:var(--dim); }
   input[type=range] { flex:1; -webkit-appearance:none; appearance:none; background:transparent; height:44px; }
   input[type=range]::-webkit-slider-runnable-track { height:2px; background:#555; }
   input[type=range]::-moz-range-track { height:2px; background:#555; }
@@ -54,12 +58,14 @@
   <div id="hint" style="top:60%"></div>
 </div>
 
+<div class="btns"><button id="halfBtn" type="button" disabled title="Halve the playback speed">½ speed</button><button id="fullBtn" type="button" disabled title="Back to the natural drift">reset speed</button></div>
 <div class="ctl"><label for="echo">echo</label><input id="echo" type="range" min="0" max="100" value="0"><output id="echoV">off</output></div>
 <div class="ctl"><label for="delay">delay</label><input id="delay" type="range" min="0" max="1000" value="642"><output id="delayV">300 ms</output></div>
 
 <script>
 (() => {
-  const CLIP_SECONDS = 2;
+  const CLIP_SECONDS = 10;            // record up to this long; a second tap stops early
+  const MIN_SECONDS = 0.3;            // the shortest clip worth looping
   const SLOW_PER_SEC = 0.99;          // speed multiplies by this every second (100% → 99% → 98%…)
   const MIN_RATE = 0.01;              // floor: 1% speed
   const A = -Math.log(SLOW_PER_SEC);
@@ -74,7 +80,12 @@
   let ctx, bus, dry, delayNode, fb, tone, wet, comp, analyser, scopeData;
   let state = 'idle';                 // idle | recording | playing
   let recBuf = null, recIdx = 0, recStream = null, recNodes = [];
-  let clip = null, source = null, t0 = 0;
+  let clip = null, source = null;
+  // playback speed model: from `t0` the rate starts at `r0` and decays by 1% a
+  // second (down to the floor); `d0` is how far through the clip we were at t0.
+  // The ½ speed button starts a new segment from the current position.
+  let t0 = 0, r0 = 1, d0 = 0, halves = 0;
+  const halfBtn = $('halfBtn'), fullBtn = $('fullBtn');
   let peaks = null;                   // [min,max] per device-pixel column
 
   // ---------- slider mapping + persistence ----------
@@ -161,7 +172,7 @@
         micReady = true;
         micBtn.hidden = true;
         hint.style.top = '36%';
-        hint.textContent = 'tap to record two seconds';
+        hint.textContent = 'tap to record · up to ten seconds';
       })
       .catch(err => {
         micBtn.disabled = false;
@@ -181,6 +192,13 @@
     recIdx = 0; peaks = null;
     state = 'recording';
     hint.textContent = '';
+    setSpeedButtons();
+  }
+  // a second tap while recording keeps what there is so far
+  function stopRecording() {
+    if (state !== 'recording') return;
+    if (recIdx < ctx.sampleRate * MIN_SECONDS) return;   // too short to loop: keep going
+    finishRecording();
   }
 
   function take(chunk) {
@@ -193,6 +211,7 @@
 
   function finishRecording() {
     state = 'processing';
+    if (recIdx < recBuf.length) recBuf = recBuf.slice(0, recIdx);   // stopped early: keep only what was recorded
 
     // gentle normalize so quiet recordings are audible and the waveform is readable
     let pk = 0;
@@ -217,24 +236,68 @@
     source.buffer = clip;
     source.loop = true;
     source.connect(bus);
-    t0 = ctx.currentTime + 0.03;
-    source.playbackRate.setValueAtTime(1, t0);
-    source.playbackRate.exponentialRampToValueAtTime(MIN_RATE, t0 + RAMP_T);
+    t0 = ctx.currentTime + 0.03; r0 = 1; d0 = 0; halves = 0;
+    scheduleRate(t0);
     source.start(t0);
     state = 'playing';
     hint.textContent = '';
+    setSpeedButtons();
   }
+
+  // Schedule the decay from the current segment: r0 at t0, 1% slower every
+  // second, holding at the floor once it gets there.
+  function scheduleRate(at) {
+    const p = source.playbackRate;
+    p.cancelScheduledValues(at);
+    if (r0 <= MIN_RATE) { p.setValueAtTime(MIN_RATE, at); return; }
+    p.setValueAtTime(r0, at);
+    p.exponentialRampToValueAtTime(MIN_RATE, at + Math.log(r0 / MIN_RATE) / A);
+  }
+
+  // Halve the speed now: a new segment starts from where the clip is, at
+  // half the current rate (never below the floor), and keeps drifting.
+  function halve() {
+    if (state !== 'playing') return;
+    const at = ctx.currentTime + 0.02;
+    const tail = playStateAt(at);
+    r0 = Math.max(MIN_RATE, tail.rate / 2); d0 = tail.dist; t0 = at; halves++;
+    scheduleRate(at);
+    setSpeedButtons();
+  }
+  function resetSpeed() {
+    if (state !== 'playing') return;
+    const at = ctx.currentTime + 0.02;
+    const tail = playStateAt(at);
+    r0 = 1; d0 = tail.dist; t0 = at; halves = 0;
+    scheduleRate(at);
+    setSpeedButtons();
+  }
+  function setSpeedButtons() {
+    const playing = state === 'playing';
+    halfBtn.disabled = !playing || r0 <= MIN_RATE;
+    fullBtn.disabled = !playing || (halves === 0);
+    halfBtn.textContent = halves ? `½ speed · ÷${Math.pow(2, halves)}` : '½ speed';
+  }
+  halfBtn.addEventListener('click', e => { e.stopPropagation(); halve(); });
+  fullBtn.addEventListener('click', e => { e.stopPropagation(); resetSpeed(); });
 
   function stopPlayback() {
     if (source) { try { source.stop(); } catch (e) {} source.disconnect(); source = null; }
   }
 
-  // speed and distance travelled through the clip (seconds of clip time), analytically
+  // speed and distance travelled through the clip (seconds of clip time) at
+  // audio-clock time `when`, analytically, for the current segment
+  function playStateAt(when) {
+    const t = Math.max(0, when - t0);
+    if (r0 <= MIN_RATE) return { rate: MIN_RATE, dist: d0 + t * MIN_RATE };
+    const tf = Math.log(r0 / MIN_RATE) / A;              // when this segment reaches the floor
+    if (t < tf) return { rate: r0 * Math.exp(-A * t), dist: d0 + r0 * (1 - Math.exp(-A * t)) / A };
+    return { rate: MIN_RATE, dist: d0 + r0 * (1 - MIN_RATE / r0) / A + (t - tf) * MIN_RATE };
+  }
+  // what is coming out of the speaker right now (allowing for output latency)
   function playState() {
     const lat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
-    const t = Math.max(0, ctx.currentTime - lat - t0);
-    if (t < RAMP_T) return { rate: Math.exp(-A * t), dist: (1 - Math.exp(-A * t)) / A };
-    return { rate: MIN_RATE, dist: (1 - MIN_RATE) / A + (t - RAMP_T) * MIN_RATE };
+    return playStateAt(ctx.currentTime - lat);
   }
 
   // ---------- drawing ----------
@@ -311,14 +374,15 @@
       computePeaks(recIdx);
       drawWave(recIdx / recBuf.length, true);
       pctEl.textContent = '100%';
-      subEl.textContent = 'recording ' + (recIdx / ctx.sampleRate).toFixed(1) + ' / 2.0 s';
+      subEl.textContent = 'recording ' + (recIdx / ctx.sampleRate).toFixed(1) + ' / ' + CLIP_SECONDS + ' s · tap to stop';
     } else if (state === 'playing') {
       const { rate, dist } = playState();
       const dur = clip.duration;
       drawWave((dist % dur) / dur, false);
       pctEl.textContent = fmtPct(rate);
       const loops = Math.floor(dist / dur) + 1;
-      subEl.textContent = 'speed · ' + (1 / rate).toFixed(rate > 0.1 ? 2 : 1) + '× longer · pass ' + loops;
+      subEl.textContent = 'speed · ' + (1 / rate).toFixed(rate > 0.1 ? 2 : 1) + '× longer · ' + dur.toFixed(1) + ' s clip · pass ' + loops;
+      if (rate <= MIN_RATE * 1.0001 && !halfBtn.disabled) setSpeedButtons();
     } else {
       drawWave(0, false);
     }
@@ -326,7 +390,7 @@
     requestAnimationFrame(frame);
   }
 
-  stage.addEventListener('click', e => { if (e.target !== micBtn) record(); });
+  stage.addEventListener('click', e => { if (e.target === micBtn) return; if (state === 'recording') stopRecording(); else record(); });
   requestAnimationFrame(frame);
 })();
 </script>
