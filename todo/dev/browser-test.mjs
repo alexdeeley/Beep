@@ -97,6 +97,7 @@ await A.page.click('button:text("Save changes")'); await A.page.waitForSelector(
 ok(/holiday photos/.test(await A.page.textContent('h1')) && !(await A.page.locator('input[placeholder="What needs doing?"]').count()), 'editing saves and shows the task');
 A.page.once('dialog', (d) => d.accept());
 await A.page.click('button:text("Delete this task")'); await A.page.waitForURL(/\/$/); await A.page.waitForSelector('h1:has-text("Today")'); await settle(A.page);
+await A.page.waitForFunction(async () => !(await window.__todo.api('GET', '/tasks')).tasks.some((t) => /holiday photos/.test(t.title)), null, { timeout: 10000 });
 ok(!/holiday photos/.test(await A.page.textContent('#main')), 'deleting after confirmation removes it');
 
 console.log('Reminders');
@@ -118,6 +119,7 @@ await A.page.reload(); await settle(A.page);
 await A.page.goto(URL + '/all'); await settle(A.page);
 const n = await A.page.locator('.task').count();
 ok(n === 4, `tasks survive a reload (${n})`);
+if (n !== 4) console.log('    titles:', await A.page.locator('.task-title').allTextContents(), 'outbox:', await A.page.evaluate(() => localStorage.getItem('todo.outbox')));
 const B = await open({ width: 1100, height: 900 }, false);
 await B.page.goto(URL + '/'); await settle(B.page);
 ok(!(await B.page.locator('#lock').isHidden()) && /Enter your PIN/.test(await B.page.textContent('#lock')), 'a second browser is locked and asked for the PIN');

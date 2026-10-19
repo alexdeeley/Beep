@@ -384,6 +384,9 @@ route(/^\/settings$/, async () => {
         field('Current PIN', cur), field('New PIN', n1, '4 to 12 digits.'), field('New PIN again', n2), pinMsg, h('button', { class: 'btn primary', type: 'submit' }, 'Change PIN'))),
     h('div', { class: 'row' }, h('button', { class: 'btn', onClick: async () => { await api('POST', '/logout'); tasks = []; store.set('cache', []); await refreshStatus(); showLock(); } }, 'Log out'), h('button', { class: 'btn', onClick: async () => { await api('DELETE', '/sessions/others'); toast('Every other device will ask for the PIN'); } }, 'Log out other devices')),
     h('p', { class: 'muted small' }, 'Logging out never deletes tasks. They are kept on the server.'),
+    h('h2', null, 'Text size'),
+    h('p', { class: 'muted' }, 'For this device only. Phones start larger than wide screens; pick what reads best here.'),
+    (() => { const box = h('div', { class: 'choice', role: 'group', 'aria-label': 'Text size' }); const cur = () => store.get<string>('size', 'normal'); const draw = () => box.replaceChildren(...[['small', 'Small'], ['normal', 'Normal'], ['large', 'Large'], ['huge', 'Huge']].map(([v, l]) => h('button', { type: 'button', class: 'btn', 'aria-pressed': String(cur() === v), onClick: () => { store.set('size', v); applySize(); draw(); } }, l))); draw(); return box; })(),
     h('h2', null, 'Reminders'),
     h('div', { class: 'row' }, notif),
     field('Default reminder time', remTime, 'Used by the "remind me that day" button when adding a task.'),
@@ -399,6 +402,8 @@ route(/^\/settings$/, async () => {
     h('p', null, 'On the lock screen, tap "Forgot your PIN?" and enter the recovery key. ', s.recoveryConfigured ? 'The recovery key is the TODO_RECOVERY_KEY secret you set on the server; it is not stored anywhere else, so keep it in a password manager.' : 'No recovery key is set on the server right now: set the TODO_RECOVERY_KEY secret and redeploy, or you will not be able to reset a lost PIN.'),
     h('p', { class: 'muted small' }, `Time zone: ${tz}. ${s.pinChangedAt ? 'PIN last changed ' + fmtInstant(s.pinChangedAt) + '.' : ''}`));
 });
+
+function applySize(): void { const v = store.get<string>('size', 'normal'); if (v === 'normal') delete document.documentElement.dataset.size; else document.documentElement.dataset.size = v; }
 
 // ── render loop, idle lock, sync ──
 async function render(): Promise<void> {
@@ -425,6 +430,7 @@ async function sync(): Promise<void> { if (!status?.authenticated || $('lock').h
 setInterval(() => { if (!document.hidden) void sync(); }, 45_000);
 
 (async () => {
+  applySize();
   document.body.appendChild(h('div', { id: 'offline', class: 'offline', hidden: online() }, 'Offline. Changes are kept on this device and sent when you are back.'));
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { /* no offline shell then */ });
   await refreshStatus();

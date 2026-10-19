@@ -38,6 +38,8 @@ nothing said by colour alone.
   last list is shown from a local cache, changes are queued in an outbox
   and sent when the connection returns, and your typing in the Add form
   is kept across a refresh.
+- **Text size.** Phones start at 21px and wide screens at 18px; Settings
+  has Small / Normal / Large / Huge for each device separately.
 - **Export, backup, restore.** JSON or CSV downloads from Settings; a JSON
   download can be restored (tasks already present are skipped).
 
