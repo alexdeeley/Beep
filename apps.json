@@ -1,5 +1,14 @@
 [
   {
+    "id": "op-art-maker-2",
+    "name": "Op Art Maker 2.0",
+    "description": "Generate endless op art: impossible forms, warped checkerboards, optical vortices, liquid geometry, moiré, recursive waves and kaleidoscopes, with shape, motion and colour controls. Prev, Next and New to browse compositions.",
+    "category": "Art",
+    "path": "OpArtMaker2.html",
+    "added": "2026-10-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/op-art-maker-2.jpg"
+  },
+  {
     "id": "bitcrusher-worklet-demo",
     "name": "Bit Crusher",
     "description": "A real-time bitcrusher built as an AudioWorklet.",
