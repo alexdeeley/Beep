@@ -125,8 +125,8 @@ sent to every device on the list.
 ## Security notes
 
 - The PIN never leaves the device in clear except over https to the
-  server, which hashes it (PBKDF2-SHA256, 210,000 iterations, random
-  salt) and compares in constant time. Nothing stores the digits.
+  server, which hashes it (PBKDF2-SHA256, 100,000 iterations, the most
+  Cloudflare Workers allow, random salt) and compares in constant time. Nothing stores the digits.
 - The session cookie is `HttpOnly; Secure; SameSite=Lax`, 30 days at most,
   invalid after the idle timeout. Writes also require an `x-todo` header
   a cross-site form cannot send. Changing the PIN or recovering signs

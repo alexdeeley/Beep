@@ -4,7 +4,7 @@
 // a cross-site form cannot send.
 import type { SqlDriver } from './driver.ts';
 import { migrate, getSetting, setSetting, now, newId } from './db.ts';
-import { AuthService, AuthError, LOCK_CHOICES } from './auth.ts';
+import { AuthService, AuthError, LOCK_CHOICES, hashPin } from './auth.ts';
 import { TaskService, ValidationError, NotFound, toCsv } from './tasks.ts';
 import type { Task } from './tasks.ts';
 import { ensureVapid, sendPush } from './push.ts';
@@ -49,7 +49,13 @@ export async function handle(request: Request, svc: Services, opts: HandleOption
     const reschedule = async () => { if (opts.schedule) await opts.schedule(svc.tasks.nextReminderAt()); };
 
     // ── open routes ──
-    if (path === '/health') return json({ ok: true, version: VERSION });
+    if (path === '/health') {
+      // a self-test of the one primitive the lock depends on, so a broken
+      // runtime shows here instead of as a mystery 500 at setup
+      let pbkdf2 = 'ok';
+      try { await hashPin('0000'); } catch (e) { pbkdf2 = `${(e as Error).name}: ${(e as Error).message}`; }
+      return json({ ok: pbkdf2 === 'ok', version: VERSION, pbkdf2 });
+    }
     if (path === '/status') {
       const s = await svc.auth.session(token);
       return json({ version: VERSION, setUp: svc.auth.isSetUp(), recoveryConfigured: svc.auth.hasRecoveryKey(), authenticated: !!s, lockedForSec: svc.auth.lockedForSec(), lockTimeoutMin: svc.auth.lockTimeoutMin(), vapidPublicKey: (await ensureVapid(svc.db)).publicKey });
@@ -130,7 +136,7 @@ export async function handle(request: Request, svc: Services, opts: HandleOption
     if (e instanceof AuthError) return err(e.message, e.status, e.retryAfterSec ? { retryAfterSec: e.retryAfterSec } : {}, e.retryAfterSec ? { 'retry-after': String(e.retryAfterSec) } : {});
     if (e instanceof ValidationError || e instanceof NotFound || e instanceof HttpError) return err(e.message, (e as { status: number }).status);
     console.error(e);
-    return err('Something went wrong on the server', 500);
+    return err('Something went wrong on the server', 500, { detail: (e as Error)?.name || 'Error' });
   }
 }
 

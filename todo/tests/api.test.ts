@@ -67,7 +67,7 @@ test('the PIN is hashed with PBKDF2 and never stored', async () => {
   const hash = String(rows.find((r) => r.key === 'pin_hash')!.value), salt = String(rows.find((r) => r.key === 'pin_salt')!.value);
   assert.equal((await hashPin('2468', salt)).hash, hash);
   assert.notEqual((await hashPin('2469', salt)).hash, hash);
-  assert.ok(PBKDF2_ITERATIONS >= 200_000);
+  assert.ok(PBKDF2_ITERATIONS >= 100_000);
 });
 
 test('login, logout, idle lock, and a second browser cannot borrow a session', async () => {

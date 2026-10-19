@@ -9,7 +9,9 @@ import { getSetting, setSetting, now, newId } from './db.ts';
 export class AuthError extends Error { status: number; retryAfterSec?: number; constructor(status: number, message: string, retryAfterSec?: number) { super(message); this.status = status; this.retryAfterSec = retryAfterSec; } }
 
 const enc = new TextEncoder();
-export const PBKDF2_ITERATIONS = 210_000;
+// Cloudflare Workers cap PBKDF2 at 100,000 iterations; with 4-12 digit PINs
+// the real protection is the throttle, so the cap costs nothing.
+export const PBKDF2_ITERATIONS = 100_000;
 const b64u = (b: ArrayBuffer | Uint8Array): string => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 export async function sha256(s: string): Promise<string> { return b64u(await crypto.subtle.digest('SHA-256', enc.encode(s))); }
