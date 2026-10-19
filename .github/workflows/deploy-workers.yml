@@ -264,7 +264,8 @@ jobs:
         # TODO_RECOVERY_KEY is the only way to set or reset the PIN. The value goes
         # straight from GitHub's secret store to Cloudflare's; nothing is printed.
         env:
-          TODO_RECOVERY_KEY: ${{ secrets.TODO_RECOVERY_KEY }}
+          # either name works: TODO_RECOVERY_KEY, or TODO_REPOSITORY_SECRET as it was first saved
+          TODO_RECOVERY_KEY: ${{ secrets.TODO_RECOVERY_KEY || secrets.TODO_REPOSITORY_SECRET }}
         run: |
           if [ -n "$TODO_RECOVERY_KEY" ]; then printf '%s' "$TODO_RECOVERY_KEY" | npx wrangler secret put TODO_RECOVERY_KEY && echo "TODO_RECOVERY_KEY set"; else echo "::warning::No TODO_RECOVERY_KEY repository secret: nobody can set a PIN until it is added and this workflow is run again"; fi
       - name: Smoke test

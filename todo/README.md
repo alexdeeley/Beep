@@ -79,7 +79,7 @@ the database, the scheduler (Durable Object alarms) and the push sender
 all run in the Worker. Push notifications go through the browsers' own
 push services (Apple, Google, Mozilla), which are free.
 
-1. **Add the repository secret `TODO_RECOVERY_KEY`** on GitHub (Settings →
+1. **Add the repository secret `TODO_RECOVERY_KEY`** (the workflow also accepts the name `TODO_REPOSITORY_SECRET`) on GitHub (Settings →
    Secrets and variables → Actions): a long random string, kept in your
    password manager. It is the only way to set the first PIN and to reset
    a forgotten one. Without it the lock screen says so and nobody can get in.
