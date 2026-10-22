@@ -42,6 +42,42 @@ describe("extractImageUrl", () => {
     expect(extractImageUrl(html, "https://example.com/lineup")).toBeNull();
   });
 
+  it("trusts a page's og:image, with no poster keyword anywhere, when og:site_name identifies the page as the artist's own official site - confirmed live necessary against a real official tour-announcement page", () => {
+    const html = `
+      <meta property="og:site_name" content="Oasis">
+      <meta property="og:image" content="https://oasisinet.com/wp-content/uploads/2026/09/Oasis-2027_Global-Dates.jpg">
+    `;
+    expect(extractImageUrl(html, "https://oasisinet.com/news/oasis-live-27/", "Oasis")).toBe(
+      "https://oasisinet.com/wp-content/uploads/2026/09/Oasis-2027_Global-Dates.jpg"
+    );
+  });
+
+  it("does NOT trust og:image on a page whose og:site_name is a third party (e.g. a press/news outlet), even when covering the same artist - the official-site signal must be the page's OWN declared identity", () => {
+    const html = `
+      <meta property="og:site_name" content="Radio X">
+      <meta property="og:image" content="https://images.radiox.co.uk/press-photo.jpg">
+    `;
+    expect(extractImageUrl(html, "https://www.radiox.co.uk/artists/oasis/", "Oasis")).toBeNull();
+  });
+
+  it("does NOT extend official-site trust to a regular <img> body tag, only to og:image/twitter:image meta tags - an arbitrary photo further down an official page is not itself a declared representative image", () => {
+    const html = `
+      <meta property="og:site_name" content="Fontaines D.C.">
+      <img src="https://fontainesdc.com/photos/press-shot.jpg" alt="">
+    `;
+    expect(extractImageUrl(html, "https://fontainesdc.com/pages/live", "Fontaines D.C.")).toBeNull();
+  });
+
+  it("official-site match is tolerant of the festival name carrying extra words beyond the bare site name (e.g. an edition year)", () => {
+    const html = `
+      <meta property="og:site_name" content="Fontaines D.C.">
+      <meta property="og:image" content="https://fontainesdc.com/wp-content/uploads/tour-2026.jpg">
+    `;
+    expect(extractImageUrl(html, "https://fontainesdc.com/news/tour-2026", "Fontaines D.C. 2026")).toBe(
+      "https://fontainesdc.com/wp-content/uploads/tour-2026.jpg"
+    );
+  });
+
   it("returns null on an empty page", () => {
     const html = `<html><head><title>No poster here</title></head></html>`;
     expect(extractImageUrl(html, "https://example.com/lineup")).toBeNull();

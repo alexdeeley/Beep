@@ -75,6 +75,33 @@ interface ImageCandidate {
 /** Maximum extra words the URL's filename may carry beyond the festival's own name (+ typically a year) before `festivalNameMatchesUrl` gives up - see its doc comment for why this exists. */
 const MAX_EXTRA_FILENAME_WORDS = 2;
 
+function normalizeForComparison(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * True if the page's own `og:site_name` meta tag identifies it as being the artist/event's own official
+ * site - e.g. `og:site_name="Oasis"` on oasisinet.com, `og:site_name="Fontaines D.C."` on fontainesdc.com.
+ * Deliberately NOT reusing festivalNameMatchesUrl's short-word guard or extra-word slack: those exist to
+ * protect against an arbitrary filename/slug coincidentally containing the festival's name, but
+ * og:site_name is the page's own deliberate, first-party self-identification, not something a bystander
+ * page would set - a press site's og:site_name is ITS OWN brand ("NME", "Radio X"), never the artist's
+ * name. Confirmed live: a real official tour poster was never captioned "poster"/"flyer"/"artwork"
+ * anywhere on the band's own site, and its filename didn't resemble the band's name either, yet the page
+ * correctly, structurally self-identified via og:site_name - a signal no press/aggregator copy of the
+ * same poster carries, since none of them ARE the artist's own site.
+ */
+function pageDeclaresOfficialSiteFor(html: string, festivalName: string): boolean {
+  const match =
+    /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i.exec(html) ??
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i.exec(html);
+  if (!match) return false;
+  const siteName = normalizeForComparison(decodeHtmlEntities(match[1]!));
+  const name = normalizeForComparison(festivalName);
+  if (siteName.length === 0 || name.length === 0) return false;
+  return name === siteName || name.startsWith(`${siteName} `) || siteName.startsWith(`${name} `);
+}
+
 /**
  * True if the URL's filename is SUBSTANTIALLY the festival's own name (word-by-word, separator-agnostic,
  * plus a little slack for an edition year or one extra qualifier) - e.g. festivalName "Primavera Sound"
@@ -212,15 +239,24 @@ function extractImageCandidates(html: string, pageUrl: string, festivalName: str
  * never trusted by default. The blind "always use og:image as a fallback" behavior this pipeline shipped
  * with initially was removed after it posted a generic crowd/stage photo twice in production; this is NOT
  * a reintroduction of that - a meta tag only becomes a candidate here if its own surrounding HTML context
- * independently signals "poster" or its URL substantially matches the festival's own name, the same bar
- * every other candidate must clear. Confirmed live valuable: a real press site's auto-generated
- * og:description text explicitly said "...the top three headliners listed on this year's **poster**
- * are...", immediately before an og:image tag that genuinely was the real poster - exactly the kind of
- * independent corroboration this pipeline requires elsewhere (verification's 2-source rule), just applied
- * to image selection instead of fact-checking.
+ * independently signals "poster", its URL substantially matches the festival's own name, or the page
+ * itself is confirmed (via og:site_name) to be the artist/event's own official site - the same bar every
+ * other candidate must clear, just with one more legitimate way to clear it. Confirmed live valuable: a
+ * real press site's auto-generated og:description text explicitly said "...the top three headliners
+ * listed on this year's **poster** are...", immediately before an og:image tag that genuinely was the
+ * real poster - exactly the kind of independent corroboration this pipeline requires elsewhere
+ * (verification's 2-source rule), just applied to image selection instead of fact-checking. The
+ * official-site signal is corroboration of the same kind: confirmed live necessary when a band's own
+ * official tour-announcement page set its poster as og:image with no "poster" keyword anywhere and a
+ * filename that didn't resemble the band's name at all - the page's own og:site_name was the only
+ * available first-party signal that this was genuinely the artist's own declared representative image for
+ * the page, not an incidental embed. Deliberately scoped to meta image tags only, never regular `<img>`
+ * body content, even on a confirmed-official page - og:image is a page's own deliberate "this represents
+ * this page" declaration; an arbitrary photo embedded further down the page is not.
  */
 function extractMetaImageCandidates(html: string, pageUrl: string, festivalName: string | null): ImageCandidate[] {
   const candidates: ImageCandidate[] = [];
+  const isOfficialSite = festivalName !== null && pageDeclaresOfficialSiteFor(html, festivalName);
   const metaPatterns = [
     /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi,
     /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/gi,
@@ -241,7 +277,9 @@ function extractMetaImageCandidates(html: string, pageUrl: string, festivalName:
       const tagStart = match.index;
       const context = html.slice(Math.max(0, tagStart - CONTEXT_WINDOW), tagStart + match[0].length);
       const hasKeyword =
-        POSTER_KEYWORD_PATTERN.test(`${url} ${context}`) || (festivalName !== null && festivalNameMatchesUrl(url, festivalName));
+        POSTER_KEYWORD_PATTERN.test(`${url} ${context}`) ||
+        (festivalName !== null && festivalNameMatchesUrl(url, festivalName)) ||
+        isOfficialSite;
       candidates.push({ url: wixOriginalUrl(url), hasKeyword });
     }
   }
