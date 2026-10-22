@@ -1,5 +1,14 @@
 [
   {
+    "id": "inkgrid",
+    "name": "Inkgrid",
+    "description": "A procedural ASCII art instrument: turn an image into text characters, or generate patterns from scratch, with randomize, surprise, zoom and download.",
+    "category": "Art",
+    "path": "Inkgrid.html",
+    "added": "2026-10-22T00:00:00+00:00",
+    "thumbnail": "thumbnails/inkgrid.jpg"
+  },
+  {
     "id": "op-art-studio-3",
     "name": "Op Art Studio 3",
     "description": "A two-layer checkerboard studio: classic and interference modes, presets from fine grid to moiré, warped grid and radial ripple, every size and offset on a slider, animation, and PNG or SVG export.",
