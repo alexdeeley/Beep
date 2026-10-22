@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="CHECKERBOARD">
+<meta name="theme-color" content="#000000">
+<title>Op Art Studio 3</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#000;color:#fff;overflow:hidden;
+  font-family:"Helvetica Neue",Helvetica,Arial,"Nimbus Sans","Liberation Sans",sans-serif;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+#app{position:fixed;inset:0;display:flex;flex-direction:row}
+#stage{position:relative;flex:1 1 auto;min-width:0;min-height:0;background:#fff;touch-action:none;overflow:hidden;cursor:grab}
+#stage.dragging{cursor:grabbing}
+#art{position:absolute;inset:0;width:100%;height:100%;display:block}
+#nogl{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000;color:#fff;
+  font-weight:700;font-size:22px;padding:24px;text-align:center}
+
+#panel{flex:0 0 460px;display:flex;flex-direction:column;min-height:0;background:#000;border-left:3px solid #fff;
+  padding-right:env(safe-area-inset-right)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 10px;
+  padding-top:max(14px,env(safe-area-inset-top))}
+.title{font-weight:800;font-size:30px;letter-spacing:-0.035em;line-height:1}
+.title small{display:block;font-size:13px;font-weight:700;letter-spacing:0.08em;margin-top:5px;opacity:1}
+.actions{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:0 16px 14px;border-bottom:3px solid #fff}
+.actions .btn{grid-column:span 2;padding:6px 3px;letter-spacing:0}
+.actions .one{grid-column:span 1}
+.btn{min-height:54px;border:3px solid #fff;background:#000;font-weight:800;font-size:16px;letter-spacing:0.02em;
+  text-transform:uppercase;cursor:pointer;padding:6px 8px;line-height:1.05;border-radius:0;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none}
+.btn:active,.btn.on{background:#fff;color:#000}
+.btn:focus-visible,.track:focus-visible,.val:focus-visible{outline:4px solid #fff;outline-offset:3px}
+.btn.small{min-height:48px;font-size:15px}
+.scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding:0 16px calc(28px + env(safe-area-inset-bottom))}
+section{padding:18px 0 8px;border-bottom:3px solid #fff}
+section:last-child{border-bottom:0}
+h2{font-size:22px;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase;margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px}
+h2 .btn{min-height:44px;font-size:14px;padding:4px 12px;border-width:2px}
+.seg{display:grid;gap:8px;margin-bottom:14px}
+.seg.c2{grid-template-columns:1fr 1fr}.seg.c3{grid-template-columns:repeat(3,1fr)}
+.seg.c5{grid-template-columns:repeat(5,1fr)}
+.seg .btn{font-size:15px;padding:6px 4px}
+.sublabel{font-size:15px;font-weight:700;letter-spacing:0.06em;margin:4px 0 8px}
+.ctl{margin-bottom:16px}
+.ctl-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+.ctl-top label{font-size:17px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase}
+.vbox{display:flex;align-items:baseline;gap:4px}
+.val{width:92px;background:#000;border:0;border-bottom:3px solid #fff;font-size:22px;font-weight:800;
+  text-align:right;padding:2px 2px;border-radius:0;font-variant-numeric:tabular-nums;-webkit-appearance:none;appearance:none}
+.unit{font-size:15px;font-weight:700;min-width:26px}
+.ctl-row{display:flex;align-items:center;gap:10px}
+.nudge{flex:0 0 54px;height:54px;border:3px solid #fff;background:#000;font-size:30px;font-weight:800;line-height:1;
+  cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+.nudge:active{background:#fff;color:#000}
+.track{position:relative;flex:1 1 auto;height:54px;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.track .rail{position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;background:#fff}
+.track .fill{position:absolute;left:0;top:50%;height:13px;margin-top:-6.5px;background:#fff}
+.track .thumb{position:absolute;top:50%;width:30px;height:46px;margin:-23px 0 0 -15px;background:#fff;border:3px solid #000;
+  box-shadow:0 0 0 3px #fff}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.presets .btn{font-size:15px;min-height:56px}
+.save-row{display:flex;gap:8px;margin-bottom:12px}
+.save-row input{flex:1 1 auto;min-width:0;height:54px;background:#000;border:3px solid #fff;font-size:18px;font-weight:700;
+  padding:0 12px;border-radius:0;-webkit-appearance:none;appearance:none}
+.save-row input::placeholder{color:#fff;opacity:.75}
+.mine{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.mine .item{display:flex;gap:8px}
+.mine .item .btn:first-child{flex:1 1 auto;text-align:left;padding-left:12px}
+.mine .item .del{flex:0 0 auto;min-width:96px}
+.note{font-size:16px;font-weight:600;line-height:1.4;margin-bottom:12px}
+.note b{font-weight:800}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  background:#000;color:#fff;border:3px solid #fff;font-weight:800;font-size:18px;padding:14px 20px;max-width:min(560px,92vw);
+  text-align:center;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+
+/* collapsed + artwork-only */
+#panel.collapsed .scroll{display:none}
+#app.artonly #panel{display:none}
+#app.artonly #stage{cursor:default}
+
+/* portrait: artwork on top, controls below */
+@media (orientation:portrait){
+  #app{flex-direction:column}
+  #panel{flex:0 0 44%;border-left:0;border-top:3px solid #fff;padding-right:0}
+  #panel.collapsed{flex:0 0 auto}
+  .bar{padding-top:12px}
+  .scroll{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+}
+/* small landscape phones */
+@media (orientation:landscape) and (max-height:560px){
+  #panel{flex:0 0 min(46vw,440px)}
+  .title{font-size:24px}
+  .btn{min-height:50px}
+}
+@media (orientation:landscape) and (max-width:1100px) and (min-height:561px){
+  #panel{flex:0 0 400px}
+}
+@media (max-width:380px){
+  .btn{font-size:14px}
+  .actions{gap:6px}
+}
+</style>
+</head>
+<body>
+<!-- beep-back-button -->
+<a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+<style>
+#beep-back{ position:fixed; top:max(8px, env(safe-area-inset-top)); left:max(8px, env(safe-area-inset-left)); z-index:2147483647; width:40px;height:40px; border-radius:50%; background:#000; color:#fff; display:flex;align-items:center;justify-content:center; font:400 26px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding-bottom:3px; text-decoration:none; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.5); touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+#beep-back:active{ transform:scale(0.92); }
+</style>
+<script>
+(function(){ var b=document.getElementById('beep-back'); if(!b) return; var go=function(e){ e.preventDefault(); e.stopPropagation(); window.location.href=b.getAttribute('href'); }; b.addEventListener('click',go,{capture:true}); b.addEventListener('touchstart',go,{capture:true,passive:false}); })();
+</script>
+
+<div id="app">
+  <div id="stage" aria-label="Artwork. Drag to slide the horizontal layer.">
+    <canvas id="art"></canvas>
+    <div id="nogl">This browser could not start WebGL, which CHECKERBOARD needs to draw.</div>
+  </div>
+  <aside id="panel" aria-label="Controls">
+    <div class="bar">
+      <div class="title">CHECKERBOARD<small>TWO LAYERS · ONE FIELD</small></div>
+      <button class="btn small" id="collapse" aria-expanded="true">LESS</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="bRandom">RANDOMIZE</button>
+      <button class="btn" id="bReset">RESET</button>
+      <button class="btn" id="bPlay">PLAY</button>
+      <button class="btn" id="bHide">HIDE</button>
+      <button class="btn" id="bFull">FULLSCREEN</button>
+      <button class="btn one" id="bPng" aria-label="Export PNG">PNG</button>
+      <button class="btn one" id="bSvg" aria-label="Export SVG">SVG</button>
+    </div>
+    <div class="scroll" id="scroll">
+      <section>
+        <h2>Mode</h2>
+        <div class="seg c2" id="modeSeg">
+          <button class="btn" data-v="0">CLASSIC</button>
+          <button class="btn" data-v="1">INTERFERENCE</button>
+        </div>
+        <div id="fillWrap">
+          <div class="sublabel">CELL FILL</div>
+          <div class="seg c2" id="fillSeg">
+            <button class="btn" data-v="0">STRIPED</button>
+            <button class="btn" data-v="1">WOVEN</button>
+          </div>
+        </div>
+        <h2>Presets</h2>
+        <div class="presets" id="presetGrid"></div>
+      </section>
+      <section>
+        <h2>Overall</h2>
+        <div id="globalCtl"></div>
+        <div class="sublabel">DISTORTION TYPE</div>
+        <div class="seg c5" id="warpSeg">
+          <button class="btn" data-v="0">NONE</button>
+          <button class="btn" data-v="1">WAVE</button>
+          <button class="btn" data-v="2">RIPPLE</button>
+          <button class="btn" data-v="3">TWIST</button>
+          <button class="btn" data-v="4">LENS</button>
+        </div>
+        <div class="seg c2">
+          <button class="btn" id="bInvert" aria-pressed="false">INVERT</button>
+          <button class="btn" id="bFreeze">REWIND MOTION</button>
+        </div>
+      </section>
+      <section>
+        <h2>Vertical layer <button class="btn" data-reset="v">RESET</button></h2>
+        <div id="vCtl"></div>
+        <div class="seg c2"><button class="btn" data-copy="v">COPY TO HORIZONTAL</button><button class="btn" data-swap="1">SWAP LAYERS</button></div>
+      </section>
+      <section>
+        <h2>Horizontal layer <button class="btn" data-reset="h">RESET</button></h2>
+        <div id="hCtl"></div>
+        <div class="seg c2"><button class="btn" data-copy="h">COPY TO VERTICAL</button><button class="btn" data-swap="1">SWAP LAYERS</button></div>
+      </section>
+      <section>
+        <h2>My presets</h2>
+        <div class="save-row">
+          <input id="presetName" type="text" maxlength="28" placeholder="NAME" autocomplete="off" autocapitalize="characters" aria-label="Preset name">
+          <button class="btn" id="bSave" style="min-width:96px">SAVE</button>
+        </div>
+        <div class="mine" id="mine"></div>
+      </section>
+      <section>
+        <h2>Export</h2>
+        <div class="sublabel">PNG SIZE (LONG EDGE)</div>
+        <div class="seg c3" id="pngSeg">
+          <button class="btn" data-v="2x">SCREEN ×2</button>
+          <button class="btn" data-v="4096">4096 PX</button>
+          <button class="btn" data-v="8192">8192 PX</button>
+        </div>
+        <p class="note">SVG is true vector: the pattern is written as exact filled shapes (even-odd), with distortions traced as fine curves.</p>
+      </section>
+      <section>
+        <h2>How it works</h2>
+        <p class="note">Each layer is a field of thin parallel lines. Its <b>spacing</b> sets the line period; <b>cell size</b> is how many lines make one checker cell. A point is black when it lies in an odd column XOR an odd row. <b>Interference</b> also XORs the thin lines themselves, so fractional cell sizes, unequal spacings and small rotations beat against each other.</p>
+        <p class="note"><b>Drag the artwork</b> to slide the horizontal layer. <b>HIDE</b> leaves only the artwork for screen recording — tap it or press <b>Esc</b> to return.</p>
+        <p class="note">Keys: <b>Space</b> play/pause · <b>R</b> randomize · <b>H</b> hide · <b>F</b> fullscreen · <b>I</b> invert.</p>
+      </section>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const STORE = 'checkerboard.state.v1', PSTORE = 'checkerboard.presets.v1';
+const clone = o => JSON.parse(JSON.stringify(o));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const LAYER_DEF = { spacing: 10, thick: 0, ox: 0, oy: 0, rot: 0, scale: 1 };
+const BASE = { mode: 0, fill: 0, cell: 8, warp: 0, amount: 0, wave: 240, speed: 30, invert: 0,
+  v: clone(LAYER_DEF), h: clone(LAYER_DEF) };
+
+function build(p) {
+  const s = clone(BASE);
+  for (const k in p) if (k !== 'v' && k !== 'h') s[k] = p[k];
+  Object.assign(s.v, p.v || {}); Object.assign(s.h, p.h || {});
+  return s;
+}
+const PRESETS = {
+  'CLASSIC CHECKERBOARD': build({ mode: 0, cell: 8, v: { spacing: 10 }, h: { spacing: 10 } }),
+  'FINE GRID':            build({ mode: 1, fill: 1, cell: 4, v: { spacing: 6, thick: 1.2 }, h: { spacing: 6, thick: 1.2 } }),
+  'DENSE CHECKERBOARD':   build({ mode: 0, cell: 4, v: { spacing: 4 }, h: { spacing: 4 } }),
+  'LARGE BLOCKS':         build({ mode: 0, cell: 8, v: { spacing: 24 }, h: { spacing: 24 } }),
+  'OFFSET LAYERS':        build({ mode: 1, cell: 5.5, v: { spacing: 10, thick: 2.4, ox: 4 }, h: { spacing: 10.6, thick: 2.4, oy: 3.3 } }),
+  'MOIRÉ':                build({ mode: 1, fill: 1, cell: 7, v: { spacing: 5, thick: 2 }, h: { spacing: 5.12, thick: 2, rot: 88.6 } }),
+  'WARPED GRID':          build({ mode: 1, fill: 1, cell: 6, warp: 1, amount: 28, wave: 320, v: { spacing: 9, thick: 1.8 }, h: { spacing: 9, thick: 1.8 } }),
+  'RADIAL RIPPLE':        build({ mode: 1, cell: 6, warp: 2, amount: 18, wave: 150, v: { spacing: 8, thick: 1.6 }, h: { spacing: 8, thick: 1.6 } }),
+  'RANDOM': null
+};
+const DEFAULT_PRESET = 'CLASSIC CHECKERBOARD';
+
+function loadJSON(k, fb) { try { const v = JSON.parse(localStorage.getItem(k)); return v || fb; } catch (e) { return fb; } }
+function saveJSON(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+
+/* =========================================================
+   CONTROL SCHEMA
+   ========================================================= */
+const LAYER_PARAMS = [
+  { k: 'spacing', label: 'Spacing',           min: 2,    max: 80,  step: 0.01, nudge: 0.1,  dp: 2, unit: 'PX', map: 'sqrt', def: 10 },
+  { k: 'thick',   label: 'Line thickness',    min: 0,    max: 20,  step: 0.01, nudge: 0.1,  dp: 2, unit: 'PX', map: 'sqrt', def: 0 },
+  { k: 'ox',      label: 'Horizontal offset', min: -200, max: 200, step: 0.01, nudge: 0.25, dp: 2, unit: 'PX', map: 'lin', def: 0 },
+  { k: 'oy',      label: 'Vertical offset',   min: -200, max: 200, step: 0.01, nudge: 0.25, dp: 2, unit: 'PX', map: 'lin', def: 0 },
+  { k: 'rot',     label: 'Rotation',          min: -180, max: 180, step: 0.01, nudge: 0.1,  dp: 2, unit: '°',  map: 'lin', def: 0 },
+  { k: 'scale',   label: 'Scale',             min: 0.25, max: 4,   step: 0.001, nudge: 0.01, dp: 3, unit: '×', map: 'log', def: 1 }
+];
+const GLOBAL_PARAMS = [
+  { k: 'cell',   label: 'Cell size',           min: 1,  max: 24,  step: 0.01, nudge: 0.05, dp: 2, unit: 'LINES', map: 'sqrt', def: 8 },
+  { k: 'amount', label: 'Distortion strength', min: 0,  max: 100, step: 0.1,  nudge: 0.5,  dp: 1, unit: '',  map: 'sqrt', def: 0 },
+  { k: 'wave',   label: 'Distortion scale',    min: 20, max: 800, step: 1,    nudge: 5,    dp: 0, unit: 'PX', map: 'sqrt', def: 240 },
+  { k: 'speed',  label: 'Animation speed',     min: 0,  max: 100, step: 1,    nudge: 1,    dp: 0, unit: '%', map: 'lin', def: 30 }
+];
+const ALL_DEFS = {};
+LAYER_PARAMS.forEach(d => { ALL_DEFS['v.' + d.k] = d; ALL_DEFS['h.' + d.k] = d; });
+GLOBAL_PARAMS.forEach(d => { ALL_DEFS[d.k] = d; });
+
+function sanitize(s) {
+  const out = clone(BASE);
+  try {
+    out.mode = s.mode ? 1 : 0;
+    out.fill = s.fill ? 1 : 0;
+    out.warp = clamp(Math.round(+s.warp || 0), 0, 4);
+    out.invert = s.invert ? 1 : 0;
+    GLOBAL_PARAMS.forEach(d => { const v = +s[d.k]; if (isFinite(v)) out[d.k] = clamp(v, d.min, d.max); });
+    ['v', 'h'].forEach(L => LAYER_PARAMS.forEach(d => {
+      const v = s[L] ? +s[L][d.k] : NaN; if (isFinite(v)) out[L][d.k] = clamp(v, d.min, d.max);
+    }));
+  } catch (e) {}
+  return out;
+}
+let saved = loadJSON(STORE, null);
+let state = saved && saved.state ? sanitize(saved.state) : clone(PRESETS[DEFAULT_PRESET]);
+let pngSize = (saved && saved.png) || '4096';
+let activePreset = saved ? (saved.preset || null) : DEFAULT_PRESET;
+let myPresets = loadJSON(PSTORE, []);
+if (!Array.isArray(myPresets)) myPresets = [];
+
+function getVal(key) { const p = key.split('.'); return p.length === 2 ? state[p[0]][p[1]] : state[p[0]]; }
+function setRaw(key, v) { const p = key.split('.'); if (p.length === 2) state[p[0]][p[1]] = v; else state[p[0]] = v; }
+
+/* =========================================================
+   EFFECTIVE PARAMETERS (state + animation)
+   ========================================================= */
+let animT = 0, playing = false;
+const D2R = Math.PI / 180;
+function effective(s = state, m = animT) {
+  const br = 1 + 0.05 * Math.sin(m * 0.13);
+  const mk = (L, dox, doy, drot) => {
+    const sc = L.scale * br, S = L.spacing * sc, r = (L.rot + drot) * D2R;
+    return { S, D: clamp(L.thick / L.spacing, 0, 0.95), ox: L.ox + dox, oy: L.oy + doy, c: Math.cos(r), s: Math.sin(r) };
+  };
+  const V = mk(s.v, s.v.spacing * s.v.scale * 0.9 * Math.sin(m * 0.23), s.v.spacing * 0.6 * Math.sin(m * 0.17), 0.8 * Math.sin(m * 0.07));
+  const H = mk(s.h, s.h.spacing * 0.6 * Math.sin(m * 0.21), s.h.spacing * s.h.scale * 0.9 * Math.sin(m * 0.19), 1.5 * Math.sin(m * 0.11));
+  return { mode: s.mode, fill: s.fill, cell: s.cell, warp: s.amount > 0 ? s.warp : 0, amt: s.amount,
+    k: 2 * Math.PI / s.wave, ph: m * 0.9, inv: s.invert, V, H };
+}
+
+/* Distortion field — identical to the GLSL version */
+function warpF(E, x, y) {
+  const A = E.amt, K = E.k, ph = E.ph;
+  switch (E.warp) {
+    case 1: return [x + A * Math.sin(y * K + ph), y + A * Math.sin(x * K * 0.87 + ph * 1.31)];
+    case 2: { const r = Math.hypot(x, y); if (r < 1e-4) return [x, y]; const d = A * Math.sin(r * K - ph) / r; return [x + x * d, y + y * d]; }
+    case 3: { const r = Math.hypot(x, y); const a = A * 0.012 * Math.sin(r * K * 0.5 - ph); const c = Math.cos(a), s = Math.sin(a); return [c * x - s * y, s * x + c * y]; }
+    case 4: { const lam = 2 * Math.PI / K; const f = 1 - (A / 110) * Math.exp(-(x * x + y * y) / (lam * lam)) * (0.75 + 0.25 * Math.cos(ph)); return [x * f, y * f]; }
+  }
+  return [x, y];
+}
+function warpInv(E, tx, ty) {
+  if (!E.warp) return [tx, ty];
+  let x = tx, y = ty; const h = 0.02, lim = Math.max(3, E.amt * 0.6);
+  for (let i = 0; i < 20; i++) {
+    const f = warpF(E, x, y); const ex = f[0] - tx, ey = f[1] - ty;
+    if (ex * ex + ey * ey < 1e-6) break;
+    const fx = warpF(E, x + h, y), fy = warpF(E, x, y + h);
+    const a = (fx[0] - f[0]) / h, b = (fy[0] - f[0]) / h, c = (fx[1] - f[1]) / h, d = (fy[1] - f[1]) / h;
+    const det = a * d - b * c; let dx, dy;
+    if (Math.abs(det) < 1e-5) { dx = ex; dy = ey; } else { dx = (d * ex - b * ey) / det; dy = (-c * ex + a * ey) / det; }
+    const mag = Math.hypot(dx, dy); if (mag > lim) { dx *= lim / mag; dy *= lim / mag; }
+    x -= dx; y -= dy;
+  }
+  return [x, y];
+}
+
+/* =========================================================
+   WEBGL RENDERER
+   ========================================================= */
+const FRAG_BODY = `
+uniform vec2 uFull; uniform vec2 uTile; uniform vec2 uTileSize; uniform float uPx;
+uniform vec2 uOffV; uniform vec2 uOffH; uniform vec2 uRotV; uniform vec2 uRotH;
+uniform float uSV; uniform float uSH; uniform float uDV; uniform float uDH;
+uniform float uCell; uniform int uMode; uniform int uFill; uniform int uWarp;
+uniform float uAmt; uniform float uK; uniform float uPh; uniform float uInv;
+
+vec2 warp(vec2 q){
+  if(uWarp==1){ return q + uAmt*vec2(sin(q.y*uK+uPh), sin(q.x*uK*0.87+uPh*1.31)); }
+  if(uWarp==2){ float r=length(q); if(r<1e-4) return q; return q + q*(uAmt*sin(r*uK-uPh)/r); }
+  if(uWarp==3){ float r=length(q); float a=uAmt*0.012*sin(r*uK*0.5-uPh); float c=cos(a), s=sin(a); return vec2(c*q.x-s*q.y, s*q.x+c*q.y); }
+  if(uWarp==4){ float lam=6.28318530718/uK; float f=1.0-(uAmt/110.0)*exp(-dot(q,q)/(lam*lam))*(0.75+0.25*cos(uPh)); return q*f; }
+  return q;
+}
+// box-filtered square wave: +1 on even unit intervals, -1 on odd
+float sqw(float x, float w){
+  w = max(w, 1e-5);
+  float a = abs(fract((x-0.5*w)*0.5)-0.5);
+  float b = abs(fract((x+0.5*w)*0.5)-0.5);
+  return clamp(2.0*(a-b)/w, -1.0, 1.0);
+}
+// integral of a pulse train of width d centred on integers
+float pint(float y, float d){ return floor(y)*d + min(fract(y), d); }
+// box-filtered coverage of thin lines
+float lines(float x, float w, float d){
+  if(d <= 0.0) return 0.0;
+  w = max(w, 1e-5);
+  float y = x + 0.5*d;
+  return clamp((pint(y+0.5*w, d) - pint(y-0.5*w, d))/w, 0.0, 1.0);
+}
+void main(){
+  vec2 fc = vec2(uTile.x + gl_FragCoord.x, uTile.y + (uTileSize.y - gl_FragCoord.y));
+  vec2 p = (fc - 0.5*uFull) / uPx;               // CSS px, origin at centre, y down
+  vec2 qv = warp(p - uOffV);
+  vec2 qh = warp(p - uOffH);
+  float xv = ( uRotV.x*qv.x + uRotV.y*qv.y) / uSV; // vertical layer: distance across its lines
+  float yh = (-uRotH.y*qh.x + uRotH.x*qh.y) / uSH; // horizontal layer: distance across its lines
+  float wv = max(abs(dFdx(xv)), abs(dFdy(xv)));
+  float wh = max(abs(dFdx(yh)), abs(dFdy(yh)));
+  float cv = xv / uCell, ch = yh / uCell;
+  float chk = sqw(cv, wv/uCell) * sqw(ch, wh/uCell); // +1 white, -1 black
+  float col;
+  if(uMode == 0){
+    float ink = 0.5 - 0.5*chk;
+    float lv = lines(cv, wv/uCell, uDV/uCell);
+    float lh = lines(ch, wh/uCell, uDH/uCell);
+    ink = 1.0 - (1.0-ink)*(1.0-lv)*(1.0-lh);
+    col = 1.0 - ink;
+  } else if(uFill == 1){
+    // WOVEN: checker XOR both line fields
+    float s = chk * (1.0 - 2.0*lines(xv, wv, uDV)) * (1.0 - 2.0*lines(yh, wh, uDH));
+    col = 0.5 + 0.5*s;
+  } else {
+    // STRIPED: white cells carry the vertical layer's black lines,
+    // black cells carry the horizontal layer's white lines
+    float a = 0.5 + 0.5*chk;
+    col = a*(1.0 - lines(xv, wv, uDV)) + (1.0 - a)*lines(yh, wh, uDH);
+  }
+  col = mix(col, 1.0-col, uInv);
+  OUT(vec4(vec3(col), 1.0));
+}`;
+
+function makeRenderer(canvas, preserve) {
+  const opts = { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: !!preserve, premultipliedAlpha: false };
+  let gl = canvas.getContext('webgl2', opts), v2 = !!gl;
+  if (!gl) { gl = canvas.getContext('webgl', opts) || canvas.getContext('experimental-webgl', opts); if (gl && !gl.getExtension('OES_standard_derivatives')) gl = null; }
+  if (!gl) return null;
+  const vsrc = v2 ? '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.,1.);}' : 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+  const fsrc = v2 ? '#version 300 es\nprecision highp float;\nprecision highp int;\nout vec4 o;\n#define OUT(c) o=c\n' + FRAG_BODY
+                  : '#extension GL_OES_standard_derivatives : enable\nprecision highp float;\nprecision highp int;\n#define OUT(c) gl_FragColor=c\n' + FRAG_BODY;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vsrc)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fsrc));
+  gl.bindAttribLocation(prog, 0, 'a'); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const U = {};
+  ['uFull','uTile','uTileSize','uPx','uOffV','uOffH','uRotV','uRotH','uSV','uSH','uDV','uDH','uCell','uMode','uFill','uWarp','uAmt','uK','uPh','uInv']
+    .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  const maxVP = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+  return {
+    gl, maxTile: Math.min(maxVP[0], maxVP[1], 4096),
+    draw(E, fullW, fullH, tx, ty, tw, th, px) {
+      gl.viewport(0, 0, tw, th);
+      gl.uniform2f(U.uFull, fullW, fullH); gl.uniform2f(U.uTile, tx, ty); gl.uniform2f(U.uTileSize, tw, th);
+      gl.uniform1f(U.uPx, px);
+      gl.uniform2f(U.uOffV, E.V.ox, E.V.oy); gl.uniform2f(U.uOffH, E.H.ox, E.H.oy);
+      gl.uniform2f(U.uRotV, E.V.c, E.V.s); gl.uniform2f(U.uRotH, E.H.c, E.H.s);
+      gl.uniform1f(U.uSV, E.V.S); gl.uniform1f(U.uSH, E.H.S); gl.uniform1f(U.uDV, E.V.D); gl.uniform1f(U.uDH, E.H.D);
+      gl.uniform1f(U.uCell, E.cell); gl.uniform1i(U.uMode, E.mode); gl.uniform1i(U.uFill, E.fill); gl.uniform1i(U.uWarp, E.warp);
+      gl.uniform1f(U.uAmt, E.amt); gl.uniform1f(U.uK, E.k); gl.uniform1f(U.uPh, E.ph); gl.uniform1f(U.uInv, E.inv);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+  };
+}
+
+const app = document.getElementById('app'), stage = document.getElementById('stage'), canvas = document.getElementById('art');
+let R = null;
+function initGL() {
+  try { R = makeRenderer(canvas, false); } catch (e) { console.error(e); R = null; }
+  document.getElementById('nogl').style.display = R ? 'none' : 'flex';
+}
+initGL();
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); R = null; });
+canvas.addEventListener('webglcontextrestored', () => { initGL(); dirty = true; });
+
+let cssW = 1, cssH = 1, dpr = 1, dirty = true;
+function resize() {
+  const r = stage.getBoundingClientRect();
+  cssW = Math.max(1, r.width); cssH = Math.max(1, r.height);
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const w = Math.max(1, Math.round(cssW * dpr)), h = Math.max(1, Math.round(cssH * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  dirty = true;
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+resize();
+
+function render() {
+  if (!R) return;
+  R.draw(effective(), canvas.width, canvas.height, 0, 0, canvas.width, canvas.height, canvas.width / cssW);
+}
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing && state.speed > 0) { animT += dt * (state.speed / 100) * 3; dirty = true; }
+  if (dirty) { dirty = false; render(); }
+}
+requestAnimationFrame(frame);
+
+/* =========================================================
+   UI: SLIDERS
+   ========================================================= */
+const controls = {};
+function fmt(d, v) { return (+v).toFixed(d.dp); }
+function toPos(d, v) {
+  const t = (v - d.min) / (d.max - d.min);
+  if (d.map === 'sqrt') return Math.sqrt(clamp(t, 0, 1));
+  if (d.map === 'log') return Math.log(v / d.min) / Math.log(d.max / d.min);
+  return clamp(t, 0, 1);
+}
+function fromPos(d, p) {
+  p = clamp(p, 0, 1); let v;
+  if (d.map === 'sqrt') v = d.min + p * p * (d.max - d.min);
+  else if (d.map === 'log') v = d.min * Math.pow(d.max / d.min, p);
+  else v = d.min + p * (d.max - d.min);
+  return snap(d, v);
+}
+function snap(d, v) { return clamp(+(Math.round(v / d.step) * d.step).toFixed(6), d.min, d.max); }
+
+function makeControl(container, key, d) {
+  const id = 'c_' + key.replace('.', '_');
+  const el = document.createElement('div'); el.className = 'ctl';
+  el.innerHTML = `<div class="ctl-top"><label for="${id}">${d.label}</label><span class="vbox"><input class="val" id="${id}" type="text" ${d.min >= 0 ? 'inputmode="decimal"' : ''} autocomplete="off" spellcheck="false"><span class="unit">${d.unit}</span></span></div>
+  <div class="ctl-row"><button class="nudge" aria-label="Decrease ${d.label}">−</button>
+  <div class="track" role="slider" tabindex="0" aria-label="${d.label}" aria-valuemin="${d.min}" aria-valuemax="${d.max}"><div class="rail"></div><div class="fill"></div><div class="thumb"></div></div>
+  <button class="nudge" aria-label="Increase ${d.label}">+</button></div>`;
+  container.appendChild(el);
+  const input = el.querySelector('.val'), track = el.querySelector('.track'), fill = el.querySelector('.fill'), thumb = el.querySelector('.thumb');
+  const [minus, plus] = el.querySelectorAll('.nudge');
+  const c = {
+    update() {
+      const v = getVal(key), p = toPos(d, v) * 100;
+      fill.style.width = p + '%'; thumb.style.left = p + '%';
+      if (document.activeElement !== input) input.value = fmt(d, v);
+      track.setAttribute('aria-valuenow', v); track.setAttribute('aria-valuetext', fmt(d, v) + ' ' + d.unit);
+    }
+  };
+  controls[key] = c;
+
+  // track pointer handling: horizontal drag sets value; vertical drag scrolls the panel
+  let pid = null, sx = 0, sy = 0, mode = 0; // 0 idle, 1 pending, 2 dragging
+  const setFromX = x => { const r = track.getBoundingClientRect(); setValue(key, fromPos(d, (x - r.left) / r.width)); };
+  track.addEventListener('pointerdown', e => {
+    if (pid !== null) return;
+    pid = e.pointerId; sx = e.clientX; sy = e.clientY;
+    try { track.setPointerCapture(pid); } catch (err) {}
+    if (e.pointerType === 'mouse') { mode = 2; setFromX(e.clientX); e.preventDefault(); } else mode = 1;
+  });
+  track.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    if (mode === 1) {
+      const dx = Math.abs(e.clientX - sx), dy = Math.abs(e.clientY - sy);
+      if (dx > 6 && dx > dy) mode = 2; else if (dy > 8) { mode = 0; }
+    }
+    if (mode === 2) setFromX(e.clientX);
+  });
+  const end = e => {
+    if (e.pointerId !== pid) return;
+    if (e.type === 'pointerup' && mode === 1) setFromX(e.clientX);
+    pid = null; mode = 0;
+  };
+  track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end);
+  track.addEventListener('keydown', e => {
+    let v = getVal(key); const big = (d.max - d.min) / 20;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') v += d.nudge;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') v -= d.nudge;
+    else if (e.key === 'PageUp') v += big; else if (e.key === 'PageDown') v -= big;
+    else if (e.key === 'Home') v = d.min; else if (e.key === 'End') v = d.max; else return;
+    e.preventDefault(); e.stopPropagation(); setValue(key, snap(d, v));
+  });
+
+  // plus / minus with press-and-hold repeat
+  const bindNudge = (btn, dir) => {
+    let timer = null, start = 0;
+    const step = () => { const held = performance.now() - start; const mult = held > 2500 ? 10 : held > 1200 ? 4 : 1;
+      setValue(key, snap(d, getVal(key) + dir * d.nudge * mult)); };
+    const stop = () => { clearTimeout(timer); timer = null; };
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault(); start = performance.now(); step(); stop();
+      const rep = () => { step(); timer = setTimeout(rep, 55); };
+      timer = setTimeout(rep, 420);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => btn.addEventListener(t, stop));
+    btn.addEventListener('click', e => { if (e.detail === 0) { start = performance.now(); step(); } });
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  };
+  bindNudge(minus, -1); bindNudge(plus, 1);
+
+  // typed values
+  const commit = () => { const v = parseFloat(String(input.value).replace(',', '.').replace('−', '-'));
+    if (isFinite(v)) setValue(key, snap(d, v)); c.update(); };
+  input.addEventListener('change', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { commit(); input.blur(); } e.stopPropagation(); });
+  input.addEventListener('focus', () => setTimeout(() => { try { input.select(); } catch (e) {} }, 0));
+  input.addEventListener('blur', () => c.update());
+  c.update();
+}
+
+GLOBAL_PARAMS.forEach(d => makeControl(document.getElementById('globalCtl'), d.k, d));
+LAYER_PARAMS.forEach(d => makeControl(document.getElementById('vCtl'), 'v.' + d.k, d));
+LAYER_PARAMS.forEach(d => makeControl(document.getElementById('hCtl'), 'h.' + d.k, d));
+
+/* =========================================================
+   STATE CHANGES
+   ========================================================= */
+let saveTimer = null;
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveJSON(STORE, { state, png: pngSize, preset: activePreset }), 250);
+}
+function changed(keepPreset) {
+  if (!keepPreset) { activePreset = null; syncPresets(); }
+  dirty = true; persist();
+}
+function setValue(key, v) {
+  if (getVal(key) === v) return;
+  setRaw(key, v); controls[key] && controls[key].update();
+  if (key === 'amount' && v > 0 && state.warp === 0) { state.warp = 1; syncSegs(); }
+  changed();
+}
+function syncAll() { Object.values(controls).forEach(c => c.update()); syncSegs(); syncPresets(); }
+function syncSegs() {
+  document.querySelectorAll('#modeSeg .btn').forEach(b => { const on = +b.dataset.v === state.mode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  document.querySelectorAll('#fillSeg .btn').forEach(b => { const on = +b.dataset.v === state.fill; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  document.getElementById('fillWrap').style.display = state.mode === 1 ? '' : 'none';
+  document.querySelectorAll('#warpSeg .btn').forEach(b => { const on = +b.dataset.v === state.warp; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  document.querySelectorAll('#pngSeg .btn').forEach(b => b.classList.toggle('on', b.dataset.v === pngSize));
+  const inv = document.getElementById('bInvert'); inv.classList.toggle('on', !!state.invert); inv.setAttribute('aria-pressed', !!state.invert);
+}
+function applyState(s, presetName) {
+  const speed = state.speed;
+  state = sanitize(s);
+  if (presetName && presetName !== 'RANDOM') state.speed = speed; // keep the user's animation speed
+  activePreset = presetName || null;
+  syncAll(); dirty = true; persist();
+}
+
+document.getElementById('modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('.btn'); if (!b) return; state.mode = +b.dataset.v; syncSegs(); changed();
+});
+document.getElementById('fillSeg').addEventListener('click', e => {
+  const b = e.target.closest('.btn'); if (!b) return; state.fill = +b.dataset.v; syncSegs(); changed();
+});
+document.getElementById('warpSeg').addEventListener('click', e => {
+  const b = e.target.closest('.btn'); if (!b) return; state.warp = +b.dataset.v;
+  if (state.warp && state.amount === 0) { state.amount = 20; controls.amount.update(); }
+  syncSegs(); changed();
+});
+document.getElementById('pngSeg').addEventListener('click', e => {
+  const b = e.target.closest('.btn'); if (!b) return; pngSize = b.dataset.v; syncSegs(); persist();
+});
+document.getElementById('bInvert').addEventListener('click', () => { state.invert = state.invert ? 0 : 1; syncSegs(); changed(true); });
+document.getElementById('bFreeze').addEventListener('click', () => { animT = 0; dirty = true; toast('MOTION REWOUND TO THE EXACT SETTINGS'); });
+document.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => {
+  state[b.dataset.reset] = clone(LAYER_DEF); syncAll(); changed();
+}));
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+  const from = b.dataset.copy, to = from === 'v' ? 'h' : 'v';
+  state[to] = clone(state[from]); syncAll(); changed();
+}));
+document.querySelectorAll('[data-swap]').forEach(b => b.addEventListener('click', () => {
+  const t = state.v; state.v = state.h; state.h = t; syncAll(); changed();
+}));
+
+/* =========================================================
+   PRESETS
+   ========================================================= */
+const presetGrid = document.getElementById('presetGrid');
+Object.keys(PRESETS).forEach(name => {
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = name; b.dataset.name = name;
+  b.addEventListener('click', () => name === 'RANDOM' ? randomize() : applyState(PRESETS[name], name));
+  presetGrid.appendChild(b);
+});
+function syncPresets() {
+  presetGrid.querySelectorAll('.btn').forEach(b => b.classList.toggle('on', b.dataset.name === activePreset));
+  document.querySelectorAll('#mine .item > .btn:first-child').forEach(b => b.classList.toggle('on', 'my:' + b.dataset.name === activePreset));
+}
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function randomize() {
+  const s = clone(BASE);
+  s.speed = state.speed;
+  s.mode = Math.random() < 0.72 ? 1 : 0;
+  s.fill = Math.random() < 0.5 ? 1 : 0;
+  const base = s.mode ? rnd(4.5, 16) : rnd(3, 22);
+  s.v.spacing = +base.toFixed(2);
+  s.h.spacing = +(base * (Math.random() < 0.45 ? 1 : 1 + rnd(-0.09, 0.09))).toFixed(2);
+  const tf = rnd(0.16, 0.48);
+  s.v.thick = s.mode ? +(s.v.spacing * tf).toFixed(2) : (Math.random() < 0.3 ? +(s.v.spacing * rnd(0.05, 0.2)).toFixed(2) : 0);
+  s.h.thick = s.mode ? +(s.h.spacing * (Math.random() < 0.6 ? tf : rnd(0.16, 0.48))).toFixed(2) : s.v.thick;
+  let cell = s.mode ? rnd(2, 10) : rnd(2, 12);
+  if (Math.random() < 0.5) cell = Math.round(cell);
+  else if (Math.random() < 0.5) cell = Math.round(cell) + pick([0.5, 0.25, 0.04, -0.04, 0.1]);
+  s.cell = clamp(+cell.toFixed(2), 1, 24);
+  const r = Math.random();
+  if (r < 0.35) {} else if (r < 0.7) s.h.rot = +rnd(-7, 7).toFixed(2);
+  else if (r < 0.85) { s.v.rot = +rnd(-12, 12).toFixed(2); s.h.rot = +(s.v.rot + rnd(-4, 4)).toFixed(2); }
+  else if (r < 0.93) { const a = rnd(-45, 45); s.v.rot = +a.toFixed(2); s.h.rot = +(a + rnd(-3, 3)).toFixed(2); }
+  else if (s.mode === 1) { s.fill = 1; s.h.rot = +(90 + rnd(-2.5, 2.5)).toFixed(2); } // near-parallel layers: moiré
+  if (Math.random() < 0.5) { s.v.ox = +rnd(-s.v.spacing, s.v.spacing).toFixed(2); s.h.oy = +rnd(-s.h.spacing, s.h.spacing).toFixed(2); }
+  if (Math.random() < 0.25) s.h.scale = +rnd(0.9, 1.12).toFixed(3);
+  const w = Math.random();
+  if (w < 0.42) { s.warp = 0; s.amount = 0; }
+  else { s.warp = pick([1, 1, 2, 2, 3, 4]); s.amount = +rnd(8, s.warp === 4 ? 85 : 40).toFixed(1); s.wave = Math.round(rnd(100, 520));
+    if (s.warp === 2 || s.warp === 1) s.amount = Math.min(s.amount, 0.85 * s.wave / (2 * Math.PI)); s.amount = +s.amount.toFixed(1);
+    if (Math.random() < 0.3) { s.v.oy = +rnd(-40, 40).toFixed(2); s.h.ox = +rnd(-40, 40).toFixed(2); } }
+  s.invert = Math.random() < 0.15 ? 1 : 0;
+  applyState(s, 'RANDOM');
+}
+
+function renderMine() {
+  const box = document.getElementById('mine'); box.innerHTML = '';
+  if (!myPresets.length) { const p = document.createElement('p'); p.className = 'note'; p.textContent = 'Saved compositions appear here.'; box.appendChild(p); return; }
+  myPresets.forEach((p, i) => {
+    const row = document.createElement('div'); row.className = 'item';
+    const a = document.createElement('button'); a.className = 'btn'; a.textContent = p.name; a.dataset.name = p.name;
+    a.addEventListener('click', () => applyState(p.state, 'my:' + p.name));
+    const del = document.createElement('button'); del.className = 'btn del'; del.textContent = 'DELETE';
+    del.setAttribute('aria-label', 'Delete preset ' + p.name);
+    let armed = false;
+    del.addEventListener('click', () => {
+      if (!armed) { armed = true; del.textContent = 'SURE?'; del.classList.add('on'); setTimeout(() => { armed = false; del.textContent = 'DELETE'; del.classList.remove('on'); }, 2500); return; }
+      myPresets.splice(i, 1); saveJSON(PSTORE, myPresets); renderMine(); syncPresets();
+    });
+    row.appendChild(a); row.appendChild(del); box.appendChild(row);
+  });
+  syncPresets();
+}
+document.getElementById('bSave').addEventListener('click', savePreset);
+document.getElementById('presetName').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') savePreset(); });
+function savePreset() {
+  const inp = document.getElementById('presetName');
+  let name = inp.value.trim().toUpperCase() || ('PATTERN ' + (myPresets.length + 1));
+  const existing = myPresets.findIndex(p => p.name === name);
+  const entry = { name, state: clone(state) };
+  if (existing >= 0) myPresets[existing] = entry; else myPresets.push(entry);
+  saveJSON(PSTORE, myPresets); inp.value = ''; inp.blur();
+  activePreset = 'my:' + name; renderMine(); persist(); toast('SAVED “' + name + '”');
+}
+renderMine();
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+const bPlay = document.getElementById('bPlay');
+function setPlaying(on) {
+  playing = on; bPlay.textContent = on ? 'PAUSE' : 'PLAY'; bPlay.classList.toggle('on', on);
+  bPlay.setAttribute('aria-pressed', on); last = performance.now(); dirty = true;
+  if (on && state.speed === 0) { state.speed = 30; controls.speed.update(); persist(); }
+}
+bPlay.addEventListener('click', () => setPlaying(!playing));
+document.getElementById('bRandom').addEventListener('click', randomize);
+document.getElementById('bReset').addEventListener('click', () => { animT = 0; const sp = state.speed; applyState(PRESETS[DEFAULT_PRESET], DEFAULT_PRESET); state.speed = sp; controls.speed.update(); });
+
+function setArtOnly(on) {
+  app.classList.toggle('artonly', on);
+  if (on && document.activeElement) document.activeElement.blur();
+  resize();
+}
+document.getElementById('bHide').addEventListener('click', () => setArtOnly(true));
+const panel = document.getElementById('panel'), bCollapse = document.getElementById('collapse');
+bCollapse.addEventListener('click', () => {
+  const c = !panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed', c); bCollapse.textContent = c ? 'MORE' : 'LESS'; bCollapse.setAttribute('aria-expanded', !c);
+  resize();
+});
+
+const fsEl = document.documentElement;
+const fsSupported = !!(fsEl.requestFullscreen || fsEl.webkitRequestFullscreen);
+const fsActive = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const bFull = document.getElementById('bFull');
+function syncFull() { bFull.textContent = fsActive() ? 'EXIT FULLSCREEN' : 'FULLSCREEN'; bFull.classList.toggle('on', fsActive()); setTimeout(resize, 60); }
+document.addEventListener('fullscreenchange', syncFull); document.addEventListener('webkitfullscreenchange', syncFull);
+function toggleFull() {
+  if (!fsSupported) {
+    setArtOnly(!app.classList.contains('artonly'));
+    toast('THIS DEVICE HAS NO WEB FULLSCREEN. ADD TO HOME SCREEN FOR EDGE-TO-EDGE. TAP ARTWORK TO RETURN.', 3200);
+    return;
+  }
+  if (fsActive()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else { const p = (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl); if (p && p.catch) p.catch(() => toast('FULLSCREEN WAS BLOCKED')); }
+}
+bFull.addEventListener('click', toggleFull);
+
+/* drag artwork to slide the horizontal layer; tap in artwork-only mode returns */
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  if (drag) return;
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+  stage.classList.add('dragging');
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+  drag.moved = true; drag.x = e.clientX; drag.y = e.clientY;
+  const fine = 0.25; // a slow, precise slide: the relationship between layers is what matters
+  state.h.ox = snap(ALL_DEFS['h.ox'], state.h.ox + dx * fine);
+  state.h.oy = snap(ALL_DEFS['h.oy'], state.h.oy + dy * fine);
+  controls['h.ox'].update(); controls['h.oy'].update(); changed();
+});
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved && e.type === 'pointerup' && app.classList.contains('artonly')) setArtOnly(false);
+  drag = null; stage.classList.remove('dragging');
+};
+stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ' && !(e.target && e.target.closest && e.target.closest('button'))) { e.preventDefault(); setPlaying(!playing); }
+  else if (k === 'escape') { if (app.classList.contains('artonly')) setArtOnly(false); }
+  else if (k === 'h') setArtOnly(!app.classList.contains('artonly'));
+  else if (k === 'r') randomize();
+  else if (k === 'f') toggleFull();
+  else if (k === 'i') { state.invert = state.invert ? 0 : 1; syncSegs(); changed(true); }
+});
+
+let toastTimer = null;
+function toast(msg, ms = 1800) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* =========================================================
+   EXPORT
+   ========================================================= */
+const isIOS = /iP(hone|ad|od)/.test(navigator.platform) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+function stamp() { const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`; }
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function busy(btn, label) { const old = btn.textContent; btn.textContent = label; btn.disabled = true; return () => { btn.textContent = old; btn.disabled = false; }; }
+
+let exportR = null, exportCanvas = null;
+function exportPNG() {
+  const btn = document.getElementById('bPng'); const done = busy(btn, '…');
+  setTimeout(() => {
+    try {
+      const W0 = cssW, H0 = cssH;
+      let f = pngSize === '2x' ? 2 : (+pngSize) / Math.max(W0, H0);
+      const maxArea = isIOS ? 16.0e6 : 64.0e6;
+      if (W0 * H0 * f * f > maxArea) f = Math.sqrt(maxArea / (W0 * H0));
+      const W = Math.max(1, Math.round(W0 * f)), H = Math.max(1, Math.round(H0 * f));
+      if (!exportR) { exportCanvas = document.createElement('canvas'); exportCanvas.width = 16; exportCanvas.height = 16; exportR = makeRenderer(exportCanvas, true); }
+      if (!exportR) throw new Error('no gl');
+      const out = document.createElement('canvas'); out.width = W; out.height = H;
+      const ctx = out.getContext('2d');
+      const E = effective(), T = Math.min(2048, exportR.maxTile);
+      for (let ty = 0; ty < H; ty += T) for (let tx = 0; tx < W; tx += T) {
+        const tw = Math.min(T, W - tx), th = Math.min(T, H - ty);
+        if (exportCanvas.width !== tw || exportCanvas.height !== th) { exportCanvas.width = tw; exportCanvas.height = th; }
+        exportR.draw(E, W, H, tx, ty, tw, th, f);
+        ctx.drawImage(exportCanvas, tx, ty);
+      }
+      out.toBlob(b => {
+        done();
+        if (!b) { toast('PNG EXPORT FAILED — TRY A SMALLER SIZE'); return; }
+        download(b, `checkerboard-${stamp()}.png`); toast(`PNG ${W} × ${H}`);
+      }, 'image/png');
+    } catch (e) { console.error(e); done(); toast('PNG EXPORT FAILED'); }
+  }, 30);
+}
+document.getElementById('bPng').addEventListener('click', exportPNG);
+
+/* SVG: every region is a parity of four band families, so the whole
+   picture is one even-odd path (classic adds a second path for the lines). */
+function buildSVG(W, H, E) {
+  const r2 = n => Math.round(n * 100) / 100;
+  const warped = E.warp > 0 && E.amt > 0;
+  const hw = W / 2, hh = H / 2;
+  const segLen = warped ? clamp((2 * Math.PI / E.k) / 24, 2, 14) : 0;
+  const famRanges = {};
+  // forward-map a grid of view points into each layer's (across, along) coordinates to find what is visible
+  ['V', 'H'].forEach(L => {
+    const P = E[L]; let umin = 1e9, umax = -1e9, wmin = 1e9, wmax = -1e9; const N = 48;
+    for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+      const x = -hw + W * i / N - P.ox, y = -hh + H * j / N - P.oy;
+      const q = warped ? warpF(E, x, y) : [x, y];
+      const ax = P.c * q[0] + P.s * q[1], ay = -P.s * q[0] + P.c * q[1];
+      const u = L === 'V' ? ax : ay, w = L === 'V' ? ay : ax;
+      umin = Math.min(umin, u); umax = Math.max(umax, u); wmin = Math.min(wmin, w); wmax = Math.max(wmax, w);
+    }
+    const m = warped ? Math.max(16, E.amt * 1.2) : 2;
+    famRanges[L] = { umin: umin - m, umax: umax + m, wmin: wmin - m, wmax: wmax + m };
+  });
+  const toScreen = (P, ax, ay) => {
+    let qx = P.c * ax - P.s * ay, qy = P.s * ax + P.c * ay;
+    if (warped) { const r = warpInv(E, qx, qy); qx = r[0]; qy = r[1]; }
+    return [qx + P.ox, qy + P.oy];
+  };
+  // collect bands for each family: [u0,u1]
+  const fams = [], lineFams = [];
+  ['V', 'H'].forEach(L => {
+    const P = E[L], rg = famRanges[L], Pc = P.S * E.cell;
+    const cells = [];
+    for (let k = Math.floor(rg.umin / Pc); k * Pc < rg.umax; k++) if (((k % 2) + 2) % 2 === 1) cells.push([k * Pc, (k + 1) * Pc]);
+    fams.push({ L, P, rg, bands: cells });
+    const lw = P.D * P.S;
+    if (lw > 0) {
+      const per = E.mode === 1 ? P.S : Pc, bands = [];
+      for (let k = Math.floor((rg.umin - lw) / per); k * per - lw / 2 < rg.umax; k++) bands.push([k * per - lw / 2, k * per + lw / 2]);
+      if (E.mode === 1 && E.fill === 1) fams.push({ L, P, rg, bands });
+      else lineFams.push({ L, P, rg, bands });
+    }
+  });
+  // vertex budget
+  let seg = segLen, count = 0;
+  if (warped) {
+    [...fams, ...lineFams].forEach(f => count += f.bands.length * 2 * Math.ceil((f.rg.wmax - f.rg.wmin) / seg));
+    if (count > 2.5e6) seg *= count / 2.5e6;
+  }
+  const polys = fam => {
+    const out = [], { L, P, rg } = fam;
+    const n = warped ? Math.max(2, Math.ceil((rg.wmax - rg.wmin) / seg)) : 1;
+    for (const [u0, u1] of fam.bands) {
+      const pts = [];
+      for (let i = 0; i <= n; i++) { const w = rg.wmin + (rg.wmax - rg.wmin) * i / n; pts.push(L === 'V' ? toScreen(P, u0, w) : toScreen(P, w, u0)); }
+      for (let i = n; i >= 0; i--) { const w = rg.wmin + (rg.wmax - rg.wmin) * i / n; pts.push(L === 'V' ? toScreen(P, u1, w) : toScreen(P, w, u1)); }
+      if (warped) { // skip polygons wholly outside the view
+        let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (const p of pts) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+        if (x1 < -hw - 2 || x0 > hw + 2 || y1 < -hh - 2 || y0 > hh + 2) continue;
+      }
+      out.push('M' + r2(pts[0][0]) + ',' + r2(pts[0][1]) + 'L' + pts.slice(1).map(p => r2(p[0]) + ',' + r2(p[1])).join(' ') + 'Z');
+    }
+    return out.join('');
+  };
+  const ink = E.inv ? '#fff' : '#000', paper = E.inv ? '#000' : '#fff';
+  const cellsD = fams.map(polys).join('');
+  let body = `<path fill="${ink}" fill-rule="evenodd" d="${cellsD}"/>`, defs = '';
+  if (E.mode === 1 && E.fill === 0) {
+    // striped: vertical-layer lines inside white cells, horizontal-layer lines (paper colour) inside black cells
+    const rect = `M${r2(-hw - 4)},${r2(-hh - 4)}L${r2(hw + 4)},${r2(-hh - 4)} ${r2(hw + 4)},${r2(hh + 4)} ${r2(-hw - 4)},${r2(hh + 4)}Z`;
+    defs = `<clipPath id="blackCells"><path clip-rule="evenodd" d="${cellsD}"/></clipPath><clipPath id="whiteCells"><path clip-rule="evenodd" d="${rect}${cellsD}"/></clipPath>`;
+    const fv = lineFams.find(f => f.L === 'V'), fh = lineFams.find(f => f.L === 'H');
+    if (fv) body += `<path fill="${ink}" clip-path="url(#whiteCells)" d="${polys(fv)}"/>`;
+    if (fh) body += `<path fill="${paper}" clip-path="url(#blackCells)" d="${polys(fh)}"/>`;
+  } else if (lineFams.length) body += `<path fill="${ink}" fill-rule="nonzero" d="${lineFams.map(polys).join('')}"/>`;
+  const vb = `${r2(-hw)} ${r2(-hh)} ${r2(W)} ${r2(H)}`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${r2(W)}" height="${r2(H)}" viewBox="${vb}" shape-rendering="geometricPrecision">
+<title>CHECKERBOARD</title>
+<desc>${esc(JSON.stringify(state))}</desc>
+<defs>${defs}<clipPath id="view"><rect x="${r2(-hw)}" y="${r2(-hh)}" width="${r2(W)}" height="${r2(H)}"/></clipPath></defs>
+<rect x="${r2(-hw)}" y="${r2(-hh)}" width="${r2(W)}" height="${r2(H)}" fill="${paper}"/>
+<g clip-path="url(#view)">${body}</g>
+</svg>`;
+}
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function exportSVG() {
+  const btn = document.getElementById('bSvg'); const done = busy(btn, '…');
+  setTimeout(() => {
+    try {
+      const svg = buildSVG(cssW, cssH, effective());
+      download(new Blob([svg], { type: 'image/svg+xml' }), `checkerboard-${stamp()}.svg`);
+      toast('SVG ' + Math.round(cssW) + ' × ' + Math.round(cssH) + ' · ' + (svg.length / 1048576).toFixed(1) + ' MB');
+    } catch (e) { console.error(e); toast('SVG EXPORT FAILED'); }
+    done();
+  }, 30);
+}
+document.getElementById('bSvg').addEventListener('click', exportSVG);
+
+/* test hooks */
+window.CHECKERBOARD = { get state() { return state; }, applyState, randomize, buildSVG, effective, setPlaying,
+  setArtOnly, get animT() { return animT; }, set animT(v) { animT = v; dirty = true; }, PRESETS, render: () => { render(); } };
+
+syncAll();
+setPlaying(false);
+})();
+</script>
+</body>
+</html>

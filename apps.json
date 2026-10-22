@@ -1,5 +1,23 @@
 [
   {
+    "id": "op-art-studio-3",
+    "name": "Op Art Studio 3",
+    "description": "A two-layer checkerboard studio: classic and interference modes, presets from fine grid to moiré, warped grid and radial ripple, every size and offset on a slider, animation, and PNG or SVG export.",
+    "category": "Art",
+    "path": "OpArtStudio3.html",
+    "added": "2026-10-20T00:00:00+00:00",
+    "thumbnail": "thumbnails/op-art-studio-3.jpg"
+  },
+  {
+    "id": "op-art-maker-2",
+    "name": "Op Art Maker 2.0",
+    "description": "Generate endless op art: impossible forms, warped checkerboards, optical vortices, liquid geometry, moiré, recursive waves and kaleidoscopes, with shape, motion and colour controls. Prev, Next and New to browse compositions.",
+    "category": "Art",
+    "path": "OpArtMaker2.html",
+    "added": "2026-10-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/op-art-maker-2.jpg"
+  },
+  {
     "id": "bitcrusher-worklet-demo",
     "name": "Bit Crusher",
     "description": "A real-time bitcrusher built as an AudioWorklet.",
@@ -1444,7 +1462,7 @@
   {
     "id": "time-microscope",
     "name": "Time Microscope",
-    "description": "Record two seconds from your mic, then watch it stretch into an evolving granular drone.",
+    "description": "Record up to ten seconds from your mic, then hear it slow down a little more every second, halve the speed with a button whenever you like, and add echo and delay to taste.",
     "category": "Music Tools",
     "path": "TimeMicroscope.html",
     "added": "2026-09-19T00:00:00+00:00",
@@ -1453,7 +1471,7 @@
   {
     "id": "instruments",
     "name": "Sound",
-    "description": "Browser instruments: 34 of them, each playable on its own - keys, drums, bass, synths, generative and experimental - plus the Studio, which runs four together with a shared clock, mixer and effects.",
+    "description": "Oscillators and oscilloscopes: the Dual Oscillator you play with two fingers and watch on a scope, plus pure oscillators, Hz experiments, and mic waveform viewers.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
@@ -1586,15 +1604,6 @@
     "thumbnail": "thumbnails/gazillionaire.jpg"
   },
   {
-    "id": "castle-maze",
-    "name": "Castle Maze",
-    "description": "Explore a castle full of twisting mazes, collect the stars in every dead end, and find the three unicorn sisters hiding behind secret walls. Pick your hero, then tap to move.",
-    "category": "Games",
-    "path": "CastleMaze.html",
-    "added": "2026-10-11T01:37:32+00:00",
-    "thumbnail": "thumbnails/castle-maze.jpg"
-  },
-  {
     "id": "braille-blitz",
     "name": "Braille Blitz",
     "description": "Learn to read Braille letters and numbers in quick rounds: one big six-dot cell, three enormous answers, instant feedback, and statistics that remember what you find hard. Black and white, built for low vision.",
@@ -1628,5 +1637,23 @@
     "path": "DualOscillator.html",
     "added": "2026-10-16T05:23:06+00:00",
     "thumbnail": "thumbnails/dual-oscillator.jpg"
+  },
+  {
+    "id": "ranker",
+    "name": "Ranker",
+    "description": "The TASTE MACHINE: a catalog of albums, films, books, games and the people and scenes around them, the connections between them, collections, and a discovery engine that explains every suggestion. Phase 1 of a cultural discovery and community-curation platform.",
+    "category": "Art",
+    "path": "https://ranker.deeley.org",
+    "added": "2026-10-17T01:45:09+00:00",
+    "thumbnail": "thumbnails/ranker.jpg"
+  },
+  {
+    "id": "inkprint",
+    "name": "Inkprint",
+    "description": "Draw your handwriting one character at a time and download it as a real, installable font (.ttf or .otf). Everything happens on your device.",
+    "category": "Art",
+    "path": "https://inkprint.deeley.org",
+    "added": "2026-10-17T03:00:00+00:00",
+    "thumbnail": "thumbnails/inkprint.jpg"
   }
 ]

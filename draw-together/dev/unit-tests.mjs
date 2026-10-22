@@ -30,7 +30,7 @@ const find = (s) => WORDS.find((w) => w.w === s);
 // Maisie's category: opt-in only.
 {
   const maisie = WORDS.filter((w) => w.c.includes('maisie'));
-  ok(maisie.length >= 700, `Maisie's list is big (${maisie.length})`);
+  ok(maisie.length >= 600, `Maisie's list is big (${maisie.length})`);
   let leaked = 0;
   for (let i = 0; i < 2000; i++) { const w = WORDS[pickWord({ categories: ['everything'], difficulty: 'mixed' }, []).index]; if (w.c.length === 1 && w.c[0] === 'maisie') leaked++; }
   ok(leaked === 0, 'a Maisie-only word never comes up under Everything');
@@ -78,7 +78,8 @@ for (let i = 0; i < 30; i++) {
 }
 
 // ── Clue length cap (the word-choice card's layout is fixed-width) ──
-ok(WORDS.some((w) => w.w.length > MAX_CLUE_LEN), `word bank actually contains an entry over ${MAX_CLUE_LEN} chars (else this cap is untested)`);
+ok(WORDS.every((w) => w.w.length <= MAX_CLUE_LEN), `every entry in the word bank is within the ${MAX_CLUE_LEN}-char cap (longest: ${Math.max(...WORDS.map((w) => w.w.length))})`);
+ok(WORDS.length >= 1000, `the bank is still a good size after trimming (${WORDS.length})`);
 for (let i = 0; i < 200; i++) {
   const c = pickWord({ categories: ['everything'], difficulty: 'chaos' }, []);
   ok(WORDS[c.index].w.length <= MAX_CLUE_LEN, `chaos pick "${WORDS[c.index].w}" respects the ${MAX_CLUE_LEN}-char clue cap`);

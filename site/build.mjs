@@ -16,7 +16,7 @@ const SKIP = new Set([
   'src', 'tests', 'samples', 'templates', 'runs',
   'package.json', 'package-lock.json', 'tsconfig.json', 'vitest.config.ts',
   '.env', '.env.example', '.env.local', '.gitignore', 'README.md', 'CNAME',
-  'site', 'arkanoid-duel', 'soliteam', 'draw-together', 'gallery',
+  'site', 'arkanoid-duel', 'soliteam', 'draw-together', 'gallery', 'inkprint',
 ]);
 
 rmSync(out, { recursive: true, force: true });

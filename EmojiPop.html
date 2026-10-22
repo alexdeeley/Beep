@@ -36,6 +36,9 @@ body{
 @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
 .btns{display:flex;gap:8px}
 .btns button{appearance:none;border:0;width:48px;height:48px;border-radius:50%;background:#fff;font-size:24px;font-family:var(--emoji);box-shadow:0 4px 0 rgba(0,0,0,.18);cursor:pointer;padding:0}
+/* the way back to the main menu: a round white button like the others, far left */
+.hud a.home{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#fff;color:var(--ink);text-decoration:none;font-weight:900;font-size:34px;line-height:1;padding-bottom:4px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.hud a.home:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
 .btns button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
 button:focus-visible{outline:4px solid #fff;outline-offset:3px}
 
@@ -105,6 +108,7 @@ main{flex:1;display:grid;place-items:center;width:100%}
 <body>
 <div id="app">
   <header class="hud">
+    <a class="home" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">‹</a>
     <div class="level">Level <span id="lvl">1</span><small>/6</small></div>
     <div class="score" id="score"><span id="scoreN">0</span><small id="scoreMax">/256</small></div>
     <div class="btns">

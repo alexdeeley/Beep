@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "inkprint",
+  "compatibility_date": "2025-06-01",
+
+  // Inkprint is entirely client-side: the font is drawn, built and validated
+  // in the browser, and projects live in the browser's IndexedDB. So this is
+  // a static-assets-only Worker serving the Vite build in ./dist. No server
+  // code, no bindings, no secrets.
+  "build": { "command": "npm run build" },
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" },
+  "observability": { "enabled": true },
+  "routes": [{ "pattern": "inkprint.deeley.org", "custom_domain": true }]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "ranker",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "TASTE MACHINE (ranker.deeley.org): a cultural discovery, taste, ranking and community-curation platform. Phase 1: the working foundation.",
+  "scripts": {
+    "build": "node build.mjs --prod",
+    "dev": "node build.mjs && node --no-warnings dev/local-server.mjs",
+    "start": "node --no-warnings dev/local-server.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.server.json && tsc -p tsconfig.node.json",
+    "test": "node --no-warnings --test --test-timeout=60000 tests/*.test.ts",
+    "test:browser": "node build.mjs && node --no-warnings dev/browser-test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0"
+  }
+}
