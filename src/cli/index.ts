@@ -22,7 +22,7 @@ import type { VerificationOutput } from "../verification/verifyAgent.js";
 import type { SelectedContent } from "../utils/types.js";
 import type { RenderResult } from "../render/renderInfographic.js";
 import { runNewswireCycle } from "../newswire/runNewswireCycle.js";
-import { runThrowbackCycle } from "../newswire/runThrowbackCycle.js";
+import { runClassicPosterCycle } from "../newswire/runClassicPosterCycle.js";
 import { getNewswireStatus } from "../newswire/status.js";
 import { downloadStoryDb } from "../newswire/db/sync.js";
 import { openStoryDb, closeStoryDb } from "../newswire/db/connection.js";
@@ -246,27 +246,27 @@ program
   });
 
 program
-  .command("news:throwback-preview")
+  .command("news:classic-preview")
   .description(
-    "Run the Throwback Thursday finder for real (real web search, real model calls) but NEVER publish and NEVER " +
+    "Run the daily Classic Poster finder for real (real web search, real model calls) but NEVER publish and NEVER " +
       "persist story database changes back to R2 - safe to run repeatedly while iterating"
   )
   .action(async () => {
-    const summary = await runThrowbackCycle(config, { dryRun: true });
-    console.log(`\n=== Throwback preview (run ${summary.hourlyRunId}) ===`);
+    const summary = await runClassicPosterCycle(config, { dryRun: true });
+    console.log(`\n=== Classic poster preview (run ${summary.hourlyRunId}) ===`);
     console.log(`Publish status: ${summary.publishStatus}`);
     console.log(`Posts that would publish: ${summary.publishedPostCount}`);
   });
 
 program
-  .command("news:throwback-publish")
+  .command("news:classic-publish")
   .description(
-    "Find a single real, historically notable festival poster from any past year and repost it to Bluesky " +
-      "(Throwback Thursday)"
+    "Find a single real, famous piece of music graphic design (poster, album cover, or single sleeve) from any " +
+      "past year - chosen for color/typography/simplicity - and repost it to Bluesky (daily Classic Poster)"
   )
   .action(async () => {
-    const summary = await runThrowbackCycle(config, { dryRun: false });
-    console.log(`\n=== Throwback run ${summary.hourlyRunId} ===`);
+    const summary = await runClassicPosterCycle(config, { dryRun: false });
+    console.log(`\n=== Classic poster run ${summary.hourlyRunId} ===`);
     console.log(`Publish status: ${summary.publishStatus}`);
     console.log(`Posts published: ${summary.publishedPostCount}`);
   });

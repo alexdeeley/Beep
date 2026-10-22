@@ -7,11 +7,11 @@ import { openStoryDb, closeStoryDb } from "../../src/newswire/db/connection.js";
 import { runMigrations } from "../../src/newswire/db/migrate.js";
 import {
   buildFestivalKey,
-  buildThrowbackKey,
+  buildClassicPosterKey,
   hasPostedFestivalPoster,
   recordFestivalPosterPost,
   getFestivalPosterCount,
-  getRecentThrowbackPosts,
+  getRecentClassicPosters,
   deleteFestivalPosterPost,
 } from "../../src/newswire/db/festivalPostersRepo.js";
 import { startHourlyRun, finishHourlyRun, getHourlyRun, getLastHourlyRun, insertRunCandidate } from "../../src/newswire/db/researchRunsRepo.js";
@@ -115,27 +115,27 @@ describe("newswire SQLite DB layer", () => {
       expect(() => recordFestivalPosterPost(db, { festivalKey: key, festivalName: "Coachella", postedInRunId: run.id })).toThrow();
     });
 
-    it("tracks throwback posts in a separate namespace from live announcement posts, never colliding on the same festival/year", () => {
+    it("tracks classic-poster posts in a separate namespace from live announcement posts, never colliding on the same festival/year", () => {
       const run = startHourlyRun(db, false);
       const liveKey = buildFestivalKey("Coachella", 1999);
-      const throwbackKey = buildThrowbackKey("Coachella", 1999);
-      expect(liveKey).not.toBe(throwbackKey);
+      const classicKey = buildClassicPosterKey("Coachella", 1999);
+      expect(liveKey).not.toBe(classicKey);
 
       recordFestivalPosterPost(db, { festivalKey: liveKey, festivalName: "Coachella", postedInRunId: run.id });
-      expect(hasPostedFestivalPoster(db, throwbackKey)).toBe(false);
+      expect(hasPostedFestivalPoster(db, classicKey)).toBe(false);
 
-      recordFestivalPosterPost(db, { festivalKey: throwbackKey, festivalName: "Coachella", postedInRunId: run.id });
-      expect(hasPostedFestivalPoster(db, throwbackKey)).toBe(true);
+      recordFestivalPosterPost(db, { festivalKey: classicKey, festivalName: "Coachella", postedInRunId: run.id });
+      expect(hasPostedFestivalPoster(db, classicKey)).toBe(true);
       expect(getFestivalPosterCount(db)).toBe(2);
     });
 
-    it("getRecentThrowbackPosts only returns throwback-namespaced rows, most recent first", () => {
+    it("getRecentClassicPosters only returns classic-poster-namespaced rows, most recent first", () => {
       const run = startHourlyRun(db, false);
       recordFestivalPosterPost(db, { festivalKey: buildFestivalKey("Coachella", 2027), festivalName: "Coachella", postedInRunId: run.id });
-      recordFestivalPosterPost(db, { festivalKey: buildThrowbackKey("Woodstock", 1969), festivalName: "Woodstock", postedInRunId: run.id });
-      recordFestivalPosterPost(db, { festivalKey: buildThrowbackKey("Coachella", 1999), festivalName: "Coachella", postedInRunId: run.id });
+      recordFestivalPosterPost(db, { festivalKey: buildClassicPosterKey("Woodstock", 1969), festivalName: "Woodstock", postedInRunId: run.id });
+      recordFestivalPosterPost(db, { festivalKey: buildClassicPosterKey("Coachella", 1999), festivalName: "Coachella", postedInRunId: run.id });
 
-      const recent = getRecentThrowbackPosts(db, 10);
+      const recent = getRecentClassicPosters(db, 10);
       expect(recent.map((r) => r.festival_name)).toEqual(["Coachella", "Woodstock"]);
     });
 

@@ -52,18 +52,18 @@ export function getRecentFestivalPosterPosts(db: Database.Database, limit: numbe
   return db.prepare("SELECT * FROM festival_poster_posts ORDER BY id DESC LIMIT ?").all(limit) as FestivalPosterPostRow[];
 }
 
-const THROWBACK_KEY_PREFIX = "throwback:";
+const CLASSIC_POSTER_KEY_PREFIX = "classic:";
 
 /**
- * Namespaces a festival/year dedup key under a "throwback:" prefix so Throwback Thursday posts
- * (postThrowbackPoster.ts, any past year) and the live just-announced pipeline (postFestivalPosters.ts,
+ * Namespaces a festival/year dedup key under a "classic:" prefix so Classic Poster posts
+ * (postClassicPoster.ts, any past year) and the live just-announced pipeline (postFestivalPosters.ts,
  * always the current/upcoming edition) never collide in festival_poster_posts even if they happen to
- * pick the exact same festival name and year - e.g. a live "Coachella 2027" announcement post and a
- * hypothetical throwback "Coachella 2027" post (once it's old enough to be a throwback) are tracked
+ * pick the exact same name and year - e.g. a live "Coachella 2027" announcement post and a hypothetical
+ * classic-poster "Coachella 2027" post (once it's old enough to be a design classic) are tracked
  * independently. Shares the same table/row shape; only the key is distinguished.
  */
-export function buildThrowbackKey(festivalName: string, eventYear: number | null): string {
-  return buildFestivalKey(`${THROWBACK_KEY_PREFIX}${festivalName}`, eventYear);
+export function buildClassicPosterKey(festivalName: string, eventYear: number | null): string {
+  return buildFestivalKey(`${CLASSIC_POSTER_KEY_PREFIX}${festivalName}`, eventYear);
 }
 
 /**
@@ -77,9 +77,9 @@ export function deleteFestivalPosterPost(db: Database.Database, festivalKey: str
   return result.changes > 0;
 }
 
-/** Recent Throwback Thursday posts only (by key prefix) - passed to discoverThrowbackPoster.ts so it can avoid picking something just featured. */
-export function getRecentThrowbackPosts(db: Database.Database, limit: number): FestivalPosterPostRow[] {
+/** Recent Classic Poster posts only (by key prefix) - passed to discoverClassicPoster.ts so it can avoid picking something just featured. */
+export function getRecentClassicPosters(db: Database.Database, limit: number): FestivalPosterPostRow[] {
   return db
-    .prepare("SELECT * FROM festival_poster_posts WHERE festival_key LIKE 'throwback%' ORDER BY id DESC LIMIT ?")
+    .prepare("SELECT * FROM festival_poster_posts WHERE festival_key LIKE 'classic%' ORDER BY id DESC LIMIT ?")
     .all(limit) as FestivalPosterPostRow[];
 }

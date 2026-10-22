@@ -68,8 +68,8 @@ function buildLineupLine(lineupArtists: string[]): string {
  *
  * headerLabel defaults to "FESTIVAL LINEUP", kept for explicit festival-curation callers (postSampleFestival.ts,
  * postSampleFestivalBatch.ts); postFestivalPosters.ts's own automated loop passes "NEW POSTER" instead since
- * its scope now covers any notable gig/tour, not just festivals, and postThrowbackPoster.ts passes
- * "THROWBACK THURSDAY" so a historical repost is never mistaken for a new announcement.
+ * its scope now covers any notable gig/tour, not just festivals, and postClassicPoster.ts passes
+ * "CLASSIC POSTER" so a historical repost is never mistaken for a new announcement.
  */
 export function buildAltText(item: VerifiedFestivalPoster, headerLabel: string = "FESTIVAL LINEUP"): string {
   const name = cleanFestivalName(item.festivalName, item.eventYear);

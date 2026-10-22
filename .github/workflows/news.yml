@@ -7,10 +7,12 @@ name: Newswire
 # hours" gate (unlike the pipeline this replaced) - a cycle just checks and posts whatever it finds, so a
 # plain fixed-UTC cron is fine; no DST-hedge cron pairing is needed.
 #
-# A separate weekly "Throwback Thursday" cycle (the third cron entry below, detected at runtime via
-# github.event.schedule) runs the opposite search: one real, historically notable festival poster from
-# ANY past year, with the same verification rigor but no freshness requirement at all - see
-# festivalPosters/postThrowbackPoster.ts.
+# A separate daily "Classic Poster" cycle (the third cron entry below, detected at runtime via
+# github.event.schedule) runs the opposite search: one real, famous piece of music graphic design (poster,
+# album cover, or single sleeve) from ANY past year, chosen for color/typography/simplicity as design
+# rather than for news value, with the same verification rigor for its attribution but no freshness
+# requirement and no requirement that the artwork itself show a date/venue/location - see
+# festivalPosters/postClassicPoster.ts.
 #
 # The concurrency group below is load-bearing, not just an overlap-prevention nicety: it's what keeps
 # concurrent runs of this workflow from racing each other's read-modify-write of the shared R2-hosted
@@ -28,16 +30,16 @@ on:
   schedule:
     - cron: "0 14 * * *" # ~once in the morning, UTC
     - cron: "0 2 * * *" # ~once in the evening, UTC
-    - cron: "0 16 * * 4" # Throwback Thursday: once a week, UTC Thursday afternoon - see github.event.schedule check below
+    - cron: "0 20 * * *" # Classic Poster: once a day, UTC afternoon - see github.event.schedule check below
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Preview only: run for real but never publish or persist story database changes (same as news:preview / news:throwback-preview)"
+        description: "Preview only: run for real but never publish or persist story database changes (same as news:preview / news:classic-preview)"
         required: false
         type: boolean
         default: false
-      throwback:
-        description: "Run a Throwback Thursday cycle (one historical festival poster from any past year) instead of a normal just-announced cycle"
+      classic:
+        description: "Run a Classic Poster cycle (one famous piece of music graphic design from any past year) instead of a normal just-announced cycle"
         required: false
         type: boolean
         default: false
@@ -139,11 +141,11 @@ jobs:
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               ARGS="$ARGS --dry-run"
             fi
-          elif [ "${{ github.event.schedule }}" = "0 16 * * 4" ] || [ "${{ inputs.throwback }}" = "true" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 20 * * *" ] || [ "${{ inputs.classic }}" = "true" ]; then
             if [ "${{ inputs.dry_run }}" = "true" ]; then
-              CMD="news:throwback-preview"
+              CMD="news:classic-preview"
             else
-              CMD="news:throwback-publish"
+              CMD="news:classic-publish"
             fi
           elif [ "${{ inputs.dry_run }}" = "true" ]; then
             CMD="news:preview"

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildAltText } from "../../src/newswire/festivalPosters/postFestivalPosters.js";
-import { buildFestivalKey, buildThrowbackKey } from "../../src/newswire/db/festivalPostersRepo.js";
+import { buildFestivalKey, buildClassicPosterKey } from "../../src/newswire/db/festivalPostersRepo.js";
 import type { VerifiedFestivalPoster } from "../../src/newswire/types.js";
 
 function makeItem(overrides: Partial<VerifiedFestivalPoster> = {}): VerifiedFestivalPoster {
@@ -61,9 +61,9 @@ describe("buildAltText", () => {
     expect(text.endsWith("#Coachella2027 #LiveMusic #GigPoster")).toBe(true);
   });
 
-  it("uses a custom header label when given one (postThrowbackPoster.ts passes THROWBACK THURSDAY so a historical repost is never mistaken for a new announcement)", () => {
-    const text = buildAltText(makeItem(), "THROWBACK THURSDAY");
-    expect(text.startsWith("THROWBACK THURSDAY: Coachella 2027\n\n")).toBe(true);
+  it("uses a custom header label when given one (postClassicPoster.ts passes CLASSIC POSTER so a historical repost is never mistaken for a new announcement)", () => {
+    const text = buildAltText(makeItem(), "CLASSIC POSTER");
+    expect(text.startsWith("CLASSIC POSTER: Coachella 2027\n\n")).toBe(true);
   });
 });
 
@@ -81,16 +81,16 @@ describe("buildFestivalKey", () => {
   });
 });
 
-describe("buildThrowbackKey", () => {
+describe("buildClassicPosterKey", () => {
   it("never collides with the live pipeline's key for the same festival/year", () => {
-    expect(buildThrowbackKey("Coachella", 2027)).not.toBe(buildFestivalKey("Coachella", 2027));
+    expect(buildClassicPosterKey("Coachella", 2027)).not.toBe(buildFestivalKey("Coachella", 2027));
   });
 
-  it("is itself namespaced consistently so the same festival/year always maps to the same throwback key", () => {
-    expect(buildThrowbackKey("Coachella", 1999)).toBe(buildThrowbackKey("COACHELLA!!", 1999));
+  it("is itself namespaced consistently so the same festival/year always maps to the same classic-poster key", () => {
+    expect(buildClassicPosterKey("Coachella", 1999)).toBe(buildClassicPosterKey("COACHELLA!!", 1999));
   });
 
-  it("starts with the literal prefix 'throwback' so a LIKE 'throwback%' query can find all throwback rows", () => {
-    expect(buildThrowbackKey("Coachella", 1999).startsWith("throwback")).toBe(true);
+  it("starts with the literal prefix 'classic' so a LIKE 'classic%' query can find all classic-poster rows", () => {
+    expect(buildClassicPosterKey("Coachella", 1999).startsWith("classic")).toBe(true);
   });
 });

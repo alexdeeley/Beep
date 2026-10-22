@@ -56,13 +56,14 @@ export interface VerifiedFestivalPoster {
 }
 
 /**
- * One raw candidate surfaced by discoverThrowbackPoster - a single real, historically notable music
- * festival poster from ANY past year (deliberately the opposite of FestivalPosterCandidate's "just
- * announced" framing - there is no freshness requirement here, and in fact the whole point is that it's
- * old). eventYear is required (not nullable) since a throwback post is meaningless without knowing which
- * edition it's from.
+ * One raw candidate surfaced by discoverClassicPoster - a single real, famous piece of music graphic
+ * design (poster, album cover, or single sleeve) from ANY past year, chosen for its merit as design
+ * (color/typography/simplicity) rather than news value (deliberately the opposite of
+ * FestivalPosterCandidate's "just announced" framing - there is no freshness requirement here, and in
+ * fact the whole point is that it's old). eventYear is required (not nullable) since a classic-poster post
+ * is meaningless without knowing which year the work is from.
  */
-export interface ThrowbackPosterCandidate {
+export interface ClassicPosterCandidate {
   festivalName: string;
   eventYear: number;
   whyNotable: string;
@@ -70,13 +71,14 @@ export interface ThrowbackPosterCandidate {
 }
 
 /**
- * Output of verifyThrowbackPoster: a throwback candidate independently re-confirmed (the festival edition
- * genuinely happened that year, and the notable fact is real) via the same 2-source rule, but with no
- * freshness/staleness check at all - unlike VerifiedFestivalPoster, old is the point. `primarySourceUrl`
- * is the single best page to mechanically extract the actual poster image from (an archive, retrospective
- * article, or the festival's own throwback content).
+ * Output of verifyClassicPoster: a classic-poster candidate independently re-confirmed (the work's
+ * attribution is genuine and the notable design fact is real) via the same 2-source rule, but with no
+ * freshness/staleness check and no requirement that the artwork itself display a date/venue/location -
+ * unlike VerifiedFestivalPoster, old and text-minimal are both fine here; this is shown as design history,
+ * not an event listing. `primarySourceUrl` is the single best page to mechanically extract the actual
+ * artwork image from (an archive, retrospective article, or the artist's/label's own site).
  */
-export interface VerifiedThrowbackPoster {
+export interface VerifiedClassicPoster {
   festivalName: string;
   eventYear: number;
   blurb: string | null;

@@ -1,8 +1,8 @@
 import { insertRunCandidate } from "../db/researchRunsRepo.js";
 import { requestJsonWithWebSearch } from "../../utils/openaiClient.js";
 import type { NewsRunContext } from "../runContext.js";
-import type { ThrowbackPosterCandidate, VerifiedThrowbackPoster } from "../types.js";
-import { throwbackPosterVerificationJsonSchema, buildThrowbackPosterVerificationSystemPrompt } from "./throwbackPosterVerificationPrompts.js";
+import type { ClassicPosterCandidate, VerifiedClassicPoster } from "../types.js";
+import { classicPosterVerificationJsonSchema, buildClassicPosterVerificationSystemPrompt } from "./classicPosterVerificationPrompts.js";
 
 interface RawVerificationResult {
   blurb: string | null;
@@ -11,35 +11,35 @@ interface RawVerificationResult {
   facts: { claim: string; factLabel: string; sources: { url: string; title: string; domain: string; sourceTier: string }[] }[];
 }
 
-function buildThrowbackPosterVerificationUserPrompt(candidate: ThrowbackPosterCandidate, nowIso: string): string {
+function buildClassicPosterVerificationUserPrompt(candidate: ClassicPosterCandidate, nowIso: string): string {
   return [
     `Current time: ${nowIso}`,
     "",
-    `Claimed historical festival poster (from discovery, UNVERIFIED): ${candidate.festivalName} ${candidate.eventYear} - ${candidate.whyNotable}`,
+    `Claimed classic piece of music graphic design (from discovery, UNVERIFIED): ${candidate.festivalName} ${candidate.eventYear} - ${candidate.whyNotable}`,
     "",
     "Independently research this via web search and report your own findings as structured facts.",
   ].join("\n");
 }
 
 /**
- * Independently re-verifies discoverThrowbackPoster's single candidate - same 2-corroborating-source
- * rule as the rest of the pipeline, but with NO freshness check at all (see
- * throwbackPosterVerificationPrompts.ts). Only ever called from postThrowbackPoster.ts with exactly one
- * candidate (there's never more than one Throwback Thursday candidate per cycle).
+ * Independently re-verifies discoverClassicPoster's single candidate - same 2-corroborating-source rule
+ * as the rest of the pipeline, but with NO freshness check and NO date/location-on-the-artwork requirement
+ * at all (see classicPosterVerificationPrompts.ts). Only ever called from postClassicPoster.ts with
+ * exactly one candidate (there's never more than one Classic Poster candidate per cycle).
  */
-export async function verifyThrowbackPoster(ctx: NewsRunContext, candidate: ThrowbackPosterCandidate): Promise<VerifiedThrowbackPoster | null> {
+export async function verifyClassicPoster(ctx: NewsRunContext, candidate: ClassicPosterCandidate): Promise<VerifiedClassicPoster | null> {
   const summary = `${candidate.festivalName} ${candidate.eventYear}`;
   const tierList = ctx.editorialFocus.sourceTiers;
 
-  let verified: VerifiedThrowbackPoster;
+  let verified: VerifiedClassicPoster;
   let rejectReason = "verification failed";
   try {
     const response = await requestJsonWithWebSearch<RawVerificationResult>(ctx.openai, {
       model: ctx.config.news.verificationModel,
-      system: buildThrowbackPosterVerificationSystemPrompt(tierList, ctx.editorialFocus.entertainmentTradePublishers),
-      user: buildThrowbackPosterVerificationUserPrompt(candidate, ctx.now.toISOString()),
-      jsonSchemaName: "throwback_poster_verification_result",
-      jsonSchema: throwbackPosterVerificationJsonSchema(tierList),
+      system: buildClassicPosterVerificationSystemPrompt(tierList, ctx.editorialFocus.entertainmentTradePublishers),
+      user: buildClassicPosterVerificationUserPrompt(candidate, ctx.now.toISOString()),
+      jsonSchemaName: "classic_poster_verification_result",
+      jsonSchema: classicPosterVerificationJsonSchema(tierList),
       maxOutputTokens: 4096,
     });
 
@@ -63,18 +63,18 @@ export async function verifyThrowbackPoster(ctx: NewsRunContext, candidate: Thro
 
     if (!verified.meetsSourceBar) {
       rejectReason = !hasSourceUrl
-        ? "verification could not find a page to extract the poster image from"
+        ? "verification could not find a page to extract the artwork image from"
         : !hasBlurb
           ? "verification could not produce a confident blurb"
           : "fewer than 2 independent corroborating source domains";
     }
   } catch (err) {
-    ctx.logger.warn("throwback-poster-verification", `Verification failed for "${summary}", dropping it`, {
+    ctx.logger.warn("classic-poster-verification", `Verification failed for "${summary}", dropping it`, {
       error: err instanceof Error ? err.message : String(err),
     });
     insertRunCandidate(ctx.db, {
       runId: ctx.hourlyRunId,
-      stage: "throwback-poster-verification",
+      stage: "classic-poster-verification",
       candidateSummary: summary,
       decision: "rejected",
       reason: `verification request failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -85,13 +85,13 @@ export async function verifyThrowbackPoster(ctx: NewsRunContext, candidate: Thro
 
   insertRunCandidate(ctx.db, {
     runId: ctx.hourlyRunId,
-    stage: "throwback-poster-verification",
+    stage: "classic-poster-verification",
     candidateSummary: summary,
     decision: verified.meetsSourceBar ? "accepted" : "rejected",
     reason: verified.meetsSourceBar ? null : rejectReason,
     storyId: null,
   });
 
-  ctx.logger.info("throwback-poster-verification", verified.meetsSourceBar ? `Verified "${summary}"` : `Rejected "${summary}": ${rejectReason}`);
+  ctx.logger.info("classic-poster-verification", verified.meetsSourceBar ? `Verified "${summary}"` : `Rejected "${summary}": ${rejectReason}`);
   return verified.meetsSourceBar ? verified : null;
 }

@@ -675,8 +675,8 @@ nothing in the current code reads or writes them.
   never persists database changes back to R2. Safe to run repeatedly.
 - **`news:publish`** — the real thing: full download → run → upload
   cycle, posting any notable gig/tour/festival poster found.
-- **`news:throwback-preview`** / **`news:throwback-publish`** — same
-  preview/publish split, for the Throwback Thursday cycle (§18.6)
+- **`news:classic-preview`** / **`news:classic-publish`** — same
+  preview/publish split, for the daily Classic Poster cycle (§18.6)
   instead of the just-announced cycle.
 - **`news:status`** — read-only summary (last run, total posters ever
   posted, the 5 most recent, recent failures).
@@ -697,53 +697,66 @@ the pipeline this replaced, which needed a DST-hedged 4-cron-per-day
 pattern to reliably hit exact local hours) — a cycle just checks
 what's out there and posts whatever clears the bar, so a plain
 fixed-UTC cron is enough. The schedule runs twice a day (`news:publish`)
-plus once a week on Thursday afternoon UTC for Throwback Thursday
+plus once a day, UTC afternoon, for the Classic Poster cycle
 (detected at runtime via `github.event.schedule`, since GitHub Actions
 doesn't otherwise tell a workflow which of several cron entries fired
 it). `workflow_dispatch` also supports a manual dry run, a manual
-throwback run, posting a single committed sample file, posting a whole
-committed sample directory as a batch, and the destructive delete-all
-path — see the workflow's own `inputs` for each.
+classic-poster run, posting a single committed sample file, posting a
+whole committed sample directory as a batch, and the destructive
+delete-all path — see the workflow's own `inputs` for each.
 
-### 18.6 Throwback Thursday
+### 18.6 Classic Poster (daily)
 
-A second, weekly cycle (`runThrowbackCycle.ts`) runs the deliberate
-opposite of the main pipeline's "just announced" framing: once a week
-(Thursday afternoon UTC) it searches for a single real, historically
-notable or visually striking music festival poster from **any past
-year, worldwide** — the older and more interesting as graphic design,
-the better — and reposts the festival's own original artwork.
+A second, daily cycle (`runClassicPosterCycle.ts`) runs the deliberate
+opposite of the main pipeline's "just announced" framing: once a day it
+searches for a single real, famous piece of music graphic design from
+**any past year, worldwide** — a concert/tour poster, an album cover,
+or a single sleeve all qualify equally — and reposts the artist's/
+label's own original artwork. The pick is deliberately a DESIGN
+judgment first: color, typography, and simplicity are the primary
+selection criteria, ahead of how historically important the underlying
+event or release was. This is also the one place in the pipeline that
+is **not** held to the account owner's "every post must show artist
+name, date, and location on the artwork itself" bar applied to live
+gig-poster announcements — a classic is shown as design history, not
+an event listing, so an iconic but text-minimal piece (Milton Glaser's
+1967 Bob Dylan silhouette, Peter Saville's Joy Division cover) is a
+legitimate pick, not a defect.
 
-- **Discovery** (`discovery/discoverThrowbackPoster.ts`) asks the
-  model for exactly one candidate (not a daily sweep), explicitly
-  telling it to favor older eras and genuinely striking poster art
-  over a plain text flyer, and passing along a short list of
-  recently-featured festival/year pairs so it doesn't immediately
-  repeat itself.
-- **Verification** (`verification/verifyThrowbackPoster.ts`) applies
-  the same 2-independent-source-domain rule as the main pipeline, but
-  with **no freshness/staleness check at all** — old is the entire
-  point, so there's nothing to reject an item for being old. It
-  confirms both that the festival edition genuinely happened in the
-  claimed year and that the specific notable fact about it is real,
-  then picks the single best page (an archive, retrospective article,
-  or the festival's own throwback content) for extraction to fetch the
-  poster from.
+- **Discovery** (`discovery/discoverClassicPoster.ts`) asks the model
+  for exactly one candidate (not a daily sweep of many), explicitly
+  weighting color/typography/simplicity above historical importance,
+  giving calibration examples across posters, album covers, and single
+  sleeves (Glaser's Dylan poster, Saville's Joy Division cover, Jamie
+  Reid's Sex Pistols artwork, Reid Miles' Blue Note covers, the San
+  Francisco psychedelic poster artists, Hipgnosis/Storm Thorgerson,
+  and more), and passing along a short list of recently-featured
+  name/year pairs so it doesn't immediately repeat itself.
+- **Verification** (`verification/verifyClassicPoster.ts`) applies the
+  same 2-independent-source-domain rule as the main pipeline, but
+  checks ATTRIBUTION (is this genuinely the claimed artist/designer's
+  real work, from the claimed year, for the claimed release) rather
+  than a live announcement's facts. **No freshness/staleness check at
+  all** — old is the entire point — and no requirement that the
+  artwork itself display a date, venue, or location. It then picks the
+  single best page (an archive, retrospective article, or the artist's/
+  label's own site) for extraction to fetch the artwork from.
 - **Image extraction and publishing reuse the exact same machinery as
   the main pipeline** — `extractPosterImage.ts` mechanically scans the
   chosen page for a real poster/flyer/artwork signal (never an
   LLM-reported URL), and the post is image-only with the full caption
-  in alt text (`buildAltText`, headed `THROWBACK THURSDAY:` instead of
+  in alt text (`buildAltText`, headed `CLASSIC POSTER:` instead of
   `FESTIVAL LINEUP:` so a historical repost is never mistaken for a
   new announcement).
 - **Dedup is namespaced separately from the main pipeline**
-  (`db/festivalPostersRepo.ts`'s `buildThrowbackKey`, a `throwback:`
-  prefix over the same normalized-name-plus-year key) so a throwback
-  post and a live announcement for the same festival/year can never
-  collide or be mistaken for each other.
-- A week with no sufficiently-verifiable candidate is a no-op, exactly
-  like a day with no new announcement — skipping is always preferred
-  over guessing wrong.
+  (`db/festivalPostersRepo.ts`'s `buildClassicPosterKey`, a `classic:`
+  prefix over the same normalized-name-plus-year key) so a
+  classic-poster post and a live announcement for the same name/year
+  can never collide or be mistaken for each other.
+- A day with no sufficiently-verifiable candidate is a no-op, exactly
+  like a day with no new announcement on the main pipeline — skipping
+  is always preferred over guessing wrong or settling for a visually
+  unremarkable pick.
 
 ### 18.7 Manual and batch sample posting
 
@@ -791,7 +804,7 @@ already posted) never stops the rest of the batch.
 
 ### 18.9 Threads cross-posting (optional)
 
-Every live poster post (just-announced, Throwback Thursday, and both
+Every live poster post (just-announced, the daily Classic Poster, and both
 manual sample commands) is also, independently, cross-posted to
 Threads if it's configured — same image, same image-only convention
 (no visible caption, full caption in Threads' own `alt_text` field).
