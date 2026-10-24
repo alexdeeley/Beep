@@ -711,13 +711,16 @@ A second, daily cycle (`runClassicPosterCycle.ts`) runs the deliberate
 opposite of the main pipeline's "just announced" framing: once a day it
 searches for a single real, famous piece of music graphic design from
 **any past year, worldwide** — a concert/tour poster, an album cover,
-or a single sleeve all qualify equally — and reposts the artist's/
-label's own original artwork. The pick is deliberately a DESIGN
-judgment first: color, typography, and simplicity are the primary
-selection criteria, ahead of how historically important the underlying
-event or release was. This is also the one place in the pipeline that
-is **not** held to the account owner's "every post must show artist
-name, date, and location on the artwork itself" bar applied to live
+or a single sleeve all qualify, but an actual poster is the preferred,
+default pick; an album/single cover is only chosen when it's an
+exceptional, truly iconic design in its own right, not a routine
+substitute — and reposts the artist's/label's own original artwork.
+The pick is deliberately a DESIGN judgment first: color, typography,
+and simplicity are the primary selection criteria, ahead of how
+historically important the underlying event or release was. This is
+also the one place in the pipeline that is **not** held to the account
+owner's "every post must show artist name, date, and location on the
+artwork itself" bar applied to live
 gig-poster announcements — a classic is shown as design history, not
 an event listing, so an iconic but text-minimal piece (Milton Glaser's
 1967 Bob Dylan silhouette, Peter Saville's Joy Division cover) is a
@@ -726,12 +729,18 @@ legitimate pick, not a defect.
 - **Discovery** (`discovery/discoverClassicPoster.ts`) asks the model
   for exactly one candidate (not a daily sweep of many), explicitly
   weighting color/typography/simplicity above historical importance,
-  giving calibration examples across posters, album covers, and single
-  sleeves (Glaser's Dylan poster, Saville's Joy Division cover, Jamie
-  Reid's Sex Pistols artwork, Reid Miles' Blue Note covers, the San
-  Francisco psychedelic poster artists, Hipgnosis/Storm Thorgerson,
-  and more), and passing along a short list of recently-featured
-  name/year pairs so it doesn't immediately repeat itself.
+  and explicitly preferring an actual poster over an album/single
+  cover — a cover is only picked when it's an exceptional design in
+  its own right, not a routine substitute, so posters clearly
+  outnumber covers over any run of picks. Calibration examples lead
+  with posters (the SF psychedelic Fillmore/Avalon artists, Glaser's
+  Dylan poster, the original Woodstock and Monterey Pop posters, Hatch
+  Show Print, Swiss International Typographic Style gig posters) and
+  name album/single covers only as the occasional exception (Saville's
+  Joy Division cover, Jamie Reid's Sex Pistols artwork, Reid Miles'
+  Blue Note covers, Hipgnosis/Storm Thorgerson). It also passes along a
+  short list of recently-featured name/year pairs so it doesn't
+  immediately repeat itself.
 - **Verification** (`verification/verifyClassicPoster.ts`) applies the
   same 2-independent-source-domain rule as the main pipeline, but
   checks ATTRIBUTION (is this genuinely the claimed artist/designer's
