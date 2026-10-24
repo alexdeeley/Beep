@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
+  <title>PIXEL RIOT</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="stage" aria-label="Interactive generative art canvas. Touch, drag, hold and use several fingers to play."></canvas>
+  <div id="ui"></div>
+  <div id="fatal" hidden>
+    <strong>PIXEL RIOT COULD NOT START</strong>
+    <p>This usually means the page was opened directly from the file system. Serve the folder over HTTP (see README.md: <code>npm start</code>) and reload.</p>
+    <pre></pre>
+  </div>
+  <noscript><p style="color:#fff;font:700 18px Helvetica,Arial,sans-serif;padding:24px">PIXEL RIOT needs JavaScript.</p></noscript>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,5 +1,14 @@
 [
   {
+    "id": "pixel-riot",
+    "name": "Pixel Riot",
+    "description": "A multitouch generative art and sound instrument: every tap, drag, hold, twist and multi-finger gesture fires visual effects and procedural sounds across a grid of cells, with palettes, patterns, effect sets, chain reactions, a musical mode and save.",
+    "category": "Art",
+    "path": "pixel-riot/index.html",
+    "added": "2026-10-24T00:00:00+00:00",
+    "thumbnail": "thumbnails/pixel-riot.jpg"
+  },
+  {
     "id": "inkgrid",
     "name": "Inkgrid",
     "description": "A procedural ASCII art instrument: turn an image into text characters, or generate patterns from scratch, with randomize, surprise, zoom and download.",
