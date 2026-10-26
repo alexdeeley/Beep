@@ -107,6 +107,7 @@ h1, h2, h3, p { margin: 0; }
 .btn.pink { background: var(--p2); }
 .btn.green { background: var(--go); }
 .btn.red { background: var(--stop); }
+.btn.yellow { background: var(--sun); }
 .btn.icon { width: 56px; padding: 0; display: grid; place-items: center; }
 .btn.icon svg { width: 34px; height: 34px; }
 .btn.icon.mini { width: 48px; min-height: 48px; border-radius: 14px; box-shadow: 0 4px 0 var(--ink); }
@@ -352,6 +353,28 @@ html.a11y-invert #sizes .blob {
   pointer-events: none;
   user-select: none;
 }
+
+/* Trace-an-emoji studio: the same guide layer, but big - sized by app.js
+   from the sheet itself (fitTrace) so the emoji fills most of the canvas on
+   any shape or screen - and shared by everyone in the room. */
+.game.tracing .sheet .layer.trace { opacity: .42; }
+.emoji-btn { font-size: 1.7rem; line-height: 1; }
+.emoji-card { gap: 10px; }
+.emoji-now { font-size: 1.3rem; }
+.emoji-now span { font-size: 2.6rem; vertical-align: middle; line-height: 1; }
+.emoji-type { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; width: 100%; align-items: stretch; }
+.emoji-input {
+  width: 100%; min-height: 60px; font-size: 2.2rem; text-align: center;
+  border: var(--line) solid var(--ink); border-radius: var(--radius); background: var(--paper); padding: 4px 12px;
+}
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px;
+  width: 100%; max-height: min(38vh, 340px); overflow-y: auto; padding: 4px 2px;
+}
+.emoji-grid .btn { min-height: 58px; padding: 0; font-size: 2rem; line-height: 1; border-radius: 16px; box-shadow: 0 4px 0 var(--ink); }
+.emoji-grid .btn[aria-pressed="true"] { background: var(--sun); }
+#ov-emoji .btn.big { width: 100%; }
+@media (max-width: 520px) { .emoji-type { grid-template-columns: 1fr; } }
 
 /* ── Drawer tray ───────────────────────────────── */
 

@@ -57,6 +57,7 @@
       <button id="btn-create" class="btn big blue">Create game</button>
       <button id="btn-join" class="btn big pink">Join game</button>
       <button id="btn-studio" class="btn big green">🎨 Free-draw studio</button>
+      <button id="btn-trace" class="btn big yellow">🦄 Trace an emoji together</button>
     </div>
     <button id="btn-rejoin" class="btn small ghost" hidden></button>
     <p id="home-err" class="err" role="alert"></p>
@@ -135,6 +136,7 @@
       <div class="hud-main" id="hud-main" aria-live="polite"></div>
       <div class="hud-timer" id="hud-timer" role="timer" aria-live="off"></div>
       <div class="hud-btns">
+        <button class="btn icon mini emoji-btn" id="btn-emoji" type="button" aria-label="Change the emoji to trace" hidden></button>
         <button class="btn icon mini" id="btn-hud-gallery" type="button" aria-label="Open the gallery" hidden>🖼️</button>
         <button class="btn icon mini a11y-btn" id="btn-a11y-hud" type="button" aria-pressed="false" aria-label="Invert colors for readability"><svg><use href="#i-invert"/></svg></button>
         <button class="btn icon mini" id="btn-grid" type="button" aria-pressed="false" aria-label="Show a grid over the drawing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
@@ -204,6 +206,22 @@
     </div>
     <div class="scores small" id="reveal-scores"></div>
     <button id="btn-next" class="btn big green">Next round</button>
+  </div>
+</div>
+
+<!-- Trace studio: pick the emoji everyone traces -->
+<div class="overlay" id="ov-emoji" hidden>
+  <div class="card emoji-card" role="dialog" aria-labelledby="emoji-title">
+    <h2 id="emoji-title">Pick an emoji to trace</h2>
+    <p class="emoji-now">Now tracing <span id="emoji-now" aria-live="polite"></span></p>
+    <div class="emoji-type">
+      <label for="in-emoji" class="sr-only">Type any emoji</label>
+      <input id="in-emoji" class="emoji-input" type="text" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" placeholder="Type any emoji">
+      <button class="btn small blue" id="btn-emoji-random" type="button">🎲 Surprise me</button>
+    </div>
+    <p id="emoji-err" class="err" role="alert"></p>
+    <div class="emoji-grid" id="emoji-grid" role="group" aria-label="Choose an emoji"></div>
+    <button class="btn big" id="btn-emoji-close" type="button">Done</button>
   </div>
 </div>
 

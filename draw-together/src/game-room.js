@@ -10,7 +10,7 @@
 import { WORDS, pickWord, checkGuess, wordShape } from './words.js';
 import {
   COORD_MAX, TOOLS, PALETTE, TIMER_OPTIONS, ROUND_OPTIONS, DIFFICULTIES, CATEGORIES,
-  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX, REACTIONS, STUDIO_SHAPES,
+  MAX_PLAYERS, MAX_POINTS_PER_MSG, MAX_NAME, WORD_CHOICES, ASPECT_MIN, ASPECT_MAX, REACTIONS, STUDIO_SHAPES, TRACE_EMOJIS, isEmoji,
 } from '../public/js/shared.js';
 
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;   // idle rooms are wiped after 12 hours
@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS = {
   emojiGuide: false,
   // 'studio' = free-draw mode: one shared canvas everyone draws on at once,
   // no words, guessing, turns, timer or scores. `shape` is its canvas shape.
+  // 'trace' = the same shared canvas with one big emoji under it for anyone
+  // to trace; any player can swap the emoji (the `emoji` message).
   mode: 'game',
   shape: 'square',
 };
@@ -347,6 +349,8 @@ export class GameRoom {
         seat: q.seat, name: q.name, score: q.score, connected: connected.has(q.id),
       })),
       settings: r.settings,
+      // Trace studio only: the emoji everyone is tracing (nothing secret).
+      emoji: r.phase === 'studio' && r.settings.mode === 'trace' ? r.emoji : null,
       // The secret word only ever goes to the drawer. Guessers get just
       // its shape (letter count and word breaks) once drawing starts.
       word: showWord ? { w: WORDS[r.wordIndex].w, e: WORDS[r.wordIndex].e } : null,
@@ -556,8 +560,8 @@ export class GameRoom {
       drawerName: artists.join(', ') || me.name,
       artists: artists.length ? artists : [me.name],
       artistSeats: seats,
-      word: 'Studio canvas',
-      emoji: '🎨',
+      word: r.settings.mode === 'trace' ? 'Traced together' : 'Studio canvas',
+      emoji: r.settings.mode === 'trace' && r.emoji ? r.emoji : '🎨',
       aspect: r.aspect,
       opKeys: r.opKeys.slice(),
     });
@@ -625,6 +629,7 @@ export class GameRoom {
     r.drawings = 0;
     r.timer = { running: false, endsAt: null, remaining: 0 };
     r.guessesLocked = false;
+    r.emoji = null;
     for (const p of r.players) p.score = 0;
   }
 }
@@ -642,7 +647,7 @@ const HANDLERS = {
     if (DIFFICULTIES.includes(s.difficulty)) next.difficulty = s.difficulty;
     if (typeof s.lockGuesses === 'boolean') next.lockGuesses = s.lockGuesses;
     if (typeof s.emojiGuide === 'boolean') next.emojiGuide = s.emojiGuide;
-    if (s.mode === 'game' || s.mode === 'studio') next.mode = s.mode;
+    if (s.mode === 'game' || s.mode === 'studio' || s.mode === 'trace') next.mode = s.mode;
     if (STUDIO_SHAPES[s.shape]) next.shape = s.shape;
     if (Array.isArray(s.categories)) {
       let cats = [...new Set(s.categories.filter((c) => CAT_IDS.has(c)))];
@@ -656,7 +661,7 @@ const HANDLERS = {
 
   async start(me) {
     const r = this.room;
-    const studio = r.settings.mode === 'studio';
+    const studio = r.settings.mode === 'studio' || r.settings.mode === 'trace';
     if (r.phase !== 'lobby' || r.players[0]?.id !== me.id || r.players.length < (studio ? 1 : 2)) return;
     if (studio) {
       this.resetActiveOps();
@@ -664,6 +669,7 @@ const HANDLERS = {
       r.savedN = 0;
       r.round = 0;
       r.aspect = STUDIO_SHAPES[r.settings.shape] || 1;
+      r.emoji = r.settings.mode === 'trace' ? randomEmoji() : null;
       r.phase = 'studio';
       r.timer = { running: false, endsAt: null, remaining: 0 };
       this.save();
@@ -921,6 +927,21 @@ const HANDLERS = {
     await this.startRound();
   },
 
+  // Trace studio: anyone can change the emoji everyone is tracing - one
+  // they picked (`e`, any single emoji) or a random one (`random: true`).
+  async emoji(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'studio' || r.settings.mode !== 'trace') return;
+    let e = null;
+    if (msg.random === true) e = randomEmoji(r.emoji);
+    else if (isEmoji(msg.e)) e = msg.e;
+    if (!e || e === r.emoji) return;
+    r.emoji = e;
+    this.save();
+    this.relay({ type: 'event', kind: 'emoji', name: me.name, seat: me.seat, e });
+    this.broadcastState();
+  },
+
   // Studio: anyone can save the canvas as it stands to the gallery.
   async save(me) {
     if (this.room.phase !== 'studio') return;
@@ -993,7 +1014,13 @@ function newRoom(code) {
     opKeys: [],
     gallery: [],
     savedN: 0,   // studio: the last op number already saved to the gallery
+    emoji: null, // trace studio: the emoji everyone is tracing
   };
+}
+
+function randomEmoji(not) {
+  const pool = TRACE_EMOJIS.filter((e) => e !== not);
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function safeSend(ws, data) {

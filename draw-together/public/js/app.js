@@ -5,7 +5,7 @@ import * as music from './music.js';
 import { initInvertToggle } from './a11y.js';
 import {
   TOOLS, SIZE_NAMES, PALETTE, CATEGORIES, TIMER_OPTIONS, ROUND_OPTIONS, MAX_POINTS_PER_MSG,
-  PLAYER_COLORS, WORD_CHOICES, REACTIONS,
+  PLAYER_COLORS, WORD_CHOICES, REACTIONS, TRACE_EMOJIS, isEmoji,
 } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
@@ -67,7 +67,7 @@ const SCREENS = ['home', 'join', 'lobby', 'game', 'over'];
 function show(name) {
   for (const s of SCREENS) $('scr-' + s).hidden = s !== name;
   S.screen = name;
-  if (name !== 'game') { $('ov-choose').hidden = true; $('ov-reveal').hidden = true; }
+  if (name !== 'game') { $('ov-choose').hidden = true; $('ov-reveal').hidden = true; $('ov-emoji').hidden = true; }
 }
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => show(b.dataset.go)));
 
@@ -121,7 +121,7 @@ $('btn-rejoin').addEventListener('click', () => {
   if (last) enter(last.code, last.pid);
 });
 
-async function createRoom(btn, studio) {
+async function createRoom(btn, mode) {
   $('home-err').textContent = '';
   if (needName($('home-err'), nameIn)) return;
   const b = btn;
@@ -130,14 +130,15 @@ async function createRoom(btn, studio) {
     const res = await fetch('/api/rooms', { method: 'POST' });
     const data = await res.json();
     if (!res.ok || !data.code) throw new Error();
-    S.wantStudio = studio;   // switch the new room's lobby to the studio once we're in it
+    S.wantMode = mode;   // switch the new room's lobby to the studio / trace mode once we're in it
     enter(data.code, newPid());
   } catch {
     $('home-err').textContent = "We couldn't start a game. Check your internet and try again.";
   } finally { b.disabled = false; }
 }
-$('btn-create').addEventListener('click', () => createRoom($('btn-create'), false));
-$('btn-studio').addEventListener('click', () => createRoom($('btn-studio'), true));
+$('btn-create').addEventListener('click', () => createRoom($('btn-create'), null));
+$('btn-studio').addEventListener('click', () => createRoom($('btn-studio'), 'studio'));
+$('btn-trace').addEventListener('click', () => createRoom($('btn-trace'), 'trace'));
 
 $('btn-join').addEventListener('click', () => {
   $('home-err').textContent = '';
@@ -274,6 +275,7 @@ function onMessage(m) {
       if (m.kind === 'back') { snd.play('join'); }
       if (m.kind === 'left') { flashBanner(`${m.name} left the game.`); }
       if (m.kind === 'saved') { snd.play('pop'); flashBanner(`${m.name} saved the drawing to the gallery 🖼️`); }
+      if (m.kind === 'emoji') { snd.play('pop'); if (m.seat !== S.st?.you) flashBanner(`${m.name} picked ${m.e} to trace`); }
       if (m.kind === 'autoUnlock') { S.autoUnlockedAt = performance.now(); snd.play('ding'); flashBanner('🔔 Ding! Time is up - everyone can guess now'); }
       break;
   }
@@ -312,9 +314,10 @@ function applyState(st) {
     if (!(S.autoUnlockedAt && performance.now() - S.autoUnlockedAt < 2000)) snd.play('start');   // the bell already said it
   }
 
-  if (S.wantStudio && st.phase === 'lobby' && st.you === st.host) {
-    S.wantStudio = false;
-    if (st.settings.mode !== 'studio') sendSettings({ mode: 'studio' });
+  if (S.wantMode && st.phase === 'lobby' && st.you === st.host) {
+    const mode = S.wantMode;
+    S.wantMode = null;
+    if (st.settings.mode !== mode) sendSettings({ mode });
   }
 
   if (st.phase === 'lobby') { show('lobby'); renderLobby(); }
@@ -359,12 +362,13 @@ function renderLobby() {
   const st = S.st;
   const isHost = st.you === st.host;
   $('lobby-code').textContent = st.code;
-  const studio = st.settings.mode === 'studio';
+  const trace = st.settings.mode === 'trace';
+  const studio = st.settings.mode === 'studio' || trace;
   const two = st.players.length >= 2;
   const host = player(st.host);
   $('lobby-status').textContent = studio
-    ? (isHost ? 'Open the studio whenever you like - friends can hop in any time with the code!'
-      : `Waiting for ${host?.name || 'the host'} to open the studio…`)
+    ? (isHost ? `Open the ${trace ? 'tracing table' : 'studio'} whenever you like - friends can hop in any time with the code!`
+      : `Waiting for ${host?.name || 'the host'} to open the ${trace ? 'tracing table' : 'studio'}…`)
     : !two
       ? 'Waiting for your drawing buddy…'
       : isHost ? 'Ready when you are!' : `Waiting for ${host?.name || 'the host'} to start…`;
@@ -379,7 +383,7 @@ function renderLobby() {
 
   renderSettings(isHost);
   $('btn-start').hidden = !(isHost && (two || studio));
-  $('btn-start').textContent = studio ? 'Open the studio 🎨' : 'Start game';
+  $('btn-start').textContent = trace ? 'Start tracing 🦄' : studio ? 'Open the studio 🎨' : 'Start game';
 }
 
 function chip(label, pressed, onClick, disabled) {
@@ -400,9 +404,9 @@ function sendSettings(patch) {
 function renderSettings(isHost) {
   const s = S.st.settings;
   $('settings').classList.toggle('readonly', !isHost);
-  $('settings').classList.toggle('studio', s.mode === 'studio');
+  $('settings').classList.toggle('studio', s.mode === 'studio' || s.mode === 'trace');
   const md = $('set-mode'); md.replaceChildren();
-  for (const [id, label] of [['game', 'Guessing game'], ['studio', 'Free-draw studio 🎨']]) {
+  for (const [id, label] of [['game', 'Guessing game'], ['studio', 'Free-draw studio 🎨'], ['trace', 'Trace an emoji 🦄']]) {
     md.append(chip(label, s.mode === id, () => sendSettings({ mode: id }), !isHost));
   }
   const sh = $('set-shape'); sh.replaceChildren();
@@ -457,7 +461,7 @@ function leaveGame() {
 
 const gameEl = $('scr-game');
 S.board = new Board($('board-host'), {
-  onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; sketchCanvas.width = S.board.base.width; sketchCanvas.height = S.board.base.height; drawSketch(); },
+  onLayout: () => { ghostCanvas.width = S.board.base.width; ghostCanvas.height = S.board.base.height; sketchCanvas.width = S.board.base.width; sketchCanvas.height = S.board.base.height; drawSketch(); fitTrace(); },
 });
 
 // ── Emoji tracing guide (opt-in lobby setting) ────────────────
@@ -474,6 +478,69 @@ traceEl.className = 'layer trace';
 traceEl.setAttribute('aria-hidden', 'true');
 traceEl.hidden = true;
 S.board.sheet.prepend(traceEl);
+
+// ── Trace-an-emoji studio: one big shared emoji under everyone's ink ──
+//
+// Same layer as the game's guide, but it's the room's `st.emoji` (nothing
+// secret - everyone traces the same one), sized from the sheet so it fills
+// most of the canvas, and anyone can change it from the HUD button: pick
+// from a grid, press "Surprise me", or type any emoji from the keyboard.
+const isTracing = () => S.st?.phase === 'studio' && S.st.settings?.mode === 'trace';
+function fitTrace() {
+  if (!isTracing()) { traceEl.style.fontSize = ''; return; }
+  const r = S.board.sheet.getBoundingClientRect();
+  const px = Math.min(r.width, r.height) * 0.72;   // emoji glyphs run a little wider than 1em
+  if (px > 0) traceEl.style.fontSize = px + 'px';
+}
+function renderTraceGuide() {
+  const e = isTracing() ? S.st.emoji : null;
+  traceEl.hidden = !e;
+  traceEl.textContent = e || '';
+  gameEl.classList.toggle('tracing', !!e);
+  const b = $('btn-emoji');
+  b.hidden = !e;
+  b.textContent = e || '';
+  b.setAttribute('aria-label', e ? `Change the emoji to trace (now ${e})` : 'Change the emoji to trace');
+  $('emoji-now').textContent = e || '';
+  $('emoji-grid').querySelectorAll('.btn').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.e === e)));
+  fitTrace();
+}
+function sendEmoji(e) {
+  if (!isEmoji(e)) { $('emoji-err').textContent = 'That needs to be one emoji 🙂'; return false; }
+  $('emoji-err').textContent = '';
+  S.net?.send({ type: 'emoji', e });
+  return true;
+}
+(function buildEmojiPicker() {
+  const grid = $('emoji-grid');
+  for (const e of TRACE_EMOJIS) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.type = 'button'; b.textContent = e; b.dataset.e = e;
+    b.setAttribute('aria-label', `Trace ${e}`);
+    b.addEventListener('click', () => { snd.play('pop'); if (sendEmoji(e)) closeEmojiPicker(); });
+    grid.append(b);
+  }
+  $('btn-emoji').addEventListener('click', () => { snd.play('pop'); openEmojiPicker(); });
+  $('btn-emoji-close').addEventListener('click', closeEmojiPicker);
+  $('btn-emoji-random').addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'emoji', random: true }); });
+  const input = $('in-emoji');
+  const tryTyped = () => {
+    const v = input.value.trim();
+    if (!v) return;
+    if (isEmoji(v)) { snd.play('pop'); sendEmoji(v); input.value = ''; closeEmojiPicker(); }
+    else if (v.length >= 2 || !/\p{Extended_Pictographic}/u.test(v)) $('emoji-err').textContent = 'That needs to be one emoji 🙂';
+  };
+  input.addEventListener('input', tryTyped);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryTyped(); } });
+})();
+function openEmojiPicker() {
+  if (!isTracing()) return;
+  $('emoji-err').textContent = '';
+  $('in-emoji').value = '';
+  $('ov-emoji').hidden = false;
+  $('emoji-grid').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+function closeEmojiPicker() { $('ov-emoji').hidden = true; }
 
 // ── Ghost doodles: guessers gesturing on the drawing ─────────
 //
@@ -623,17 +690,18 @@ function renderStudio() {
   $('ov-choose').hidden = true;
   $('ov-reveal').hidden = true;
   $('reactions').hidden = true;
-  traceEl.hidden = true;
   $('btn-save').hidden = false;
   $('btn-hud-gallery').hidden = false;
-  $('hud-round').innerHTML = 'Studio<b>🎨</b>';
-  $('hud-round').setAttribute('aria-label', 'Free-draw studio');
+  const trace = st.settings.mode === 'trace';
+  $('hud-round').innerHTML = trace ? 'Trace<b>🦄</b>' : 'Studio<b>🎨</b>';
+  $('hud-round').setAttribute('aria-label', trace ? 'Trace an emoji together' : 'Free-draw studio');
   const main = $('hud-main');
   const here = st.players.filter((p) => p.connected).map((p) => p.name);
   main.innerHTML = `<span class="who">${esc(here.join(' · '))}</span>`;
   fitHud(main.querySelector('.who'));
   const t = $('hud-timer'); t.textContent = ''; t.className = 'hud-timer';
   S.board.setAspect(st.aspect);
+  renderTraceGuide();
   updateUndo();
 }
 
@@ -648,7 +716,10 @@ function renderGame(prev, phaseChanged) {
   const st = S.st;
   if (st.phase === 'studio') { renderStudio(); return; }
   syncTrayMode('game');
-  gameEl.classList.remove('studio');
+  gameEl.classList.remove('studio', 'tracing');
+  $('btn-emoji').hidden = true;
+  closeEmojiPicker();
+  traceEl.style.fontSize = '';
   $('btn-save').hidden = true;
   $('btn-hud-gallery').hidden = true;
   const drawer = amDrawer();
@@ -1229,6 +1300,7 @@ $('btn-yes').addEventListener('click', () => { $('ov-confirm').hidden = true; co
 $('btn-no').addEventListener('click', () => { $('ov-confirm').hidden = true; S.confirmYes = null; });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('ov-confirm').hidden) $('btn-no').click();
+  else if (e.key === 'Escape' && !$('ov-emoji').hidden) closeEmojiPicker();
 });
 
 // ── Confetti ────────────────────────────────────────────────

@@ -42,7 +42,7 @@ To try it on a real phone, run either one and open `http://<your-computer's-LAN-
 ## Tests
 
 ```sh
-npm test                                   # word bank, guess matching, full server protocol (≈1,600 checks)
+npm test                                   # word bank, guess matching, full server protocol (≈7,200 checks)
 node dev/browser-test.mjs                  # two real browsers play a full game (needs Playwright + Chromium)
 ```
 
@@ -94,7 +94,7 @@ Client → server (JSON):
 | type | fields | who |
 |---|---|---|
 | `hello` | `playerId` (secret token), `name` | anyone joining or reconnecting |
-| `settings` | `settings: {timer, rounds, difficulty, categories, lockGuesses, emojiGuide}` | host, in lobby |
+| `settings` | `settings: {mode, shape, timer, rounds, difficulty, categories, lockGuesses, emojiGuide}` | host, in lobby |
 | `start` | | host, in lobby, 2+ players |
 | `swap` | | drawer, while choosing (cycles through 5 options, wraps back to the first) |
 | `ready` | `aspect` | drawer, while choosing |
@@ -107,11 +107,14 @@ Client → server (JSON):
 | `giveup` | | guesser, while drawing ("Show answer") |
 | `react` | `i` (index into the fixed `REACTIONS` list, rate limited 1 per 500 ms) | anyone, while drawing |
 | `doodleStart` / `doodlePoints` / `doodleEnd` | `id, pts` (`doodleEnd` just `id`) | anyone but the drawer, while drawing |
+| `emoji` | `e` (any single emoji) or `random: true` | anyone, in a trace-an-emoji studio |
 | `next` / `again` / `lobby` / `leave` | | reveal / game over / anytime |
 
 The spec's separate "erase" events are simply strokes with `tool: 'eraser'`, which keeps undo and live sync uniform.
 
 **Free-draw studio.** A second room mode (host picks "Free-draw studio" in the lobby, or taps the green button on the home screen): one shared canvas that everyone draws on at once - no words, guessing, turns, timer or scores, and a studio can be opened with just the host (`settings.mode = 'studio'`, `phase = 'studio'`; friends can join any time). It reuses the game's `strokeStart` / `strokePoints` / `strokeEnd` messages, but the server holds each artist's stroke in `this.actives` (one per seat) and only commits it whole, at `strokeEnd`, sending it to *everyone* (including the artist) as `studioOp`. The server's order is the truth: a client draws its own stroke at once and marks it pending (`Board.markPending`), and strokes from others slot in *before* any still-pending ones (`Board.remoteOp`) - which is where the server put them - so every screen ends up with the same picture, fills included. Undo (`undo`) removes the sender's own latest op wherever it sits in the shared list, `clear` (any artist, confirmed first) is an ordinary op carrying its `seat`, and `save` snapshots the canvas into the gallery as a "Studio" entry crediting the artists on it (saving twice with nothing new does nothing; an already-saved entry's strokes are never deleted by a later undo). Studio-only tools (`studio: true` in `TOOLS`): Neon, Spray, Stars, Hearts, plus six fill **patterns** (a fill's `size` is its pattern number: 1 solid, 2 stripes, 3 dots, 4 checks, 5 waves, 6 stars; tiles are drawn on the same fixed grid as the fill raster, so they match everywhere). The guessing game's tray is unchanged. Known limitation: other artists' strokes appear when they lift their pen, not while they draw.
+
+**Trace an emoji together.** A third room mode (`settings.mode = 'trace'`; the yellow button on the home screen, or the "Trace an emoji 🦄" chip in the lobby). It is the free-draw studio exactly - same shared canvas, tools, undo, clear, save, late joiners - with one big emoji sitting under everyone's ink, sized from the canvas itself so it fills most of it on any screen, for anyone who wants to trace it (or ignore it). The server picks the first one at random from `TRACE_EMOJIS` (`public/js/shared.js`) when the host opens the room, sends it to everyone in `state.emoji`, and *anyone* in the room can change it: the HUD button showing the current emoji opens a picker with a starter grid, a "Surprise me" button and a box to type any emoji from the keyboard. The change is one message (`emoji`), validated by `isEmoji()` (exactly one grapheme that is a pictograph - flags, skin tones and joined families count as one; words, two emoji or anything else is dropped), stored on the room and broadcast, with a banner saying who picked it. A saved canvas goes to the gallery as "Traced together" with the emoji on its card. Nothing about it is secret, so unlike the guessing game's tracing guide every player sees the same emoji.
 
 **Pixel and Fill tools.** *Pixel* is an ordinary stamped brush: each point snaps to a grid cell (16 / 28 / 48 board units) and the cell is filled solid, so it looks identical on every screen. *Fill* is stored as a one-point stroke (`tool: 'fill'`, the server keeps only the first point), so undo, live relay, the gallery and remix all work with no protocol changes. Each device resolves the fill itself: it rasterises every op before the fill onto a fixed-size canvas (`FILL_K` px per board unit, about 360k px whatever the aspect), flood-fills from the tapped point with a per-channel tolerance (`FILL_TOL`), grows the region 1px so the paint tucks under anti-aliased edges, and paints that mask onto the real canvas. Because the work happens on the same fixed grid everywhere, every device fills the same region. Masks are cached per fill and recomputed when an earlier stroke is undone. The eraser can erase fills. Known limitation: an outline with a gap lets paint leak out, as in any flood fill.
 

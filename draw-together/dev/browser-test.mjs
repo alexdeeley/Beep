@@ -641,6 +641,71 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   ok((await inkCount(T1.page)) === 0, 'clearing the canvas clears it for everyone');
 }
 
+// Trace an emoji together: a shared studio with one big emoji under the ink
+{
+  const T1 = await player('Tess', { viewport: { width: 1180, height: 820 }, deviceScaleFactor: 2 });
+  const T2 = await player('Theo', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+  await T1.page.fill('#in-name', 'Tess');
+  await T1.page.click('#btn-trace');
+  await T1.page.waitForSelector('#scr-lobby:not([hidden])');
+  const code = (await T1.page.textContent('#lobby-code')).trim();
+  await T1.page.waitForFunction(() => window.__dt.S.st?.settings.mode === 'trace');
+  ok(await T1.page.isVisible('#set-shape') && (await T1.page.textContent('#btn-start')).includes('tracing'), 'the home button opens a lobby set to tracing');
+  await T2.page.fill('#in-name', 'Theo');
+  await T2.page.click('#btn-join');
+  await T2.page.fill('#in-code', code);
+  await T2.page.click('#btn-join-go');
+  await T2.page.waitForSelector('#scr-lobby:not([hidden])');
+  await T1.page.click('#btn-start');
+  await T1.page.waitForFunction(() => window.__dt.S.st?.phase === 'studio' && !!window.__dt.S.st.emoji);
+  await T2.page.waitForFunction(() => window.__dt.S.st?.phase === 'studio' && !!window.__dt.S.st.emoji);
+  await sleep(300);
+  const guide = (P) => P.page.evaluate(() => { const t = document.querySelector('.layer.trace'); return { hidden: t.hidden, text: t.textContent, px: parseFloat(t.style.fontSize) || 0, sheet: (() => { const r = document.querySelector('.board-host .sheet').getBoundingClientRect(); return Math.min(r.width, r.height); })() }; });
+  const g1 = await guide(T1), g2 = await guide(T2);
+  ok(!g1.hidden && !g2.hidden && g1.text && g1.text === g2.text, `both screens show the same emoji to trace (${g1.text})`);
+  ok(g1.px > g1.sheet * 0.6 && g2.px > g2.sheet * 0.6, 'the emoji is big - most of the canvas on tablet and phone');
+  ok(await T2.page.isVisible('#btn-emoji') && (await T2.page.textContent('#btn-emoji')) === g2.text, 'the HUD button shows the current emoji');
+  await T1.page.screenshot({ path: `${OUT}/22-trace-tablet.png` });
+  await T2.page.screenshot({ path: `${OUT}/22-trace-phone.png` });
+
+  // the friend on the phone changes it from the grid
+  await T2.page.click('#btn-emoji');
+  await T2.page.waitForSelector('#ov-emoji:not([hidden])');
+  await T2.page.screenshot({ path: `${OUT}/23-trace-picker.png` });
+  const target = await T2.page.evaluate((cur) => [...document.querySelectorAll('#emoji-grid .btn')].map((b) => b.dataset.e).find((e) => e !== cur), g2.text);
+  await T2.page.click(`#emoji-grid .btn[data-e="${target}"]`);
+  await T1.page.waitForFunction((t) => window.__dt.S.st.emoji === t, target);
+  await T2.page.waitForSelector('#ov-emoji', { state: 'hidden' });
+  ok((await guide(T1)).text === target && (await guide(T2)).text === target, 'picking from the grid changes it on every screen');
+  await T1.page.waitForFunction(() => document.getElementById('banner').textContent.includes('picked'));
+  ok(true, 'the other player is told who picked it');
+
+  // the tablet types one from the keyboard
+  await T1.page.click('#btn-emoji');
+  await T1.page.fill('#in-emoji', '🦋');
+  await T2.page.waitForFunction(() => window.__dt.S.st.emoji === '🦋');
+  ok((await guide(T2)).text === '🦋', 'typing an emoji works too');
+  await T1.page.click('#btn-emoji');
+  await T1.page.fill('#in-emoji', 'cat');
+  await sleep(150);
+  ok((await T1.page.textContent('#emoji-err')).includes('one emoji') && (await guide(T2)).text === '🦋', 'typing words is refused politely');
+  await T1.page.click('#btn-emoji-random');
+  await T1.page.waitForFunction(() => window.__dt.S.st.emoji !== '🦋');
+  ok(true, 'Surprise me picks another');
+  await T1.page.click('#btn-emoji-close');
+
+  // tracing over it is ordinary shared drawing
+  await stroke(T2.page, [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7], [0.3, 0.3]], 'marker', 'Blue', 1);
+  await sleep(300);
+  ok((await inkCount(T1.page)) > 50, 'strokes traced on the phone show up on the tablet');
+  ok(diff(await snapshot(T1.page), await snapshot(T2.page)) < 6, 'both screens agree on the ink');
+  await T1.page.click('#btn-save');
+  await T2.page.waitForFunction(() => document.getElementById('banner').textContent.includes('saved the drawing'));
+  const gal = await (await fetch(`${URL0}api/rooms/${code}/gallery`)).json();
+  ok(gal.entries.length === 1 && gal.entries[0].emoji === (await guide(T1)).text, 'the saved tracing carries its emoji into the gallery');
+  await T2.page.screenshot({ path: `${OUT}/24-trace-phone-inked.png` });
+}
+
 ok(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();
 srv.kill();

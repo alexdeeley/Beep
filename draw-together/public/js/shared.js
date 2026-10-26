@@ -134,3 +134,26 @@ export const REACTIONS = [
 export const WORD_CHOICES = 5;         // word options the drawer can cycle through per round
 export const ASPECT_MIN = 0.55;
 export const ASPECT_MAX = 1.8;
+
+// Trace-an-emoji studio: the shared emoji everyone traces. A starter grid of
+// big, simple shapes (the picker also takes any emoji typed from the
+// keyboard - see isEmoji()). The server picks the first one at random.
+export const TRACE_EMOJIS = [
+  '🐱', '🐶', '🐸', '🐵', '🐼', '🐨', '🦊', '🐰', '🐻', '🐷', '🐮', '🐔',
+  '🦄', '🐙', '🐢', '🐝', '🦋', '🐞', '🐟', '🐳', '🦖', '🐍',
+  '😀', '😎', '🥳', '😴', '🤖', '👻', '👽', '🎃', '☃️', '🌞', '🌙', '⭐',
+  '🌈', '🌸', '🌻', '🌵', '🍄', '🍎', '🍌', '🍓', '🍕', '🍦', '🍩', '🎂',
+  '🚗', '🚀', '✈️', '⛵', '🚂', '🏠', '⚽', '🎈', '🎸', '🧸', '👑', '❤️',
+];
+
+// One emoji, nothing else: exactly one grapheme (so flags, skin tones and
+// ZWJ families like 👨‍👩‍👧 count as one) that starts with a pictograph.
+// Caps the length so a run of joiners can't smuggle in a huge string.
+const SEG = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('en', { granularity: 'grapheme' }) : null;
+export function isEmoji(s) {
+  if (typeof s !== 'string' || !s || s.length > 24) return false;
+  if (!/^(?:\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(s)) return false;
+  if (!/^[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\p{Emoji_Component}‍️︎]+$/u.test(s)) return false;
+  if (SEG) return [...SEG.segment(s)].length === 1;
+  return true;
+}

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORDS, checkGuess, pickWord, MAX_CLUE_LEN } from '../src/words.js';
-import { CATEGORIES, MAX_PLAYERS, REACTIONS } from '../public/js/shared.js';
+import { CATEGORIES, MAX_PLAYERS, REACTIONS, TRACE_EMOJIS, isEmoji } from '../public/js/shared.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8799;
@@ -619,6 +619,58 @@ A.close(); M2.close();
   X2.send({ type: 'guess', text: 'cat' }); X2.send({ type: 'giveup' }); X2.send({ type: 'react', i: 0 }); await sleep(60);
   ok(!Y.of('guess').length && !Y.of('react').length, 'no guessing or reactions in the studio');
   X2.close(); Y.close(); Z.close();
+}
+
+// ── Trace-an-emoji studio ───────────────────────────────────
+{
+  ok(TRACE_EMOJIS.every(isEmoji) && new Set(TRACE_EMOJIS).size === TRACE_EMOJIS.length, 'the starter emoji grid is all single, distinct emoji');
+  for (const [v, want] of [['🐸', true], ['🇬🇧', true], ['👨‍👩‍👧', true], ['👍🏽', true], ['☃️', true], ['🐸🐸', false], ['cat', false], ['', false], ['a🐸', false], ['<b>', false], [null, false], ['🐸' + '\u200d'.repeat(30), false]]) {
+    ok(isEmoji(v) === want, `isEmoji(${JSON.stringify(v)}) is ${want}`);
+  }
+  const { code: tc } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const P = new Client(tc, 'trace-p001', 'Pip');
+  const Q = new Client(tc, 'trace-q001', 'Quinn');
+  await P.open(); await sleep(80);
+  ok(P.st.emoji === null, 'no emoji in the lobby');
+  P.send({ type: 'settings', settings: { mode: 'trace', shape: 'tall' } }); await sleep(60);
+  ok(P.st.settings.mode === 'trace', 'host can pick the trace mode');
+  await Q.open(); await sleep(80);
+  P.send({ type: 'start' }); await sleep(80);
+  ok(P.st.phase === 'studio' && Q.st.phase === 'studio' && P.st.aspect === 0.72, 'tracing opens as a shared studio with the chosen shape');
+  ok(TRACE_EMOJIS.includes(P.st.emoji) && P.st.emoji === Q.st.emoji, 'it starts on a random emoji from the grid, the same for everyone');
+
+  // anyone changes it, for everyone; junk is ignored
+  const first = P.st.emoji;
+  Q.send({ type: 'emoji', e: first === '🐸' ? '🦋' : '🐸' }); await sleep(60);
+  const picked = first === '🐸' ? '🦋' : '🐸';
+  ok(P.st.emoji === picked && Q.st.emoji === picked, 'a friend (not just the host) can change the emoji for everyone');
+  ok(P.of('event').some((m) => m.kind === 'emoji' && m.name === 'Quinn' && m.e === picked), 'everyone hears who picked it');
+  for (const bad of ['🐸🐸', 'cat', '', '<script>', 12, { e: '🐸' }]) P.send({ type: 'emoji', e: bad });
+  P.send({ type: 'emoji' }); await sleep(80);
+  ok(P.st.emoji === picked && Q.st.emoji === picked, 'anything that is not one emoji is ignored');
+  P.send({ type: 'emoji', e: '👨‍👩‍👧' }); await sleep(60);
+  ok(Q.st.emoji === '👨‍👩‍👧', 'a typed emoji outside the grid (even a joined family) is fine');
+  P.send({ type: 'emoji', random: true }); await sleep(60);
+  ok(TRACE_EMOJIS.includes(Q.st.emoji) && Q.st.emoji !== '👨‍👩‍👧', '"Surprise me" picks a fresh one from the grid');
+
+  // drawing works exactly as in the studio, and a save keeps the emoji
+  Q.send({ type: 'strokeStart', id: 'tq000001', tool: 'pen', color: '#000000', size: 12, pts: [100, 100, 900, 900] });
+  Q.send({ type: 'strokeEnd', id: 'tq000001' }); await sleep(60);
+  ok(P.of('studioOp').length === 1, 'strokes are shared as in the studio');
+  P.send({ type: 'save' }); await sleep(80);
+  const tg = await (await fetch(base + `/api/rooms/${tc}/gallery`)).json();
+  ok(tg.entries.length === 1 && tg.entries[0].studio && tg.entries[0].emoji === Q.st.emoji && tg.entries[0].word === 'Traced together', 'a saved tracing is a gallery entry carrying the emoji');
+
+  // reconnecting still shows it; the plain studio has none
+  Q.close(); await sleep(80);
+  const Q2 = new Client(tc, 'trace-q001', 'Quinn'); await Q2.open(); await sleep(100);
+  ok(Q2.st.emoji === P.st.emoji, 'a reconnecting player gets the current emoji');
+  const { code: sc2 } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const R = new Client(sc2, 'trace-r001', 'Rae'); await R.open(); await sleep(80);
+  R.send({ type: 'settings', settings: { mode: 'studio' } }); R.send({ type: 'start' }); await sleep(80);
+  R.send({ type: 'emoji', e: '🐸' }); await sleep(60);
+  ok(R.st.phase === 'studio' && R.st.emoji === null, 'the free-draw studio has no emoji and ignores the message');
+  P.close(); Q2.close(); R.close();
 }
 
 srv.kill();
