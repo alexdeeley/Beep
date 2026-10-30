@@ -1,5 +1,14 @@
 [
   {
+    "id": "vocal-synth",
+    "name": "Vocal Synth",
+    "description": "A vocoder you play: sing or talk into the mic while holding chords on a keyboard (touch or computer keys), and your voice comes out as those notes. Robot, pitch, formant, harmony, reverb and delay knobs, seven presets, and live waveform, spectrum, chord and pitch readouts.",
+    "category": "Music Tools",
+    "path": "VocalSynth.html",
+    "added": "2026-10-30T00:00:00+00:00",
+    "thumbnail": "thumbnails/vocal-synth.jpg"
+  },
+  {
     "id": "pixel-riot",
     "name": "Pixel Riot",
     "description": "A multitouch generative art and sound instrument: every tap, drag, hold, twist and multi-finger gesture fires visual effects and procedural sounds across a grid of cells, with palettes, patterns, effect sets, chain reactions, a musical mode and save.",

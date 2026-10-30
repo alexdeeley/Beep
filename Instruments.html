@@ -102,6 +102,11 @@
     <div class="tiles" id="scopes"></div>
   </section>
 
+  <section aria-labelledby="voice-h">
+    <div class="section-bar"><span class="list-heading" id="voice-h">Voice</span><span class="sub">sing or talk into it</span></div>
+    <div class="tiles" id="voice"></div>
+  </section>
+
   <p class="classic">The rest of the sound toys live in <a href="Classic.html">the classic collection</a>.</p>
   <footer class="site-footer"><a href="index.html">deeley.org</a></footer>
 </main>
@@ -122,6 +127,9 @@
     { name: "Oscillon", description: "A Lissajous curve that speeds up into denser and denser patterns.", path: "Oscillon.html", thumbnail: "thumbnails/oscillon.jpg" },
     { name: "Time Microscope", description: "Record up to ten seconds, then slow it down: a steady drift or halved at a press.", path: "TimeMicroscope.html", thumbnail: "thumbnails/time-microscope.jpg" },
   ];
+  const VOICE = [
+    { name: "Vocal Synth", description: "A vocoder: your voice sung through chords you play on a keyboard, with robot, pitch, formant, harmony, reverb and delay knobs and seven presets.", path: "VocalSynth.html", thumbnail: "thumbnails/vocal-synth.jpg" },
+  ];
   const PALETTE = [["#18d4e8", "#000"], ["#ffd43b", "#000"], ["#ff8a1f", "#000"], ["#2bd97a", "#000"], ["#b24bff", "#000"], ["#ff3d5a", "#000"]];
 
   function fill(id, items, offset) {
@@ -140,7 +148,8 @@
   }
   fill("oscillators", OSCILLATORS, 0);
   fill("scopes", SCOPES, 2);
-  window.__sound = { oscillators: OSCILLATORS.length, scopes: SCOPES.length };
+  fill("voice", VOICE, 4);
+  window.__sound = { oscillators: OSCILLATORS.length, scopes: SCOPES.length, voice: VOICE.length };
 </script>
 </body>
 </html>
