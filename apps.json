@@ -105,6 +105,15 @@
     "thumbnail": "thumbnails/heavy-spin-morph.jpg"
   },
   {
+    "id": "maisie-vocal-synth",
+    "name": "Vocal Synth",
+    "description": "Sing or talk into the mic while you press keys on the keyboard, and your voice turns into a robot singing those notes! Try the Daft Robot, Alien and Dreamy buttons. Headphones on, or it squeals.",
+    "category": "Maisie's Arcade",
+    "path": "VocalSynth.html",
+    "added": "2026-11-02T00:00:00+00:00",
+    "thumbnail": "thumbnails/vocal-synth.jpg"
+  },
+  {
     "id": "maisie-magic-draw",
     "name": "Magic Draw",
     "description": "A sparkly finger-painting app with glowing trails and stickers.",
