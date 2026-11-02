@@ -105,6 +105,15 @@
     "thumbnail": "thumbnails/heavy-spin-morph.jpg"
   },
   {
+    "id": "seoul-saviors-haunted-mansion",
+    "name": "Seoul Saviors: The Haunted Mansion",
+    "description": "A pixel-art demon-hunter adventure: pick your hunter, explore a haunted mansion room by room, fight ghosts and bosses with attacks, dodges and specials, collect items, read the journal and save your game. Keyboard or on-screen touch controls.",
+    "category": "Maisie's Arcade",
+    "path": "SeoulSaviorsHauntedMansion.html",
+    "added": "2026-11-02T01:00:00+00:00",
+    "thumbnail": "thumbnails/seoul-saviors-haunted-mansion.jpg"
+  },
+  {
     "id": "maisie-vocal-synth",
     "name": "Vocal Synth",
     "description": "Sing or talk into the mic while you press keys on the keyboard, and your voice turns into a robot singing those notes! Try the Daft Robot, Alien and Dreamy buttons. Headphones on, or it squeals.",
