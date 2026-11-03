@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-<meta name="description" content="Sound on deeley.org: oscillators to play with your fingers and oscilloscopes to watch sound with.">
+<meta name="description" content="Sound on deeley.org: the fun little sound toys, newest first.">
 <title>Sound — Deeley.org</title>
 <link rel="icon" href="./icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -37,38 +37,23 @@
   .topbar .crumb { color: var(--muted); font-weight: 700; font-size: 0.95rem; }
   .tagline { margin: 0 0 18px; color: var(--ink-2); font-size: 1.05rem; line-height: 1.4; max-width: 640px; }
 
-  /* The Dual Oscillator: the one to open first, so it gets the big banner. */
-  .hero {
-    display: flex; align-items: center; gap: 18px; padding: 18px 20px; margin: 0 0 26px; text-decoration: none; color: #fff;
-    background: #000; border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 2px #000, 0 10px 28px rgba(0, 0, 0, 0.5);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .hero:hover, .hero:active { transform: translateY(-2px); box-shadow: 0 0 0 2px #000, 0 14px 34px rgba(0, 0, 0, 0.6); }
-  .hero .s-icon { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 16px; background: #000; border: 3px solid #fff; overflow: hidden; }
-  .hero .s-icon svg { display: block; width: 100%; height: 100%; }
-  @media (max-width: 420px) { .hero .s-icon { width: 80px; height: 80px; } }
-  .hero .s-text { min-width: 0; flex: 1 1 auto; }
-  .hero h2 { margin: 0; font-size: clamp(1.3rem, 5.6vw, 1.8rem); font-weight: 900; letter-spacing: 0.04em; line-height: 1.05; text-transform: uppercase; }
-  .hero h2 small { display: block; font-size: 0.72rem; letter-spacing: 0.18em; color: #b8b8c2; font-weight: 800; margin-bottom: 4px; }
-  .hero p { margin: 6px 0 0; font-size: 0.92rem; color: #e6e6ea; line-height: 1.35; font-weight: 500; }
-  .hero .s-cta { display: inline-block; margin-top: 8px; font-weight: 800; font-size: 0.82rem; color: #000; background: #fff; padding: 3px 10px; border-radius: 4px; }
-
-  .section-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 22px 0 10px; flex-wrap: wrap; }
-  .list-heading { color: var(--muted); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
-  .section-bar .sub { color: var(--faint); font-size: 0.82rem; font-weight: 600; }
-
-  /* Tiles with a picture, like the Games grid. */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-  a.tile {
-    position: relative; display: flex; flex-direction: column; justify-content: flex-start; aspect-ratio: 1 / 1; overflow: hidden; padding: 0;
-    text-decoration: none; color: var(--ink); background: var(--c); border: 3px solid var(--c); border-radius: 20px;
+  /* Eight big tabs: the fun little sound toys we open most, newest first.
+     Two across on a phone, three or four on a wider screen. */
+  .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  @media (min-width: 640px) { .tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+  @media (min-width: 900px) { .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  a.tab {
+    position: relative; display: flex; flex-direction: column; overflow: hidden; aspect-ratio: 4 / 5;
+    text-decoration: none; color: var(--ink); background: var(--c); border: 3px solid var(--c); border-radius: 22px;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
     transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
-  a.tile:hover, a.tile:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 22px var(--tile-shadow); }
-  a.tile:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
-  a.tile img { display: block; flex: 1 1 0; min-height: 0; width: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
-  a.tile .t-name { display: block; font-weight: 900; font-size: 1.05rem; line-height: 1.1; letter-spacing: -0.01em; overflow-wrap: anywhere; padding: 9px 11px 2px; }
-  a.tile .t-desc { display: block; font-size: 0.78rem; font-weight: 600; line-height: 1.25; opacity: 0.85; padding: 0 11px 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  a.tab:hover, a.tab:active { transform: translateY(-3px) scale(1.02); box-shadow: 0 10px 24px var(--tile-shadow); }
+  a.tab:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  a.tab img { display: block; flex: 1 1 0; min-height: 0; width: 100%; object-fit: cover; object-position: top; background: rgba(0, 0, 0, 0.35); }
+  a.tab .t-name { display: block; font-weight: 900; font-size: clamp(1.05rem, 3.6vw, 1.35rem); line-height: 1.05; letter-spacing: -0.01em; overflow-wrap: anywhere; padding: 10px 12px 3px; }
+  a.tab .t-desc { display: block; font-size: 0.8rem; font-weight: 600; line-height: 1.25; opacity: 0.85; padding: 0 12px 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  a.tab .t-new { position: absolute; top: 10px; right: 10px; background: #000; color: #fff; border: 2px solid #fff; border-radius: 999px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.1em; padding: 3px 8px; }
   .classic { margin-top: 32px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); font-size: 0.92rem; color: var(--ink-2); }
   .classic a { font-weight: 800; }
   .empty { color: var(--muted); font-style: italic; }
@@ -81,75 +66,45 @@
     <a class="back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
     <div><h1>Sound</h1><div class="crumb">deeley.org</div></div>
   </div>
-  <p class="tagline">Oscillators to play with your fingers, and oscilloscopes to watch sound with. Each one opens on its own and works on a phone.</p>
+  <p class="tagline">The fun little sound toys, newest first. Each one opens on its own and works on a phone; most want your microphone, and headphones help.</p>
 
-  <a class="hero" href="DualOscillator.html" id="hero">
-    <span class="s-icon" aria-hidden="true"><svg viewBox="0 0 96 96"><rect width="96" height="96" fill="#000"/><g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 48c6-24 12-24 18 0s12 24 18 0 12-24 18 0 12 24 18 0 8-16 8-16"/><path d="M8 72c8-12 16-12 24 0s16 12 24 0 16-12 24 0" stroke-dasharray="6 5"/></g></svg></span>
-    <span class="s-text">
-      <h2><small>START HERE</small>Dual Oscillator</h2>
-      <p>Two voices under your fingers: slide for pitch and loudness, pick sine, triangle or saw, lock them into simple ratios, and watch the waves, their sum, a Lissajous figure or the phase plot.</p>
-      <span class="s-cta">Open it &#8599;</span>
-    </span>
-  </a>
+  <nav class="tabs" id="tabs" aria-label="Sound toys"></nav>
 
-  <section aria-labelledby="osc-h">
-    <div class="section-bar"><span class="list-heading" id="osc-h">Oscillators</span><span class="sub">make a tone, shape it, hear it</span></div>
-    <div class="tiles" id="oscillators"></div>
-  </section>
-
-  <section aria-labelledby="scope-h">
-    <div class="section-bar"><span class="list-heading" id="scope-h">Oscilloscopes</span><span class="sub">see what you hear</span></div>
-    <div class="tiles" id="scopes"></div>
-  </section>
-
-  <section aria-labelledby="voice-h">
-    <div class="section-bar"><span class="list-heading" id="voice-h">Voice</span><span class="sub">sing or talk into it</span></div>
-    <div class="tiles" id="voice"></div>
-  </section>
-
-  <p class="classic">The rest of the sound toys live in <a href="Classic.html">the classic collection</a>.</p>
+  <p class="classic">Everything older, from drum machines to noise walls, lives in <a href="Classic.html">the classic collection</a>.</p>
   <footer class="site-footer"><a href="index.html">deeley.org</a></footer>
 </main>
 
 <script>
-  // The Sound page is just these: oscillators and oscilloscopes. The
-  // instruments collection and the Studio workspace are set aside for now.
-  const OSCILLATORS = [
-    { name: "Pure Oscillator", description: "One live oscillator: frequency, waveform, volume.", path: "classic/Oscillate.html", thumbnail: "thumbnails/neo-oscillate.jpg" },
-    { name: "Persistent Oscillator", description: "An oscillator that keeps playing between visits.", path: "classic/OscillatePersistent.html", thumbnail: "thumbnails/neo-oscillate-persistent.jpg" },
-    { name: "Hz Lab", description: "Raw frequencies and tones to experiment with.", path: "classic/HzLab.html", thumbnail: "thumbnails/neo-hz-lab.jpg" },
-    { name: "Planet Orbits", description: "Frequencies mapped to real planetary orbits.", path: "classic/HzLab03RealPlanetOrbits.html", thumbnail: "thumbnails/neo-hz-lab03-real-planet-orbits.jpg" },
-    { name: "Math Sounds", description: "Random functions drawn as graphs and turned into sound.", path: "SoundOfFunctions.html", thumbnail: "thumbnails/sound-of-functions.jpg" },
+  // Just the recent toys, newest first. Older instruments, drum machines and
+  // the Studio workspace are set aside; they stay reachable from the classic
+  // collection. Add a new toy at the top and drop the oldest to keep it eight.
+  const TOYS = [
+    { name: "Blox Board", description: "A meme soundboard: silly, brainrot, explosions, bass boosts and troll sounds, all synthesized, with a Kid Mode and a spot for your own clips.", path: "BloxBoard.html", thumbnail: "thumbnails/blox-board.jpg", added: "2026-11-03" },
+    { name: "Vocal Synth", description: "Sing into the mic while you hold chords on a keyboard: a vocoder with robot, alien and dreamy presets.", path: "VocalSynth.html", thumbnail: "thumbnails/vocal-synth.jpg", added: "2026-10-30" },
+    { name: "Dual Oscillator", description: "Two voices under two fingers, locked into ratios, drawn as waves, a Lissajous figure or a phase plot.", path: "DualOscillator.html", thumbnail: "thumbnails/dual-oscillator.jpg", added: "2026-10-16" },
+    { name: "Time Microscope", description: "Record up to ten seconds, then slow it down: a steady drift, or halved every time you press.", path: "TimeMicroscope.html", thumbnail: "thumbnails/time-microscope.jpg", added: "2026-10-02" },
+    { name: "Math Sounds", description: "Random functions drawn as graphs and turned into sound.", path: "SoundOfFunctions.html", thumbnail: "thumbnails/sound-of-functions.jpg", added: "2026-10-02" },
+    { name: "Oscillon", description: "A Lissajous curve that speeds up into denser and denser patterns.", path: "Oscillon.html", thumbnail: "thumbnails/oscillon.jpg", added: "2026-10-02" },
+    { name: "Neon Waveform", description: "Your mic as a scrolling neon waveform.", path: "OscillateScrollBars.html", thumbnail: "thumbnails/oscillate-scroll-bars.jpg", added: "2026-10-02" },
+    { name: "Mic Echo", description: "Your mic as a scrolling waveform, with echo and reverb.", path: "NoiseMicVisualizer.html", thumbnail: "thumbnails/neo-noise-mic-visualizer.jpg", added: "2026-10-02" },
   ];
-  const SCOPES = [
-    { name: "Neon Waveform", description: "Your mic as a scrolling neon waveform.", path: "OscillateScrollBars.html", thumbnail: "thumbnails/oscillate-scroll-bars.jpg" },
-    { name: "Mic Echo", description: "Your mic as a scrolling waveform, with echo and reverb.", path: "NoiseMicVisualizer.html", thumbnail: "thumbnails/neo-noise-mic-visualizer.jpg" },
-    { name: "Oscillon", description: "A Lissajous curve that speeds up into denser and denser patterns.", path: "Oscillon.html", thumbnail: "thumbnails/oscillon.jpg" },
-    { name: "Time Microscope", description: "Record up to ten seconds, then slow it down: a steady drift or halved at a press.", path: "TimeMicroscope.html", thumbnail: "thumbnails/time-microscope.jpg" },
-  ];
-  const VOICE = [
-    { name: "Vocal Synth", description: "A vocoder: your voice sung through chords you play on a keyboard, with robot, pitch, formant, harmony, reverb and delay knobs and seven presets.", path: "VocalSynth.html", thumbnail: "thumbnails/vocal-synth.jpg" },
-  ];
-  const PALETTE = [["#18d4e8", "#000"], ["#ffd43b", "#000"], ["#ff8a1f", "#000"], ["#2bd97a", "#000"], ["#b24bff", "#000"], ["#ff3d5a", "#000"]];
+  const PALETTE = [["#18d4e8", "#000"], ["#ffd43b", "#000"], ["#ff8a1f", "#000"], ["#2bd97a", "#000"], ["#b24bff", "#000"], ["#ff3d5a", "#000"], ["#4d7cff", "#000"], ["#ff5fb0", "#000"]];
+  const NEW_DAYS = 21;
 
-  function fill(id, items, offset) {
-    const el = document.getElementById(id);
-    items.forEach((t, i) => {
-      const [bg, ink] = PALETTE[(i + offset) % PALETTE.length];
-      const a = document.createElement("a");
-      a.className = "tile"; a.href = t.path; a.title = t.description;
-      a.setAttribute("aria-label", `${t.name}. ${t.description}`);
-      a.style.setProperty("--c", bg); a.style.setProperty("--ink", ink);
-      const img = document.createElement("img"); img.src = t.thumbnail; img.alt = ""; img.loading = "lazy"; img.addEventListener("error", () => img.remove()); a.appendChild(img);
-      const n = document.createElement("span"); n.className = "t-name"; n.textContent = t.name; a.appendChild(n);
-      const d = document.createElement("span"); d.className = "t-desc"; d.textContent = t.description; a.appendChild(d);
-      el.appendChild(a);
-    });
-  }
-  fill("oscillators", OSCILLATORS, 0);
-  fill("scopes", SCOPES, 2);
-  fill("voice", VOICE, 4);
-  window.__sound = { oscillators: OSCILLATORS.length, scopes: SCOPES.length, voice: VOICE.length };
+  const el = document.getElementById("tabs");
+  TOYS.forEach((t, i) => {
+    const [bg, ink] = PALETTE[i % PALETTE.length];
+    const a = document.createElement("a");
+    a.className = "tab"; a.href = t.path; a.title = t.description;
+    a.setAttribute("aria-label", `${t.name}. ${t.description}`);
+    a.style.setProperty("--c", bg); a.style.setProperty("--ink", ink);
+    const img = document.createElement("img"); img.src = t.thumbnail; img.alt = ""; img.loading = i < 4 ? "eager" : "lazy"; img.addEventListener("error", () => img.remove()); a.appendChild(img);
+    if (Date.now() - Date.parse(t.added) < NEW_DAYS * 864e5) { const n = document.createElement("span"); n.className = "t-new"; n.textContent = "NEW"; a.appendChild(n); }
+    const n = document.createElement("span"); n.className = "t-name"; n.textContent = t.name; a.appendChild(n);
+    const d = document.createElement("span"); d.className = "t-desc"; d.textContent = t.description; a.appendChild(d);
+    el.appendChild(a);
+  });
+  window.__sound = { toys: TOYS.length };
 </script>
 </body>
 </html>

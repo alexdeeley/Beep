@@ -1,5 +1,14 @@
 [
   {
+    "id": "blox-board",
+    "name": "Blox Board",
+    "description": "A meme soundboard with every sound synthesized on the spot: silly and cute, funny, brainrot, explosions, bass boosted, Roblox-style, scary, voice clips, troll and random, plus Maisie's Mix, favourites, a random button, loop and spam modes, keyboard shortcuts, a Kid Mode that hides the scary and ear-blasting ones, and a folder for your own MP3s.",
+    "category": "Music Tools",
+    "path": "BloxBoard.html",
+    "added": "2026-11-03T00:00:00+00:00",
+    "thumbnail": "thumbnails/blox-board.jpg"
+  },
+  {
     "id": "vocal-synth",
     "name": "Vocal Synth",
     "description": "A vocoder you play: sing or talk into the mic while holding chords on a keyboard (touch or computer keys), and your voice comes out as those notes. Robot, pitch, formant, harmony, reverb and delay knobs, seven presets, and live waveform, spectrum, chord and pitch readouts.",
@@ -1516,7 +1525,7 @@
   {
     "id": "instruments",
     "name": "Sound",
-    "description": "Oscillators and oscilloscopes: the Dual Oscillator you play with two fingers and watch on a scope, plus pure oscillators, Hz experiments, and mic waveform viewers.",
+    "description": "The fun little sound toys, newest first: Blox Board, Vocal Synth, Dual Oscillator, Time Microscope, Math Sounds, Oscillon, Neon Waveform and Mic Echo, each as a big tab. Older instruments stay in the classic collection.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
