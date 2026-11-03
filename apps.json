@@ -1,5 +1,14 @@
 [
   {
+    "id": "verbatim",
+    "name": "Verbatim",
+    "description": "A kinetic type machine: paste lyrics, poetry or prose and watch the words fly, stack, flash and slide across the screen in six typefaces. Choose density up to max chaos, mono, accent or vivid colour, automatic or manual pacing, and go full screen.",
+    "category": "Art",
+    "path": "Verbatim.html",
+    "added": "2026-11-03T12:00:00+00:00",
+    "thumbnail": "thumbnails/verbatim.jpg"
+  },
+  {
     "id": "blox-board",
     "name": "Blox Board",
     "description": "A meme soundboard with every sound synthesized on the spot: silly and cute, funny, brainrot, explosions, bass boosted, Roblox-style, scary, voice clips, troll and random, plus Maisie's Mix, favourites, a random button, loop and spam modes, keyboard shortcuts, a Kid Mode that hides the scary and ear-blasting ones, and a folder for your own MP3s.",
