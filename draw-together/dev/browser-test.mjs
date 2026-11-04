@@ -141,7 +141,21 @@ ok((await ghostInk(A.page)) > 0, "a guesser's doodle appears on the drawer's scr
 ok((await inkCount(A.page)) === realInkBeforeDoodle, "the real drawing is untouched by the guesser's doodle");
 await sleep(1200);
 ok((await ghostInk(A.page)) > 0, 'the doodle is still visible well under its ten-second lifetime');
-await sleep(9300);
+// the drawer can hide the doodles on their own screen
+const ghostShown = (page) => page.evaluate(() => getComputedStyle(document.querySelector('.board-host .sheet canvas.ghost')).display !== 'none');
+ok(await A.page.isVisible('#btn-doodles') && !(await M.page.isVisible('#btn-doodles')), 'the drawer has a hide-doodles button; the guesser does not');
+await A.page.click('#btn-doodles');
+ok(!(await ghostShown(A.page)), "pressing it hides the doodle layer on the drawer's screen");
+await M.page.mouse.move(gbox.x + gbox.width * 0.6, gbox.y + gbox.height * 0.6);
+await M.page.mouse.down();
+await M.page.mouse.move(gbox.x + gbox.width * 0.8, gbox.y + gbox.height * 0.7, { steps: 6 });
+await M.page.mouse.up();
+await sleep(150);
+ok(!(await ghostShown(A.page)) && (await ghostInk(M.page)) > 0, 'a new doodle still shows for the guesser, and stays hidden for the drawer');
+ok((await A.page.textContent('#banner')).includes('hidden'), 'the drawer is told the doodles are hidden on their screen only');
+await A.page.click('#btn-doodles');
+ok(await ghostShown(A.page) && (await ghostInk(A.page)) > 0, 'pressing again brings the doodles straight back, including the one drawn meanwhile');
+await sleep(10800);   // the second doodle was drawn about a second after the first; let both go
 ok((await ghostInk(A.page)) === 0, 'the doodle fades away and clears itself on its own after about ten seconds');
 
 const box = await A.page.locator('.board-host .sheet').boundingBox();

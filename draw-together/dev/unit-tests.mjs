@@ -40,6 +40,21 @@ const find = (s) => WORDS.find((w) => w.w === s);
   ok(find('Cat').c.includes('maisie') && find('Cat').c.includes('animals'), 'a word on both lists stays in Everything too');
   ok(find('Michael Jackson Moonwalk').e === '🕺' && find('Bluey as a Unicorn').e === '🐕', 'her words have emoji');
 }
+// Disney and Adventure: regular categories, part of Everything.
+{
+  const disney = WORDS.filter((w) => w.c.includes('disney')), adv = WORDS.filter((w) => w.c.includes('adventure'));
+  ok(disney.length >= 50, `Disney has plenty of words (${disney.length})`);
+  ok(adv.length >= 50, `Adventure has plenty of words (${adv.length})`);
+  ok(find('Hot air balloon').c.includes('adventure') && find('Tent').c.includes('adventure') && find('Bicycle').c.includes('adventure'), 'the adventure staples are there');
+  ok(find('Mickey Mouse').c.includes('disney') && find('Elsa').c.includes('disney') && find('Simba').c.includes('disney'), 'Disney has Mickey, Elsa and Simba');
+  let d = 0, a = 0;
+  for (let i = 0; i < 300; i++) { if (WORDS[pickWord({ categories: ['disney'], difficulty: 'mixed' }, []).index].c.includes('disney')) d++; if (WORDS[pickWord({ categories: ['adventure'], difficulty: 'mixed' }, []).index].c.includes('adventure')) a++; }
+  ok(d === 300 && a === 300, 'picking either chip gives only that category');
+  let seen = 0;
+  for (let i = 0; i < 3000; i++) { const w = WORDS[pickWord({ categories: ['everything'], difficulty: 'mixed' }, []).index]; if (w.c.includes('disney') || w.c.includes('adventure')) seen++; }
+  ok(seen > 0, 'both categories turn up under Everything');
+  ok(checkGuess('bike', find('Hot air balloon')) === 'wrong' && checkGuess('balloon', find('Hot air balloon')) === 'correct', 'hot air balloon accepts "balloon"');
+}
 ok(checkGuess('ice-cream cone', find('Ice cream cone')) === 'correct', 'ice-cream cone');
 ok(checkGuess('icecream', find('Ice cream cone')) === 'correct', 'icecream alias');
 ok(checkGuess('t rex', find('T-Rex')) === 'correct', 't rex');

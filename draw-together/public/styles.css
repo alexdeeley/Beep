@@ -625,6 +625,10 @@ html.a11y-invert #sizes .blob {
   background-position: center center;
 }
 #btn-grid[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+/* Drawer only: hide the guessers' ghost doodles on this screen (they still
+   see their own; nothing is sent). */
+#btn-doodles[aria-pressed="true"] { background: var(--ink); color: var(--paper); filter: grayscale(1); }
+.game.nodoodles .sheet .layer.ghost { display: none; }
 #btn-music[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
 /* ── Scratchpad: guessers doodle for themselves while the drawer picks a

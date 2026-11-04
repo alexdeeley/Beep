@@ -692,6 +692,7 @@ function renderStudio() {
   $('reactions').hidden = true;
   $('btn-save').hidden = false;
   $('btn-hud-gallery').hidden = false;
+  $('btn-doodles').hidden = true;
   const trace = st.settings.mode === 'trace';
   $('hud-round').innerHTML = trace ? 'Trace<b>🦄</b>' : 'Studio<b>🎨</b>';
   $('hud-round').setAttribute('aria-label', trace ? 'Trace an emoji together' : 'Free-draw studio');
@@ -732,6 +733,7 @@ function renderGame(prev, phaseChanged) {
   if (phaseChanged && !sketching) clearSketch();
   $('tray').hidden = !drawer;
   $('guessbar').hidden = drawer;
+  $('btn-doodles').hidden = !(drawer && st.phase === 'drawing');
 
   $('hud-round').innerHTML = `Round<b>${st.round}</b>`;
   $('hud-round').setAttribute('aria-label', `Round ${st.round} of ${st.rounds}`);
@@ -1284,6 +1286,25 @@ function setGrid(on) {
 }
 $('btn-grid').addEventListener('click', () => setGrid(!gameEl.classList.contains('grid')));
 try { if (localStorage.getItem('dt.grid') === '1') setGrid(true); } catch {}
+
+// Hide doodles: the drawer can switch off the guessers' ghost marks on their
+// own screen when the pointing and scribbling gets distracting. Local only:
+// guessers still see each other's doodles, and the messages keep flowing so
+// switching back on shows anything still lingering. Remembered per device.
+function setDoodlesHidden(on) {
+  gameEl.classList.toggle('nodoodles', on);
+  const b = $('btn-doodles');
+  b.setAttribute('aria-pressed', String(on));
+  b.setAttribute('aria-label', on ? "Show your buddies' doodles again" : "Hide your buddies' doodles");
+  try { localStorage.setItem('dt.hideDoodles', on ? '1' : '0'); } catch {}
+}
+$('btn-doodles').addEventListener('click', () => {
+  const on = !gameEl.classList.contains('nodoodles');
+  setDoodlesHidden(on);
+  snd.play('pop');
+  flashBanner(on ? '👻 Doodles hidden on your screen - press again to see them' : '👻 Doodles back on');
+});
+try { if (localStorage.getItem('dt.hideDoodles') === '1') setDoodlesHidden(true); } catch {}
 renderMute();
 $('btn-quit').addEventListener('click', () => confirmBox('Leave the game?', leaveGame));
 initInvertToggle($('btn-a11y-home'), $('btn-a11y-hud'));
