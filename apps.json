@@ -1,5 +1,14 @@
 [
   {
+    "id": "voxlab",
+    "name": "VoxLab",
+    "description": "An experimental voice laboratory: record up to twenty seconds or load a file, then run it through a chain of labs (pitch, robot voice, delay and echo, distortion, rumble and more), flip between the original and the processed take, build a collage, watch the waveform and spectrum, and download the result as WAV or compressed audio.",
+    "category": "Music Tools",
+    "path": "VoxLab.html",
+    "added": "2026-11-12T00:00:00+00:00",
+    "thumbnail": "thumbnails/voxlab.jpg"
+  },
+  {
     "id": "verbatim",
     "name": "Verbatim",
     "description": "A kinetic type machine: paste lyrics, poetry or prose and watch the words fly, stack, flash and slide across the screen in six typefaces. Choose density up to max chaos, mono, accent or vivid colour, automatic or manual pacing, and go full screen.",
@@ -1534,7 +1543,7 @@
   {
     "id": "instruments",
     "name": "Sound",
-    "description": "The fun little sound toys, newest first: Blox Board, Vocal Synth, Dual Oscillator, Time Microscope, Math Sounds, Oscillon, Neon Waveform and Mic Echo, each as a big tab. Older instruments stay in the classic collection.",
+    "description": "The fun little sound toys, newest first: VoxLab, Blox Board, Vocal Synth, Dual Oscillator, Time Microscope, Math Sounds, Oscillon and Neon Waveform, each as a big tab. Older instruments stay in the classic collection.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",

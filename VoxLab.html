@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VoxLab</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#040506;--p1:#0b0e11;--p2:#11161b;--p3:#1a2128;--ln:#26303a;--tx:#eef3f6;--dim:#8a98a6;--g:#39ff88;--b:#2fb8ff;--pu:#b45cff;--o:#ff8a2a;--r:#ff3b6b;--y:#ffe14a;--c:#39ff88;
+--mono:"Share Tech Mono",ui-monospace,Menlo,monospace;--disp:"Bebas Neue",Impact,"Arial Narrow",sans-serif;--ui:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--tx);font:17px/1.4 var(--ui);-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) 40px env(safe-area-inset-left);background:radial-gradient(1200px 500px at 15% -10%,#0d2a1d55,transparent),radial-gradient(900px 500px at 100% 0,#2a0d4a44,transparent),var(--bg)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.wrap{max-width:1500px;margin:0 auto;padding:0 16px}
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 0 12px;border-bottom:1px solid var(--ln)}
+/* deeley.org: back to the site menu */
+#beep-back{flex:none;width:40px;height:40px;border-radius:50%;background:var(--p1);color:var(--tx);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font:400 26px/1 system-ui,sans-serif;padding-bottom:3px;text-decoration:none;margin-right:-6px}
+#beep-back:hover{border-color:var(--g)}
+.brandrow{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{font:44px/0.9 var(--disp);letter-spacing:2px;background:linear-gradient(90deg,var(--g),var(--b) 45%,var(--pu) 75%,var(--o));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 14px #39ff8844)}
+.logo small{display:block;font:13px var(--mono);letter-spacing:3px;color:var(--dim);-webkit-text-fill-color:var(--dim);margin-top:4px}
+.master{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--p1);border:1px solid var(--ln);border-radius:12px;padding:8px 12px}
+.master label{font:14px var(--mono);color:var(--dim);letter-spacing:1px}
+.master input[type=range]{width:130px}
+#gainv{font:16px var(--mono);min-width:48px;color:var(--g)}
+#meter{width:170px;height:22px;border-radius:4px;background:#0c0f12;border:1px solid var(--ln)}
+.led{font:13px var(--mono);padding:4px 8px;border-radius:6px;border:1px solid var(--ln);color:var(--dim)}
+.led.on{color:#000;background:var(--y);box-shadow:0 0 14px var(--y)}
+#mute{font:15px var(--mono);padding:8px 14px;border-radius:8px;border:1px solid var(--ln);background:var(--p2)}
+#mute.on{background:var(--r);color:#000;box-shadow:0 0 16px var(--r)}
+/* transport */
+.transport{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 0}
+.tb{font:18px var(--disp);letter-spacing:1.5px;padding:10px 16px;border-radius:10px;border:1px solid var(--ln);background:linear-gradient(#161c22,#0d1115);min-height:48px;transition:.12s}
+.tb:hover{border-color:#4a5a68}.tb:active{transform:translateY(1px)}
+.tb.on{border-color:var(--g);color:var(--g);box-shadow:0 0 0 1px var(--g) inset,0 0 18px #39ff8840}
+#bRec{color:var(--r);border-color:#5a2030}#bRec.on{background:var(--r);color:#000;box-shadow:0 0 22px var(--r);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 6px var(--r)}}
+#timer{font:24px var(--mono);color:var(--g);padding:6px 14px;border-radius:10px;background:#000;border:1px solid var(--ln);min-width:150px;text-align:center;text-shadow:0 0 10px #39ff8880}
+.seg{display:flex;border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.seg button{font:16px var(--disp);letter-spacing:1px;padding:12px 14px;background:var(--p1);border:0;border-right:1px solid var(--ln);min-height:48px}
+.seg button:last-child{border-right:0}.seg button.on{background:var(--b);color:#000}
+.spacer{flex:1}
+.tb.exp{color:var(--b)}
+/* scope */
+.scope{display:grid;grid-template-columns:1fr 290px;gap:12px}
+.screen{position:relative;background:#020303;border:1px solid var(--ln);border-radius:14px;overflow:hidden;box-shadow:inset 0 0 60px #000,0 0 0 1px #000}
+.screen:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#ffffff05 0 1px,transparent 1px 3px)}
+#wave{display:block;width:100%;height:260px;cursor:crosshair}
+#spec{display:block;width:100%;height:120px;border-top:1px solid var(--ln)}
+.readouts{background:var(--p1);border:1px solid var(--ln);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.ro{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--ln);padding-bottom:6px}
+.ro span{font:13px var(--mono);color:var(--dim);letter-spacing:1px}.ro b{font:20px var(--mono);color:var(--tx)}
+.ro b.g{color:var(--g)}.ro b.b{color:var(--b)}.ro b.o{color:var(--o)}
+.status{font:15px var(--mono);padding:8px 10px;border-radius:8px;background:#000;border:1px solid var(--ln);color:var(--dim);min-height:38px}
+.status.ok{color:var(--g)}.status.busy{color:var(--y);animation:blink .8s infinite}.status.err{color:var(--r)}.status.rec{color:var(--r)}
+@keyframes blink{50%{opacity:.5}}
+#active{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font:13px var(--mono);margin-top:2px}
+.ach{padding:3px 7px;border-radius:5px;border:1px solid var(--c);color:var(--c);background:#000}
+.arr{color:var(--dim)}.dim{color:var(--dim)}.okc{color:var(--g);font-family:var(--mono)}
+/* tabs */
+#tabs{display:flex;gap:6px;overflow-x:auto;padding:16px 0 10px;scrollbar-width:thin}
+.tab{flex:0 0 auto;font:20px var(--disp);letter-spacing:1.5px;padding:10px 16px;border-radius:10px 10px 4px 4px;border:1px solid var(--ln);border-bottom:3px solid var(--ln);background:var(--p1);color:var(--dim);white-space:nowrap;min-height:50px}
+.tab .tn{font:12px var(--mono);margin-right:7px;opacity:.7}
+.tab.on{color:var(--c);border-color:var(--c);border-bottom-color:var(--c);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 18%,transparent),var(--p1));box-shadow:0 -4px 22px color-mix(in srgb,var(--c) 30%,transparent)}
+/* module */
+.mod{background:linear-gradient(180deg,var(--p2),var(--p1));border:1px solid var(--ln);border-left:4px solid color-mix(in srgb,var(--c) 45%,var(--ln));border-radius:14px;padding:16px;margin-bottom:14px}
+.mod.live{border-left-color:var(--c);box-shadow:-6px 0 26px -12px var(--c)}
+.mhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.mtitle{font:32px/1 var(--disp);letter-spacing:2px;color:var(--c);text-shadow:0 0 18px color-mix(in srgb,var(--c) 50%,transparent)}
+.mpos{font:13px var(--mono);color:var(--dim);letter-spacing:1px}
+.mdesc{color:var(--dim);font-size:15px;margin-bottom:10px}
+.power{font:16px var(--mono);padding:8px 14px;border-radius:8px;border:1px solid var(--ln);background:#000;color:var(--dim);min-width:92px}
+.power.on{background:var(--c);color:#000;border-color:var(--c);box-shadow:0 0 16px var(--c)}
+.mini{margin-left:auto;font:14px var(--mono);padding:8px 12px;border-radius:8px;border:1px solid var(--ln);background:var(--p3)}
+.mhead .mini~.mini{margin-left:0}
+.sec{font:15px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--c);opacity:.85;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--ln)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px 18px}
+.ctl{background:#06080a;border:1px solid var(--ln);border-radius:10px;padding:10px 12px}
+.ctl .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.ctl label{font-size:15px;color:#c9d3dc;user-select:none}
+.val{font:17px var(--mono);color:var(--c);cursor:pointer;white-space:nowrap}
+.ctl.tg{display:flex;align-items:center;background:transparent;border:0;padding:0}
+.ctl.sel select,.addsel,.seed{width:100%;font:16px var(--ui);padding:10px;border-radius:8px;border:1px solid var(--ln);background:var(--p3)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:34px;background:transparent;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 40%,#000),#1d252c)}
+input[type=range]::-moz-range-track{height:8px;border-radius:5px;background:#1d252c}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-10px;border-radius:7px;background:#e9f0f4;border:3px solid var(--c);box-shadow:0 0 12px var(--c)}
+input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:7px;background:#e9f0f4;border:3px solid var(--c);box-shadow:0 0 12px var(--c)}
+.tog,.chip,.utog{font:15px var(--ui);padding:10px 14px;border-radius:9px;border:1px solid var(--ln);background:#06080a;color:#c9d3dc;text-align:left;min-height:44px}
+.tog:before,.utog:before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:9px;border:2px solid var(--dim);vertical-align:-1px}
+.tog.on,.utog.on{color:var(--tx);border-color:var(--c)}.tog.on:before,.utog.on:before{background:var(--c);border-color:var(--c);box-shadow:0 0 10px var(--c)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px;align-items:center}
+.chip.on{background:var(--c);color:#000;border-color:var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 70%,transparent);font-weight:600}
+.chip.q{font-family:var(--mono)}.qlab{font:13px var(--mono);color:var(--dim);letter-spacing:2px;margin-right:4px}
+.chip.var{display:inline-flex;gap:10px;align-items:center;cursor:pointer}.chip.var .x{color:var(--r)}
+.unit{background:#06080a;border:1px solid var(--ln);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;opacity:.75}
+.unit.on{opacity:1;border-color:var(--c);box-shadow:0 0 18px -6px var(--c)}.unit .ctl{background:transparent;border:0;padding:0 2px}
+.utog{width:100%;font-weight:600}
+.note{margin-top:14px;font-size:14px;color:var(--dim);border-left:3px solid var(--c);padding:8px 12px;background:#000}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center}.btns.center{justify-content:center}
+.btn{font:17px var(--disp);letter-spacing:1.3px;padding:10px 16px;border-radius:9px;border:1px solid var(--ln);background:var(--p3);min-height:46px}
+.btn:hover{border-color:var(--c)}.btn.warn{color:var(--r)}
+/* pitch */
+.pitchbig{text-align:center;margin:10px 0 6px}
+.pread{font:96px/1 var(--disp);color:var(--g);text-shadow:0 0 30px #39ff8888;letter-spacing:3px}
+.psub{font:15px var(--mono);color:var(--dim);letter-spacing:1px}
+.ctl.huge{padding:18px}.ctl.huge input[type=range]{height:60px}
+.ctl.huge input[type=range]::-webkit-slider-runnable-track{height:16px;border-radius:8px}
+.ctl.huge input[type=range]::-webkit-slider-thumb{width:46px;height:46px;margin-top:-15px;border-radius:12px}
+.xinfo{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font:17px var(--mono);margin:8px 0}
+.xinfo .z{padding:6px 12px;border-radius:7px;color:#000;background:var(--g);font-weight:bold}.z.ultrasonic{background:var(--pu)}.z.infrasonic{background:var(--o)}
+/* record */
+.recwrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.bigrec{width:190px;height:190px;border-radius:50%;font:38px var(--disp);letter-spacing:2px;color:var(--r);background:radial-gradient(circle at 40% 35%,#3a1220,#0a0306);border:3px solid var(--r);box-shadow:0 0 40px -6px var(--r),inset 0 0 40px #000}
+.bigrec.on{background:var(--r);color:#000;animation:pulse 1s infinite}
+.recinfo{flex:1;min-width:260px}.recinfo p{margin-bottom:10px}
+.steps{padding-left:24px;line-height:1.8}
+/* collage */
+.chaosrow{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+.chaos{flex:1 1 280px;font:46px/1 var(--disp);letter-spacing:4px;padding:24px;border-radius:16px;border:2px solid var(--o);color:#000;background:linear-gradient(90deg,var(--o),var(--r),var(--pu));box-shadow:0 0 40px -8px var(--o);text-shadow:0 1px 0 #fff4}
+.chaos.alt{flex:0 1 260px;font-size:32px;background:#000;color:var(--pu);border-color:var(--pu);box-shadow:0 0 30px -10px var(--pu)}
+.chaos:active{transform:scale(.99)}
+.seed{width:130px!important;font-family:var(--mono)!important}
+/* chain */
+.strip{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding:14px 4px;margin:6px 0}
+.node.io{display:flex;align-items:center;font:20px var(--disp);padding:0 14px;border-radius:10px;background:#000;border:1px dashed var(--dim);color:var(--dim)}
+.arrow{display:flex;align-items:center;color:var(--dim);font-size:22px}
+.blk{flex:0 0 auto;min-width:150px;border-radius:12px;border:1px solid var(--ln);background:#06080a;padding:10px;cursor:grab;opacity:.55;transition:.12s}
+.blk.on{opacity:1;border-color:var(--c);box-shadow:0 0 18px -6px var(--c)}.blk.sel{outline:2px solid #fff;outline-offset:2px}.blk.over{transform:scale(1.04)}
+.bn{font:19px var(--disp);letter-spacing:1px;color:var(--c);margin-bottom:8px;white-space:nowrap}.bi{font:12px var(--mono);color:var(--dim);margin-right:6px}
+.bctl{display:flex;gap:4px}.bctl button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--ln);background:var(--p3);font-size:14px;min-width:28px}
+.bctl .pwr.on{background:var(--c);color:#000}
+/* presets */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px}
+.pcard{text-align:left;border-radius:12px;border:1px solid var(--ln);background:linear-gradient(160deg,color-mix(in srgb,var(--c) 14%,#06080a),#06080a 70%);padding:16px;display:flex;flex-direction:column;gap:6px;min-height:104px;cursor:pointer}
+.pcard:hover{border-color:var(--c);box-shadow:0 0 22px -6px var(--c)}
+.pcard b{font:26px/1 var(--disp);letter-spacing:1.5px;color:var(--c)}.pcard span{font-size:14px;color:var(--dim)}
+.pcard.user{--c:var(--g)}.pcard.user .mini{margin:6px 0 0;align-self:flex-start}
+#toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:99;pointer-events:none}
+.toast{font:16px var(--mono);background:#000;border:1px solid var(--g);color:var(--g);padding:10px 18px;border-radius:10px;box-shadow:0 0 24px #39ff8840;transition:.4s}.toast.out{opacity:0;transform:translateY(10px)}
+footer{color:var(--dim);font:13px var(--mono);padding:24px 0;text-align:center}
+@media(max-width:900px){.scope{grid-template-columns:1fr}#wave{height:200px}.logo{font-size:36px}.master{margin-left:0;width:100%}.pread{font-size:72px}.chaos{font-size:36px}.grid{grid-template-columns:1fr}}
+@media(max-width:520px){.tb{padding:8px 11px;font-size:16px}#timer{min-width:120px;font-size:20px}.master input[type=range]{width:90px}#meter{width:110px}.bigrec{width:150px;height:150px;font-size:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brandrow"><a id="beep-back" href="index.html" aria-label="Back to deeley.org" title="Back to deeley.org">&#8249;</a>
+  <div class="logo">VOXLAB<small>EXPERIMENTAL VOICE LABORATORY · v1</small></div></div>
+  <div class="master">
+    <label>OUTPUT</label><input id="gain" type="range" min="0" max="1.5" step="0.01" style="--c:var(--g)"><span id="gainv">80%</span>
+    <canvas id="meter"></canvas><span id="limled" class="led">LIMIT</span><button id="mute">MUTE</button>
+  </div>
+</header>
+<div class="transport">
+  <button class="tb" id="bRec">● REC</button><button class="tb" id="bStop">■ STOP</button><button class="tb" id="bPlay">▶ PLAY</button><button class="tb" id="bPause">❚❚ PAUSE</button><button class="tb" id="bLoop">⟲ LOOP</button><button class="tb" id="bClear">✕ CLEAR</button>
+  <div id="timer">00.0 / 20.0</div>
+  <div class="seg" id="ab"><button data-k="orig">A · ORIGINAL</button><button data-k="proc" class="on">B · PROCESSED</button><button data-k="collage">COLLAGE</button></div>
+  <div class="spacer"></div>
+  <button class="tb" id="bLoad">⇪ LOAD</button><button class="tb exp" id="bWav">⇩ WAV</button><button class="tb exp" id="bComp">⇩ COMPRESSED</button>
+  <input type="file" id="file" accept="audio/*" hidden>
+</div>
+<div class="scope">
+  <div class="screen"><canvas id="wave"></canvas><canvas id="spec"></canvas></div>
+  <div class="readouts">
+    <div class="ro"><span>INPUT</span><b class="g" id="rIn">—</b></div>
+    <div class="ro"><span>OUTPUT</span><b class="b" id="rOut">—</b></div>
+    <div class="ro"><span>PITCH</span><b class="g" id="rPitch">OFF</b></div>
+    <div class="ro"><span>SOURCE</span><b id="rSrc">ORIGINAL</b></div>
+    <div class="ro"><span>SEED</span><b class="o" id="rSeed">—</b></div>
+    <div class="status" id="status">BOOTING…</div>
+    <div><span class="dim" style="font:13px var(--mono);letter-spacing:1px">ACTIVE CHAIN</span><div id="active"></div></div>
+  </div>
+</div>
+<nav id="tabs"></nav>
+<main id="panel"></main>
+<footer>VOXLAB · every effect is real DSP rendered from your untouched original · SPACE play/pause · R record · click waveform to seek · tap a value to type it, double-tap to reset</footer>
+</div>
+<div id="toasts"></div>
+<script id="dspsrc" type="text/plain">
+'use strict';
+/* ===================== VOXLAB DSP ENGINE (runs in a Web Worker) ===================== */
+const TAU = Math.PI * 2;
+let SR = 48000, MAXLEN = SR * 120;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let RNG = mulberry32(1);
+const rnd = () => RNG();
+const rr = (a, b) => a + (b - a) * RNG();
+const capLen = n => Math.max(1, Math.min(Math.round(n), MAXLEN));
+const ms = v => Math.max(1, Math.round(v * SR / 1000));
+
+function hann(N) { const w = new Float32Array(N); for (let i = 0; i < N; i++) w[i] = 0.5 - 0.5 * Math.cos(TAU * i / N); return w; }
+const HANN = {}; const hannC = N => HANN[N] || (HANN[N] = hann(N));
+function mono(chs) { if (chs.length === 1) return chs[0]; const n = chs[0].length, o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = (chs[0][i] + chs[1][i]) * 0.5; return o; }
+function stereo(chs) { return chs.length === 1 ? [chs[0], chs[0].slice()] : chs; }
+function padTo(x, n) { if (x.length >= n) return x; const o = new Float32Array(n); o.set(x); return o; }
+function sameLen(chs) { const n = Math.max(...chs.map(c => c.length)); return chs.map(c => padTo(c, n)); }
+/* dry/wet mix, handles different lengths and channel counts */
+function mixChs(dry, wet, m) {
+  if (m >= 0.999) return wet; if (m <= 0.001) return dry;
+  if (dry.length !== wet.length) { dry = stereo(dry); wet = stereo(wet); }
+  return dry.map((d, c) => { const w = wet[c], n = Math.max(d.length, w.length), o = new Float32Array(n);
+    for (let i = 0; i < n; i++) o[i] = (i < d.length ? d[i] : 0) * (1 - m) + (i < w.length ? w[i] : 0) * m; return o; });
+}
+function rms(x) { let s = 0; for (let i = 0; i < x.length; i++) s += x[i] * x[i]; return Math.sqrt(s / Math.max(1, x.length)); }
+function peak(chs) { let p = 0; for (const c of chs) for (let i = 0; i < c.length; i++) { const a = Math.abs(c[i]); if (a > p) p = a; } return p; }
+function scale(x, g) { for (let i = 0; i < x.length; i++) x[i] *= g; return x; }
+function envFollow(x, attMs = 5, relMs = 200) {
+  const a = Math.exp(-1 / (SR * attMs / 1000)), r = Math.exp(-1 / (SR * relMs / 1000)), e = new Float32Array(x.length); let v = 0;
+  for (let i = 0; i < x.length; i++) { const s = Math.abs(x[i]); v = s > v ? a * v + (1 - a) * s : r * v + (1 - r) * s; e[i] = v; } return e;
+}
+function fades(x, f) { const n = Math.min(f, x.length >> 1); for (let i = 0; i < n; i++) { const g = i / n; x[i] *= g; x[x.length - 1 - i] *= g; } return x; }
+
+/* ---------- filters ---------- */
+function bqC(type, f, q, gain) {
+  const w = TAU * clamp(f, 2, SR * 0.49) / SR, cs = Math.cos(w), sn = Math.sin(w), al = sn / (2 * q), A = Math.pow(10, (gain || 0) / 40); let b0, b1, b2, a0, a1, a2;
+  switch (type) {
+    case 'hp': b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = b0; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; break;
+    case 'bp': b0 = al; b1 = 0; b2 = -al; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; break;
+    case 'peak': b0 = 1 + al * A; b1 = -2 * cs; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cs; a2 = 1 - al / A; break;
+    case 'notch': b0 = 1; b1 = -2 * cs; b2 = 1; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; break;
+    default: b0 = (1 - cs) / 2; b1 = 1 - cs; b2 = b0; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al;
+  }
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function bq(x, type, f, q = 0.707, g = 0) {
+  const [b0, b1, b2, a1, a2] = bqC(type, f, q, g), y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const xi = x[i], yi = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = xi; y2 = y1; y1 = yi; y[i] = yi; }
+  return y;
+}
+function onePoleLP(x, f) { const a = Math.exp(-TAU * clamp(f, 1, SR * 0.49) / SR), y = new Float32Array(x.length); let v = 0; for (let i = 0; i < x.length; i++) { v = x[i] * (1 - a) + v * a; y[i] = v; } return y; }
+function dcBlock(x, f = 4) { const R = Math.exp(-TAU * f / SR); let xp = 0, yp = 0; for (let i = 0; i < x.length; i++) { const y = x[i] - xp + R * yp; xp = x[i]; yp = y; x[i] = y; } return x; }
+/* Topology-preserving SVF with per-sample cutoff function */
+function svf(x, fFn, q, mode) {
+  const y = new Float32Array(x.length); let ic1 = 0, ic2 = 0; const k = 1 / Math.max(0.3, q); let g = 0, a1 = 0, a2 = 0, a3 = 0;
+  for (let i = 0; i < x.length; i++) {
+    if ((i & 7) === 0) { g = Math.tan(Math.PI * clamp(fFn(i), 10, SR * 0.45) / SR); a1 = 1 / (1 + g * (g + k)); a2 = g * a1; a3 = g * a2; }
+    const v3 = x[i] - ic2, v1 = a1 * ic1 + a2 * v3, v2 = ic2 + a2 * ic1 + a3 * v3; ic1 = 2 * v1 - ic1; ic2 = 2 * v2 - ic2;
+    y[i] = mode === 'hp' ? x[i] - k * v1 - v2 : mode === 'bp' ? v1 * k : mode === 'notch' ? x[i] - k * v1 : v2;
+  }
+  return y;
+}
+/* ---------- interpolation / resampling ---------- */
+function hermite(x, p) { const j = Math.floor(p), f = p - j, n = x.length; const xm = j > 0 && j - 1 < n ? x[j - 1] : 0, x0 = j >= 0 && j < n ? x[j] : 0, x1 = j + 1 >= 0 && j + 1 < n ? x[j + 1] : 0, x2 = j + 2 >= 0 && j + 2 < n ? x[j + 2] : 0;
+  const c1 = .5 * (x1 - xm), c2 = xm - 2.5 * x0 + 2 * x1 - .5 * x2, c3 = .5 * (x2 - xm) + 1.5 * (x0 - x1); return ((c3 * f + c2) * f + c1) * f + x0; }
+function resample(x, ratio, aa = true) {
+  if (Math.abs(ratio - 1) < 1e-6) return x.slice();
+  if (aa && ratio > 1) { const fc = SR * 0.45 / ratio; x = bq(bq(x, 'lp', fc, 0.54), 'lp', fc, 1.31); }
+  const n = capLen(x.length / ratio), y = new Float32Array(n);
+  for (let i = 0; i < n; i++) y[i] = hermite(x, i * ratio);
+  return y;
+}
+/* ---------- WSOLA time stretch ---------- */
+function wsola(x, stretch, grainMs = 60, jitter = 0, search = true) {
+  const N = x.length; let G = Math.max(64, ms(grainMs) & ~1); if (G > N) G = Math.max(64, N & ~1);
+  const Hs = G >> 2, outLen = capLen(N * stretch), y = new Float32Array(outLen + G), ws = new Float32Array(outLen + G), w = hannC(G);
+  const Ha = Hs / stretch, tol = search && jitter < 0.5 ? Math.min(G >> 2, 1200) : 0, dStep = Math.max(2, Math.round(tol / 40)), L = G >> 1, jStep = Math.max(4, L >> 7);
+  let prev = 0; const maxP = Math.max(0, N - G);
+  for (let k = 0, op = 0; op < outLen; k++, op += Hs) {
+    let target = k * Ha; if (jitter > 0) target += (rnd() * 2 - 1) * jitter * G * 3;
+    target = clamp(Math.round(target), 0, maxP); let best = target;
+    if (tol > 0 && k > 0) { const nat = prev + Hs; if (nat + L < N) { let bc = -Infinity;
+      for (let d = -tol; d <= tol; d += dStep) { const c = target + d; if (c < 0 || c + L >= N) continue; let s = 0, e = 1e-9; for (let j = 0; j < L; j += jStep) { const v = x[c + j]; s += v * x[nat + j]; e += v * v; } s /= Math.sqrt(e); if (s > bc) { bc = s; best = c; } } } }
+    best = clamp(best, 0, maxP);
+    for (let j = 0; j < G; j++) { const s = best + j < N ? x[best + j] : 0; y[op + j] += s * w[j]; ws[op + j] += w[j]; }
+    prev = best;
+  }
+  const o = new Float32Array(outLen); for (let i = 0; i < outLen; i++) o[i] = y[i] / Math.max(ws[i], 0.5);
+  return o;
+}
+function pitchShiftX(x, semis, grainMs = 50) {
+  const r = Math.pow(2, semis / 12); if (Math.abs(semis) < 0.01) return x.slice();
+  const y = resample(x, r); return wsola(y, x.length / Math.max(1, y.length), grainMs);
+}
+/* ---------- FFT / STFT ---------- */
+function fft(re, im, inv) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let len = 2; len <= n; len <<= 1) { const ang = (inv ? 2 : -2) * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), h = len >> 1;
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0; for (let j = 0; j < h; j++) { const a = i + j, b = a + h, vr = re[b] * cr - im[b] * ci, vi = re[b] * ci + im[b] * cr; re[b] = re[a] - vr; im[b] = im[a] - vi; re[a] += vr; im[a] += vi; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } } }
+  if (inv) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+}
+function stft(x, N, hop, cb, opt = {}) {
+  const w = hannC(N), L = capLen(x.length + (opt.tail || 0)), out = new Float32Array(L + N), ws = new Float32Array(L + N), re = new Float64Array(N), im = new Float64Array(N), xl = x.length;
+  let f = 0; const ideal = (3 * N / 8) / hop;
+  for (let p = -N / 2 | 0; p < L; p += hop, f++) {
+    for (let j = 0; j < N; j++) { const q = p + j; re[j] = (q >= 0 && q < xl ? x[q] : 0) * w[j]; im[j] = 0; }
+    fft(re, im, false); cb(re, im, f, p, N); fft(re, im, true);
+    for (let j = 0; j < N; j++) { const q = p + j; if (q < 0 || q >= L) continue; const v = opt.shift ? re[(j + N / 2) % N] : re[j]; out[q] += v * w[j]; ws[q] += w[j] * w[j]; }
+  }
+  const o = new Float32Array(L), fl = ideal * 0.3; for (let i = 0; i < L; i++) o[i] = out[i] / Math.max(ws[i], fl); return o;
+}
+function mirror(re, im, N) { for (let k = 1; k < N / 2; k++) { re[N - k] = re[k]; im[N - k] = -im[k]; } im[0] = 0; im[N / 2] = 0; }
+function formantShift(x, f) {
+  if (Math.abs(f - 1) < 0.01) return x.slice(); const N = 2048, H = 512, half = N / 2, mag = new Float64Array(half + 1), env = new Float64Array(half + 1);
+  return stft(x, N, H, (re, im) => {
+    for (let k = 0; k <= half; k++) mag[k] = Math.hypot(re[k], im[k]);
+    const R = 12; let acc = 0; for (let k = 0; k <= Math.min(R, half); k++) acc += mag[k]; // moving average envelope
+    for (let k = 0; k <= half; k++) { const a = k + R + 1, b = k - R; if (a <= half) acc += mag[a]; if (b >= 0) acc -= mag[b]; env[k] = acc / (2 * R + 1) + 1e-9; }
+    for (let k = 1; k < half; k++) { const src = k / f; let e2 = 1e-9; if (src < half) { const j = src | 0, t = src - j; e2 = env[j] * (1 - t) + env[j + 1] * t; } const g = Math.min(8, e2 / env[k]); re[k] *= g; im[k] *= g; }
+    mirror(re, im, N);
+  });
+}
+/* ---------- Hilbert (Niemitalo IIR) & frequency shifter ---------- */
+const HA = [0.6923878, 0.9360654322959, 0.9882295226860, 0.9987488452737].map(v => v * v), HB = [0.4021921162426, 0.8561710882420, 0.9722909545651, 0.9952884791278].map(v => v * v);
+function makeHilbert() {
+  const sa = new Float64Array(16), sb = new Float64Array(16); let d = 0;
+  return function (u) { let a = u, b = u;
+    for (let s = 0; s < 4; s++) { const o = s * 4, c = HA[s], y = c * (a + sa[o + 3]) - sa[o + 1]; sa[o + 1] = sa[o]; sa[o] = a; sa[o + 3] = sa[o + 2]; sa[o + 2] = y; a = y; }
+    for (let s = 0; s < 4; s++) { const o = s * 4, c = HB[s], y = c * (b + sb[o + 3]) - sb[o + 1]; sb[o + 1] = sb[o]; sb[o] = b; sb[o + 3] = sb[o + 2]; sb[o + 2] = y; b = y; }
+    const I = d; d = a; return [I, b]; };
+}
+function freqShift(x, hz, fb = 0, hzFn) {
+  const h = makeHilbert(), y = new Float32Array(x.length); let ph = 0, prev = 0;
+  for (let i = 0; i < x.length; i++) { const [I, Q] = h(x[i] + prev * fb); const v = I * Math.cos(ph) + Q * Math.sin(ph); y[i] = v; prev = Math.tanh(v); ph += TAU * (hzFn ? hzFn(i) : hz) / SR; if (ph > 1e4) ph %= TAU; }
+  return y;
+}
+function osc(shape, ph) { const p = ph - Math.floor(ph); switch (shape) { case 'square': return p < .5 ? 1 : -1; case 'saw': return 2 * p - 1; case 'tri': return 1 - 4 * Math.abs(p - .5); default: return Math.sin(TAU * p); } }
+function ringMod(x, f, depth = 1, shape = 'sine', fFn) { const y = new Float32Array(x.length); let ph = 0; for (let i = 0; i < x.length; i++) { const m = osc(shape, ph); y[i] = x[i] * (1 - depth + depth * m); ph += (fFn ? fFn(i) : f) / SR; } return y; }
+/* fractional delay modulation */
+function modDelay(x, baseMs, depthMs, rate, fb = 0, mixv = 0.5, phase0 = 0, extra = 0) {
+  const n = x.length + ms(extra), y = new Float32Array(n), maxD = ms(baseMs + depthMs + 5) + 4, buf = new Float32Array(maxD * 2 + 8), BL = buf.length; let wp = 0;
+  for (let i = 0; i < n; i++) { const d = Math.max(1, (baseMs + depthMs * (0.5 + 0.5 * Math.sin(TAU * rate * i / SR + phase0))) * SR / 1000); let rp = wp - d; while (rp < 0) rp += BL;
+    const j = Math.floor(rp), t = rp - j, s = buf[j % BL] * (1 - t) + buf[(j + 1) % BL] * t; const xi = i < x.length ? x[i] : 0;
+    buf[wp] = xi + s * fb; wp = (wp + 1) % BL; y[i] = xi * (1 - mixv) + s * mixv; }
+  return y;
+}
+function comb(x, f, fbk, mixv = 1, extraMs = 0) { const D = Math.max(1, Math.round(SR / clamp(f, 10, SR / 2))), n = x.length + ms(extraMs), b = new Float32Array(D), y = new Float32Array(n); let p = 0;
+  for (let i = 0; i < n; i++) { const xi = i < x.length ? x[i] : 0, d = b[p], v = xi + d * fbk; b[p] = v; p = (p + 1) % D; y[i] = xi * (1 - mixv) + d * mixv; } return y; }
+function reverseChunks(x, L) { const y = new Float32Array(x.length), f = Math.min(ms(4), L >> 2); for (let s = 0; s < x.length; s += L) { const e = Math.min(x.length, s + L), n = e - s; for (let i = 0; i < n; i++) { let g = 1; if (i < f) g = i / f; else if (n - i < f) g = (n - i) / f; y[s + i] = x[e - 1 - i] * g; } } return y; }
+function noise() { return rnd() * 2 - 1; }
+/* Freeverb-style reverb */
+function reverb(chs, size = 0.7, damp = 0.4, mixv = 0.3, tailS = 2, width = 1, pre = 0) {
+  const st = stereo(chs), n = capLen(st[0].length + tailS * SR), sc = SR / 44100, CT = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617], AT = [556, 441, 341, 225];
+  const fbk = 0.7 + size * 0.28, dmp = damp * 0.4, pd = ms(pre + 0.01), out = [new Float32Array(n), new Float32Array(n)];
+  const inp = new Float32Array(n); for (let i = 0; i < n; i++) { const q = i - pd; inp[i] = q >= 0 && q < st[0].length ? (st[0][q] + st[1][q]) * 0.015 : 0; }
+  for (let c = 0; c < 2; c++) {
+    const spread = c ? 23 : 0, combs = CT.map(t => ({ b: new Float32Array(Math.round((t + spread) * sc * (0.6 + size * 0.6))), p: 0, f: 0 })), aps = AT.map(t => ({ b: new Float32Array(Math.round((t + spread) * sc)), p: 0 })), o = out[c];
+    for (let i = 0; i < n; i++) { let s = 0; const xin = inp[i];
+      for (const cb of combs) { const v = cb.b[cb.p]; cb.f = v * (1 - dmp) + cb.f * dmp; cb.b[cb.p] = xin + cb.f * fbk; cb.p = (cb.p + 1) % cb.b.length; s += v; }
+      for (const ap of aps) { const bv = ap.b[ap.p], v = -s + bv; ap.b[ap.p] = s + bv * 0.5; ap.p = (ap.p + 1) % ap.b.length; s = v; }
+      o[i] = s; }
+  }
+  const wet1 = (1 + width) / 2, wet2 = (1 - width) / 2;
+  return [0, 1].map(c => { const y = new Float32Array(n), d = st[c]; for (let i = 0; i < n; i++) { const w = out[c][i] * wet1 + out[1 - c][i] * wet2; y[i] = (i < d.length ? d[i] : 0) * (1 - mixv * 0.6) + w * mixv * 3; } return y; });
+}
+
+/* ===================== MODULES ===================== */
+const M = {};
+M.pitch = (chs, p) => { const semis = (p.semis || 0) + (p.cents || 0) / 100; let out = chs.map(x => { let y = pitchShiftX(x, semis, p.grain || 50); if (p.formant) y = formantShift(y, clamp(Math.pow(2, -semis / 12), 0.3, 3)); return y; }); return mixChs(chs, out, p.mix ?? 1); };
+M.freqshift = (chs, p) => mixChs(chs, chs.map(x => freqShift(x, p.hz, p.fb || 0)), p.mix ?? 1);
+function xfreqInfo(vf) { let f = vf, oct = 0; if (vf > 20000) { while (f > 16000) { f /= 2; oct++; } return { zone: 'ULTRASONIC', heard: f, oct }; } if (vf < 20) { while (f < 40) { f *= 2; oct--; } return { zone: 'INFRASONIC', heard: f, oct, pulse: vf }; } return { zone: 'AUDIBLE', heard: vf, oct: 0 }; }
+M.xfreq = (chs, p) => { const inf = xfreqInfo(p.vf), tr = p.translate ?? 1; const out = chs.map(x => {
+  let y = p.mode === 'shift' ? freqShift(x, inf.heard * (p.dir === 'down' ? -1 : 1) * (inf.zone === 'AUDIBLE' ? 1 : tr) + 0) : ringMod(x, inf.heard, inf.zone === 'AUDIBLE' ? 1 : tr);
+  if (inf.zone === 'INFRASONIC') { const r = inf.pulse; for (let i = 0; i < y.length; i++) y[i] *= 1 - (p.pulse ?? 0.8) * (0.5 - 0.5 * Math.cos(TAU * r * i / SR)); }
+  return y; }); return mixChs(chs, out, p.mix ?? 1); };
+M.stretch = (chs, p) => { const f = p.factor || 1; return chs.map(x => { const st = Math.min(f, MAXLEN / x.length);
+  if (p.mode === 'tape') return resample(x, 1 / st, true);
+  if (p.mode === 'smear') return wsola(x, st, p.grain || 120, Math.max(0.5, p.jitter || 0.6), false);
+  return wsola(x, st, p.grain || 60, p.jitter || 0, true); }); };
+
+M.robot = (chs, p) => {
+  const out = chs.map((x0, ci) => { let x = x0;
+    if (p.phone) x = bq(bq(bq(x, 'hp', 320, 0.9), 'lp', 3400, 0.9), 'peak', 1500, 1.2, 6);
+    if (p.mono > 0) { const f = p.rpitch || 110, hop = Math.max(32, Math.round(SR / f)); let N = 1024; while (N < hop * 2) N *= 2; const half = N / 2;
+      const r = stft(x, N, hop, (re, im) => { for (let k = 0; k <= half; k++) { re[k] = Math.hypot(re[k], im[k]); im[k] = 0; } mirror(re, im, N); }, { shift: true });
+      x = mixChs([x], [r], p.mono)[0]; }
+    if (p.mdepth > 0) x = ringMod(x, p.mspeed || 50, p.mdepth, p.mwave || 'sine');
+    if (p.reso > 0) { const f = p.cfreq || 300; let y = comb(x, f, p.reso * 0.97, 0.7); y = comb(y, f * 1.498, p.reso * 0.8, 0.5); x = y; }
+    if (p.gate > 0) { const rate = p.grate || 14, y = new Float32Array(x.length); for (let i = 0; i < x.length; i++) { const ph = (i * rate / SR) % 1; const g = ph < 0.55 ? 1 : 1 - p.gate; y[i] = x[i] * (ph < 0.02 ? lerp(1 - p.gate, 1, ph / 0.02) : g); } x = y; }
+    if (p.frag > 0) { RNG = mulberry32(777 + ci); const L = ms(30), y = x.slice(); for (let s = 0; s + L < x.length; s += L) { const r = rnd(); if (r < p.frag * 0.35) y.fill(0, s, s + L); else if (r < p.frag * 0.7) { const src = Math.max(0, s - L * (1 + (rnd() * 3 | 0))); for (let j = 0; j < L; j++) y[s + j] = x[src + j]; } } x = y; }
+    if (p.rep > 0) { RNG = mulberry32(99 + ci); const L = ms(p.rsize || 60), y = new Float32Array(x.length); let s = 0;
+      while (s < x.length) { const rep = rnd() < p.rep ? 2 + (rnd() * p.rep * 6 | 0) : 1, seg = x.subarray(s, Math.min(x.length, s + L)); for (let r = 0; r < rep; r++) { const o = s + r * seg.length; if (o >= y.length) break; for (let j = 0; j < seg.length && o + j < y.length; j++) { const g = Math.min(1, j / 40, (seg.length - j) / 40); y[o + j] = seg[j] * g; } } s += seg.length * rep; } x = y; }
+    if (p.bits < 16 || p.srr > 1) { const q = Math.pow(2, (p.bits || 16) - 1), hold = Math.max(1, Math.round(p.srr || 1)), y = new Float32Array(x.length); let h = 0; for (let i = 0; i < x.length; i++) { if (i % hold === 0) h = Math.round(x[i] * q) / q; y[i] = h; } x = y; }
+    if (p.harsh > 0) { const g = 1 + p.harsh * 25, y = new Float32Array(x.length); for (let i = 0; i < x.length; i++) { const v = Math.tanh(x[i] * g); y[i] = (v * 0.6 + clamp(x[i] * g * 2, -1, 1) * 0.4) * 0.7; } x = y; }
+    return x; });
+  return mixChs(chs, out, p.mix ?? 1);
+};
+
+M.delay = (chs, p) => {
+  const mode = p.mode || 'echo'; let T = ms(mode === 'slap' ? Math.min(p.time, 160) : p.time), fbv = p.inf ? 1 : (p.fb ?? 0.5);
+  let n = p.repeats > 0 ? Math.round(p.repeats) : (fbv <= 0.001 ? 1 : Math.ceil(Math.log(0.001) / Math.log(Math.min(0.995, fbv))));
+  if (mode === 'slap' && !(p.repeats > 0)) n = Math.min(n, 2);
+  const len = chs[0].length; n = clamp(n, 1, Math.max(1, Math.min(96, Math.floor((MAXLEN - len) / T)))); if (p.inf && !(p.repeats > 0)) n = clamp(Math.floor((Math.min(MAXLEN, len + SR * 40) - len) / T), 1, 96);
+  const pp = mode === 'pingpong', base = pp ? stereo(chs) : chs, outLen = capLen(len + n * T), nc = base.length;
+  const wet = Array.from({ length: nc }, () => new Float32Array(outLen));
+  const srcM = mono(chs); let cur = mode === 'reverse' ? reverseChunks(srcM, T) : srcM.slice();
+  for (let i = 1; i <= n; i++) {
+    if (p.tone < 18000) cur = onePoleLP(cur, p.tone);
+    if (mode === 'atmos') { cur = comb(cur, 1000 / (7 + (i % 5) * 3.7), -0.5, 0.6); cur = onePoleLP(cur, Math.max(400, (p.tone || 8000) * 0.85)); }
+    let tap = cur; if (p.degrade > 0) { const d = 1 + p.degrade * i * 0.6; tap = new Float32Array(cur.length); for (let j = 0; j < cur.length; j++) tap[j] = Math.tanh(cur[j] * d) / Math.sqrt(d) * 1.2; if (p.degrade > 0.5) cur = tap; }
+    const g = (p.vol ?? 0.8) * Math.pow(fbv, i - 1), off = i * T;
+    for (let c = 0; c < nc; c++) { let pg = 1; if (pp) { const side = i % 2 ? 0 : 1, sp = p.spread ?? 1; pg = c === side ? 1 : 1 - sp; } const w = wet[c], gg = g * pg; if (gg < 1e-5) continue; for (let j = 0; j < tap.length && off + j < outLen; j++) w[off + j] += tap[j] * gg; }
+  }
+  const mixv = p.mix ?? 0.6, dg = mixv > 0.5 ? (1 - mixv) * 2 : 1;
+  const wg = Math.min(1, mixv * 2);
+  return wet.map((w, c) => { const d = base[c] || base[0]; for (let i = 0; i < outLen; i++) w[i] = w[i] * wg + (i < d.length ? d[i] * dg : 0); return w; });
+};
+
+const DIST_KEYS = ['hard', 'soft', 'over', 'fuzz', 'sat', 'crush', 'dclip', 'fold', 'metal', 'destroy', 'speaker', 'radio', 'static', 'crackle', 'glitch'];
+M.distortion = (chs, p) => {
+  RNG = mulberry32(4242);
+  const out = chs.map((x0) => { let x = x0.slice(); const inR = rms(x0) + 1e-9, n = x.length, env = envFollow(x0, 2, 120);
+    const A = k => p[k + 'On'] ? (p[k] ?? 0.5) : 0;
+    let a;
+    if ((a = A('hard'))) { const g = 1 + a * 40; for (let i = 0; i < n; i++) x[i] = clamp(x[i] * g, -1, 1) * 0.8; }
+    if ((a = A('soft'))) { const g = 1 + a * 30; for (let i = 0; i < n; i++) x[i] = Math.tanh(x[i] * g); }
+    if ((a = A('over'))) { x = bq(x, 'peak', 900, 0.7, a * 9); const g = 1 + a * 20; for (let i = 0; i < n; i++) { const v = x[i] * g; x[i] = v > 0 ? Math.tanh(v) : Math.tanh(v * 0.6) * 0.85; } x = onePoleLP(x, 9000 - a * 4000); }
+    if ((a = A('fuzz'))) { const g = 1 + a * 220, th = 0.004 * a; for (let i = 0; i < n; i++) { let v = Math.tanh(x[i] * g); v = v * (1 - a * 0.4) + Math.abs(v) * a * 0.4; const ga = Math.abs(x0[i]) < th ? Math.abs(x0[i]) / th : 1; x[i] = v * ga; } x = dcBlock(x, 20); }
+    if ((a = A('sat'))) { const g = 1 + a * 6; for (let i = 0; i < n; i++) { const v = x[i] * g; x[i] = lerp(x[i], v / (1 + Math.abs(v)), Math.min(1, a * 1.5)); } }
+    if ((a = A('crush'))) { const bits = p.crushBits ?? 6, q = Math.pow(2, bits - 1), hold = Math.max(1, Math.round(p.crushRate ?? 8)); let h = 0; for (let i = 0; i < n; i++) { if (i % hold === 0) h = Math.round(x[i] * q) / q; x[i] = lerp(x[i], h, a); } }
+    if ((a = A('dclip'))) { const g = 1 + a * 60, t = 0.35; for (let i = 0; i < n; i++) { const v = clamp(x[i] * g, -t, t) / t; x[i] = Math.round(v * 4) / 4 * a + v * (1 - a); } }
+    if ((a = A('fold'))) { const g = 1 + a * (p.foldGain ?? 10); for (let i = 0; i < n; i++) x[i] = Math.sin(x[i] * g * Math.PI / 2); }
+    if ((a = A('metal'))) { const f = p.metalFreq ?? 440, r = [1, 2.76, 5.40, 8.93]; let ph = 0; const y = new Float32Array(n); for (let i = 0; i < n; i++) { let m = 0; for (let k = 0; k < 4; k++) m += Math.sin(TAU * ph * r[k]) / (k + 1); ph += f / SR; y[i] = x[i] * (1 - a) + x[i] * m * a * 1.2; } x = comb(y, f / 2, 0.6 * a, 0.5); }
+    if ((a = A('destroy'))) { const g = 1 + a * 30; for (let i = 0; i < n; i++) { let v = x[i] * g; v = ((v + 1) % 2 + 2) % 2 - 1; let iv = Math.round(v * 127); if (rnd() < a * 0.03) iv ^= 1 << (rnd() * 7 | 0); x[i] = iv / 127; } }
+    if ((a = A('speaker'))) { x = bq(bq(x, 'hp', 250 + a * 300, 0.7), 'lp', 3500 - a * 1800, 2 + a * 4); let drop = 0; for (let i = 0; i < n; i++) { const v = x[i]; if (Math.abs(v) > 0.25 - a * 0.2) x[i] = v + Math.sign(v) * noise() * a * 0.5; x[i] = v > 0 ? Math.min(v, 0.6) : Math.max(v, -0.9 + a * 0.3); if (drop > 0) { x[i] *= 0.05; drop--; } else if (rnd() < a * 0.0004) drop = ms(5 + rnd() * 60); } }
+    if ((a = A('radio'))) { const y = bq(bq(x, 'hp', 400, 0.8), 'lp', 3800, 0.9); let nz = 0, ph = 0; const wf = p.radioFreq ?? 1800; for (let i = 0; i < n; i++) { nz = nz * 0.9995 + noise() * 0.0005 * 40; const am = 1 - a * 0.6 * clamp(Math.abs(nz) * 2, 0, 1); ph += (wf * (1 + 0.3 * Math.sin(TAU * 0.13 * i / SR))) / SR; x[i] = lerp(x[i], y[i] * am + Math.sin(TAU * ph) * a * 0.07 + noise() * a * 0.04, a); } }
+    if ((a = A('static'))) { for (let i = 0; i < n; i++) x[i] += noise() * a * 0.25 * (0.25 + 0.75 * Math.min(1, env[i] * 4)); }
+    if ((a = A('crackle'))) { for (let i = 0; i < n; i++) if (rnd() < a * 0.0025) { const amp = (rnd() * 2 - 1) * a, L = 1 + (rnd() * 30 | 0); for (let j = 0; j < L && i + j < n; j++) x[i + j] += amp * (1 - j / L); } }
+    if ((a = A('glitch'))) { const L = ms(p.glitchSize ?? 40), src = x.slice(); for (let s = L; s + L < n; s += L) { const r = rnd(); if (r > a * 0.6) continue; const t = rnd(); if (t < 0.3) for (let j = 0; j < L; j++) x[s + j] = src[s - L + j]; else if (t < 0.5) for (let j = 0; j < L; j++) x[s + j] = src[s + L - 1 - j]; else if (t < 0.65) x.fill(0, s, s + L); else if (t < 0.85) { const h = src[s]; for (let j = 0; j < L; j++) x[s + j] = j % 200 < 100 ? h : -h; } else for (let j = 0; j < L; j++) x[s + j] = src[s + ((j * 2) % L)]; } }
+    if (p.auto !== false) { const r2 = rms(x) + 1e-9; scale(x, Math.min(8, inR / r2)); }
+    return x; });
+  const m = mixChs(chs, out, p.mix ?? 1), g = Math.pow(10, (p.level || 0) / 20); m.forEach(c => scale(c, g)); return m;
+};
+
+M.rumble = (chs, p) => {
+  RNG = mulberry32(31337);
+  const len = chs[0].length, n = capLen(len + (p.tail ?? 1.5) * SR), x = mono(chs), envRaw = envFollow(x, 10, 350), emax = Math.max(1e-4, ...[peak([envRaw])]), R = new Float32Array(n);
+  const env = new Float32Array(n); for (let i = 0; i < n; i++) env[i] = i < len ? envRaw[i] / emax : (envRaw[len - 1] / emax) * Math.exp(-(i - len) / (SR * 0.6));
+  const f = p.freq ?? 45, mr = p.mod ?? 2, sv = p.sub ?? 0.8; let ph = 0, ph2 = 0, brown = 0, sw = 0, swt = 0, o = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / SR; let s = 0; brown = clamp(brown * 0.998 + noise() * 0.03, -1, 1);
+    if (p.t_sub) s += Math.sin(TAU * ph) * sv + brown * 0.2;
+    if (p.t_cine) s += brown * 0.9 * (0.6 + 0.4 * Math.sin(TAU * 0.15 * t));
+    if (p.t_mech) s += ((ph * 2) % 1 < 0.15 ? 1 : -0.15) * 0.5;
+    if (p.t_engine) { const pe = ph2 % 1; s += (2 * pe - 1) * 0.45 + Math.sin(TAU * ph2 * 2) * 0.2; }
+    if (p.t_quake) { if ((i & 1023) === 0) swt = rnd() < 0.1 ? 1 : rnd() * 0.5; sw += (swt - sw) * 0.0004; s += brown * 1.6 * sw; }
+    if (p.t_lfo) s += Math.sin(TAU * ph) * sv * (0.5 + 0.5 * Math.sin(TAU * mr * t));
+    R[i] = s; ph += f / SR; ph2 += f * (1 + 0.08 * Math.sin(TAU * mr * 0.5 * t) + 0.02 * noise()) / SR;
+  }
+  let Rf = svf(R, () => p.lp ?? 220, p.reso ?? 1.5, 'lp');
+  if (p.t_dbass) { const lp = bq(x, 'lp', 260, 0.7); let st = 1, last = 0; const y = new Float32Array(n); for (let i = 0; i < n; i++) { const v = i < len ? lp[i] : 0; if (last <= 0 && v > 0) st = -st; last = v; y[i] = st * env[i] * 0.8; } const yb = onePoleLP(y, 180); for (let i = 0; i < n; i++) Rf[i] += Math.tanh(yb[i] * 3) * 0.7; }
+  if (p.t_drops) { const thr = 0.35; let armed = true, lastDrop = -1e9; for (let i = 0; i < n; i++) { if (armed && env[i] > thr && i - lastDrop > SR * 0.8) { lastDrop = i; armed = false; let dp = 0; const L = Math.round(SR * 1.2); for (let j = 0; j < L && i + j < n; j++) { const tt = j / L, fr = lerp(180, f * 0.5, Math.pow(tt, 0.4)); dp += fr / SR; Rf[i + j] += Math.tanh(Math.sin(TAU * dp) * 2.5) * Math.pow(1 - tt, 1.5) * 0.9; } } if (env[i] < thr * 0.5) armed = true; } }
+  if (p.t_pulse) for (let i = 0; i < n; i++) Rf[i] *= (i * mr / SR) % 1 < 0.5 ? 1 : 0.1;
+  const dr = p.drive ?? 0.2; if (dr > 0) { const g = 1 + dr * 12; for (let i = 0; i < n; i++) Rf[i] = Math.tanh(Rf[i] * g) / Math.tanh(g) * 1.2; }
+  const fo = p.follow ?? 0.7; for (let i = 0; i < n; i++) Rf[i] *= lerp(1, env[i], fo);
+  if (p.ultra) { const fi = p.infra ?? 7; let pi = 0; for (let i = 0; i < n; i++) { const lfo = Math.sin(TAU * pi); pi += fi / SR; Rf[i] = Rf[i] * (0.55 + 0.45 * lfo) + lfo * 0.22 * lerp(1, env[i], fo * 0.5) + Math.sin(TAU * pi * Math.pow(2, Math.ceil(Math.log2(35 / fi)))) * 0.12 * (0.5 + 0.5 * lfo); } }
+  const Rm = rms(Rf) + 1e-9, xr = rms(x) + 1e-9, gain = (p.amt ?? 0.6) * xr / Rm * 1.6;
+  const dry = p.dry ?? 1;
+  return chs.map(c => { const y = new Float32Array(n); for (let i = 0; i < n; i++) y[i] = (i < len ? c[i] * dry : 0) + Rf[i] * gain; return dcBlock(y, p.ultra ? 0.7 : 8); });
+};
+
+/* ---- library ---- */
+M.ringmod = (chs, p) => mixChs(chs, chs.map(x => ringMod(x, p.freq, 1, p.wave, p.sweep > 0 ? i => p.freq * Math.pow(2, p.sweep * Math.sin(TAU * (p.srate || 0.3) * i / SR)) : null)), p.mix ?? 1);
+M.tremolo = (chs, p) => chs.map((x, c) => { const y = new Float32Array(x.length), off = c ? (p.stereo || 0) * 0.5 : 0; for (let i = 0; i < x.length; i++) y[i] = x[i] * (1 - p.depth * (0.5 - 0.5 * osc(p.wave || 'sine', i * p.rate / SR + off))); return y; });
+M.vibrato = (chs, p) => chs.map(x => modDelay(x, 1, (p.depth || 20) / 100 * 1000 / (TAU * Math.max(0.1, p.rate)) * 0.06 + 0.5, p.rate, 0, 1));
+M.chorus = (chs, p) => { const st = stereo(chs); return st.map((x, c) => { let y = modDelay(x, p.delay || 18, p.depth || 6, p.rate || 0.8, 0, (p.mix ?? 0.5) * 0.7, c * 1.6); return modDelay(y, (p.delay || 18) * 1.37, (p.depth || 6) * 0.8, (p.rate || 0.8) * 1.3, 0, (p.mix ?? 0.5) * 0.4, c * 2.4 + 1); }); };
+M.flanger = (chs, p) => { const st = stereo(chs); return st.map((x, c) => modDelay(x, 0.6, p.depth || 4, p.rate || 0.25, (p.fb ?? 0.7) * (p.neg ? -1 : 1), p.mix ?? 0.5, c * Math.PI * 0.5)); };
+M.phaser = (chs, p) => { const st = stereo(chs); return st.map((x, c) => { const stages = Math.round(p.stages || 6), z = new Float64Array(stages), y = new Float32Array(x.length); let last = 0;
+  for (let i = 0; i < x.length; i++) { const lf = 0.5 + 0.5 * Math.sin(TAU * p.rate * i / SR + c * 1.3), fc = 200 * Math.pow(30 * (p.range || 1), lf), t = Math.tan(Math.PI * Math.min(fc, SR * 0.45) / SR), a = (t - 1) / (t + 1); let v = x[i] + last * (p.fb || 0.5);
+    for (let s = 0; s < stages; s++) { const o = a * v + z[s]; z[s] = v - a * o; v = o; } last = v; y[i] = x[i] * (1 - p.mix * 0.5) + v * p.mix * 0.5 * 2 * 0.5 + (p.mix > 0 ? 0 : 0); y[i] = (x[i] + v * p.mix) / (1 + p.mix * 0.5); } return y; }); };
+M.comb = (chs, p) => chs.map(x => comb(x, p.freq, p.fb * (p.neg ? -1 : 1), p.mix ?? 0.6, 300));
+M.filter = (chs, p) => chs.map(x => svf(x, p.depth > 0 ? i => p.cutoff * Math.pow(2, p.depth * 4 * Math.sin(TAU * p.rate * i / SR)) : () => p.cutoff, p.q, p.type || 'lp'));
+M.formant = (chs, p) => mixChs(chs, chs.map(x => formantShift(x, p.shift || 1)), p.mix ?? 1);
+M.freeze = (chs, p) => { const N = 4096, H = 1024, half = N / 2; return mixChs(chs, chs.map(x => { const pos = clamp(Math.round((p.pos ?? 0.3) * x.length) - N / 2, 0, Math.max(0, x.length - N)); const re0 = new Float64Array(N), im0 = new Float64Array(N), w = hannC(N);
+  for (let j = 0; j < N; j++) re0[j] = (x[pos + j] || 0) * w[j]; fft(re0, im0, false); const mag = new Float64Array(half + 1); for (let k = 0; k <= half; k++) mag[k] = Math.hypot(re0[k], im0[k]); const ph = new Float64Array(half + 1).map(() => rnd() * TAU);
+  RNG = mulberry32(5); const L = x.length + Math.round((p.tail ?? 3) * SR), sil = new Float32Array(Math.min(L, MAXLEN));
+  const y = stft(sil, N, H, (re, im) => { for (let k = 1; k < half; k++) { ph[k] += TAU * k * H / N + (rnd() - 0.5) * (p.shimmer ?? 0.3) * 2; re[k] = mag[k] * Math.cos(ph[k]); im[k] = mag[k] * Math.sin(ph[k]); } re[0] = im[0] = 0; re[half] = im[half] = 0; mirror(re, im, N); });
+  const fi = ms(300); for (let i = 0; i < y.length; i++) { y[i] *= 0.6 * (i < pos ? (p.pre ? Math.min(1, i / fi) : Math.max(0, 1 - (pos - i) / fi)) : 1); } fades(y, ms(400)); return y; }), p.mix ?? 0.6); };
+M.reverse = (chs, p) => chs.map(x => p.chunk > 0 ? reverseChunks(x, ms(p.chunk)) : x.slice().reverse());
+M.granular = (chs, p) => { RNG = mulberry32(p.seed || 7); const st = stereo(chs), n0 = st[0].length, n = capLen(n0 * (p.length || 1)), G = ms(p.size || 80), w = hannC(Math.max(16, G)), dens = p.density || 40, out = [new Float32Array(n + G * 8), new Float32Array(n + G * 8)];
+  const count = Math.round(dens * n / SR); for (let g = 0; g < count; g++) { const t = rnd() * n, scan = (t / n) * (p.scan ?? 1), base = clamp(scan * n0 + (rnd() * 2 - 1) * (p.jitter ?? 0.1) * n0, 0, n0 - 1), rate = Math.pow(2, ((rnd() * 2 - 1) * (p.spread || 0) + (p.pitch || 0)) / 12), rev = rnd() < (p.rev || 0), pan = 0.5 + (rnd() - 0.5) * (p.width ?? 0.8), o = Math.round(t);
+    for (let j = 0; j < G; j++) { const sp = base + (rev ? -j : j) * rate; if (sp < 0 || sp >= n0 - 2) break; const e = w[Math.floor(j * w.length / G)]; const v0 = hermite(st[0], sp) * e, v1 = hermite(st[1], sp) * e; out[0][o + j] += v0 * (1 - pan) * 2; out[1][o + j] += v1 * pan * 2; } }
+  const nm = 1 / Math.sqrt(Math.max(1, dens * (G / SR))); return out.map(c => scale(c.slice(0, n), nm * 1.4)); };
+M.glitch = (chs, p) => { const L0 = ms(p.size || 50); return chs.map((x, ci) => { RNG = mulberry32((p.seed || 1) + ci * 0); const y = x.slice(); for (let s = 0; s < x.length; s += L0) { const L = Math.min(L0, x.length - s); if (rnd() > p.amount) continue; const r = rnd();
+  if (r < 0.25) { const rep = 2 + (rnd() * 6 | 0), sub = Math.max(8, L / rep | 0); for (let j = 0; j < L; j++) y[s + j] = x[s + (j % sub)]; }
+  else if (r < 0.45) for (let j = 0; j < L; j++) y[s + j] = x[s + L - 1 - j];
+  else if (r < 0.6) y.fill(0, s, s + L);
+  else if (r < 0.8) { const rt = rnd() < 0.5 ? 2 : 0.5; for (let j = 0; j < L; j++) y[s + j] = hermite(x, s + (j * rt) % L); }
+  else { const q = 4; for (let j = 0; j < L; j++) y[s + j] = Math.round(x[s + j] * q) / q; } fades(y.subarray(s, s + L), 30); } return y; }); };
+M.stutter = (chs, p) => { const L = ms(p.size || 80); return chs.map(x => { RNG = mulberry32(p.seed || 3); const out = []; let total = 0; for (let s = 0; s < x.length && total < MAXLEN; s += L) { const seg = fades(x.slice(s, s + L), 20), rep = rnd() < p.prob ? Math.max(1, Math.round(p.repeats)) : 1; for (let r = 0; r < rep; r++) { const g = Math.pow(p.decay ?? 1, r); out.push(r ? scale(seg.slice(), g) : seg); total += seg.length; } } const y = new Float32Array(Math.min(total, MAXLEN)); let o = 0; for (const s of out) { if (o + s.length > y.length) break; y.set(s, o); o += s.length; } return y; }); };
+M.gate = (chs, p) => { RNG = mulberry32(p.seed || 11); const steps = 16, pat = Array.from({ length: steps }, (_, i) => p.random > 0 ? (rnd() > p.random * 0.7 ? 1 : 0) : 1), stepL = SR / Math.max(0.5, p.rate); return chs.map(x => { const y = new Float32Array(x.length); let g = 0; const sm = 1 - Math.exp(-1 / (SR * (p.smooth || 2) / 1000)); for (let i = 0; i < x.length; i++) { const st = Math.floor(i / stepL), ph = (i / stepL) % 1, tgt = pat[st % steps] && ph < (p.duty ?? 0.5) ? 1 : 1 - (p.depth ?? 1); g += (tgt - g) * sm; y[i] = x[i] * g; } return y; }); };
+M.resonator = (chs, p) => chs.map(x => { const f = p.freq || 220, rat = [1, 1.593, 2.135, 2.295, 2.917], fbk = p.decay ?? 0.95; let y = new Float32Array(x.length + ms(800)); for (const r of rat) { const c = comb(x, f * r * (1 + (p.detune || 0) * (r - 1) * 0.1), fbk, 1, 800); for (let i = 0; i < y.length; i++) y[i] += c[i] / rat.length; } y = bq(y, 'hp', 60, 0.7); return mixChs([x], [y], p.mix ?? 0.6)[0]; });
+M.alien = (chs, p) => chs.map(x => { const w = p.weird ?? 0.6, wb = p.wobble ?? 3; let y = freqShift(x, 0, 0, i => (90 + w * 400) * Math.sin(TAU * wb * 0.25 * i / SR) + w * 150); y = ringMod(y, 0, w * 0.6, 'sine', i => 300 + 250 * Math.sin(TAU * wb * i / SR)); y = formantShift(y, 1 + w * 0.8); y = comb(y, 600 + w * 900, 0.5 * w, 0.4); return mixChs([x], [y], p.mix ?? 1)[0]; });
+M.telephone = (chs, p) => chs.map(x => { const q = p.quality ?? 0.5, lo = lerp(500, 250, q), hi = lerp(2200, 4000, q); let y = bq(bq(bq(bq(x, 'hp', lo, 1), 'hp', lo, 1), 'lp', hi, 1), 'lp', hi, 1); y = bq(y, 'peak', 1700, 1.5, 6); const d = 1 + (p.drive ?? 0.4) * 10; for (let i = 0; i < y.length; i++) y[i] = Math.tanh(y[i] * d) * 0.6 + noise() * 0.004 * (1 - q); return y; });
+M.radio = (chs, p) => { RNG = mulberry32(21); return chs.map(x => { const a = p.amount ?? 0.6; let y = bq(bq(x, 'hp', 350, 1), 'lp', 3000 + (1 - a) * 2000, 1.4); let nz = 0, ph = 0, burst = 0; for (let i = 0; i < y.length; i++) { nz = nz * 0.9997 + noise() * 0.012; const fade = 1 - a * 0.7 * clamp(Math.abs(nz) * 3, 0, 1); if (burst > 0) burst--; else if (rnd() < a * 0.00005) burst = ms(50 + rnd() * 300); ph += ((p.whistle ?? 1200) + 600 * Math.sin(TAU * 0.07 * i / SR)) / SR; y[i] = y[i] * fade * (burst ? 0.2 : 1) + noise() * (0.02 * a + (burst ? 0.25 * a : 0)) + Math.sin(TAU * ph) * 0.03 * a; y[i] = Math.tanh(y[i] * 2) * 0.6; } return y; }); };
+M.vinyl = (chs, p) => { RNG = mulberry32(8); const a = p.age ?? 0.6; return chs.map(x => { let y = modDelay(x, 6, 1.5 * a, 0.55, 0, 1); y = onePoleLP(bq(y, 'hp', 80 + a * 150, 0.7), 12000 - a * 8000); for (let i = 0; i < y.length; i++) { y[i] += noise() * 0.006 * (p.hiss ?? 0.5); if (rnd() < 0.0006 * (p.crackle ?? 0.6)) { const amp = (rnd() * 2 - 1) * 0.5 * (p.crackle ?? 0.6); for (let j = 0; j < 12 && i + j < y.length; j++) y[i + j] += amp * (1 - j / 12); } } return y; }); };
+M.tapewobble = (chs, p) => chs.map(x => modDelay(modDelay(x, 8, (p.wow ?? 0.5) * 6, p.wowRate || 0.6, 0, 1), 2, (p.flutter ?? 0.3) * 1.2, p.flutRate || 9, 0, 1));
+M.tapesat = (chs, p) => chs.map(x => { const d = 1 + (p.drive ?? 0.5) * 8; let y = bq(x, 'peak', 90, 0.8, (p.bump ?? 0.5) * 6); let h = 0; for (let i = 0; i < y.length; i++) { const v = y[i] * d + h * 0.15; const s = Math.tanh(v); h = s - v * 0.3; y[i] = s / Math.tanh(d) * 0.9; } return onePoleLP(y, 16000 - (p.drive ?? 0.5) * 7000); });
+M.buzz = (chs, p) => chs.map(x => { const e = envFollow(x, 3, 60), y = new Float32Array(x.length); let ph = 0; for (let i = 0; i < x.length; i++) { const sq = osc(p.wave || 'square', ph) + 0.5 * osc('saw', ph * 2.01); ph += (p.freq || 120) / SR; y[i] = x[i] * (1 - p.amount) + (sq * e[i] * 1.2 + x[i] * sq * 0.8) * p.amount; } return comb(y, (p.freq || 120) * 2, 0.4 * p.amount, 0.5); });
+M.reverb = (chs, p) => reverb(chs, p.size, p.damp, p.mix, p.tail, p.width ?? 1, p.pre || 0);
+M.panner = (chs, p) => { const st = stereo(chs), y = [st[0].slice(), st[1].slice()]; for (let i = 0; i < y[0].length; i++) { const pn = clamp((p.pan || 0) + (p.auto || 0) * Math.sin(TAU * (p.rate || 0.5) * i / SR), -1, 1), a = (pn + 1) * Math.PI / 4, m = (st[0][i] + st[1][i]) * 0.5; y[0][i] = m * Math.cos(a) * 1.41; y[1][i] = m * Math.sin(a) * 1.41; } return y; };
+
+/* ===================== COLLAGE ===================== */
+function collage(src, P, seed) {
+  RNG = mulberry32(seed >>> 0); const x = mono(src), N = x.length; const chopScale = P.chop === 'fine' ? 0.35 : P.chop === 'coarse' ? 2.5 : 1;
+  let minL = ms(Math.min(P.minMs, P.maxMs) * chopScale), maxL = ms(Math.max(P.minMs, P.maxMs) * chopScale); minL = Math.min(minL, N); maxL = Math.min(maxL, N);
+  const count = Math.max(1, Math.round(P.slices)), slices = [];
+  if (P.positions === 'even') { const step = N / count; for (let i = 0; i < count; i++) { const L = clamp(Math.round(step * (1 + P.sliceOverlap)), 32, N); slices.push({ s: Math.min(Math.round(i * step), N - L), L }); } }
+  else if (P.positions === 'grid') { const L = clamp(ms(P.sliceMs * chopScale), 32, N); for (let s = 0, i = 0; s < N && i < count; s += Math.max(16, Math.round(L * (1 - P.sliceOverlap * 0.9))), i++) slices.push({ s: Math.min(s, N - L), L }); }
+  else for (let i = 0; i < count; i++) { const L = Math.round(rr(minL, maxL)); slices.push({ s: Math.round(rnd() * Math.max(0, N - L)), L: Math.max(32, L) }); }
+  slices.sort((a, b) => a.s - b.s);
+  let seq = slices.map((_, i) => i); const n = seq.length;
+  switch (P.order) {
+    case 'random': for (let i = n - 1; i > 0; i--) { const j = rnd() * (i + 1) | 0;[seq[i], seq[j]] = [seq[j], seq[i]]; } break;
+    case 'reverse': seq.reverse(); break;
+    case 'mirror': seq = seq.concat(seq.slice().reverse()); break;
+    case 'pick': seq = seq.map(() => rnd() * n | 0); break;
+  }
+  const events = []; let k = 0;
+  for (const idx of seq) {
+    const sl = slices[idx]; let frag = x.slice(sl.s, sl.s + sl.L);
+    let rev = (P.order === 'alternate' && k % 2 === 1) || rnd() < P.reverseProb; if (rev) frag.reverse();
+    if (rnd() < P.microProb) { const ll = Math.min(frag.length, ms(rr(12, 70))), reps = 4 + (rnd() * 20 | 0), m = new Float32Array(ll * reps), seg = fades(frag.slice(0, ll), Math.min(40, ll >> 3)); for (let r = 0; r < reps; r++) m.set(seg, r * ll); frag = m; }
+    if (P.rSpeed > 0) { const r = Math.pow(2, (rnd() * 2 - 1) * P.rSpeed * 2); frag = resample(frag, r); }
+    if (P.rPitch > 0 && frag.length > 512) { const st = (rnd() * 2 - 1) * P.rPitch; frag = pitchShiftX(frag, st, 30); }
+    if (P.rDist > 0) { const d = 1 + rnd() * P.rDist * 30; for (let i = 0; i < frag.length; i++) frag[i] = Math.tanh(frag[i] * d) / Math.sqrt(d) * 1.4; }
+    if (P.rDelay > 0 && rnd() < P.rDelay) { const T = ms(rr(30, 260)), taps = 2 + (rnd() * 5 | 0), y = new Float32Array(frag.length + T * taps); y.set(frag); for (let t = 1; t <= taps; t++) { const g = Math.pow(0.55, t); for (let i = 0; i < frag.length; i++) y[i + t * T] += frag[i] * g; } frag = y; }
+    fades(frag, ms(4));
+    const vol = 1 - rnd() * P.rVol, pan = clamp((rnd() * 2 - 1) * P.rPan, -1, 1);
+    let rep = 1; if (rnd() < P.fragRepeatProb) rep = 1 + Math.round(rnd() * P.fragRepeats);
+    for (let r = 0; r < rep; r++) events.push({ frag, vol, pan });
+    k++;
+  }
+  let total = 0; const gapBase = ms(Math.max(0, P.silenceMs) + 0.001);
+  const placed = events.map(e => { const o = total; total += Math.round(e.frag.length * (1 - P.overlap)) + (P.silenceMs > 0 ? Math.round(gapBase * (P.silenceRand ? rnd() : 1)) : 0); return { o, e }; });
+  const one = Math.max(1, ...placed.map(q => q.o + q.e.frag.length)), reps = Math.max(1, Math.round(P.seqRepeats)), L = Math.min(capLen(Math.max(one, total) * reps), SR * 60), out = [new Float32Array(L), new Float32Array(L)], step = Math.max(total, 1);
+  for (let r = 0; r < reps; r++) for (const { o, e } of placed) { const a = (e.pan + 1) * Math.PI / 4, gl = Math.cos(a) * 1.41 * e.vol, gr = Math.sin(a) * 1.41 * e.vol, base = o + r * step; if (base >= L) break; for (let i = 0; i < e.frag.length && base + i < L; i++) { out[0][base + i] += e.frag[i] * gl; out[1][base + i] += e.frag[i] * gr; } }
+  return out;
+}
+
+/* ===================== RENDER ===================== */
+function finalize(chs, autoLevel) {
+  chs = sameLen(chs);
+  for (const c of chs) { for (let i = 0; i < c.length; i++) if (!isFinite(c[i])) c[i] = 0; dcBlock(c, 3); }
+  const pk = peak(chs); const target = 0.89; if (pk > 1e-6 && (autoLevel || pk > target)) chs.forEach(c => scale(c, target / pk));
+  return chs;
+}
+function render(req) {
+  SR = req.sr; MAXLEN = Math.round(SR * (req.maxSec || 120)); let chs = req.input.map(a => new Float32Array(a)); const t0 = Date.now(); const log = [];
+  if (req.collage) { chs = collage(chs, req.collage, req.seed); log.push(['collage', Date.now() - t0]); }
+  for (const m of (req.chain || [])) { if (!m.on || !M[m.type]) continue; const t = Date.now(); RNG = mulberry32(1234 + (m.type.length * 97)); chs = M[m.type](chs, m.p); chs = sameLen(chs); log.push([m.type, Date.now() - t]); }
+  return { chs: finalize(chs, req.autoLevel !== false), ms: Date.now() - t0, log };
+}
+if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof module === 'undefined') {
+  self.onmessage = e => { const req = e.data; try { const r = render(req); self.postMessage({ id: req.id, kind: req.kind, chs: r.chs, ms: r.ms, log: r.log }, r.chs.map(c => c.buffer)); } catch (err) { self.postMessage({ id: req.id, kind: req.kind, error: String(err && err.stack || err) }); } };
+}
+if (typeof module !== 'undefined') module.exports = { render, M, collage, freqShift, xfreqInfo, pitchShiftX, wsola, setSR: s => { SR = s; MAXLEN = SR * 120; } };
+
+</script>
+<script>
+'use strict';
+/* ===================== VOXLAB UI / APP ===================== */
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const h = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) { if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v === true) e.setAttribute(k, ''); else if (v !== false && v != null) e.setAttribute(k, v); } for (const k of kids.flat()) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(k)); return e; };
+const clampN = (v, a, b) => v < a ? a : v > b ? b : v;
+const C = { g: '#39ff88', b: '#2fb8ff', p: '#b45cff', o: '#ff8a2a', r: '#ff3b6b', y: '#ffe14a', c: '#4ef0ff', m: '#ff5cd6' };
+const MAX_REC = 20, MAX_OUT = 120;
+
+/* ---------- parameter schema ---------- */
+const R = (k, l, min, max, def, o = {}) => ({ t: 'r', k, l, min, max, def, ...o });
+const S = (k, l, opts, def) => ({ t: 's', k, l, opts, def });
+const T = (k, l, def = false) => ({ t: 't', k, l, def });
+const CH = (k, l, def = false) => ({ t: 'c', k, l, def });
+const SEC = l => ({ t: 'h', l });
+const MIX = (d = 1) => R('mix', 'Wet / dry mix', 0, 1, d, { pct: 1 });
+const WAVES = [['sine', 'Sine'], ['square', 'Square'], ['tri', 'Triangle'], ['saw', 'Saw']];
+const DIST = [['hard', 'Hard Clipping'], ['soft', 'Soft Clipping'], ['over', 'Overdrive'], ['fuzz', 'Fuzz'], ['sat', 'Saturation'], ['crush', 'Bitcrusher', [R('crushBits', 'Bits', 1, 16, 6, { step: 1, u: ' bit' }), R('crushRate', 'Rate divide', 1, 64, 8, { step: 1, pre: '÷' })]], ['dclip', 'Digital Clipping'], ['fold', 'Wavefolding', [R('foldGain', 'Fold gain', 1, 40, 10)]], ['metal', 'Metallic Distortion', [R('metalFreq', 'Metal freq', 50, 3000, 440, { log: 1, u: ' Hz' })]], ['destroy', 'Harsh Digital Destruction'], ['speaker', 'Broken Speaker'], ['radio', 'Radio Interference', [R('radioFreq', 'Whistle freq', 200, 6000, 1800, { log: 1, u: ' Hz' })]], ['static', 'Static Noise'], ['crackle', 'Crackling'], ['glitch', 'Glitch Distortion', [R('glitchSize', 'Block size', 5, 300, 40, { log: 1, u: ' ms' })]]];
+const ROBOT_TYPES = {
+  classic: ['Classic Robot', { mono: 1, rpitch: 110, mdepth: .3, mspeed: 40 }], vintage: ['Vintage Computer', { mono: .9, rpitch: 90, bits: 6, srr: 3, phone: true }],
+  glitchy: ['Glitchy Robot', { frag: .45, rep: .4, rsize: 40, bits: 8 }], metallic: ['Metallic Robot', { reso: .82, cfreq: 280, mdepth: .4, mspeed: 180 }],
+  telephone: ['Telephone Robot', { phone: true, harsh: .3, mono: .6, rpitch: 150 }], ai: ['Futuristic AI', { mono: .7, rpitch: 210, reso: .35, cfreq: 900 }],
+  mechanical: ['Mechanical Speech', { mono: .8, rpitch: 80, gate: .8, grate: 12 }], stutter: ['Stuttering Robot', { rep: .7, rsize: 70 }],
+  fragment: ['Digital Fragmentation', { frag: .8 }], harsh: ['Harsh Synthetic', { harsh: .8, bits: 5, srr: 6, mdepth: .6, mspeed: 900, mwave: 'square' }],
+};
+const ROBOT_AMT = ['mono', 'mdepth', 'reso', 'gate', 'frag', 'rep', 'harsh'];
+const MOD = {
+  pitch: { n: 'Pitch Shift', c: C.g, core: 1, d: 'Granular pitch shifting (resample + WSOLA) — duration preserved.', P: [R('semis', 'Semitones', -24, 24, 0, { step: 1, dyn: p => p.extreme ? [-60, 60] : [-24, 24], sign: 1, u: ' st' }), R('cents', 'Fine tune', -100, 100, 0, { step: 1, u: '¢', sign: 1 }), T('extreme', 'EXTREME MODE (±60 semitones / 5 octaves)'), R('grain', 'Grain size', 15, 200, 50, { step: 1, u: ' ms' }), T('formant', 'Preserve formants (spectral envelope)'), MIX()] },
+  freqshift: { n: 'Frequency Shift', c: C.c, core: 1, d: 'Single-sideband shift: moves every partial by the same Hz — inharmonic & alien.', P: [R('hz', 'Shift', -2000, 2000, 0, { step: 1, u: ' Hz', sign: 1, dyn: p => p.extreme ? [-12000, 12000] : [-2000, 2000] }), T('extreme', 'Extreme range (±12 kHz)'), R('fb', 'Barber-pole feedback', 0, .9, 0), MIX()] },
+  xfreq: { n: 'Infra/Ultra Translator', c: C.m, core: 1, d: 'Explore inaudible frequencies: ultrasonic carriers are heterodyned down by octaves, infrasonic ones become audible pulses.', P: [R('vf', 'Virtual frequency', .5, 96000, 30000, { log: 1, u: ' Hz' }), S('mode', 'Translation method', [['ring', 'Heterodyne (ring mod)'], ['shift', 'Single-sideband shift']], 'ring'), S('dir', 'Shift direction', [['up', 'Up'], ['down', 'Down']], 'up'), R('translate', 'Translation depth', 0, 1, 1, { pct: 1 }), R('pulse', 'Infrasonic pulse depth', 0, 1, .8, { pct: 1 }), MIX()] },
+  stretch: { n: 'Time Stretch', c: C.b, core: 1, d: 'Up to 32× longer or 10× shorter. Output capped at 120 s.', P: [R('factor', 'Stretch factor', .1, 32, 1, { log: 1, fx: 1 }), S('mode', 'Algorithm', [['preserve', 'Preserve pitch (WSOLA)'], ['tape', 'Tape: speed + pitch together'], ['smear', 'Granular smear (evolving)']], 'preserve'), R('grain', 'Grain size', 10, 400, 60, { step: 1, u: ' ms' }), R('jitter', 'Grain jitter', 0, 1, 0, { pct: 1 })], quick: [['½×', { factor: .5 }], ['2×', { factor: 2 }], ['4×', { factor: 4 }], ['8×', { factor: 8 }], ['16× smear', { factor: 16, mode: 'smear', grain: 180, jitter: .6 }], ['32× drone', { factor: 32, mode: 'smear', grain: 300, jitter: .8 }], ['Tape slow', { factor: 3, mode: 'tape' }], ['Chipmunk', { factor: .4, mode: 'tape' }]] },
+  robot: { n: 'Robot Voice', c: C.o, core: 1, d: 'Phase-vocoder robotization + modulation, resonance and digital decay.', chipsRobot: 1, P: [R('mix', 'Robot intensity', 0, 1, 1, { pct: 1 }), SEC('Monotone'), R('mono', 'Robotization amount', 0, 1, 0, { pct: 1 }), R('rpitch', 'Robot pitch', 30, 500, 110, { log: 1, u: ' Hz' }), SEC('Modulation'), R('mdepth', 'Modulation depth', 0, 1, 0, { pct: 1 }), R('mspeed', 'Modulation speed', .5, 2000, 50, { log: 1, u: ' Hz' }), S('mwave', 'Modulator wave', WAVES, 'sine'), SEC('Metallic'), R('reso', 'Metallic resonance', 0, .98, 0, { pct: 1 }), R('cfreq', 'Resonance pitch', 40, 3000, 300, { log: 1, u: ' Hz' }), SEC('Digital'), R('bits', 'Bit depth', 1, 16, 16, { step: 1, u: ' bit' }), R('srr', 'Sample-rate reduction', 1, 64, 1, { step: 1, pre: '÷' }), R('harsh', 'Digital harshness', 0, 1, 0, { pct: 1 }), SEC('Repetition'), R('rep', 'Robotic repetition', 0, 1, 0, { pct: 1 }), R('rsize', 'Repeat size', 10, 300, 60, { step: 1, u: ' ms' }), R('gate', 'Mechanical gating', 0, 1, 0, { pct: 1 }), R('grate', 'Gate rate', 2, 40, 14, { u: ' Hz' }), R('frag', 'Fragmentation', 0, 1, 0, { pct: 1 }), T('phone', 'Telephone band-limit')] },
+  delay: { n: 'Delay & Echo', c: C.y, core: 1, d: 'Tap-based echo engine — every repeat can darken, distort and bounce.', P: [S('mode', 'Delay type', [['echo', 'Repeating echo'], ['pingpong', 'Stereo ping-pong'], ['slap', 'Slapback'], ['atmos', 'Long atmospheric'], ['reverse', 'Reverse echo']], 'echo'), R('time', 'Delay time', 10, 2000, 300, { log: 1, u: ' ms' }), R('fb', 'Feedback', 0, .99, .5, { pct: 1 }), T('inf', 'INFINITE FEEDBACK (safely limited)'), R('repeats', 'Repeat count (0 = from feedback)', 0, 96, 0, { step: 1, u: '×' }), R('vol', 'Echo volume', 0, 1, .8, { pct: 1 }), R('degrade', 'Progressive distortion', 0, 1, 0, { pct: 1 }), R('tone', 'Echo tone (darken)', 300, 18000, 9000, { log: 1, u: ' Hz' }), R('spread', 'Ping-pong width', 0, 1, 1, { pct: 1 }), MIX(.6)], quick: [['Slapback', { mode: 'slap', time: 95, fb: .25, repeats: 1, mix: .5, degrade: 0 }], ['Word ×24', { mode: 'echo', time: 260, fb: .92, repeats: 24, vol: .85, degrade: .25, tone: 7000, mix: .7 }], ['Word ×64 decay', { mode: 'pingpong', time: 140, fb: .96, repeats: 64, vol: .8, degrade: .7, tone: 5000, mix: .75 }], ['Atmos', { mode: 'atmos', time: 650, fb: .7, repeats: 0, tone: 4500, mix: .55 }], ['Reverse', { mode: 'reverse', time: 400, fb: .55, repeats: 0, mix: .6 }], ['Infinite', { inf: true, time: 330, repeats: 0, vol: .6, tone: 6000, mix: .6 }]] },
+  distortion: { n: 'Distortion Lab', c: C.r, core: 1, d: '15 independent stages, processed top to bottom. Auto-gain keeps levels sane.', dist: 1, P: [T('auto', 'Auto gain (match input loudness)', true), R('level', 'Output trim', -24, 12, 0, { u: ' dB', sign: 1 }), MIX()] },
+  rumble: { n: 'Rumble Lab', c: C.p, core: 1, d: 'Synthesized low-end layers that follow your voice.', P: [CH('t_sub', 'Deep Sub-Bass', true), CH('t_cine', 'Cinematic'), CH('t_mech', 'Mechanical Vibration'), CH('t_engine', 'Industrial Engine'), CH('t_quake', 'Earthquake'), CH('t_dbass', 'Distorted Bass'), CH('t_pulse', 'Pulsating'), CH('t_lfo', 'LFO Wobble'), CH('t_drops', 'Bass Drops'), R('amt', 'Rumble intensity', 0, 1.5, .6, { pct: 1 }), R('freq', 'Frequency', 15, 150, 45, { log: 1, u: ' Hz' }), R('reso', 'Resonance', .5, 12, 1.5), R('mod', 'Modulation rate', .1, 20, 2, { log: 1, u: ' Hz' }), R('lp', 'Low-pass filter', 40, 2000, 220, { log: 1, u: ' Hz' }), R('sub', 'Sub-bass volume', 0, 1, .8, { pct: 1 }), R('drive', 'Rumble distortion', 0, 1, .2, { pct: 1 }), R('follow', 'Follow voice envelope', 0, 1, .7, { pct: 1 }), R('dry', 'Voice level', 0, 1.5, 1, { pct: 1 }), R('tail', 'Rumble tail', 0, 6, 1.5, { u: ' s' }), SEC('Ultra-low'), T('ultra', 'ULTRA-LOW infrasonic mode'), R('infra', 'Infrasonic frequency', 1, 20, 7, { u: ' Hz' })] },
+  reverb: { n: 'Reverb', c: C.b, d: 'Freeverb-style space.', P: [R('size', 'Room size', 0, 1, .75, { pct: 1 }), R('damp', 'Damping', 0, 1, .4, { pct: 1 }), R('tail', 'Tail', 0, 10, 3, { u: ' s' }), R('pre', 'Pre-delay', 0, 200, 10, { u: ' ms' }), R('width', 'Stereo width', 0, 1, 1, { pct: 1 }), MIX(.35)] },
+  ringmod: { n: 'Ring Modulation', c: C.o, P: [R('freq', 'Carrier', 1, 4000, 80, { log: 1, u: ' Hz' }), S('wave', 'Wave', WAVES, 'sine'), R('sweep', 'Sweep (octaves)', 0, 4, 0), R('srate', 'Sweep rate', .02, 10, .3, { log: 1, u: ' Hz' }), MIX()] },
+  tremolo: { n: 'Tremolo', c: C.y, P: [R('rate', 'Rate', .1, 40, 6, { log: 1, u: ' Hz' }), R('depth', 'Depth', 0, 1, .8, { pct: 1 }), S('wave', 'Shape', WAVES, 'sine'), R('stereo', 'Stereo offset', 0, 1, 0, { pct: 1 })] },
+  vibrato: { n: 'Vibrato', c: C.g, P: [R('rate', 'Rate', .1, 20, 6, { log: 1, u: ' Hz' }), R('depth', 'Depth', 0, 100, 30, { u: '%' })] },
+  chorus: { n: 'Chorus', c: C.b, P: [R('rate', 'Rate', .05, 8, .8, { log: 1, u: ' Hz' }), R('depth', 'Depth', 0, 20, 6, { u: ' ms' }), R('delay', 'Base delay', 5, 40, 18, { u: ' ms' }), MIX(.5)] },
+  flanger: { n: 'Flanger', c: C.p, P: [R('rate', 'Rate', .02, 8, .25, { log: 1, u: ' Hz' }), R('depth', 'Depth', .1, 10, 4, { u: ' ms' }), R('fb', 'Feedback', 0, .97, .7, { pct: 1 }), T('neg', 'Negative feedback'), MIX(.5)] },
+  phaser: { n: 'Phaser', c: C.c, P: [R('rate', 'Rate', .02, 8, .4, { log: 1, u: ' Hz' }), R('fb', 'Feedback', 0, .95, .6, { pct: 1 }), R('stages', 'Stages', 2, 12, 6, { step: 2 }), R('range', 'Range', .2, 2, 1), MIX(.7)] },
+  comb: { n: 'Comb Filter', c: C.o, P: [R('freq', 'Frequency', 20, 4000, 200, { log: 1, u: ' Hz' }), R('fb', 'Feedback', 0, .98, .8, { pct: 1 }), T('neg', 'Negative (odd harmonics)'), MIX(.6)] },
+  filter: { n: 'Resonant Filter', c: C.r, P: [S('type', 'Type', [['lp', 'Low-pass'], ['hp', 'High-pass'], ['bp', 'Band-pass'], ['notch', 'Notch']], 'lp'), R('cutoff', 'Cutoff', 30, 16000, 1200, { log: 1, u: ' Hz' }), R('q', 'Resonance', .5, 30, 6, { log: 1 }), R('rate', 'Sweep rate', .02, 20, .5, { log: 1, u: ' Hz' }), R('depth', 'Sweep depth', 0, 1, 0, { pct: 1 })] },
+  formant: { n: 'Formant Shift', c: C.m, P: [R('shift', 'Formant ratio', .3, 3, 1.5, { log: 1, fx: 1 }), MIX()], d: 'Changes vocal-tract size without changing pitch.' },
+  freeze: { n: 'Spectral Freeze', c: C.c, P: [R('pos', 'Freeze position', 0, 1, .3, { pct: 1 }), R('tail', 'Hold tail', 0, 15, 4, { u: ' s' }), R('shimmer', 'Phase shimmer', 0, 1, .3, { pct: 1 }), T('pre', 'Fade in before freeze point'), MIX(.6)] },
+  reverse: { n: 'Reverse', c: C.y, P: [R('chunk', 'Chunk size (0 = whole)', 0, 1000, 0, { step: 1, u: ' ms' })] },
+  granular: { n: 'Granular Synth', c: C.g, P: [R('size', 'Grain size', 5, 500, 80, { log: 1, u: ' ms' }), R('density', 'Density', 2, 200, 40, { log: 1, u: '/s' }), R('length', 'Output length', .25, 8, 2, { log: 1, fx: 1 }), R('scan', 'Scan speed', -1, 2, 1, { fx: 1 }), R('jitter', 'Position jitter', 0, 1, .1, { pct: 1 }), R('pitch', 'Grain pitch', -24, 24, 0, { step: 1, u: ' st', sign: 1 }), R('spread', 'Pitch spread', 0, 24, 3, { u: ' st' }), R('rev', 'Reversed grains', 0, 1, .2, { pct: 1 }), R('width', 'Stereo spread', 0, 1, .8, { pct: 1 }), R('seed', 'Seed', 1, 999, 7, { step: 1 })] },
+  glitch: { n: 'Audio Glitch', c: C.r, P: [R('amount', 'Glitch amount', 0, 1, .5, { pct: 1 }), R('size', 'Block size', 5, 400, 50, { log: 1, u: ' ms' }), R('seed', 'Seed', 1, 999, 1, { step: 1 })] },
+  stutter: { n: 'Stutter', c: C.o, P: [R('prob', 'Stutter chance', 0, 1, .5, { pct: 1 }), R('size', 'Slice size', 10, 500, 80, { log: 1, u: ' ms' }), R('repeats', 'Repeats', 1, 32, 4, { step: 1, u: '×' }), R('decay', 'Repeat decay', .3, 1, .85, { pct: 1 }), R('seed', 'Seed', 1, 999, 3, { step: 1 })] },
+  gate: { n: 'Rhythmic Gate', c: C.y, P: [R('rate', 'Step rate', .5, 40, 8, { log: 1, u: ' Hz' }), R('duty', 'Duty', .05, 1, .5, { pct: 1 }), R('depth', 'Depth', 0, 1, 1, { pct: 1 }), R('random', 'Random pattern', 0, 1, 0, { pct: 1 }), R('smooth', 'Edge smoothing', .2, 30, 2, { log: 1, u: ' ms' }), R('seed', 'Seed', 1, 999, 11, { step: 1 })] },
+  resonator: { n: 'Metallic Resonator', c: C.c, P: [R('freq', 'Base pitch', 30, 2000, 220, { log: 1, u: ' Hz' }), R('decay', 'Ring', .5, .995, .95), R('detune', 'Inharmonicity', 0, 1, .2, { pct: 1 }), MIX(.6)] },
+  alien: { n: 'Alien Transform', c: C.m, P: [R('weird', 'Weirdness', 0, 1, .6, { pct: 1 }), R('wobble', 'Wobble rate', .1, 20, 3, { log: 1, u: ' Hz' }), MIX()] },
+  telephone: { n: 'Telephone', c: C.y, P: [R('quality', 'Line quality', 0, 1, .5, { pct: 1 }), R('drive', 'Line drive', 0, 1, .4, { pct: 1 })] },
+  radio: { n: 'Radio Transmission', c: C.o, P: [R('amount', 'Interference', 0, 1, .6, { pct: 1 }), R('whistle', 'Heterodyne whistle', 200, 5000, 1200, { log: 1, u: ' Hz' })] },
+  vinyl: { n: 'Vinyl Degradation', c: C.y, P: [R('age', 'Age / wear', 0, 1, .6, { pct: 1 }), R('hiss', 'Hiss', 0, 1, .5, { pct: 1 }), R('crackle', 'Crackle', 0, 1, .6, { pct: 1 })] },
+  tapewobble: { n: 'Tape Wobble', c: C.p, P: [R('wow', 'Wow depth', 0, 1, .5, { pct: 1 }), R('wowRate', 'Wow rate', .1, 4, .6, { u: ' Hz' }), R('flutter', 'Flutter depth', 0, 1, .3, { pct: 1 }), R('flutRate', 'Flutter rate', 3, 25, 9, { u: ' Hz' })] },
+  tapesat: { n: 'Tape Saturation', c: C.o, P: [R('drive', 'Drive', 0, 1, .5, { pct: 1 }), R('bump', 'Head bump', 0, 1, .5, { pct: 1 })] },
+  buzz: { n: 'Mechanical Buzz', c: C.r, P: [R('freq', 'Buzz pitch', 20, 600, 120, { log: 1, u: ' Hz' }), R('amount', 'Amount', 0, 1, .6, { pct: 1 }), S('wave', 'Wave', WAVES, 'square')] },
+  panner: { n: 'Auto Pan', c: C.b, P: [R('pan', 'Pan', -1, 1, 0, { sign: 1 }), R('auto', 'Auto-pan depth', 0, 1, .7, { pct: 1 }), R('rate', 'Rate', .05, 12, .5, { log: 1, u: ' Hz' })] },
+};
+for (const [k, l, ex] of DIST) MOD.distortion.P.push({ t: 'u', k, l, ex: ex || [] });
+const CORE_ORDER = ['pitch', 'freqshift', 'xfreq', 'stretch', 'distortion', 'robot', 'delay', 'rumble', 'reverb'];
+const LIB = Object.keys(MOD).filter(k => !MOD[k].core);
+
+function defaults(type) { const p = {}; for (const q of MOD[type].P) { if (q.t === 'u') { p[q.k + 'On'] = false; p[q.k] = .5; q.ex.forEach(e => p[e.k] = e.def); } else if (q.k) p[q.k] = q.def; } if (type === 'robot') p.types = {}; return p; }
+let UID = 1; const mk = (type, on = false, p = {}) => ({ id: 'm' + (UID++), type, on, p: Object.assign(defaults(type), p) });
+const defaultChain = () => CORE_ORDER.map(t => mk(t));
+
+const COLLAGE_P = [SEC('Chop'), S('positions', 'Slice positions', [['random', 'Random positions'], ['even', 'Even divisions'], ['grid', 'Fixed-duration grid']], 'random'), R('slices', 'Number of slices', 2, 128, 24, { step: 1 }), R('sliceMs', 'Slice duration (grid)', 10, 1000, 120, { log: 1, u: ' ms' }), R('minMs', 'Min slice length', 5, 1000, 40, { log: 1, u: ' ms' }), R('maxMs', 'Max slice length', 10, 3000, 300, { log: 1, u: ' ms' }), S('chop', 'Chop resolution', [['fine', 'Fine'], ['normal', 'Normal'], ['coarse', 'Coarse']], 'normal'), R('sliceOverlap', 'Overlapping slices', 0, 1, 0, { pct: 1 }), R('silenceMs', 'Silence between slices', 0, 1000, 0, { step: 1, u: ' ms' }), T('silenceRand', 'Randomize silence lengths', true),
+  SEC('Reorder'), S('order', 'Playback order', [['random', 'Completely random'], ['reverse', 'Reverse order'], ['mirror', 'Mirrored sequence'], ['alternate', 'Alternate forward / backward'], ['pick', 'Random selection (with repeats)'], ['original', 'Original order']], 'random'), R('reverseProb', 'Reversed fragments', 0, 1, .2, { pct: 1 }), R('microProb', 'Randomized micro-loops', 0, 1, .15, { pct: 1 }), R('overlap', 'Fragment overlap', 0, .9, 0, { pct: 1 }),
+  SEC('Repetition'), R('fragRepeatProb', 'Repeat fragments (chance)', 0, 1, .25, { pct: 1 }), R('fragRepeats', 'Max fragment repeats', 1, 16, 3, { step: 1, u: '×' }), R('seqRepeats', 'Repeat entire sequence', 1, 16, 1, { step: 1, u: '×' }),
+  SEC('Experimental (per fragment)'), R('rSpeed', 'Random speed', 0, 1, .2, { pct: 1 }), R('rPitch', 'Random pitch', 0, 24, 0, { u: ' st' }), R('rDist', 'Random distortion', 0, 1, 0, { pct: 1 }), R('rDelay', 'Random delay', 0, 1, 0, { pct: 1 }), R('rVol', 'Random volume', 0, 1, .3, { pct: 1 }), R('rPan', 'Random stereo position', 0, 1, .7, { pct: 1 })];
+const collageDefaults = () => Object.fromEntries(COLLAGE_P.filter(q => q.k).map(q => [q.k, q.def]));
+
+/* ---------- presets ---------- */
+const DIST_ON = (o) => Object.fromEntries(Object.entries(o).flatMap(([k, v]) => [[k + 'On', true], [k, v]]));
+const PRESETS = [
+  ['DEMON VOICE', 'Sub-octave, saturated, sub rumble in a cave', [['pitch', { semis: -9 }], ['distortion', DIST_ON({ soft: .35, sat: .6 })], ['rumble', { t_sub: true, t_dbass: true, amt: .55, freq: 40 }], ['reverb', { size: .8, mix: .3 }]]],
+  ['ALIEN TRANSMISSION', 'Frequency-shifted, formant-warped deep-space radio', [['freqshift', { hz: 170, fb: .35 }], ['formant', { shift: 1.7 }], ['radio', { amount: .5 }], ['delay', { mode: 'pingpong', time: 230, fb: .45, mix: .5 }]]],
+  ['BROKEN ROBOT', 'Glitching, stuttering, crackling machine', [['robot', { types: { classic: 1, glitchy: 1, stutter: 1 }, mono: 1, rpitch: 95, mdepth: .3, mspeed: 40, frag: .45, rep: .7, rsize: 70, bits: 8 }], ['distortion', DIST_ON({ speaker: .6, crackle: .35 })], ['glitch', { amount: .35 }]]],
+  ['DEEP SPACE', 'Slow, smeared, endless echo nebula', [['pitch', { semis: -5 }], ['stretch', { factor: 3, mode: 'smear', grain: 160, jitter: .6 }], ['freqshift', { hz: -30, mix: .4 }], ['delay', { mode: 'atmos', time: 620, fb: .65, tone: 4000, mix: .5 }], ['reverb', { size: .95, damp: .2, tail: 7, mix: .6 }]]],
+  ['NIGHTMARE MACHINE', 'Folded, metallic, earthquake-backed horror', [['pitch', { semis: -14 }], ['stretch', { factor: 1.8 }], ['robot', { types: { metallic: 1, harsh: 1 }, reso: .82, cfreq: 280, mdepth: .6, mspeed: 900, mwave: 'square', harsh: .8, bits: 5, srr: 6, mix: .8 }], ['distortion', DIST_ON({ fold: .45, metal: .4 })], ['rumble', { t_quake: true, t_engine: true, t_sub: true, amt: .7, freq: 32 }], ['reverb', { size: .85, mix: .4 }]]],
+  ['TINY CREATURE', 'Squeaky, wobbly, chorused critter', [['pitch', { semis: 14 }], ['vibrato', { rate: 7.5, depth: 45 }], ['chorus', { mix: .45 }], ['delay', { mode: 'slap', time: 70, fb: .2, repeats: 1, mix: .35 }]]],
+  ['CYBERNETIC AI', 'Clean robotized synthetic intelligence', [['robot', { types: { ai: 1 }, mono: .7, rpitch: 210, reso: .35, cfreq: 900 }], ['phaser', { rate: .3, mix: .5 }], ['delay', { mode: 'pingpong', time: 180, fb: .35, mix: .35 }], ['reverb', { size: .5, mix: .2 }]]],
+  ['UNDERGROUND RUMBLE', 'Octave-down voice over cinematic sub quake', [['pitch', { semis: -12 }], ['tapesat', { drive: .6 }], ['rumble', { t_sub: true, t_cine: true, t_quake: true, t_drops: true, amt: .9, freq: 38, lp: 180 }], ['reverb', { size: .9, damp: .6, mix: .35 }]]],
+  ['GLITCH SPEECH', 'Chopped, crushed and fragmented', [['glitch', { amount: .7, size: 45 }], ['stutter', { prob: .5, repeats: 6, size: 60 }], ['robot', { types: { fragment: 1 }, frag: .6 }], ['distortion', DIST_ON({ crush: .8 })]]],
+  ['HAUNTED RADIO', 'Wobbling old broadcast from another room', [['formant', { shift: .8 }], ['radio', { amount: .75 }], ['vinyl', { age: .8 }], ['tapewobble', { wow: .7 }], ['delay', { mode: 'atmos', time: 480, fb: .55, mix: .45 }], ['reverb', { size: .8, mix: .4 }]]],
+  ['DIGITAL MELTDOWN', 'Integer overflow, bit crush and gated collapse', [['distortion', DIST_ON({ destroy: .55, crush: .7, glitch: .6, dclip: .5 }), { crushBits: 4, crushRate: 12 }], ['gate', { rate: 12, random: .5, duty: .6 }], ['freqshift', { hz: 333, mix: .5 }]]],
+  ['EXTREME PITCH', '+31 semitones, multiplied into 24 bright echoes', [['pitch', { semis: 31, extreme: true }], ['delay', { mode: 'pingpong', time: 120, fb: .9, repeats: 24, degrade: .3, tone: 9000, mix: .6 }]]],
+  ['DISTORTED ANNOUNCER', 'Overdriven PA in a stadium', [['telephone', { quality: .6, drive: .5 }], ['distortion', DIST_ON({ over: .7 })], ['delay', { mode: 'echo', time: 360, fb: .45, repeats: 6, tone: 5000, mix: .45 }], ['reverb', { size: .7, mix: .3 }]]],
+  ['MECHANICAL MONSTER', 'Engine-throated metal beast', [['pitch', { semis: -7 }], ['robot', { types: { mechanical: 1, metallic: 1 }, mono: .8, rpitch: 80, gate: .8, grate: 12, reso: .82, cfreq: 280, mdepth: .4, mspeed: 180 }], ['resonator', { freq: 110, mix: .4 }], ['distortion', DIST_ON({ fuzz: .45 })], ['rumble', { t_engine: true, t_mech: true, amt: .7, freq: 50 }]]],
+  ['CHAOS COLLAGE', 'Random collage → stretch → echoes → space', [['stretch', { factor: 1.6, mode: 'smear', grain: 90, jitter: .5 }], ['delay', { mode: 'pingpong', time: 210, fb: .55, degrade: .3, mix: .45 }], ['reverb', { size: .8, mix: .35 }]], { collage: { slices: 40, order: 'random', reverseProb: .35, microProb: .3, fragRepeatProb: .4, fragRepeats: 5, rSpeed: .45, rPitch: 9, rDist: .3, rDelay: .2, rVol: .4, rPan: .9, seqRepeats: 1 } }],
+];
+
+/* ---------- state ---------- */
+const LS = 'voxlab.v1';
+const state = { chain: defaultChain(), collage: collageDefaults(), seed: 1 + (Math.random() * 99999 | 0), feed: false, collageSrc: 'original', loop: false, autoTrim: true, autoLevel: true, gain: .8, mute: false, tab: 'record', sel: null };
+try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.chain) { Object.assign(state, s); state.chain.forEach(m => { m.p = Object.assign(defaults(m.type), m.p); const n = +m.id.slice(1); if (n >= UID) UID = n + 1; }); CORE_ORDER.forEach(t => { if (!state.chain.some(m => m.type === t)) state.chain.push(mk(t)); }); state.collage = Object.assign(collageDefaults(), state.collage); } } catch (e) { }
+let saveT = 0; const persist = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { const { sel, ...s } = state; localStorage.setItem(LS, JSON.stringify(s)); } catch (e) { } }, 300); };
+const store = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch (e) { return d; } }, storeSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+const A = { orig: null, proc: null, collage: null, ab: {}, peaks: {}, renderMs: 0, rendering: false, capped: false, f0: 0 };
+
+/* ---------- audio graph ---------- */
+let ctx, masterIn, outGain, limiter, clipper, analyser, muteG;
+function ensureCtx() {
+  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  masterIn = ctx.createGain(); outGain = ctx.createGain(); outGain.gain.value = state.gain;
+  limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .12;
+  clipper = ctx.createWaveShaper(); const cv = new Float32Array(2049); for (let i = 0; i < cv.length; i++) { const x = i / 1024 - 1; cv[i] = Math.abs(x) < .8 ? x : Math.sign(x) * (.8 + .2 * Math.tanh((Math.abs(x) - .8) / .2)); } clipper.curve = cv;
+  analyser = ctx.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = .72;
+  muteG = ctx.createGain(); muteG.gain.value = state.mute ? 0 : 1;
+  masterIn.connect(outGain).connect(limiter).connect(clipper).connect(analyser).connect(muteG).connect(ctx.destination);
+  return ctx;
+}
+const toAB = chs => { if (!chs) return null; ensureCtx(); const b = ctx.createBuffer(chs.length, chs[0].length, ctx.sampleRate); chs.forEach((c, i) => b.copyToChannel(c, i)); return b; };
+
+/* ---------- player ---------- */
+const P = { src: null, g: null, kind: 'proc', t0: 0, off: 0, playing: false, dur: 0 };
+function bufFor(k) { return A.ab[k] || null; }
+function play(kind = P.kind, offset = P.off) {
+  ensureCtx(); const b = bufFor(kind) || (kind === 'proc' ? bufFor('orig') : null); if (!b) { toast(A.orig ? 'Nothing rendered yet' : 'Record or load something first'); return; }
+  if (!bufFor(kind)) kind = 'orig';
+  stopSrc(); const s = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime + .005; s.buffer = b; s.loop = state.loop; s.connect(g); g.connect(masterIn);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .012); offset = clampN(offset, 0, Math.max(0, b.duration - .01)); s.start(t, offset);
+  s.onended = () => { if (P.src === s) { P.playing = false; P.off = 0; P.src = null; updTransport(); } };
+  Object.assign(P, { src: s, g, kind, t0: t - offset, playing: true, dur: b.duration }); updTransport();
+}
+function stopSrc() { if (P.src) { const s = P.src, g = P.g, t = ctx.currentTime; try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + .015); s.stop(t + .02); } catch (e) { } s.onended = null; P.src = null; } }
+function pos() { if (!P.playing || !ctx) return P.off; let p = ctx.currentTime - P.t0; if (state.loop && P.dur > 0) p %= P.dur; return clampN(p, 0, P.dur); }
+function pause() { if (!P.playing) return; P.off = pos(); stopSrc(); P.playing = false; updTransport(); }
+function stop() { stopSrc(); P.playing = false; P.off = 0; updTransport(); }
+function hotSwap(kind) { if (P.playing && P.kind === kind) { const frac = P.dur ? pos() / P.dur : 0, b = bufFor(kind); if (b) play(kind, frac * b.duration); } }
+
+/* ---------- worker engine ---------- */
+const DSP_URL = URL.createObjectURL(new Blob([$('#dspsrc').textContent], { type: 'text/javascript' }));
+const W = { proc: null, collage: null, busy: {}, id: 0 };
+function workerFor(kind, restart) { if (restart && W[kind]) { W[kind].terminate(); W[kind] = null; } if (!W[kind]) { const w = new Worker(DSP_URL); w.onmessage = e => onWorker(e.data); w.onerror = e => { setStatus('ENGINE ERROR: ' + e.message, 'err'); }; W[kind] = w; } return W[kind]; }
+let INLINE = null;
+function runJob(kind, req) { req.id = ++W.id; req.kind = kind; req.sr = ensureCtx().sampleRate; req.maxSec = MAX_OUT; req.autoLevel = state.autoLevel; W.busy[kind] = req.id;
+  if (!INLINE) { try { const w = workerFor(kind, W.busy[kind] && W.running && W.running[kind]); (W.running = W.running || {})[kind] = 1; w.postMessage(req); return; } catch (e) { console.warn('Worker unavailable, rendering on main thread', e); INLINE = new Function($('#dspsrc').textContent + '\nreturn render;')(); } }
+  setTimeout(() => { if (W.busy[kind] !== req.id) return; try { const r = INLINE(req); onWorker({ id: req.id, kind, chs: r.chs, ms: r.ms }); } catch (e) { onWorker({ id: req.id, kind, error: String(e.stack || e) }); } }, 0); }
+function onWorker(d) {
+  if (W.running) W.running[d.kind] = 0; if (W.busy[d.kind] !== d.id) return; W.busy[d.kind] = 0;
+  if (d.error) { console.error(d.error); setStatus('RENDER ERROR — see console', 'err'); A.rendering = false; return; }
+  if (d.kind === 'proc') { A.proc = d.chs; A.ab.proc = toAB(d.chs); A.renderMs = d.ms; A.capped = d.chs[0].length >= ctx.sampleRate * MAX_OUT - 2; A.rendering = W.busy.proc > 0; buildPeaks(); hotSwap('proc'); setStatus(`READY · ${d.ms} ms render`, 'ok'); }
+  else { A.collage = d.chs; A.ab.collage = toAB(d.chs); buildPeaks(); setStatus(`CHAOS GENERATED · seed ${state.seed} · ${d.ms} ms`, 'ok'); if (state.feed) scheduleRender(0); else { play('collage', 0); } }
+  updReadouts();
+}
+let rT = 0;
+function scheduleRender(delay = 110) { persist(); updReadouts(); if (!A.orig) return; clearTimeout(rT); A.rendering = true; setStatus('RENDERING…', 'busy'); rT = setTimeout(() => { const input = state.feed && A.collage ? A.collage : [A.orig]; runJob('proc', { input: input.map(c => c.slice()), chain: state.chain.filter(m => m.on).map(m => ({ type: m.type, on: true, p: m.p })) }); }, delay); }
+function generateCollage(newSeed) {
+  if (!A.orig) { toast('Record or load a sound first'); return; }
+  if (newSeed) { state.seed = 1 + (Math.random() * 999999 | 0); }
+  const src = state.collageSrc === 'processed' && A.proc && !state.feed ? A.proc : [A.orig];
+  setStatus('GENERATING CHAOS…', 'busy'); runJob('collage', { input: src.map(c => c.slice()), chain: [], collage: state.collage, seed: state.seed }); persist(); renderPanel();
+}
+
+/* ---------- recording / loading ---------- */
+const REC = { on: false, mr: null, stream: null, an: null, t0: 0, peaks: [], timer: 0 };
+async function startRec() {
+  if (REC.on) return; ensureCtx(); stop();
+  if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Microphone recording is not supported in this browser. Use LOAD FILE.'); return; }
+  try { REC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+  catch (e) { toast('Microphone permission denied / unavailable'); return; }
+  const src = ctx.createMediaStreamSource(REC.stream); REC.an = ctx.createAnalyser(); REC.an.fftSize = 2048; src.connect(REC.an);
+  const types = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus']; const mt = types.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+  REC.mr = new MediaRecorder(REC.stream, mt ? { mimeType: mt } : undefined); const chunks = [];
+  REC.mr.ondataavailable = e => e.data && e.data.size && chunks.push(e.data);
+  REC.mr.onstop = async () => { REC.stream.getTracks().forEach(t => t.stop()); try { const blob = new Blob(chunks, { type: REC.mr.mimeType || 'audio/webm' }); const buf = await ctx.decodeAudioData(await blob.arrayBuffer()); setOriginal(buf, 'MIC'); } catch (e) { console.error(e); toast('Could not decode recording'); } };
+  REC.mr.start(100); REC.on = true; REC.t0 = performance.now(); REC.peaks = []; REC.timer = setTimeout(stopRec, MAX_REC * 1000 + 150); updTransport(); setStatus('● RECORDING', 'rec');
+}
+function stopRec() { if (!REC.on) return; clearTimeout(REC.timer); REC.on = false; try { REC.mr.stop(); } catch (e) { } updTransport(); setStatus('DECODING…', 'busy'); }
+async function loadFile(f) { if (!f) return; ensureCtx(); try { const buf = await ctx.decodeAudioData(await f.arrayBuffer()); setOriginal(buf, f.name); } catch (e) { toast('Could not decode that file'); } }
+function setOriginal(buf, label) {
+  const n = buf.length, ch = buf.numberOfChannels; let x = new Float32Array(n); for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) x[i] += d[i] / ch; }
+  if (state.autoTrim) { let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(x[i])); const th = pk * .03, pad = Math.round(buf.sampleRate * .03); let a = 0, b = n - 1; while (a < n && Math.abs(x[a]) < th) a++; while (b > a && Math.abs(x[b]) < th) b--; x = x.slice(Math.max(0, a - pad), Math.min(n, b + pad)); }
+  const max = Math.round(buf.sampleRate * MAX_REC); if (x.length > max) { x = x.slice(0, max); toast('Trimmed to 20 seconds'); }
+  if (x.length < 256) { toast('Recording too short / silent'); return; }
+  let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); if (pk > 1e-4) for (let i = 0; i < x.length; i++) x[i] *= .9 / pk;
+  A.orig = x; A.ab.orig = toAB([x]); A.collage = null; A.ab.collage = null; A.proc = null; A.ab.proc = null; A.f0 = detectF0(x, ctx.sampleRate); A.label = label;
+  if (state.feed) state.feed = false; buildPeaks(); scheduleRender(0); renderPanel(); updReadouts(); setStatus(`LOADED ${label} · ${(x.length / ctx.sampleRate).toFixed(2)} s`, 'ok');
+}
+function clearAll() { stop(); A.orig = A.proc = A.collage = null; A.ab = {}; A.peaks = {}; A.f0 = 0; state.feed = false; buildPeaks(); updReadouts(); renderPanel(); setStatus('CLEARED', ''); }
+function detectF0(x, sr) { const W2 = 2048; let best = 0, bi = 0; for (let s = 0; s + W2 < x.length; s += 1024) { let e = 0; for (let i = 0; i < W2; i += 4) e += x[s + i] * x[s + i]; if (e > best) { best = e; bi = s; } } const lo = Math.floor(sr / 500), hi = Math.floor(sr / 60); let bc = 0, bl = 0; for (let l = lo; l < hi; l++) { let c = 0; for (let i = 0; i < W2 - l; i += 2) c += x[bi + i] * x[bi + i + l]; if (c > bc) { bc = c; bl = l; } } return bl ? sr / bl : 0; }
+
+/* ---------- export ---------- */
+function wav(chs, sr) { const n = chs[0].length, nc = chs.length, buf = new ArrayBuffer(44 + n * nc * 2), v = new DataView(buf); const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * nc * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true); v.setUint32(24, sr, true); v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * nc * 2, true);
+  let o = 44; for (let i = 0; i < n; i++) for (let c = 0; c < nc; c++) { const s = Math.max(-1, Math.min(1, chs[c][i])); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); o += 2; } return new Blob([buf], { type: 'audio/wav' }); }
+function download(blob, name) { const a = h('a', { href: URL.createObjectURL(blob), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+const expKind = () => P.kind === 'orig' ? 'orig' : (P.kind === 'collage' && A.collage ? 'collage' : (A.proc ? 'proc' : 'orig'));
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+function exportWav() { const k = expKind(), chs = k === 'orig' ? (A.orig && [A.orig]) : A[k]; if (!chs) return toast('Nothing to export'); download(wav(chs, ctx.sampleRate), `voxlab-${k}-${stamp()}.wav`); toast('WAV exported (' + k + ')'); }
+let EXP = null;
+function exportCompressed() {
+  if (EXP) return; const k = expKind(), b = bufFor(k); if (!b) return toast('Nothing to export'); if (!window.MediaRecorder) return toast('Compressed export not supported here — use WAV');
+  const types = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm']; const mt = types.find(t => MediaRecorder.isTypeSupported(t)); if (!mt) return toast('No compressed codec available — use WAV');
+  const dest = ctx.createMediaStreamDestination(), s = ctx.createBufferSource(); s.buffer = b; s.connect(dest); const mr = new MediaRecorder(dest.stream, { mimeType: mt, audioBitsPerSecond: 192000 }), chunks = [];
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data); mr.onstop = () => { download(new Blob(chunks, { type: mt }), `voxlab-${k}-${stamp()}.${mt.includes('mp4') ? 'm4a' : mt.includes('ogg') ? 'ogg' : 'webm'}`); EXP = null; setStatus('COMPRESSED EXPORT DONE', 'ok'); };
+  s.onended = () => setTimeout(() => mr.stop(), 250); mr.start(); s.start(); const t0 = ctx.currentTime; EXP = setInterval(() => { const p = (ctx.currentTime - t0) / b.duration; if (p >= 1) { clearInterval(EXP); return; } setStatus(`ENCODING ${(p * 100) | 0}% (real-time)`, 'busy'); }, 250);
+}
+
+/* ---------- drawing ---------- */
+const cvW = $('#wave'), cvS = $('#spec'), cvM = $('#meter'); let off = null;
+function fit(cv) { const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1), w = Math.max(10, r.width * d | 0), hh = Math.max(10, r.height * d | 0); if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; return true; } return false; }
+function lanes() { const top = P.kind === 'collage' ? null : 0; const inKind = state.feed && A.collage ? 'collage' : 'orig', outKind = P.kind === 'collage' && !state.feed ? 'collage' : 'proc'; return { inKind, outKind }; }
+function peaksOf(chs, cols, dur, maxDur) { const out = new Float32Array(cols * 2); if (!chs) return out; const n = chs[0].length, spc = n / (cols * dur / maxDur); for (let c = 0; c < cols; c++) { const a = Math.floor(c * spc), b = Math.min(n, Math.floor((c + 1) * spc)); if (a >= n) break; let mn = 0, mx = 0; for (const ch of chs) for (let i = a; i < b; i++) { const v = ch[i]; if (v < mn) mn = v; if (v > mx) mx = v; } out[c * 2] = mn; out[c * 2 + 1] = mx; } return out; }
+function buildPeaks() { fit(cvW); const W2 = cvW.width, H2 = cvW.height; off = off || document.createElement('canvas'); off.width = W2; off.height = H2; const g = off.getContext('2d'); g.clearRect(0, 0, W2, H2);
+  const { inKind, outKind } = lanes(), sr = ctx ? ctx.sampleRate : 48000, chIn = inKind === 'orig' ? (A.orig && [A.orig]) : A.collage, chOut = A[outKind];
+  const dIn = chIn ? chIn[0].length / sr : 0, dOut = chOut ? chOut[0].length / sr : 0, maxD = Math.max(dIn, dOut, .5); A.maxD = maxD; A.dIn = dIn; A.dOut = dOut; A.inKind = inKind; A.outKind = outKind;
+  const lh = H2 / 2; [[chIn, dIn, 0, C.g, inKind === 'collage' ? 'INPUT · COLLAGE' : 'INPUT · ORIGINAL'], [chOut, dOut, lh, outKind === 'collage' ? C.o : C.b, outKind === 'collage' ? 'COLLAGE' : 'OUTPUT · PROCESSED']].forEach(([chs, d, y0, col, lab]) => {
+    g.fillStyle = 'rgba(255,255,255,.035)'; for (let s = 0; s < maxD; s += 1) { const x = s / maxD * W2; g.fillRect(x, y0, 1, lh); }
+    g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, y0 + lh / 2, W2, 1);
+    if (chs) { const pk = peaksOf(chs, W2, d, maxD), cols = Math.ceil(d / maxD * W2), mid = y0 + lh / 2, amp = lh * .44; g.save(); g.shadowColor = col; g.shadowBlur = 12; g.fillStyle = col; g.globalAlpha = .9;
+      g.beginPath(); for (let c = 0; c < cols; c++) { g.rect(c, mid - pk[c * 2 + 1] * amp, 1, Math.max(1, (pk[c * 2 + 1] - pk[c * 2]) * amp)); } g.fill(); g.restore(); }
+    g.font = `${Math.round(13 * (cvW.width / cvW.clientWidth))}px "Share Tech Mono", monospace`; g.fillStyle = chs ? col : '#556'; g.fillText(lab + (chs ? `  ${d.toFixed(2)} s` : '  —'), 10, y0 + 20 * (cvW.width / cvW.clientWidth));
+  }); g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, lh, W2, 1); }
+const spPeak = new Float32Array(160);
+function frame() {
+  requestAnimationFrame(frame); if (fit(cvW)) buildPeaks(); fit(cvS); fit(cvM);
+  const g = cvW.getContext('2d'), W2 = cvW.width, H2 = cvW.height, lh = H2 / 2; g.clearRect(0, 0, W2, H2); if (off) g.drawImage(off, 0, 0);
+  if (REC.on && REC.an) { const td = new Float32Array(REC.an.fftSize); REC.an.getFloatTimeDomainData(td); let pk = 0; for (const v of td) pk = Math.max(pk, Math.abs(v)); const el = (performance.now() - REC.t0) / 1000; REC.peaks.push([el, pk]); g.fillStyle = 'rgba(5,6,7,.94)'; g.fillRect(0, 0, W2, lh); g.save(); g.shadowColor = C.r; g.shadowBlur = 14; g.fillStyle = C.r;
+    for (const [t, p] of REC.peaks) { const x = t / MAX_REC * W2, a = Math.min(1, p * 1.4) * lh * .44; g.fillRect(x, lh / 2 - a, Math.max(2, W2 / 600), a * 2); } g.restore(); const x = el / MAX_REC * W2; g.fillStyle = C.r; g.fillRect(x, 0, 2, lh);
+    g.font = `${Math.round(lh * .12)}px "Share Tech Mono",monospace`; g.fillText(`● REC ${el.toFixed(1)} / ${MAX_REC}.0 s`, 10, lh * .16); $('#timer').textContent = `${el.toFixed(1).padStart(4, '0')} / ${MAX_REC}.0`; }
+  if (P.playing || P.off > 0) { const p = pos(), onTop = P.kind === 'orig' || (P.kind === 'collage' && state.feed), x = p / (A.maxD || 1) * W2, y0 = onTop ? 0 : lh; g.fillStyle = '#fff'; g.shadowColor = '#fff'; g.shadowBlur = 10; g.fillRect(x - 1, y0, 2, lh); g.shadowBlur = 0; if (!REC.on) $('#timer').textContent = `${p.toFixed(1).padStart(4, '0')} / ${P.dur.toFixed(1)}`; }
+  // spectrum
+  const s = cvS.getContext('2d'), SW = cvS.width, SH = cvS.height; s.fillStyle = 'rgba(5,6,7,.55)'; s.fillRect(0, 0, SW, SH);
+  if (analyser) { const fd = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(fd); const nyq = ctx.sampleRate / 2, bars = spPeak.length, bw = SW / bars, grad = s.createLinearGradient(0, 0, SW, 0); grad.addColorStop(0, C.p); grad.addColorStop(.35, C.b); grad.addColorStop(.7, C.g); grad.addColorStop(1, C.o);
+    s.fillStyle = grad; for (let i = 0; i < bars; i++) { const f1 = 15 * Math.pow(20000 / 15, i / bars), f2 = 15 * Math.pow(20000 / 15, (i + 1) / bars); let a = Math.floor(f1 / nyq * fd.length), b = Math.max(a + 1, Math.floor(f2 / nyq * fd.length)), m = 0; for (let k = a; k < b && k < fd.length; k++) m = Math.max(m, fd[k]); const v = m / 255, bh = v * SH * .92; spPeak[i] = Math.max(spPeak[i] - .008, v); s.globalAlpha = .9; s.fillRect(i * bw + 1, SH - bh, bw - 2, bh); s.globalAlpha = 1; s.fillRect(i * bw + 1, SH - spPeak[i] * SH * .92 - 2, bw - 2, 2); }
+    const td = new Float32Array(1024); analyser.getFloatTimeDomainData(td); s.strokeStyle = 'rgba(255,255,255,.55)'; s.lineWidth = 1.5; s.beginPath(); for (let i = 0; i < td.length; i++) { const x = i / td.length * SW, y = SH * .45 - td[i] * SH * .38; i ? s.lineTo(x, y) : s.moveTo(x, y); } s.stroke();
+    let pk = 0, sq = 0; for (const v of td) { pk = Math.max(pk, Math.abs(v)); sq += v * v; } const rmsDb = 20 * Math.log10(Math.sqrt(sq / td.length) + 1e-9), pkDb = 20 * Math.log10(pk + 1e-9);
+    const m = cvM.getContext('2d'), MW = cvM.width, MH = cvM.height, toX = db => clampN((db + 60) / 60, 0, 1) * MW; m.fillStyle = '#0c0f12'; m.fillRect(0, 0, MW, MH); const mg = m.createLinearGradient(0, 0, MW, 0); mg.addColorStop(0, C.g); mg.addColorStop(.75, C.y); mg.addColorStop(.92, C.r); m.fillStyle = mg; m.fillRect(0, MH * .15, toX(rmsDb), MH * .7); m.fillStyle = '#fff'; m.fillRect(toX(pkDb) - 2, 0, 3, MH);
+    $('#limled').classList.toggle('on', limiter.reduction < -.7); }
+  s.fillStyle = 'rgba(255,255,255,.35)'; s.font = `${Math.round(11 * (cvS.width / cvS.clientWidth))}px "Share Tech Mono",monospace`; [50, 100, 500, 1000, 5000, 10000].forEach(f => { const x = Math.log(f / 15) / Math.log(20000 / 15) * SW; s.fillText(f >= 1000 ? f / 1000 + 'k' : f, x + 3, SH - 4); });
+}
+cvW.addEventListener('pointerdown', e => { const r = cvW.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, top = (e.clientY - r.top) < r.height / 2; const kind = top ? (A.inKind || 'orig') : (A.outKind || 'proc'); const b = bufFor(kind); if (!b) return; const t = fx * (A.maxD || 1); if (t > b.duration) return; play(kind, t); });
+
+/* ---------- UI helpers ---------- */
+function toast(msg) { const t = h('div', { class: 'toast' }, msg); $('#toasts').append(t); setTimeout(() => t.classList.add('out'), 2600); setTimeout(() => t.remove(), 3100); }
+function setStatus(msg, cls) { const s = $('#status'); s.textContent = msg; s.className = 'status ' + (cls || ''); }
+const fmtV = (q, v) => { if (q.fmt) return q.fmt(v); if (q.pct) return Math.round(v * 100) + '%'; if (q.fx) return (+v).toFixed(v < 1 ? 2 : v < 10 ? 2 : 1) + '×'; let s = Math.abs(v) >= 1000 ? (v / 1000).toFixed(2) + 'k' : (q.step && q.step >= 1) ? Math.round(v) + '' : Math.abs(v) < 10 ? (+v).toFixed(2) : (+v).toFixed(1); if (q.sign && v > 0) s = '+' + s; return (q.pre || '') + s + (q.u || ''); };
+function rangeOf(q, obj) { return q.dyn ? q.dyn(obj) : [q.min, q.max]; }
+function toPos(q, v, mn, mx) { return q.log ? Math.log(v / mn) / Math.log(mx / mn) : (v - mn) / (mx - mn); }
+function fromPos(q, t, mn, mx) { let v = q.log ? mn * Math.pow(mx / mn, t) : mn + (mx - mn) * t; if (q.step) v = Math.round(v / q.step) * q.step; return +v.toFixed(6); }
+function slider(q, obj, onCh, color) {
+  const [mn, mx] = rangeOf(q, obj); obj[q.k] = clampN(obj[q.k] ?? q.def, mn, mx);
+  const val = h('span', { class: 'val' }, fmtV(q, obj[q.k])), inp = h('input', { type: 'range', min: 0, max: 1000, step: 1, value: Math.round(toPos(q, obj[q.k], mn, mx) * 1000) });
+  inp.addEventListener('input', () => { obj[q.k] = fromPos(q, inp.value / 1000, mn, mx); val.textContent = fmtV(q, obj[q.k]); onCh(q.k); });
+  const lab = h('label', { title: 'Double-click to reset' }, q.l); const reset = () => { obj[q.k] = clampN(q.def, mn, mx); inp.value = Math.round(toPos(q, obj[q.k], mn, mx) * 1000); val.textContent = fmtV(q, obj[q.k]); onCh(q.k); };
+  lab.addEventListener('dblclick', reset); val.addEventListener('dblclick', reset);
+  val.addEventListener('click', () => { const r = prompt(`${q.l} (${fmtV(q, mn)} … ${fmtV(q, mx)})`, obj[q.k]); if (r === null || r === '' || isNaN(+r)) return; obj[q.k] = clampN(+r, mn, mx); inp.value = Math.round(toPos(q, obj[q.k], mn, mx) * 1000); val.textContent = fmtV(q, obj[q.k]); onCh(q.k); });
+  const el = h('div', { class: 'ctl', style: color ? `--c:${color}` : '' }, h('div', { class: 'row' }, lab, val), inp); el._set = v => { obj[q.k] = v; inp.value = Math.round(toPos(q, v, mn, mx) * 1000); val.textContent = fmtV(q, v); }; return el;
+}
+function toggle(q, obj, onCh, cls = 'tog') { const b = h('button', { class: cls + (obj[q.k] ? ' on' : '') }, q.l); b.onclick = () => { obj[q.k] = !obj[q.k]; b.classList.toggle('on', !!obj[q.k]); onCh(q.k); }; return b; }
+function select(q, obj, onCh) { const s = h('select', {}, q.opts.map(([v, l]) => h('option', { value: v, selected: obj[q.k] === v }, l))); s.onchange = () => { obj[q.k] = s.value; onCh(q.k); }; return h('div', { class: 'ctl sel' }, h('div', { class: 'row' }, h('label', {}, q.l)), s); }
+function renderParams(el, list, obj, onCh, color, rerender) {
+  let grid = h('div', { class: 'grid' }), chips = null; el.append(grid);
+  for (const q of list) {
+    if (q.t === 'h') { el.append(h('div', { class: 'sec' }, q.l)); grid = h('div', { class: 'grid' }); el.append(grid); continue; }
+    if (q.t === 'c') { if (!chips) { chips = h('div', { class: 'chips' }); grid.before(chips); } chips.append(toggle(q, obj, onCh, 'chip')); continue; }
+    if (q.t === 'r') grid.append(slider(q, obj, onCh, color));
+    else if (q.t === 's') grid.append(select(q, obj, onCh));
+    else if (q.t === 't') grid.append(h('div', { class: 'ctl tg' }, toggle(q, obj, k => { onCh(k); if (rerender && list.some(z => z.dyn)) rerender(); })));
+    else if (q.t === 'u') { const card = h('div', { class: 'unit' + (obj[q.k + 'On'] ? ' on' : '') }), tb = toggle({ k: q.k + 'On', l: q.l }, obj, k => { card.classList.toggle('on', !!obj[k]); onCh(k); }, 'utog');
+      card.append(tb, slider({ ...R(q.k, 'Intensity', 0, 1, .5, { pct: 1 }) }, obj, k => { if (!obj[q.k + 'On']) { obj[q.k + 'On'] = true; tb.classList.add('on'); card.classList.add('on'); } onCh(k); }, color), ...q.ex.map(e => slider(e, obj, onCh, color))); grid.append(card); }
+  }
+}
+/* module card */
+function chainIndex(m) { return state.chain.filter(x => x.on || true).indexOf(m) + 1; }
+function renderModule(el, m, opt = {}) {
+  const def = MOD[m.type], col = def.c; el.innerHTML = ''; el.style.setProperty('--c', col);
+  const pw = h('button', { class: 'power' + (m.on ? ' on' : ''), title: 'Enable / bypass' }, m.on ? 'ON' : 'BYPASS');
+  pw.onclick = () => { m.on = !m.on; pw.classList.toggle('on', m.on); pw.textContent = m.on ? 'ON' : 'BYPASS'; card.classList.toggle('live', m.on); scheduleRender(); updChainStrip(); };
+  const card = h('div', { class: 'mod' + (m.on ? ' live' : '') });
+  const head = h('div', { class: 'mhead' }, pw, h('div', { class: 'mtitle' }, def.n), h('span', { class: 'mpos' }, `CHAIN #${chainIndex(m)}`), h('button', { class: 'mini', onclick: () => { m.p = defaults(m.type); renderModule(el, m, opt); scheduleRender(); } }, '↺ RESET'));
+  card.append(head); if (def.d) card.append(h('div', { class: 'mdesc' }, def.d));
+  const onCh = k => { if (!m.on) { m.on = true; pw.classList.add('on'); pw.textContent = 'ON'; card.classList.add('live'); updChainStrip(); } if (opt.after) opt.after(k); scheduleRender(); };
+  if (def.quick) card.append(h('div', { class: 'chips quick' }, h('span', { class: 'qlab' }, 'QUICK'), def.quick.map(([l, o]) => h('button', { class: 'chip q', onclick: () => { Object.assign(m.p, defaults(m.type), m.type === 'delay' || m.type === 'stretch' ? {} : {}, o); m.on = true; renderModule(el, m, opt); scheduleRender(); updChainStrip(); } }, l))));
+  if (def.chipsRobot) { const cw = h('div', { class: 'chips' }); for (const [k, [l]] of Object.entries(ROBOT_TYPES)) { const b = h('button', { class: 'chip' + (m.p.types[k] ? ' on' : '') }, l); b.onclick = () => { robotType(m, k); renderModule(el, m, opt); onCh('types'); }; cw.append(b); } card.append(h('div', { class: 'sec' }, 'Voice types — combine several'), cw); }
+  if (opt.top) opt.top(card, m);
+  renderParams(card, opt.params || def.P, m.p, onCh, col, () => renderModule(el, m, opt));
+  if (opt.bottom) opt.bottom(card, m);
+  el.append(card);
+}
+function robotType(m, k) {
+  const t = m.p.types; t[k] = !t[k]; const act = Object.keys(t).filter(x => t[x]).map(x => ROBOT_TYPES[x][1]);
+  for (const a of ROBOT_AMT) m.p[a] = Math.max(0, ...act.map(r => r[a] || 0)); m.p.bits = Math.min(16, ...act.map(r => r.bits || 16)); m.p.srr = Math.max(1, ...act.map(r => r.srr || 1)); m.p.phone = act.some(r => r.phone);
+  if (t[k]) for (const [kk, v] of Object.entries(ROBOT_TYPES[k][1])) if (!ROBOT_AMT.includes(kk) && !['bits', 'srr', 'phone'].includes(kk)) m.p[kk] = v;
+  if (!act.length) m.on = false; else m.on = true;
+}
+const find = type => state.chain.find(m => m.type === type);
+
+/* ---------- panels ---------- */
+const TABS = [['record', 'Recording Studio', C.r], ['pitch', 'Pitch Lab', C.g], ['robot', 'Robot Voice', C.o], ['delay', 'Delay & Echo', C.y], ['distortion', 'Distortion Lab', C.r], ['rumble', 'Rumble Lab', C.p], ['stretch', 'Time Stretch', C.b], ['collage', 'Sound Collage', C.o], ['chain', 'Effect Chain', C.c], ['presets', 'Presets', C.m]];
+function buildTabs() { const nav = $('#tabs'); nav.innerHTML = ''; TABS.forEach(([k, l, c], i) => nav.append(h('button', { class: 'tab' + (state.tab === k ? ' on' : ''), style: `--c:${c}`, onclick: () => { state.tab = k; persist(); buildTabs(); renderPanel(); } }, h('span', { class: 'tn' }, String(i + 1).padStart(2, '0')), l))); }
+function renderPanel() {
+  const el = $('#panel'); el.innerHTML = ''; const t = state.tab;
+  if (t === 'record') return panelRecord(el);
+  if (t === 'pitch') return panelPitch(el);
+  if (t === 'collage') return panelCollage(el);
+  if (t === 'chain') return panelChain(el);
+  if (t === 'presets') return panelPresets(el);
+  const m = find(t); const box = h('div'); el.append(box);
+  if (t === 'rumble') renderModule(box, m, { bottom: card => card.append(h('div', { class: 'note' }, 'ULTRA-LOW: infrasound (below ~20 Hz) is felt more than heard and most speakers can\'t reproduce it. The infrasonic oscillator is gain-capped and also modulates the audible rumble, so you hear its rhythm as a slow pulse. DC is filtered and the master limiter stays engaged.')) });
+  else if (t === 'stretch') renderModule(box, m, { bottom: card => card.append(h('div', { class: 'note' }, 'A 5-second word at 32× becomes a 160-second drone; the output is capped at 120 s to keep rendering responsive. "Granular smear" skips waveform alignment and jitters grains for evolving, cloud-like textures.')) });
+  else renderModule(box, m);
+}
+function panelRecord(el) {
+  const big = h('button', { class: 'bigrec' + (REC.on ? ' on' : ''), onclick: () => REC.on ? stopRec() : startRec() }, REC.on ? '■ STOP' : '● RECORD');
+  el.append(h('div', { class: 'mod live', style: `--c:${C.r}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Recording Studio')),
+    h('div', { class: 'recwrap' }, big, h('div', { class: 'recinfo' },
+      h('p', {}, 'Record up to ', h('b', {}, '20 seconds'), ' from your microphone. Recording stops automatically at 20 s. Your original is always preserved — every effect is re-rendered from it.'),
+      h('p', {}, A.orig ? h('span', { class: 'okc' }, `● ORIGINAL LOADED · ${(A.orig.length / ctx.sampleRate).toFixed(2)} s · ${A.label || ''}${A.f0 ? ` · voice ≈ ${A.f0.toFixed(0)} Hz` : ''}`) : h('span', { class: 'dim' }, 'No recording yet. Hit RECORD, or load an audio file.')),
+      h('div', { class: 'btns' }, h('button', { class: 'btn', onclick: () => play('orig', 0) }, '▶ PLAY ORIGINAL'), h('button', { class: 'btn', onclick: () => play('proc', 0) }, '▶ PLAY PROCESSED'), h('button', { class: 'btn', onclick: () => $('#file').click() }, '⇪ LOAD FILE'), h('button', { class: 'btn warn', onclick: clearAll }, '✕ CLEAR')),
+      h('div', { class: 'btns' }, toggle({ k: 'autoTrim', l: 'Auto-trim silence' }, state, persist), toggle({ k: 'autoLevel', l: 'Auto-level output' }, state, () => scheduleRender(0)))))));
+  el.append(h('div', { class: 'mod', style: `--c:${C.g}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Quick start')), h('ol', { class: 'steps' }, h('li', {}, 'Record a short word or phrase (3–5 s is perfect).'), h('li', {}, 'Open PRESETS and tap one — or build your own in each lab. Touching any control switches that effect on.'), h('li', {}, 'Reorder effects in EFFECT CHAIN. Order changes everything.'), h('li', {}, 'In SOUND COLLAGE hit GENERATE CHAOS, turn on "Feed into chain", then stack effects on top.'), h('li', {}, 'Use A/B in the transport to compare, then EXPORT WAV.'))));
+}
+function panelPitch(el) {
+  const m = find('pitch'), box = h('div'); el.append(box);
+  renderModule(box, m, { params: MOD.pitch.P.filter(q => q.k !== 'semis'), top: (card) => {
+    const q = MOD.pitch.P[0], sl = slider(q, m.p, () => { upd(); if (!m.on) { m.on = true; renderPanel(); } scheduleRender(60); }, C.g); sl.classList.add('huge');
+    const read = h('div', { class: 'pread' }), sub = h('div', { class: 'psub' });
+    const upd = () => { const s = m.p.semis + m.p.cents / 100, r = Math.pow(2, s / 12); read.textContent = (s > 0 ? '+' : '') + s.toFixed(2); sub.textContent = `SEMITONES · ratio ×${r < .01 ? r.toExponential(2) : r.toFixed(3)} · ${(s / 12).toFixed(2)} oct${A.f0 ? ` · ${A.f0.toFixed(0)} Hz → ${(A.f0 * r).toFixed(r * A.f0 < 10 ? 1 : 0)} Hz` : ''}${m.p.extreme ? ' · EXTREME' : ''}`; };
+    const step = d => { const [mn, mx] = rangeOf(q, m.p); m.p.semis = clampN(m.p.semis + d, mn, mx); sl._set(m.p.semis); upd(); if (!m.on) { m.on = true; renderPanel(); return scheduleRender(); } scheduleRender(40); };
+    upd(); card.append(h('div', { class: 'pitchbig' }, read, sub), sl, h('div', { class: 'btns center' }, h('button', { class: 'btn', onclick: () => step(-12) }, '−OCT'), h('button', { class: 'btn', onclick: () => step(-1) }, '−1'), h('button', { class: 'btn', onclick: () => { m.p.semis = 0; m.p.cents = 0; renderPanel(); scheduleRender(); } }, '0 ORIGINAL'), h('button', { class: 'btn', onclick: () => step(1) }, '+1'), h('button', { class: 'btn', onclick: () => step(12) }, '+OCT')));
+  } });
+  const b2 = h('div'), b3 = h('div'); el.append(b2, b3); renderModule(b2, find('freqshift'));
+  const xm = find('xfreq'); const info = h('div', { class: 'xinfo' }); const updX = () => { const i = xfreqInfo(xm.p.vf); info.innerHTML = ''; info.append(h('span', { class: 'z ' + i.zone.toLowerCase() }, i.zone), h('span', {}, `virtual ${fmtV({ u: ' Hz' }, xm.p.vf)}`), h('span', {}, i.zone === 'ULTRASONIC' ? `heterodyned ÷${2 ** i.oct} → heard at ${i.heard.toFixed(0)} Hz` : i.zone === 'INFRASONIC' ? `heard as a ${i.pulse.toFixed(2)} Hz pulse + ${i.heard.toFixed(1)} Hz octave image` : 'directly audible')); };
+  renderModule(b3, xm, { after: updX, top: card => { card.append(info); card.append(h('div', { class: 'note' }, 'Frequencies outside ~20 Hz–20 kHz cannot be heard (and above ~24 kHz cannot even exist at this sample rate). This module computes where your chosen carrier would sit, then translates it by whole octaves into the audible band so you hear its shape — heterodyning for ultrasound, rhythmic pulsing for infrasound.')); updX(); } });
+}
+function xfreqInfo(vf) { let f = vf, oct = 0; if (vf > 20000) { while (f > 16000) { f /= 2; oct++; } return { zone: 'ULTRASONIC', heard: f, oct }; } if (vf < 20) { while (f < 40) { f *= 2; oct--; } return { zone: 'INFRASONIC', heard: f, oct, pulse: vf }; } return { zone: 'AUDIBLE', heard: vf, oct: 0 }; }
+function panelCollage(el) {
+  const cp = state.collage, seedIn = h('input', { type: 'number', class: 'seed', value: state.seed, min: 1 }); seedIn.onchange = () => { state.seed = Math.max(1, +seedIn.value | 0); persist(); };
+  const top = h('div', { class: 'mod live', style: `--c:${C.o}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Randomized Sound Collage')), h('div', { class: 'mdesc' }, 'Chops your recording into fragments, rearranges and mutates them. Every result is reproducible from its seed.'),
+    h('div', { class: 'chaosrow' }, h('button', { class: 'chaos', onclick: () => generateCollage(true) }, 'GENERATE CHAOS'), h('button', { class: 'chaos alt', onclick: randomizeAll }, 'RANDOMIZE ALL')),
+    h('div', { class: 'btns' }, h('span', { class: 'qlab' }, 'SEED'), seedIn, h('button', { class: 'btn', onclick: () => generateCollage(false) }, '↻ REPLAY SEED'), h('button', { class: 'btn', onclick: () => play('collage', 0) }, '▶ PLAY COLLAGE'), toggle({ k: 'loop', l: '⟲ Infinite loop' }, state, () => { if (P.src) P.src.loop = state.loop; updTransport(); persist(); }), h('button', { class: 'btn', onclick: saveVariation }, '★ SAVE VARIATION')),
+    h('div', { class: 'btns' }, toggle({ k: 'feed', l: 'Feed collage into effect chain' }, state, () => { buildPeaks(); scheduleRender(0); renderPanel(); }), select({ k: 'collageSrc', l: 'Collage source', opts: [['original', 'Original recording'], ['processed', 'Processed output']] }, state, persist)));
+  const vars = store('voxlab.vars', []); if (vars.length) top.append(h('div', { class: 'sec' }, 'Saved variations'), h('div', { class: 'chips' }, vars.map((v, i) => h('span', { class: 'chip var' }, h('span', { onclick: () => { state.collage = Object.assign(collageDefaults(), v.p); state.seed = v.seed; renderPanel(); generateCollage(false); } }, `${v.name}`), h('b', { class: 'x', onclick: () => { vars.splice(i, 1); storeSet('voxlab.vars', vars); renderPanel(); } }, '×')))));
+  el.append(top);
+  const pm = h('div', { class: 'mod', style: `--c:${C.o}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Collage settings'), h('button', { class: 'mini', onclick: () => { state.collage = collageDefaults(); renderPanel(); persist(); } }, '↺ RESET')));
+  renderParams(pm, COLLAGE_P, cp, () => persist(), C.o); pm.append(h('div', { class: 'note' }, 'Changing settings doesn\'t auto-regenerate — press REPLAY SEED to hear the same arrangement with new settings, or GENERATE CHAOS for a new seed.')); el.append(pm);
+}
+function saveVariation() { const vars = store('voxlab.vars', []); const name = prompt('Name this variation', `Seed ${state.seed}`); if (name === null) return; vars.unshift({ name: name || `Seed ${state.seed}`, seed: state.seed, p: { ...state.collage } }); storeSet('voxlab.vars', vars.slice(0, 40)); renderPanel(); toast('Variation saved'); }
+function rndParams(type, rng) { const p = defaults(type); for (const q of MOD[type].P) { if (q.t === 'r') { const [mn, mx] = rangeOf(q, p); const t = rng(); p[q.k] = fromPos(q, q.k === 'mix' ? .5 + t * .5 : t, mn, mx); } else if (q.t === 's') p[q.k] = q.opts[rng() * q.opts.length | 0][0]; else if (q.t === 't' || q.t === 'c') p[q.k] = !['inf', 'ultra', 'extreme', 'auto'].includes(q.k) && rng() < .3; else if (q.t === 'u') p[q.k + 'On'] = rng() < .25, p[q.k] = rng(); }
+  if (type === 'stretch') p.factor = .5 + rng() * 2.5; if (type === 'delay') { p.repeats = rng() * 24 | 0; p.inf = false; } if (type === 'distortion') p.auto = true; if (type === 'rumble') p.t_sub = true; if (type === 'reverb') p.tail = Math.min(p.tail, 5); if (type === 'freeze') p.tail = Math.min(p.tail, 5); if (type === 'granular') p.length = Math.min(p.length, 3); return p; }
+function randomizeAll() {
+  if (!A.orig) return toast('Record or load a sound first'); state.seed = 1 + (Math.random() * 999999 | 0); let s = state.seed; const rng = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const chain = CORE_ORDER.map(t => { const m = mk(t, rng() < (t === 'xfreq' ? .15 : .42), rndParams(t, rng)); if (t === 'robot') { m.p.types = {}; } return m; });
+  const nLib = rng() * 4 | 0; for (let i = 0; i < nLib; i++) { const t = LIB[rng() * LIB.length | 0]; chain.splice(rng() * chain.length | 0, 0, mk(t, true, rndParams(t, rng))); }
+  for (let i = 0; i < 3; i++) { const a = rng() * chain.length | 0, b = rng() * chain.length | 0;[chain[a], chain[b]] = [chain[b], chain[a]]; }
+  state.chain = chain; const c = state.collage; for (const q of COLLAGE_P) { if (q.t === 'r') c[q.k] = fromPos(q, rng(), q.min, q.max); else if (q.t === 's') c[q.k] = q.opts[rng() * q.opts.length | 0][0]; else if (q.t === 't') c[q.k] = rng() < .5; }
+  c.seqRepeats = 1 + (rng() * 3 | 0); c.slices = 8 + (rng() * 50 | 0); state.feed = true; toast(`Randomized everything · seed ${state.seed}`); renderPanel(); generateCollage(false); updChainStrip();
+}
+let dragId = null;
+function panelChain(el) {
+  const strip = h('div', { class: 'strip', id: 'strip' }); el.append(h('div', { class: 'mod live', style: `--c:${C.c}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Effect Chain'), h('span', { class: 'mpos' }, 'signal flows left → right'),
+    h('button', { class: 'mini', onclick: () => { if (!confirm('Reset the entire chain?')) return; state.chain = defaultChain(); state.sel = null; renderPanel(); scheduleRender(); } }, '↺ RESET CHAIN')), strip,
+    h('div', { class: 'btns' }, h('span', { class: 'qlab' }, 'ADD EFFECT'), (() => { const s = h('select', { class: 'addsel' }, h('option', { value: '' }, '+ choose from library…'), LIB.map(k => h('option', { value: k }, MOD[k].n))); s.onchange = () => { if (!s.value) return; const m = mk(s.value, true); state.chain.push(m); state.sel = m.id; renderPanel(); scheduleRender(); }; return s; })(),
+      h('button', { class: 'btn', onclick: () => { state.chain.forEach(m => m.on = false); renderPanel(); scheduleRender(); } }, 'BYPASS ALL'))));
+  const ed = h('div', { id: 'editor' }); el.append(ed); fillStrip(strip); const m = state.chain.find(x => x.id === state.sel) || state.chain.find(x => x.on) || state.chain[0]; if (m) { state.sel = m.id; renderModule(ed, m); }
+}
+function fillStrip(strip) {
+  strip.innerHTML = ''; strip.append(h('div', { class: 'node io' }, 'IN')); state.chain.forEach((m, i) => {
+    const def = MOD[m.type]; const blk = h('div', { class: 'blk' + (m.on ? ' on' : '') + (state.sel === m.id ? ' sel' : ''), style: `--c:${def.c}`, draggable: 'true' },
+      h('div', { class: 'bn' }, h('span', { class: 'bi' }, i + 1), def.n), h('div', { class: 'bctl' }, h('button', { class: 'pwr' + (m.on ? ' on' : ''), title: 'bypass', onclick: e => { e.stopPropagation(); m.on = !m.on; refreshChainViews(); scheduleRender(); } }, '⏻'), h('button', { title: 'move left', onclick: e => { e.stopPropagation(); mv(i, -1); } }, '◀'), h('button', { title: 'move right', onclick: e => { e.stopPropagation(); mv(i, 1); } }, '▶'), h('button', { title: 'reset', onclick: e => { e.stopPropagation(); m.p = defaults(m.type); refreshChainViews(true); scheduleRender(); } }, '↺'), def.core ? null : h('button', { title: 'remove', onclick: e => { e.stopPropagation(); state.chain.splice(i, 1); if (state.sel === m.id) state.sel = null; renderPanel(); scheduleRender(); } }, '✕')));
+    blk.onclick = () => { state.sel = m.id; refreshChainViews(true); };
+    blk.ondragstart = e => { dragId = m.id; e.dataTransfer.effectAllowed = 'move'; }; blk.ondragover = e => { e.preventDefault(); blk.classList.add('over'); }; blk.ondragleave = () => blk.classList.remove('over');
+    blk.ondrop = e => { e.preventDefault(); const from = state.chain.findIndex(x => x.id === dragId); if (from < 0 || from === i) return; const [it] = state.chain.splice(from, 1); state.chain.splice(i, 0, it); refreshChainViews(); scheduleRender(); };
+    strip.append(h('div', { class: 'arrow' }, '→'), blk); }); strip.append(h('div', { class: 'arrow' }, '→'), h('div', { class: 'node io' }, 'OUT'));
+}
+function mv(i, d) { const j = i + d; if (j < 0 || j >= state.chain.length) return;[state.chain[i], state.chain[j]] = [state.chain[j], state.chain[i]]; refreshChainViews(); scheduleRender(); }
+function refreshChainViews(editor) { const s = $('#strip'); if (s) fillStrip(s); if (editor && $('#editor')) { const m = state.chain.find(x => x.id === state.sel); if (m) renderModule($('#editor'), m); } else if ($('#editor')) { const m = state.chain.find(x => x.id === state.sel); if (m) renderModule($('#editor'), m); } updChainStrip(); }
+function updChainStrip() { updReadouts(); const s = $('#strip'); if (s && state.tab === 'chain') fillStrip(s); }
+function panelPresets(el) {
+  el.append(h('div', { class: 'mod live', style: `--c:${C.m}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Preset Library'), h('button', { class: 'mini', onclick: saveUserPreset }, '★ SAVE CURRENT AS PRESET')),
+    h('div', { class: 'pgrid' }, PRESETS.map((pr, i) => h('button', { class: 'pcard', style: `--c:${Object.values(C)[i % 8]}`, onclick: () => applyPreset(pr) }, h('b', {}, pr[0]), h('span', {}, pr[1]))))));
+  const ups = store('voxlab.presets', []); el.append(h('div', { class: 'mod', style: `--c:${C.g}` }, h('div', { class: 'mhead' }, h('div', { class: 'mtitle' }, 'Your presets')), ups.length ? h('div', { class: 'pgrid' }, ups.map((u, i) => h('div', { class: 'pcard user' }, h('b', { onclick: () => loadUserPreset(u) }, u.name), h('span', { onclick: () => loadUserPreset(u) }, `${u.chain.filter(m => m.on).map(m => MOD[m.type].n).join(' → ') || 'empty chain'}`), h('button', { class: 'mini', onclick: () => { ups.splice(i, 1); storeSet('voxlab.presets', ups); renderPanel(); } }, 'DELETE')))) : h('div', { class: 'mdesc' }, 'Nothing saved yet. Build a sound, then hit SAVE CURRENT AS PRESET.')));
+}
+function applyPreset([name, , mods, extra]) {
+  const chain = mods.map(([t, p, p2]) => { const m = mk(t, true, Object.assign({}, p, p2 || {})); if (t === 'robot') m.p.types = Object.assign({}, p.types || {}); return m; });
+  CORE_ORDER.forEach(t => { if (!chain.some(m => m.type === t)) chain.push(mk(t)); }); state.chain = chain; state.sel = null;
+  if (extra && extra.collage) { state.collage = Object.assign(collageDefaults(), extra.collage); state.feed = true; toast(`${name} · generating collage`); generateCollage(true); }
+  else { if (state.feed) { state.feed = false; buildPeaks(); } scheduleRender(0); toast(name); if (A.orig && !P.playing) setTimeout(() => play('proc', 0), 50); }
+  renderPanel(); updReadouts(); if (A.orig) { P.kind = 'proc'; }
+}
+function saveUserPreset() { const name = prompt('Preset name', 'My sound'); if (!name) return; const ups = store('voxlab.presets', []); ups.unshift({ name, chain: JSON.parse(JSON.stringify(state.chain)), collage: { ...state.collage }, feed: state.feed, seed: state.seed }); storeSet('voxlab.presets', ups.slice(0, 60)); toast('Preset saved'); renderPanel(); }
+function loadUserPreset(u) { state.chain = JSON.parse(JSON.stringify(u.chain)).map(m => ({ ...m, id: 'm' + (UID++), p: Object.assign(defaults(m.type), m.p) })); state.collage = Object.assign(collageDefaults(), u.collage); state.seed = u.seed || state.seed; state.feed = !!u.feed; state.sel = null; renderPanel(); if (state.feed) generateCollage(false); else scheduleRender(0); toast(u.name); }
+
+/* ---------- transport / readouts ---------- */
+function updTransport() { $('#bRec').classList.toggle('on', REC.on); $('#bRec').textContent = REC.on ? '■ STOP REC' : '● REC'; $('#bPlay').classList.toggle('on', P.playing); $('#bLoop').classList.toggle('on', state.loop); $$('#ab button').forEach(b => b.classList.toggle('on', b.dataset.k === P.kind)); const br = $('.bigrec'); if (br) { br.classList.toggle('on', REC.on); br.textContent = REC.on ? '■ STOP' : '● RECORD'; } }
+function updReadouts() {
+  const sr = ctx ? ctx.sampleRate : 48000, pm = find('pitch'); $('#rIn').textContent = A.orig ? (A.orig.length / sr).toFixed(2) + ' s' : '—'; $('#rOut').textContent = A.proc ? (A.proc[0].length / sr).toFixed(2) + ' s' + (A.capped ? ' (cap)' : '') : '—';
+  $('#rPitch').textContent = pm && pm.on ? ((pm.p.semis + pm.p.cents / 100) > 0 ? '+' : '') + (pm.p.semis + pm.p.cents / 100).toFixed(2) + ' st' : 'OFF'; $('#rSeed').textContent = state.seed; $('#rSrc').textContent = state.feed && A.collage ? 'COLLAGE' : 'ORIGINAL';
+  const act = $('#active'); act.innerHTML = ''; const on = state.chain.filter(m => m.on); if (!on.length) act.append(h('span', { class: 'dim' }, 'no effects active — dry signal')); on.forEach((m, i) => { if (i) act.append(h('span', { class: 'arr' }, '→')); act.append(h('span', { class: 'ach', style: `--c:${MOD[m.type].c}` }, MOD[m.type].n)); });
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  buildTabs(); renderPanel(); updReadouts(); updTransport();
+  $('#bRec').onclick = () => REC.on ? stopRec() : startRec(); $('#bStop').onclick = () => { if (REC.on) stopRec(); stop(); }; $('#bPlay').onclick = () => { ensureCtx(); play(P.kind, P.off); }; $('#bPause').onclick = pause; $('#bClear').onclick = clearAll;
+  $('#bLoop').onclick = () => { state.loop = !state.loop; if (P.src) P.src.loop = state.loop; updTransport(); persist(); if (state.tab === 'collage') renderPanel(); };
+  $$('#ab button').forEach(b => b.onclick = () => { const k = b.dataset.k; if (!bufFor(k)) return toast(k === 'collage' ? 'Generate a collage first' : 'Nothing there yet'); const frac = P.playing && P.dur ? pos() / P.dur : 0; play(k, frac * bufFor(k).duration); buildPeaks(); });
+  $('#bLoad').onclick = () => $('#file').click(); $('#file').onchange = e => { loadFile(e.target.files[0]); e.target.value = ''; };
+  $('#bWav').onclick = () => { ensureCtx(); exportWav(); }; $('#bComp').onclick = () => { ensureCtx(); exportCompressed(); };
+  const g = $('#gain'); g.value = state.gain; g.oninput = () => { state.gain = +g.value; if (outGain) outGain.gain.setTargetAtTime(state.gain, ctx.currentTime, .02); $('#gainv').textContent = Math.round(state.gain * 100) + '%'; persist(); }; $('#gainv').textContent = Math.round(state.gain * 100) + '%';
+  const mu = $('#mute'); mu.classList.toggle('on', state.mute); mu.onclick = () => { state.mute = !state.mute; mu.classList.toggle('on', state.mute); mu.textContent = state.mute ? 'MUTED' : 'MUTE'; if (muteG) muteG.gain.setTargetAtTime(state.mute ? 0 : 1, ctx.currentTime, .01); persist(); }; mu.textContent = state.mute ? 'MUTED' : 'MUTE';
+  window.addEventListener('keydown', e => { if (e.target.closest('input,select,textarea')) return; if (e.code === 'Space') { e.preventDefault(); P.playing ? pause() : play(P.kind, P.off); } if (e.key === 'r' && !e.metaKey && !e.ctrlKey) REC.on ? stopRec() : startRec(); });
+  document.addEventListener('pointerdown', () => ensureCtx(), { once: true });
+  requestAnimationFrame(frame); setStatus('READY · record or load a sound', '');
+  window.VOXLAB = { state, A, P, setOriginal, applyPreset, PRESETS, generateCollage, ensureCtx, scheduleRender, MOD, renderPanel, buildTabs };
+}
+boot();
+
+</script>
+</body>
+</html>
