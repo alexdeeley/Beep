@@ -132,6 +132,15 @@
     "thumbnail": "thumbnails/heavy-spin-morph.jpg"
   },
   {
+    "id": "maisie-match-adventure",
+    "name": "Maisie Match Adventure",
+    "description": "A pixel-art match-three adventure made for Maisie: swap sparkly tiles to make matches, clear levels, and journey through a magical world with power-ups and surprises. Your progress is saved on the device.",
+    "category": "Maisie's Arcade",
+    "path": "MaisieMatchAdventure.html",
+    "added": "2026-11-13T00:00:00+00:00",
+    "thumbnail": "thumbnails/maisie-match-adventure.jpg"
+  },
+  {
     "id": "seoul-saviors-haunted-mansion",
     "name": "Seoul Saviors: The Haunted Mansion",
     "description": "A pixel-art demon-hunter adventure: pick your hunter, explore a haunted mansion room by room, fight ghosts and bosses with attacks, dodges and specials, collect items, read the journal and save your game. Keyboard or on-screen touch controls.",
