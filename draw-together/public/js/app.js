@@ -269,6 +269,11 @@ function onMessage(m) {
     case 'doodleStart': addGhost(m.id, m.seat, m.pts); break;
     case 'doodlePoints': addGhostPoints(m.id, m.pts); break;
     case 'doodleEnd': endGhost(m.id); break;
+    // The shared scratchpad is for the guessers; the drawer's canvas stays clean.
+    case 'sketch': if (!amDrawer()) setSketch(m.strokes); break;
+    case 'sketchStart': if (!amDrawer()) addSketchStroke(m.id, m.seat, m.pts); break;
+    case 'sketchPoints': if (!amDrawer()) addSketchPoints(m.id, m.pts); break;
+    case 'sketchClear': if (!amDrawer()) clearSketchOf(m.seat); break;
     case 'react': addReactionBubble(m.seat, m.i); snd.play('pop'); break;
     case 'event':
       if (m.kind === 'joined') { snd.play('join'); }
@@ -556,10 +561,13 @@ ghostCanvas.setAttribute('aria-hidden', 'true');
 S.board.sheet.append(ghostCanvas);
 const gctx = ghostCanvas.getContext('2d');
 
-// ── Scratchpad: guessers doodle for themselves while the drawer picks ──
+// ── Scratchpad: guessers doodle together while the drawer picks ──
 //
-// Local only: nothing is sent, nothing is saved, and it is wiped the moment
-// the round starts (see renderGame). Its own layer above the real ink.
+// One shared page for everyone waiting: each guesser's strokes go to the
+// server (sketchStart/Points/End) and come back to the others live, in the
+// artist's colour; whoever joins mid-wait gets the lot (`sketch`). Nothing is
+// saved, and it is wiped the moment the round starts (see renderGame). Its
+// own layer above the real ink; "Clear mine" removes only your own marks.
 const sketchCanvas = document.createElement('canvas');
 sketchCanvas.className = 'layer sketch';
 sketchCanvas.setAttribute('aria-hidden', 'true');
@@ -568,18 +576,40 @@ const sctx = sketchCanvas.getContext('2d');
 const sketchNote = document.createElement('div');
 sketchNote.className = 'sketch-note';
 sketchNote.hidden = true;
-sketchNote.innerHTML = '<span>✏️ Scratchpad - just for you, gone when the round starts</span><button class="btn small ghost" id="btn-sketch-clear" type="button">Clear</button>';
+sketchNote.innerHTML = '<span>✏️ Shared scratchpad - everyone waiting draws here; gone when the round starts</span><button class="btn small ghost" id="btn-sketch-clear" type="button">Clear mine</button>';
 S.board.sheet.append(sketchNote);
-sketchNote.querySelector('#btn-sketch-clear').addEventListener('click', () => { clearSketch(); snd.play('pop'); });
-const sketchStrokes = [];   // [{ pts }] in board coordinates
+sketchNote.addEventListener('pointerdown', (e) => e.stopPropagation());   // a tap on the note is not a stroke
+sketchNote.querySelector('#btn-sketch-clear').addEventListener('click', () => { clearSketchOf(S.st?.you); S.net?.send({ type: 'sketchClear' }); snd.play('pop'); });
+const sketchStrokes = [];   // [{ id, seat, pts }] in board coordinates
+function addSketchStroke(id, seat, pts) {
+  if (sketchStrokes.some((k) => k.id === id)) return;
+  sketchStrokes.push({ id, seat, pts: pts.slice() });
+  drawSketch();
+}
+function addSketchPoints(id, pts) {
+  const k = sketchStrokes.find((x) => x.id === id);
+  if (!k) return;
+  for (const v of pts) k.pts.push(v);
+  drawSketch();
+}
+function setSketch(strokes) {
+  sketchStrokes.length = 0;
+  for (const k of strokes || []) sketchStrokes.push({ id: k.id, seat: k.seat, pts: k.pts.slice() });
+  drawSketch();
+}
+function clearSketchOf(seat) {
+  for (let i = sketchStrokes.length - 1; i >= 0; i--) if (sketchStrokes[i].seat === seat) sketchStrokes.splice(i, 1);
+  if (S.sketch && S.sketch.st.seat === seat) S.sketch = null;
+  drawSketch();
+}
 function drawSketch() {
   sctx.setTransform(1, 0, 0, 1, 0, 0);
   sctx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
   sctx.save();
   sctx.setTransform(S.board.scale, 0, 0, S.board.scale, 0, 0);
-  sctx.strokeStyle = sctx.fillStyle = colorOf(S.st?.you ?? 0);
   sctx.lineCap = 'round'; sctx.lineJoin = 'round'; sctx.lineWidth = 14;
   for (const st of sketchStrokes) {
+    sctx.strokeStyle = sctx.fillStyle = colorOf(st.seat);
     const p = S.board.unitPoints(st.pts);
     const n = p.length / 2;
     if (n === 1) { sctx.beginPath(); sctx.arc(p[0], p[1], 7, 0, Math.PI * 2); sctx.fill(); continue; }
@@ -745,7 +775,7 @@ function renderGame(prev, phaseChanged) {
     fitHud(main.querySelector('.word'));
     $('btn-unlock')?.addEventListener('click', () => { snd.play('pop'); S.net?.send({ type: 'unlock' }); });
   } else if (!drawer && st.phase === 'choosing') {
-    main.innerHTML = `<span class="lbl">Doodle while you wait!</span><span class="who">${esc(nameOf(st.drawerSeat))} is picking a word…</span>`;
+    main.innerHTML = `<span class="lbl">Doodle together while you wait!</span><span class="who">${esc(nameOf(st.drawerSeat))} is picking a word…</span>`;
     fitHud(main.querySelector('.who'));
   } else if (!drawer) {
     main.innerHTML = waitingToGuess
@@ -988,8 +1018,8 @@ const canDraw = () => S.net?.isOpen && ((S.st?.phase === 'drawing' && amDrawer()
 // Anyone who ISN'T the drawer can doodle instead - a separate, ephemeral
 // mark (see the ghost-doodle block above), never the real drawing.
 const canDoodle = () => S.st?.phase === 'drawing' && !amDrawer() && S.net?.isOpen;
-// ...and while the drawer is still choosing, a private scratchpad.
-const canSketch = () => S.st?.phase === 'choosing' && !amDrawer();
+// ...and while the drawer is still choosing, the shared scratchpad.
+const canSketch = () => S.st?.phase === 'choosing' && !amDrawer() && S.net?.isOpen;
 const MIN_STEP = 10; // in 0..10000 board coordinates
 
 sheet.addEventListener('pointerdown', (e) => {
@@ -1029,9 +1059,10 @@ sheet.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { sheet.setPointerCapture(e.pointerId); } catch {}
     const [x, y] = S.board.toBoard(e.clientX, e.clientY);
-    const st = { pts: [x, y] };
+    const st = { id: rid(), seat: S.st.you, pts: [x, y] };
     sketchStrokes.push(st);
-    S.sketch = { pointerId: e.pointerId, lx: x, ly: y, st };
+    S.sketch = { id: st.id, pointerId: e.pointerId, lx: x, ly: y, st, pending: [], raf: 0 };
+    S.net.send({ type: 'sketchStart', id: st.id, pts: [x, y] });
     drawSketch();
   }
 });
@@ -1043,9 +1074,18 @@ sheet.addEventListener('pointermove', (e) => {
   if (Math.abs(x - k.lx) + Math.abs(y - k.ly) < MIN_STEP) return;
   k.lx = x; k.ly = y;
   k.st.pts.push(x, y);
+  k.pending.push(x, y);
+  if (!k.raf) k.raf = requestAnimationFrame(() => flush(k));
   drawSketch();
 });
-for (const ev of ['pointerup', 'pointercancel']) sheet.addEventListener(ev, (e) => { if (S.sketch && e.pointerId === S.sketch.pointerId) S.sketch = null; });
+for (const ev of ['pointerup', 'pointercancel']) sheet.addEventListener(ev, (e) => {
+  const k = S.sketch;
+  if (!k || e.pointerId !== k.pointerId) return;
+  cancelAnimationFrame(k.raf);
+  flush(k);
+  S.net?.send({ type: 'sketchEnd', id: k.id });
+  S.sketch = null;
+});
 
 sheet.addEventListener('pointermove', (e) => {
   if (e.pointerType === 'pen') S.lastPen = performance.now();
@@ -1070,7 +1110,7 @@ sheet.addEventListener('pointermove', (e) => {
 
 function flush(s) {
   s.raf = 0;
-  const type = s === S.stroke ? 'strokePoints' : 'doodlePoints';
+  const type = s === S.stroke ? 'strokePoints' : s === S.doodle ? 'doodlePoints' : 'sketchPoints';
   while (s.pending.length) {
     const chunk = s.pending.splice(0, MAX_POINTS_PER_MSG * 2);
     S.net?.send({ type, id: s.id, pts: chunk });
@@ -1383,6 +1423,6 @@ function star(c, r) {
 })();
 
 // For automated tests only: read-only peek at local state.
-window.__dt = { S, music, hasSketch, clearSketch };
+window.__dt = { S, music, hasSketch, clearSketch, sketchCount: () => sketchStrokes.length };
 
 window.addEventListener('resize', () => document.querySelectorAll('#hud-main .word, #hud-main .who').forEach(fitHud));

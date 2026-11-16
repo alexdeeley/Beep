@@ -349,7 +349,7 @@ html.a11y-invert #sizes .blob {
   display: flex; align-items: center; justify-content: center;
   font-size: clamp(3rem, 35vmin, 14rem);
   line-height: 1;
-  opacity: .5;
+  opacity: .625;   /* a quarter darker than the original .5 */
   pointer-events: none;
   user-select: none;
 }
@@ -357,7 +357,7 @@ html.a11y-invert #sizes .blob {
 /* Trace-an-emoji studio: the same guide layer, but big - sized by app.js
    from the sheet itself (fitTrace) so the emoji fills most of the canvas on
    any shape or screen - and shared by everyone in the room. */
-.game.tracing .sheet .layer.trace { opacity: .42; }
+.game.tracing .sheet .layer.trace { opacity: .525; }
 .emoji-btn { font-size: 1.7rem; line-height: 1; }
 .emoji-card { gap: 10px; }
 .emoji-now { font-size: 1.3rem; }

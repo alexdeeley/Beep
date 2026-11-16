@@ -84,6 +84,7 @@ export const CATEGORIES = [
   { id: 'silly',      label: 'Silly',      emoji: '🤪' },
   { id: 'disney',     label: 'Disney',     emoji: '🏰' },
   { id: 'adventure',  label: 'Adventure',  emoji: '🎈' },
+  { id: 'magic',      label: 'Magic',      emoji: '🪄' },
   // Opt-in only: Maisie's list is never part of 'Everything' - pick the chip.
   { id: 'maisie',     label: 'Maisie',     emoji: '🦄' },
   // Hard-mode only: these categories' words are all tagged difficulty

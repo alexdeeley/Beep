@@ -21,6 +21,7 @@ const MAX_OPS_PER_ROUND = 4000;
 const autoUnlockMs = () => globalThis.__DT_AUTO_UNLOCK_MS ?? 60_000;
 const MAX_STUDIO_OPS = 6000;
 const MAX_INTS_PER_STROKE = 40000;
+const MAX_SKETCH_STROKES = 600;   // shared scratchpad strokes per choosing phase (memory only)
 const MAX_GUESS_LEN = 40;
 const REACT_COOLDOWN_MS = 500;
 const DOODLE_COOLDOWN_MS = 300;  // throttles new doodle strokes, not points within one
@@ -59,6 +60,12 @@ export class GameRoom {
     // stored anywhere, not even in memory beyond "whose stroke is this id" -
     // there is nothing here to persist, restore, or clean up on disconnect.
     this.doodleActive = new Map(); // player id -> their current doodle stroke id
+    // The shared scratchpad guessers draw on while the drawer picks a word
+    // (see sketchStart/Points/End/Clear). Memory only: it lives for one
+    // choosing phase, is sent whole to anyone who joins mid-wait, and is
+    // dropped the moment the round starts. Never stored, never in the gallery.
+    this.sketch = new Map();       // stroke id -> { seat, pts }
+    this.sketchActive = new Map(); // player id -> their current sketch stroke id
     // Let clients keep sockets alive without waking the object.
     try {
       if (globalThis.WebSocketRequestResponsePair) {
@@ -388,6 +395,14 @@ export class GameRoom {
     safeSend(ws, JSON.stringify({
       type: 'board', round: this.room.round, ops: this.ops, active: this.active,
     }));
+    if (this.room.phase === 'choosing' && this.sketch.size) {
+      safeSend(ws, JSON.stringify({ type: 'sketch', strokes: [...this.sketch].map(([id, k]) => ({ id, seat: k.seat, pts: k.pts })) }));
+    }
+  }
+
+  clearSketch() {
+    this.sketch.clear();
+    this.sketchActive.clear();
   }
 
   // ── Handshake ────────────────────────────────────────────
@@ -443,6 +458,7 @@ export class GameRoom {
   async startRound() {
     const r = this.room;
     this.resetActiveOps();
+    this.clearSketch();
     const seats = r.players.map((p) => p.seat);
     r.drawerSeat = seats[(r.round - 1) % seats.length];
     this.chooseWord();
@@ -712,6 +728,7 @@ const HANDLERS = {
     const a = Number(msg.aspect);
     r.aspect = Number.isFinite(a) ? Math.min(ASPECT_MAX, Math.max(ASPECT_MIN, a)) : 1;
     r.phase = 'drawing';
+    this.clearSketch();
     r.guessesLocked = !!r.settings.lockGuesses;
     r.unlockAt = r.guessesLocked ? Date.now() + autoUnlockMs() : null;
     const ms = r.settings.timer * 1000;
@@ -825,6 +842,47 @@ const HANDLERS = {
     if (!id || this.doodleActive.get(me.id) !== id) return;
     this.doodleActive.delete(me.id);
     this.relay({ type: 'doodleEnd', seat: me.seat, id });
+  },
+
+  // Shared scratchpad while the drawer is choosing: every guesser draws on
+  // the same page and sees everyone else's marks live. Capped so a long wait
+  // can't grow without bound; `sketchClear` removes only the sender's own.
+  async sketchStart(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'choosing' || me.seat === r.drawerSeat) return;
+    const id = cleanId(msg.id);
+    const pts = cleanPoints(msg.pts);
+    if (!id || !pts || pts.length < 2 || this.sketch.has(id)) return;
+    if (this.sketch.size >= MAX_SKETCH_STROKES) return;
+    this.sketch.set(id, { seat: me.seat, pts: pts.slice() });
+    this.sketchActive.set(me.id, id);
+    this.relay({ type: 'sketchStart', seat: me.seat, id, pts });
+  },
+
+  async sketchPoints(me, msg) {
+    const r = this.room;
+    if (r.phase !== 'choosing' || me.seat === r.drawerSeat) return;
+    const id = cleanId(msg.id);
+    const pts = cleanPoints(msg.pts);
+    if (!id || !pts || this.sketchActive.get(me.id) !== id) return;
+    const k = this.sketch.get(id);
+    if (!k || k.pts.length + pts.length > MAX_INTS_PER_STROKE) return;
+    for (const v of pts) k.pts.push(v);
+    this.relay({ type: 'sketchPoints', seat: me.seat, id, pts });
+  },
+
+  async sketchEnd(me, msg) {
+    const id = cleanId(msg.id);
+    if (!id || this.sketchActive.get(me.id) !== id) return;
+    this.sketchActive.delete(me.id);
+    this.relay({ type: 'sketchEnd', seat: me.seat, id });
+  },
+
+  async sketchClear(me) {
+    if (this.room.phase !== 'choosing') return;
+    for (const [id, k] of this.sketch) if (k.seat === me.seat) this.sketch.delete(id);
+    this.sketchActive.delete(me.id);
+    this.relay({ type: 'sketchClear', seat: me.seat });
   },
 
   async undo(me) {

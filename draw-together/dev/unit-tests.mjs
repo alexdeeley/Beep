@@ -55,6 +55,16 @@ const find = (s) => WORDS.find((w) => w.w === s);
   ok(seen > 0, 'both categories turn up under Everything');
   ok(checkGuess('bike', find('Hot air balloon')) === 'wrong' && checkGuess('balloon', find('Hot air balloon')) === 'correct', 'hot air balloon accepts "balloon"');
 }
+// Magic: a regular category, part of Everything.
+{
+  const magic = WORDS.filter((w) => w.c.includes('magic'));
+  ok(magic.length >= 60, `Magic has plenty of words (${magic.length})`);
+  ok(find('Unicorn').c.includes('magic') && find('Magic wand').c.includes('magic') && find('Witch').c.includes('magic') && find('Fairy').c.includes('magic'), 'Magic has unicorns, wands, witches and fairies');
+  let m = 0;
+  for (let i = 0; i < 300; i++) if (WORDS[pickWord({ categories: ['magic'], difficulty: 'mixed' }, []).index].c.includes('magic')) m++;
+  ok(m === 300, 'picking the Magic chip gives only magic words');
+  ok(checkGuess('wand', find('Magic wand')) === 'correct' && checkGuess('broom', find('Broomstick')) === 'correct', 'magic aliases work');
+}
 ok(checkGuess('ice-cream cone', find('Ice cream cone')) === 'correct', 'ice-cream cone');
 ok(checkGuess('icecream', find('Ice cream cone')) === 'correct', 'icecream alias');
 ok(checkGuess('t rex', find('T-Rex')) === 'correct', 't rex');
@@ -634,6 +644,49 @@ A.close(); M2.close();
   X2.send({ type: 'guess', text: 'cat' }); X2.send({ type: 'giveup' }); X2.send({ type: 'react', i: 0 }); await sleep(60);
   ok(!Y.of('guess').length && !Y.of('react').length, 'no guessing or reactions in the studio');
   X2.close(); Y.close(); Z.close();
+}
+
+// ── Shared scratchpad while the drawer chooses ──────────────
+{
+  const { code: kc } = await (await fetch(base + '/api/rooms', { method: 'POST' })).json();
+  const K1 = new Client(kc, 'sketch-k001', 'Kai'), K2 = new Client(kc, 'sketch-k002', 'Kim'), K3 = new Client(kc, 'sketch-k003', 'Kit');
+  await K1.open(); await sleep(60); await K2.open(); await sleep(60); await K3.open(); await sleep(80);
+  K1.send({ type: 'start' }); await sleep(120);
+  ok(K1.st.phase === 'choosing', 'the game is in the choosing phase');
+  const drawer = [K1, K2, K3].find((c) => c.st.you === c.st.drawerSeat);
+  const [G1, G2] = [K1, K2, K3].filter((c) => c !== drawer);
+  G1.send({ type: 'sketchStart', id: 'sk000001', pts: [100, 100] });
+  G1.send({ type: 'sketchPoints', id: 'sk000001', pts: [200, 200, 300, 300] });
+  G1.send({ type: 'sketchEnd', id: 'sk000001' });
+  await sleep(100);
+  ok(G2.of('sketchStart').length === 1 && G2.of('sketchPoints').length === 1 && G2.of('sketchEnd').length === 1, 'a guesser\'s scratchpad stroke is relayed to the other guessers, start to end');
+  ok(G2.of('sketchStart')[0].seat === G1.st.you, 'stamped with the artist\'s seat');
+  drawer.send({ type: 'sketchStart', id: 'sk000002', pts: [10, 10] }); await sleep(80);
+  ok(!G2.of('sketchStart').some((m) => m.id === 'sk000002'), 'the drawer cannot draw on the scratchpad');
+  G1.send({ type: 'sketchStart', id: 'sk000003', pts: [50] }); G1.send({ type: 'sketchStart', id: 'bad id!', pts: [1, 2] }); await sleep(80);
+  ok(G2.of('sketchStart').length === 1, 'junk strokes are dropped');
+  // someone reconnecting mid-wait gets the page so far
+  G2.close(); await sleep(80);
+  const G2b = new Client(kc, G2.pid, G2.name); await G2b.open(); await sleep(120);
+  const full = G2b.of('sketch').at(-1);
+  ok(full && full.strokes.length === 1 && full.strokes[0].id === 'sk000001' && full.strokes[0].pts.length === 6, 'a player reconnecting mid-wait receives the whole scratchpad, points and all');
+  // clear mine removes only mine
+  G2b.send({ type: 'sketchStart', id: 'sk000004', pts: [5, 5] }); G2b.send({ type: 'sketchEnd', id: 'sk000004' }); await sleep(60);
+  G1.send({ type: 'sketchClear' }); await sleep(80);
+  ok(G2b.of('sketchClear').at(-1)?.seat === G1.st.you, 'a clear is relayed with its seat');
+  G1.close(); await sleep(80);
+  const G1b = new Client(kc, G1.pid, G1.name); await G1b.open(); await sleep(120);
+  const after = G1b.of('sketch').at(-1);
+  ok(after && after.strokes.length === 1 && after.strokes[0].id === 'sk000004', 'clearing removes only that player\'s strokes on the server');
+  // the round starting wipes it for good
+  drawer.send({ type: 'ready', aspect: 1 }); await sleep(120);
+  ok(G1b.st.phase === 'drawing', 'the round starts');
+  G2b.send({ type: 'sketchStart', id: 'sk000005', pts: [1, 1] }); await sleep(60);
+  ok(!G1b.of('sketchStart').some((m) => m.id === 'sk000005'), 'no scratchpad strokes once drawing has begun');
+  G2b.close(); await sleep(80);
+  const G2c = new Client(kc, G2.pid, G2.name); await G2c.open(); await sleep(120);
+  ok(G2c.of('sketch').length === 0 && G2c.st.phase === 'drawing', 'nothing of the scratchpad is sent once the round is under way');
+  for (const c of [drawer, G1b, G2c]) c.close();
 }
 
 // ── Trace-an-emoji studio ───────────────────────────────────

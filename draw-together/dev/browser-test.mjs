@@ -496,7 +496,15 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   await Q.page.click('#btn-join');
   await Q.page.fill('#in-code', autoCode);
   await Q.page.click('#btn-join-go');
+  // a third player, so the scratchpad has two guessers to share it
+  const R = await player('Rae', { viewport: { width: 800, height: 700 } });
+  await R.page.fill('#in-name', 'Rae');
+  await R.page.click('#btn-join');
+  await R.page.fill('#in-code', autoCode);
+  await R.page.click('#btn-join-go');
+  await R.page.waitForSelector('#scr-lobby:not([hidden])');
   await P.page.waitForSelector('#btn-start:not([hidden])');
+  await P.page.waitForFunction(() => window.__dt.S.st?.players.length === 3);
   await P.page.click('#btn-start');
   await P.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing');
   await Q.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing');
@@ -505,7 +513,7 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
 
   // scratchpad while the drawer is choosing
   ok(await aGu.page.evaluate(() => document.getElementById('ov-choose').hidden && document.querySelector('.game').classList.contains('sketching')), 'guesser gets the board as a scratchpad, not a card over it, while the drawer picks');
-  ok((await aGu.page.textContent('#hud-main')).includes('Doodle while you wait'), 'and is invited to doodle');
+  ok((await aGu.page.textContent('#hud-main')).includes('Doodle together while you wait'), 'and is invited to doodle');
   const sheet = await aGu.page.locator('.sheet').boundingBox();
   const touch = aGu === Q;
   const cx = sheet.x + sheet.width * 0.4, cy = sheet.y + sheet.height * 0.4;
@@ -513,7 +521,22 @@ ok(await M.page.evaluate(() => window.__dt.music.isPlaying()), 'music resumes on
   void touch;
   ok(await aGu.page.evaluate(() => window.__dt.hasSketch()), 'the guesser can doodle on it');
   ok(await aGu.page.evaluate(() => { const c = document.querySelector('.layer.sketch'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; }), 'and the doodle is actually on the scratchpad layer');
-  ok(await aDr.page.evaluate(() => !window.__dt.hasSketch()), 'nothing of it reaches the drawer');
+  ok(await aDr.page.evaluate(() => !window.__dt.hasSketch()), "nothing of it reaches the drawer's own canvas");
+  // the other guesser is on the same shared page
+  await R.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing');
+  await sleep(300);
+  ok(await R.page.evaluate(() => window.__dt.hasSketch()), "the other guesser sees the first guesser's scratchpad doodle");
+  const rs = await R.page.locator('.sheet').boundingBox();
+  await R.page.mouse.move(rs.x + rs.width * 0.7, rs.y + rs.height * 0.7); await R.page.mouse.down(); await R.page.mouse.move(rs.x + rs.width * 0.5, rs.y + rs.height * 0.8, { steps: 6 }); await R.page.mouse.up();
+  await sleep(300);
+  const sketchCount = (P) => P.page.evaluate(() => window.__dt.sketchCount());
+  ok((await sketchCount(aGu)) === 2 && (await sketchCount(R)) === 2, 'the newcomer\'s doodle shows up on the first guesser\'s page too: it is one shared page');
+  await aGu.page.click('#btn-sketch-clear');
+  await sleep(300);
+  ok((await sketchCount(aGu)) === 1 && (await sketchCount(R)) === 1, '"Clear mine" removes only your own marks, everywhere');
+  // reloading mid-wait brings the shared page back
+  await R.page.reload(); await R.page.waitForFunction(() => window.__dt.S.st?.phase === 'choosing'); await sleep(400);
+  ok((await sketchCount(R)) === 1, 'a guesser who reloads mid-wait gets the shared page back');
 
   // the round starts: the doodle is gone, and the clock to auto-open is shown
   await aDr.page.click('#btn-ready');
