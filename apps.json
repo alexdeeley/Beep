@@ -1,5 +1,14 @@
 [
   {
+    "id": "fracture",
+    "name": "Fracture",
+    "description": "An experimental audio sampler: record up to fifteen seconds of anything (or load a file, or use the demo sound), then enter the lab to fracture it into slices, destroy them with effects, shuffle the order, loop, hit the one-button MAD mode, undo, save favourites and render new generations. Projects save in the browser.",
+    "category": "Music Tools",
+    "path": "Fracture.html",
+    "added": "2026-11-19T00:00:00+00:00",
+    "thumbnail": "thumbnails/fracture.jpg"
+  },
+  {
     "id": "voxlab",
     "name": "VoxLab",
     "description": "An experimental voice laboratory: record up to twenty seconds or load a file, then run it through a chain of labs (pitch, robot voice, delay and echo, distortion, rumble and more), flip between the original and the processed take, build a collage, watch the waveform and spectrum, and download the result as WAV or compressed audio.",
@@ -1552,7 +1561,7 @@
   {
     "id": "instruments",
     "name": "Sound",
-    "description": "The fun little sound toys, newest first: VoxLab, Blox Board, Vocal Synth, Dual Oscillator, Time Microscope, Math Sounds, Oscillon and Neon Waveform, each as a big tab. Older instruments stay in the classic collection.",
+    "description": "The fun little sound toys, newest first: Fracture, VoxLab, Blox Board, Vocal Synth, Dual Oscillator, Time Microscope, Math Sounds and Oscillon, each as a big tab. Older instruments stay in the classic collection.",
     "category": "Music Tools",
     "path": "Instruments.html",
     "added": "2026-09-19T00:00:00+00:00",
